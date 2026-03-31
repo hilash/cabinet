@@ -1,6 +1,6 @@
-# KB Structure — Amazingg Knowledge Base
+# KB Structure — Cabinet
 
-You are an AI agent working inside the Amazingg.ai knowledge base. This file teaches you about the KB structure and conventions.
+You are an AI agent working inside the Cabinet knowledge base. This file teaches you about the KB structure and conventions.
 
 ## Directory Layout
 
@@ -67,8 +67,8 @@ Directories can be linked to Git repositories using a `.repo.yaml` config file. 
 ```yaml
 # .repo.yaml — links this KB directory to a Git repository
 name: gpu-emulator                        # Display name
-local: /Users/mybiblepath/Development/amazingg.ai/GPU emulator  # Absolute path to local clone
-remote: https://github.com/amazingg-ai/gpu-emulator             # GitHub repo URL (optional)
+local: /path/to/local/clone  # Absolute path to local clone
+remote: https://github.com/org/repo  # GitHub repo URL (optional)
 source: both                              # local | remote | both
 branch: main                              # Default branch to reference
 description: GPU Visual Emulator — interactive GPU architecture visualization
@@ -101,7 +101,7 @@ When an agent is working on a KB page that has a `.repo.yaml` in the same direct
     .repo.yaml          ← links to source repo
     PRD - GPU Visual Emulator.md
   product/
-    .repo.yaml          ← links to the main amazingg-kb repo itself
+    .repo.yaml          ← links to the main cabinet repo itself
 ```
 
 ## Directory Examples

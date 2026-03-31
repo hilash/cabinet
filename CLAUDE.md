@@ -1,8 +1,8 @@
-# CLAUDE.md — Amazingg KB
+# CLAUDE.md — Cabinet
 
 ## What is this project?
 
-Amazingg KB is an AI-first self-hosted knowledge base for the Amazingg.ai startup (GPU optimization). All content lives as markdown files on disk. The web UI provides WYSIWYG editing, a collapsible tree sidebar, drag-and-drop page organization, and an AI panel that can edit pages via Claude CLI.
+Cabinet is an AI-first self-hosted knowledge base and startup OS. All content lives as markdown files on disk. The web UI provides WYSIWYG editing, a collapsible tree sidebar, drag-and-drop page organization, and an AI panel that can edit pages via Claude CLI.
 
 **Core philosophy:** Humans define intent. Agents do the work. The knowledge base is the shared memory between both.
 
