@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type SectionType = "page" | "agents" | "agent" | "jobs" | "settings" | "mission-control";
+export type SectionType = "page" | "agents" | "agent" | "jobs" | "settings" | "mission-control" | "missions" | "mission" | "chat" | "activity";
 
 export interface SelectedSection {
   type: SectionType;
