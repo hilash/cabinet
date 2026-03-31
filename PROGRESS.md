@@ -11,3 +11,5 @@
 [2026-03-31] Phase 1, Step 5: Restructured job storage to live under agents. Updated `job-manager.ts` to load jobs from both legacy `/data/.jobs/` and new `/data/.agents/{slug}/jobs/` directories. Added `agentSlug` field to `JobConfig` type. Created agent-scoped job API endpoints: `GET/POST /api/agents/[slug]/jobs` and `GET/PUT/DELETE /api/agents/[slug]/jobs/[id]` with run and toggle actions.
 
 [2026-03-31] Phase 1, Step 6: Updated sidebar navigation with Team section (Agents, Missions, Chat) and System section (Activity, Settings). Added `NavButton` component for consistent nav items with active state highlighting. Added new section types to `SectionType` union: `missions`, `mission`, `chat`, `activity`.
+
+[2026-03-31] Phase 1, Step 7: Updated `app-shell.tsx` routing to use new `AgentList` and `AgentDetail` components for agents/agent sections. Added placeholder views for missions, chat, and activity sections. Onboarding completion now navigates to agents view instead of mission-control. Phase 1 (Foundation) is now complete.

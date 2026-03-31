@@ -7,6 +7,8 @@ import { KBEditor } from "@/components/editor/editor";
 import { WebsiteViewer } from "@/components/editor/website-viewer";
 import { PdfViewer } from "@/components/editor/pdf-viewer";
 import { CsvViewer } from "@/components/editor/csv-viewer";
+import { AgentList } from "@/components/agents/agent-list";
+import { AgentDetail } from "@/components/agents/agent-detail";
 import { AgentDashboard } from "@/components/agents/agent-dashboard";
 import { AgentSessionView, GeneralAgentView } from "@/components/agents/agent-session-view";
 import { MissionControl } from "@/components/mission-control/mission-control";
@@ -21,6 +23,17 @@ import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import type { TreeNode } from "@/types";
+
+function PlaceholderSection({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{description}</p>
+      </div>
+    </div>
+  );
+}
 
 function findNode(nodes: TreeNode[], path: string): TreeNode | null {
   for (const node of nodes) {
@@ -61,7 +74,7 @@ export function AppShell() {
 
   const handleWizardComplete = useCallback(() => {
     setShowWizard(false);
-    setSection({ type: "mission-control" });
+    setSection({ type: "agents" });
     loadTree();
   }, [setSection, loadTree]);
 
@@ -98,10 +111,21 @@ export function AppShell() {
     if (section.type === "mission-control") return <MissionControl />;
     if (section.type === "settings") return <SettingsPage />;
     if (section.type === "jobs") return <JobsManager />;
-    if (section.type === "agents") return <AgentDashboard />;
+    if (section.type === "agents") return <AgentList />;
     if (section.type === "agent") {
       if (section.slug === "general") return <GeneralAgentView />;
-      return <AgentSessionView slug={section.slug!} />;
+      return <AgentDetail slug={section.slug!} />;
+    }
+
+    // Team sections (placeholders for upcoming phases)
+    if (section.type === "missions" || section.type === "mission") {
+      return <PlaceholderSection title="Missions" description="Mission tracking coming soon" />;
+    }
+    if (section.type === "chat") {
+      return <PlaceholderSection title="Chat" description="Internal chat channels coming soon" />;
+    }
+    if (section.type === "activity") {
+      return <PlaceholderSection title="Activity" description="Activity feed coming soon" />;
     }
 
     // Page-based views (when a KB page is selected)
