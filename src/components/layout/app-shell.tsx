@@ -12,6 +12,8 @@ import { AgentDetail } from "@/components/agents/agent-detail";
 import { AgentDashboard } from "@/components/agents/agent-dashboard";
 import { AgentSessionView, GeneralAgentView } from "@/components/agents/agent-session-view";
 import { MissionControl } from "@/components/mission-control/mission-control";
+import { MissionList } from "@/components/missions/mission-list";
+import { MissionDetail } from "@/components/missions/mission-detail";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
@@ -117,9 +119,10 @@ export function AppShell() {
       return <AgentDetail slug={section.slug!} />;
     }
 
-    // Team sections (placeholders for upcoming phases)
-    if (section.type === "missions" || section.type === "mission") {
-      return <PlaceholderSection title="Missions" description="Mission tracking coming soon" />;
+    // Team sections
+    if (section.type === "missions") return <MissionList />;
+    if (section.type === "mission" && section.slug) {
+      return <MissionDetail missionId={section.slug} />;
     }
     if (section.type === "chat") {
       return <PlaceholderSection title="Chat" description="Internal chat channels coming soon" />;
