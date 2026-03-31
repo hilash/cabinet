@@ -1,4 +1,4 @@
-# PRD: Amazingg KB — Startup Knowledge Base & Admin Panel
+# PRD: Cabinet — AI-First Knowledge Base & Startup OS
 
 ## 1. Vision
 
@@ -765,7 +765,7 @@ GET    /api/export/pdf/:path        → generate and download PDF
 - [ ] **Session middleware** on all API routes — reject unauthenticated requests
 - [ ] **User identity in header** — GitHub avatar + name, sign out button
 - [ ] **Git author tracking** — every save/create/delete commits as the logged-in user (`git commit --author="Name <email>"`)
-- [ ] **Version history shows real authors** — replace "Amazingg KB" with actual user who made each change
+- [ ] **Version history shows real authors** — replace "Cabinet" with actual user who made each change
 - [ ] **Agent tracking** — agent commits attributed as "Agent (triggered by {user})"
 - [ ] **Activity feed** — simple `/api/activity` endpoint showing recent edits across all users (powered by `git log`)
 - [ ] **Protected routes** — redirect to login page if not authenticated
@@ -794,8 +794,8 @@ User → GitHub OAuth → NextAuth JWT session → API routes check session
 
 **Install steps (target):**
 ```bash
-git clone https://github.com/amazingg-ai/amazingg-kb
-cd amazingg-kb
+git clone https://github.com/cabinet-dev/cabinet
+cd cabinet
 cp .env.example .env        # edit: DOMAIN, GITHUB_CLIENT_ID/SECRET
 docker compose up -d         # done — live at https://your-domain.com
 docker compose exec kb claude login   # one-time: auth Claude CLI
@@ -856,9 +856,9 @@ focus:
 tags: [strategy, leadership, fundraising]
 ---
 
-# CEO Agent — Hila's AI Co-pilot
+# CEO Agent — AI Co-pilot
 
-You are the AI CEO agent for Amazingg.ai, a GPU kernel optimization startup.
+You are the AI CEO agent for a startup using Cabinet as its knowledge base and operations hub.
 
 ## Your Responsibilities
 - Review and update the product roadmap
@@ -964,12 +964,10 @@ GET    /api/agents/personas/:name/history → heartbeat execution history
 **GitHub:** github.com/thecabinet/cabinet
 **Tagline:** "Your AI cabinet. Defined in markdown."
 
-**Strategy:** Two versions:
-- **Cabinet** (open-source) — generic startup OS, no company-specific content, interactive onboarding wizard, pre-built agent templates
-- **Amazingg.ai fork** (private) — GPU-specific content, competitors, people CRM, GTM lists, research
+**Strategy:** Open-source product with interactive onboarding and pre-built agent templates.
 
-#### 6a — Clean Generic Fork
-- [ ] Strip all Amazingg-specific content from `/data` (GPU research, competitors, people, GTM lists)
+#### 6a — Clean Generic Release
+- [ ] Ensure no company-specific content remains in `/data`
 - [ ] Replace with interactive onboarding wizard: "What's your startup name? Stage? How many founders?" → generates initial structure + agent personas
 - [ ] Generic agent templates: CEO, Founding Engineer, Growth Marketer, Research Analyst, Operations
 - [ ] Default KB structure template: product/, market/, people/, research/, operations/
@@ -1030,7 +1028,7 @@ GET    /api/agents/personas/:name/history → heartbeat execution history
 | Authentication | Simple .env password | No database, no OAuth complexity. Upgrade to GitHub OAuth later if needed. |
 | User tracking | Git commit author | No frontmatter pollution — `git log --author` and `git blame` are the audit trail |
 | Activity feed | `git log` across all users | No activity table needed — git IS the activity log |
-| Open-source strategy | Dual fork (Cabinet + Amazingg) | Generic open-source product + private startup fork with company-specific data |
+| Open-source strategy | Cabinet (open-source) | Generic open-source product for any startup team |
 | Deployment | Docker Compose + Caddy | Single command (`docker compose up`), auto HTTPS, zero Nginx config |
 | Autonomous agents | MD files + cron heartbeats + memory | Agents are editable personas, not black boxes. Memory is markdown humans can read/edit. |
 
@@ -1046,7 +1044,7 @@ GET    /api/agents/personas/:name/history → heartbeat execution history
 
 ## 10. Open Questions
 
-1. ~~**Domain/project name**~~ — **Resolved:** "Cabinet" (cabinet.dev). Internal fork stays "Amazingg KB".
+1. ~~**Domain/project name**~~ — **Resolved:** "Cabinet" (cabinet.dev).
 2. ~~**Theming**~~ — **Resolved:** Dark mode default, toggle available.
 3. **Max file size** for uploads? (Suggested: 50MB default, configurable)
 4. **Git remote** — auto-push to GitHub/GitLab, or manual only?

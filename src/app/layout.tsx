@@ -16,8 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Amazingg KB",
-  description: "AI-first knowledge base for Amazingg.ai",
+  title: "Cabinet",
+  description: "AI-first knowledge base and startup OS",
 };
 
 export default function RootLayout({
