@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getChannel, getMessages, postMessage, togglePin } from "@/lib/chat/chat-io";
+import { logActivity } from "@/lib/activity/activity-io";
 
 export async function GET(
   req: NextRequest,
@@ -56,7 +57,21 @@ export async function POST(
       replyTo
     );
 
-    return NextResponse.json({ message: msg }, { status: 201 });
+    // Detect @mentions for agent triggering
+    const mentions = (content.match(/@([a-z0-9-]+)/g) || []).map((m: string) =>
+      m.slice(1)
+    );
+
+    // Log activity for chat messages
+    logActivity({
+      agentSlug: fromType === "agent" ? fromId : undefined,
+      eventType: "chat:message",
+      summary: `posted in #${slug}`,
+      details: content.slice(0, 200),
+      channelSlug: slug,
+    });
+
+    return NextResponse.json({ message: msg, mentions }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
