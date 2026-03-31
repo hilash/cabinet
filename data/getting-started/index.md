@@ -7,9 +7,9 @@ tags:
   - onboarding
 order: 1
 ---
-# Welcome to Amazingg KB
+# Welcome to Cabinet
 
-The AI-first knowledge base for **Amazingg.ai** — shared memory between humans and AI agents.
+The AI-first knowledge base and startup OS — shared memory between humans and AI agents.
 
 ## What's Here
 

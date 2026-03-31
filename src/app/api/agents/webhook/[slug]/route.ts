@@ -12,7 +12,7 @@ type RouteParams = { params: Promise<{ slug: string }> };
  * Example:
  *   curl -X POST http://localhost:3000/api/agents/webhook/code-reviewer \
  *     -H "Content-Type: application/json" \
- *     -d '{"repo": "amazingg-ai/gpu-emulator", "pr": 42}'
+ *     -d '{"repo": "org/repo", "pr": 42}'
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {

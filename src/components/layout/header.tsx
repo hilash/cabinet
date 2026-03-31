@@ -53,7 +53,7 @@ export function Header() {
     <header className="flex items-center justify-between border-b border-border px-4 py-2 bg-background/80 backdrop-blur-sm">
       <div className="flex items-center gap-2">
         <h1 className="text-[13px] font-medium text-foreground truncate tracking-[-0.01em]">
-          {frontmatter?.title || "Amazingg KB"}
+          {frontmatter?.title || "Cabinet"}
         </h1>
       </div>
       <div className="flex items-center gap-1">
