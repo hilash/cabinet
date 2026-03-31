@@ -7,236 +7,161 @@ import {
   ArrowRight,
   ArrowLeft,
   Rocket,
-  Megaphone,
-  Target,
-  Wrench,
-  FileText,
-  Search,
-  Settings,
-  HeadphonesIcon,
-  Users,
-  DollarSign,
   Check,
   Loader2,
 } from "lucide-react";
 
-interface CompanyProfile {
-  name: string;
-  product: string;
-  teamSize: string;
-}
-
-interface Department {
-  id: string;
-  name: string;
+interface OnboardingAnswers {
+  companyName: string;
   description: string;
-  icon: React.ReactNode;
-  agents: { name: string; emoji: string; role: string; type: string; plays: string[] }[];
-  plays: string[];
+  goals: string;
+  teamSize: string;
+  priority: string;
 }
 
-const DEPARTMENTS: Department[] = [
-  {
-    id: "marketing",
-    name: "Marketing",
-    description: "Reddit, LinkedIn, content, SEO",
-    icon: <Megaphone className="h-5 w-5" />,
-    agents: [
-      { name: "Head of Marketing", emoji: "👑", role: "Marketing Department Lead", type: "lead", plays: [] },
-      { name: "Content Agent", emoji: "📝", role: "Content & Community Specialist", type: "specialist", plays: ["reddit-monitor", "linkedin-poster"] },
-      { name: "Outreach Agent", emoji: "🎯", role: "Lead Generation & Competitive Intelligence", type: "specialist", plays: ["lead-scorer", "competitor-tracker"] },
-    ],
-    plays: ["reddit-monitor", "linkedin-poster", "lead-scorer", "competitor-tracker"],
-  },
-  {
-    id: "sales",
-    name: "Sales",
-    description: "Lead scoring, outreach, follow-ups",
-    icon: <Target className="h-5 w-5" />,
-    agents: [
-      { name: "Sales Agent", emoji: "💼", role: "Sales Development Representative", type: "specialist", plays: [] },
-    ],
-    plays: [],
-  },
-  {
-    id: "engineering",
-    name: "Engineering",
-    description: "QA, code review, deploys",
-    icon: <Wrench className="h-5 w-5" />,
-    agents: [
-      { name: "Engineering Agent", emoji: "🛠", role: "QA & Code Review", type: "specialist", plays: [] },
-    ],
-    plays: [],
-  },
-  {
-    id: "content",
-    name: "Content",
-    description: "Blog posts, social media, repurposing",
-    icon: <FileText className="h-5 w-5" />,
-    agents: [
-      { name: "Content Writer", emoji: "✍️", role: "Blog & Social Content Creator", type: "specialist", plays: [] },
-    ],
-    plays: [],
-  },
-  {
-    id: "research",
-    name: "Research",
-    description: "Competitor monitoring, market intel",
-    icon: <Search className="h-5 w-5" />,
-    agents: [
-      { name: "Research Agent", emoji: "🔬", role: "Market & Competitive Intelligence", type: "specialist", plays: ["competitor-tracker"] },
-    ],
-    plays: ["competitor-tracker"],
-  },
-  {
-    id: "operations",
-    name: "Operations",
-    description: "Invoicing, HR, admin",
-    icon: <Settings className="h-5 w-5" />,
-    agents: [
-      { name: "Operations Agent", emoji: "⚙️", role: "Chief of Staff & Admin", type: "specialist", plays: [] },
-    ],
-    plays: [],
-  },
-  {
-    id: "support",
-    name: "Customer Support",
-    description: "Ticket triage, responses",
-    icon: <HeadphonesIcon className="h-5 w-5" />,
-    agents: [
-      { name: "Support Agent", emoji: "🎧", role: "Customer Support & Ticket Triage", type: "specialist", plays: [] },
-    ],
-    plays: [],
-  },
-  {
-    id: "hiring",
-    name: "Hiring",
-    description: "Resume screening, outreach",
-    icon: <Users className="h-5 w-5" />,
-    agents: [
-      { name: "Hiring Agent", emoji: "👥", role: "Recruiting & Talent Sourcing", type: "specialist", plays: [] },
-    ],
-    plays: [],
-  },
-  {
-    id: "finance",
-    name: "Finance",
-    description: "Bookkeeping, reporting, metrics",
-    icon: <DollarSign className="h-5 w-5" />,
-    agents: [
-      { name: "Finance Agent", emoji: "💰", role: "Financial Reporting & Metrics", type: "specialist", plays: [] },
-    ],
-    plays: [],
-  },
-];
+interface SuggestedAgent {
+  slug: string;
+  name: string;
+  emoji: string;
+  role: string;
+  checked: boolean;
+}
 
-const TEAM_SIZES = ["Just me", "2-5", "6-20", "20+"];
+const TEAM_SIZES = ["Just me", "2-5", "5-20", "20+"];
+
+const STEP_COUNT = 4; // welcome, 5 questions (in 2 screens), team suggestion, launching
+
+function suggestTeam(answers: OnboardingAnswers): SuggestedAgent[] {
+  const agents: SuggestedAgent[] = [
+    { slug: "ceo", name: "CEO Agent", emoji: "\u{1F3AF}", role: "Strategic planning, goal tracking, task delegation", checked: true },
+    { slug: "editor", name: "Editor", emoji: "\u{1F4DD}", role: "KB content, documentation, formatting", checked: true },
+  ];
+
+  const desc = (answers.description + " " + answers.goals + " " + answers.priority).toLowerCase();
+
+  if (desc.match(/content|blog|social|market|brand|seo|newsletter/)) {
+    agents.push({ slug: "content-marketer", name: "Content Marketer", emoji: "\u{1F4E3}", role: "Blog, social media, newsletters, content strategy", checked: true });
+  }
+
+  if (desc.match(/seo|search|rank|keyword|organic|google/)) {
+    agents.push({ slug: "seo", name: "SEO Specialist", emoji: "\u{1F50D}", role: "Keyword research, site optimization, rankings", checked: false });
+  }
+
+  if (desc.match(/sales|lead|outreach|revenue|customer|pipeline|deal/)) {
+    agents.push({ slug: "sales", name: "Sales Agent", emoji: "\u{1F4B0}", role: "Lead generation, outreach, pipeline management", checked: false });
+  }
+
+  if (desc.match(/quality|review|proofread|test|check|audit/)) {
+    agents.push({ slug: "qa", name: "QA Agent", emoji: "\u{1F9EA}", role: "Review, proofread, fact-check content", checked: false });
+  }
+
+  // If no specific agents matched, add content marketer as a reasonable default
+  if (agents.length === 2) {
+    agents.push({ slug: "content-marketer", name: "Content Marketer", emoji: "\u{1F4E3}", role: "Blog, social media, newsletters", checked: true });
+  }
+
+  return agents;
+}
 
 export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(0);
-  const [profile, setProfile] = useState<CompanyProfile>({ name: "", product: "", teamSize: "" });
-  const [selectedDepts, setSelectedDepts] = useState<Set<string>>(new Set());
+  const [answers, setAnswers] = useState<OnboardingAnswers>({
+    companyName: "",
+    description: "",
+    goals: "",
+    teamSize: "",
+    priority: "",
+  });
+  const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[]>([]);
   const [launching, setLaunching] = useState(false);
 
-  const toggleDept = (id: string) => {
-    setSelectedDepts((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const goToTeamSuggestion = () => {
+    setSuggestedAgents(suggestTeam(answers));
+    setStep(3);
   };
 
-  const totalAgents = DEPARTMENTS.filter((d) => selectedDepts.has(d.id)).reduce(
-    (sum, d) => sum + d.agents.length,
-    0
-  );
+  const toggleAgent = (slug: string) => {
+    setSuggestedAgents((prev) =>
+      prev.map((a) => (a.slug === slug ? { ...a, checked: !a.checked } : a))
+    );
+  };
 
   const launch = useCallback(async () => {
     setLaunching(true);
     try {
-      // Save company config
-      await fetch("/api/agents/config", {
+      const selected = suggestedAgents.filter((a) => a.checked).map((a) => a.slug);
+
+      await fetch("/api/onboarding/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          exists: true,
-          company: profile,
-          departments: Array.from(selectedDepts),
-          setupDate: new Date().toISOString(),
+          answers,
+          selectedAgents: selected,
         }),
       });
-
-      // Create agents for selected departments
-      for (const dept of DEPARTMENTS) {
-        if (!selectedDepts.has(dept.id)) continue;
-        for (const agent of dept.agents) {
-          const slug = agent.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-          await fetch("/api/agents/personas", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              slug,
-              name: agent.name,
-              emoji: agent.emoji,
-              role: agent.role,
-              department: dept.id,
-              type: agent.type,
-              active: true,
-              provider: "claude",
-              heartbeat: agent.type === "lead" ? "0 */6 * * *" : "0 */4 * * *",
-              channels: [dept.id, "general"],
-              plays: agent.plays,
-              tags: [dept.id],
-              body: `You are ${agent.name}, the ${agent.role} for ${profile.name || "the company"}.\n\nCompany: ${profile.name}\nProduct: ${profile.product}\nDepartment: ${dept.name}\nRole type: ${agent.type}`,
-            }),
-          });
-        }
-      }
 
       onComplete();
     } catch (e) {
       console.error("Setup failed:", e);
       setLaunching(false);
     }
-  }, [profile, selectedDepts, onComplete]);
+  }, [answers, suggestedAgents, onComplete]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-2xl mx-auto px-6">
+      <div className="w-full max-w-xl mx-auto px-6">
         {/* Progress indicator */}
         <div className="flex items-center justify-center gap-2 mb-10">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex items-center gap-2">
-              <div
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  i <= step
-                    ? "bg-primary w-10"
-                    : "bg-muted w-6"
-                }`}
-              />
-            </div>
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className={`h-2.5 rounded-full transition-all duration-300 ${
+                i <= step ? "bg-primary w-10" : "bg-muted w-6"
+              }`}
+            />
           ))}
         </div>
 
-        {/* Step 1: Company Profile */}
+        {/* Step 0: Welcome */}
         {step === 0 && (
           <div className="space-y-8 animate-in fade-in duration-300">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight">Welcome to Cabinet</h1>
-              <p className="text-muted-foreground text-lg">
-                Your Company OS. Let&apos;s set up your agent team.
+            <div className="text-center space-y-3">
+              <h1 className="text-3xl font-bold tracking-tight">
+                Welcome to Cabinet
+              </h1>
+              <p className="text-muted-foreground text-lg leading-relaxed">
+                Let&apos;s set up your AI team. I&apos;ll ask a few questions
+                to get the right agents working for you.
               </p>
+            </div>
+            <div className="flex justify-center pt-4">
+              <Button onClick={() => setStep(1)} className="gap-2 h-10 px-6">
+                Let&apos;s go
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 1: Questions 1-3 */}
+        {step === 1 && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight">
+                Tell me about your project
+              </h1>
             </div>
 
             <div className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  What&apos;s your company called?
+                <label className="text-sm font-medium">
+                  What&apos;s your company or project name?
                 </label>
                 <Input
-                  value={profile.name}
-                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  value={answers.companyName}
+                  onChange={(e) =>
+                    setAnswers({ ...answers, companyName: e.target.value })
+                  }
                   placeholder="Acme Corp"
                   className="h-11 text-base"
                   autoFocus
@@ -244,28 +169,76 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  What&apos;s your product or service?
-                </label>
+                <label className="text-sm font-medium">What do you do?</label>
                 <Input
-                  value={profile.product}
-                  onChange={(e) => setProfile({ ...profile, product: e.target.value })}
-                  placeholder="GPU optimization platform for AI workloads"
+                  value={answers.description}
+                  onChange={(e) =>
+                    setAnswers({ ...answers, description: e.target.value })
+                  }
+                  placeholder="We make a podcast about AI startups"
                   className="h-11 text-base"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  How many people on your team?
+                <label className="text-sm font-medium">
+                  What are your top 3 goals right now?
+                </label>
+                <Input
+                  value={answers.goals}
+                  onChange={(e) =>
+                    setAnswers({ ...answers, goals: e.target.value })
+                  }
+                  placeholder="Grow newsletter to 1k subs, launch blog, get first 10 customers"
+                  className="h-11 text-base"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setStep(0)}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+              <Button
+                onClick={() => setStep(2)}
+                disabled={!answers.companyName.trim()}
+                className="gap-2 h-10 px-5"
+              >
+                Next
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Questions 4-5 */}
+        {step === 2 && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight">
+                Almost there
+              </h1>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  How big is your team?
                 </label>
                 <div className="flex gap-2">
                   {TEAM_SIZES.map((size) => (
                     <button
                       key={size}
-                      onClick={() => setProfile({ ...profile, teamSize: size })}
+                      onClick={() =>
+                        setAnswers({ ...answers, teamSize: size })
+                      }
                       className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${
-                        profile.teamSize === size
+                        answers.teamSize === size
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground"
                       }`}
@@ -275,168 +248,116 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   ))}
                 </div>
               </div>
-            </div>
 
-            <div className="flex justify-end pt-2">
-              <Button
-                onClick={() => setStep(1)}
-                disabled={!profile.name.trim()}
-                className="gap-2 h-10 px-5"
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Department Selection */}
-        {step === 1 && (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight">What should your agents handle?</h1>
-              <p className="text-muted-foreground text-lg">
-                Select the areas where you need help. You can add more later.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {DEPARTMENTS.map((dept) => {
-                const selected = selectedDepts.has(dept.id);
-                return (
-                  <button
-                    key={dept.id}
-                    onClick={() => toggleDept(dept.id)}
-                    className={`relative p-4 rounded-xl border text-left transition-all ${
-                      selected
-                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                        : "border-border hover:border-primary/30 hover:bg-muted/30"
-                    }`}
-                  >
-                    {selected && (
-                      <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                        <Check className="h-3 w-3 text-primary-foreground" />
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <span className={`${selected ? "text-primary" : "text-muted-foreground"}`}>
-                        {dept.icon}
-                      </span>
-                      <span className="font-medium text-sm">{dept.name}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {dept.description}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <Button variant="ghost" onClick={() => setStep(0)} className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </Button>
-              <Button
-                onClick={() => setStep(2)}
-                disabled={selectedDepts.size === 0}
-                className="gap-2 h-10 px-5"
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Review & Launch */}
-        {step === 2 && (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight">Your agent team</h1>
-              <p className="text-muted-foreground text-lg">
-                {totalAgents} agents across {selectedDepts.size} department{selectedDepts.size !== 1 ? "s" : ""}. Ready to launch.
-              </p>
-            </div>
-
-            <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-              {DEPARTMENTS.filter((d) => selectedDepts.has(d.id)).map((dept) => (
-                <div
-                  key={dept.id}
-                  className="border border-border rounded-xl p-4 space-y-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{dept.icon}</span>
-                    <span className="font-semibold text-sm">{dept.name}</span>
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      {dept.agents.length} agent{dept.agents.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 pl-1">
-                    {dept.agents.map((agent, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2.5 text-sm"
-                      >
-                        <span className="text-base">{agent.emoji}</span>
-                        <span className="font-medium">{agent.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {agent.type === "lead" ? "Lead" : agent.role}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {dept.plays.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {dept.plays.map((play) => (
-                        <span
-                          key={play}
-                          className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
-                        >
-                          {play}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="border border-border/50 rounded-xl p-4 bg-muted/20">
-              <div className="text-sm space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Slack channels</span>
-                  <span className="font-medium">
-                    #general, #alerts
-                    {Array.from(selectedDepts).map((d) => `, #${d}`).join("")}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Runtime</span>
-                  <span className="font-medium">Heartbeat (auto-schedule)</span>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  What&apos;s your most immediate priority?
+                </label>
+                <Input
+                  value={answers.priority}
+                  onChange={(e) =>
+                    setAnswers({ ...answers, priority: e.target.value })
+                  }
+                  placeholder="Set up our content engine and start publishing weekly"
+                  className="h-11 text-base"
+                  autoFocus
+                />
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-2">
-              <Button variant="ghost" onClick={() => setStep(1)} className="gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setStep(1)}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+              <Button
+                onClick={goToTeamSuggestion}
+                className="gap-2 h-10 px-5"
+              >
+                Next
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Team Suggestion */}
+        {step === 3 && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight">
+                Your starter team
+              </h1>
+              <p className="text-muted-foreground">
+                Based on your goals, here&apos;s who I recommend. Check the
+                agents you want &mdash; you can always add more from the library
+                later.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {suggestedAgents.map((agent) => (
+                <button
+                  key={agent.slug}
+                  onClick={() => toggleAgent(agent.slug)}
+                  className={`flex items-center gap-3 w-full p-3 rounded-lg border text-left transition-all ${
+                    agent.checked
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/30"
+                  }`}
+                >
+                  <div
+                    className={`h-5 w-5 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                      agent.checked
+                        ? "bg-primary border-primary"
+                        : "border-muted-foreground/30"
+                    }`}
+                  >
+                    {agent.checked && (
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    )}
+                  </div>
+                  <span className="text-xl">{agent.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium">{agent.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {agent.role}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setStep(2)}
+                className="gap-2"
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
               <Button
                 onClick={launch}
-                disabled={launching}
+                disabled={
+                  launching ||
+                  suggestedAgents.filter((a) => a.checked).length === 0
+                }
                 className="gap-2 h-10 px-6"
               >
                 {launching ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Launching...
+                    Setting up...
                   </>
                 ) : (
                   <>
                     <Rocket className="h-4 w-4" />
-                    Launch Team
+                    Set up team
                   </>
                 )}
               </Button>
