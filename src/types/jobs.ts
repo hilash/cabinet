@@ -11,6 +11,7 @@ export interface JobConfig {
   enabled: boolean;
   schedule: string;
   provider: string;
+  agentSlug?: string;
   workdir?: string;
   timeout?: number;
   prompt: string;
