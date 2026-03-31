@@ -104,11 +104,9 @@ export function Sidebar() {
           </Button>
         </div>
         <Separator />
-        <TreeView />
-        <Separator />
 
         {/* Team section */}
-        <div className="px-3 pt-2">
+        <div className="px-3 pt-2 pb-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
             Team
           </p>
@@ -121,7 +119,7 @@ export function Sidebar() {
           <NavButton
             icon={Target}
             label="Missions"
-            active={section.type === "missions"}
+            active={section.type === "missions" || section.type === "mission"}
             onClick={() => setSection({ type: "missions" })}
           />
           <NavButton
@@ -133,7 +131,7 @@ export function Sidebar() {
         </div>
 
         {/* System section */}
-        <div className="px-3 pt-2">
+        <div className="px-3 pb-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
             System
           </p>
@@ -151,7 +149,16 @@ export function Sidebar() {
           />
         </div>
 
-        <div className="flex-1" />
+        <Separator />
+
+        {/* Knowledge Base */}
+        <div className="px-3 pt-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Knowledge Base
+          </p>
+        </div>
+        <TreeView />
+
         <div className="p-2">
           <NewPageDialog />
         </div>

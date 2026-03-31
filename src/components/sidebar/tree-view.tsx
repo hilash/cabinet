@@ -176,7 +176,6 @@ export function TreeView() {
 
   return (
     <ScrollArea className="flex-1 min-h-0">
-      <SystemSections />
       <div className="py-1">
         {nodes.map((node) => (
           <TreeNode key={node.path} node={node} depth={0} />
