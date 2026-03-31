@@ -4,9 +4,9 @@ import type { JobConfig } from "@/types/jobs";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { slug } = await params;
+  const { id: slug } = await params;
   try {
     const jobs = await loadAgentJobsBySlug(slug);
     return NextResponse.json({ jobs });
@@ -18,9 +18,9 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { slug } = await params;
+  const { id: slug } = await params;
   try {
     const body = await req.json();
     const now = new Date().toISOString();

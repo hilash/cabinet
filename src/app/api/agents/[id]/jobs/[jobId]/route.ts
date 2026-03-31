@@ -8,9 +8,9 @@ import {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ slug: string; id: string }> }
+  { params }: { params: Promise<{ id: string; jobId: string }> }
 ) {
-  const { slug, id } = await params;
+  const { id: slug, jobId: id } = await params;
   try {
     const jobs = await loadAgentJobsBySlug(slug);
     const job = jobs.find((j) => j.id === id);
@@ -26,9 +26,9 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ slug: string; id: string }> }
+  { params }: { params: Promise<{ id: string; jobId: string }> }
 ) {
-  const { slug, id } = await params;
+  const { id: slug, jobId: id } = await params;
   try {
     const jobs = await loadAgentJobsBySlug(slug);
     const existing = jobs.find((j) => j.id === id);
@@ -70,9 +70,9 @@ export async function PUT(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ slug: string; id: string }> }
+  { params }: { params: Promise<{ id: string; jobId: string }> }
 ) {
-  const { slug, id } = await params;
+  const { id: slug, jobId: id } = await params;
   try {
     await deleteAgentJob(slug, id);
     return NextResponse.json({ ok: true });
