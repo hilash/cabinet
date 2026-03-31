@@ -14,6 +14,7 @@ import { AgentSessionView, GeneralAgentView } from "@/components/agents/agent-se
 import { MissionControl } from "@/components/mission-control/mission-control";
 import { MissionList } from "@/components/missions/mission-list";
 import { MissionDetail } from "@/components/missions/mission-detail";
+import { ChatPage } from "@/components/chat/chat-page";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
@@ -124,9 +125,7 @@ export function AppShell() {
     if (section.type === "mission" && section.slug) {
       return <MissionDetail missionId={section.slug} />;
     }
-    if (section.type === "chat") {
-      return <PlaceholderSection title="Chat" description="Internal chat channels coming soon" />;
-    }
+    if (section.type === "chat") return <ChatPage />;
     if (section.type === "activity") {
       return <PlaceholderSection title="Activity" description="Activity feed coming soon" />;
     }
