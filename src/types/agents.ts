@@ -1,0 +1,82 @@
+// Types for the Cabinet Agents system
+
+export interface GoalMetric {
+  metric: string;       // e.g., "reddit_replies"
+  target: number;       // e.g., 50
+  current: number;      // e.g., 32
+  unit: string;         // e.g., "replies/week"
+  period?: string;      // "daily" | "weekly" | "monthly" — default "weekly"
+  floor?: number;       // Minimum acceptable — below this triggers alert
+  stretch?: number;     // Stretch goal
+}
+
+export interface PlaySchedule {
+  type: "interval" | "cron" | "daily" | "weekly";
+  every?: string;       // e.g., "4h", "15m"
+  cron?: string;        // raw cron expression
+  at?: string;          // e.g., "09:00" for daily/weekly
+  days?: string;        // "weekdays" | "weekends" | "daily" | "mon,wed,fri"
+  active_hours?: string; // e.g., "9-17"
+}
+
+export interface PlayTrigger {
+  type: "manual" | "schedule" | "file_changed" | "webhook" | "agent_message" | "goal_behind" | "on_complete";
+  path?: string;        // for file_changed
+  play?: string;        // for on_complete
+}
+
+export interface PlayDefinition {
+  name: string;
+  title: string;
+  category: string;
+  schedule?: PlaySchedule;
+  triggers: PlayTrigger[];
+  tools?: string[];
+  timeout?: number;     // seconds, default 300
+  estimated_duration?: string;
+  // Computed
+  slug: string;
+  body: string;         // markdown body (play instructions)
+}
+
+export interface SlackMessage {
+  id: string;
+  channel: string;
+  agent: string;        // agent slug or "human"
+  emoji?: string;       // agent emoji for display (e.g., "📝")
+  displayName?: string; // agent display name (e.g., "Content Agent")
+  type: "message" | "task" | "alert" | "report" | "question";
+  content: string;
+  mentions: string[];
+  kbRefs: string[];     // KB paths referenced
+  timestamp: string;
+  thread?: string;      // parent message ID (for thread replies)
+  replyCount?: number;  // number of thread replies (computed on read)
+}
+
+export interface AgentTask {
+  id: string;
+  fromAgent: string;
+  fromEmoji?: string;
+  fromName?: string;
+  toAgent: string;
+  channel?: string;
+  title: string;
+  description: string;
+  kbRefs: string[];
+  status: "pending" | "in_progress" | "completed" | "failed";
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  result?: string;
+}
+
+export type AgentType = "lead" | "specialist" | "support";
+export type AgentRuntime = "heartbeat" | "on-demand";
+
+export interface Department {
+  name: string;
+  lead?: string;        // slug of lead agent
+  agents: string[];     // slugs of all agents in department
+}

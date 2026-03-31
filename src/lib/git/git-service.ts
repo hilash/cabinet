@@ -1,0 +1,187 @@
+import simpleGit, { SimpleGit } from "simple-git";
+import { DATA_DIR } from "@/lib/storage/path-utils";
+import { fileExists } from "@/lib/storage/fs-operations";
+import path from "path";
+
+let git: SimpleGit | null = null;
+
+async function getGit(): Promise<SimpleGit | null> {
+  if (git) return git;
+
+  const gitDir = path.join(DATA_DIR, ".git");
+  if (await fileExists(gitDir)) {
+    git = simpleGit(DATA_DIR);
+    return git;
+  }
+
+  // Initialize git in data dir if not exists
+  try {
+    git = simpleGit(DATA_DIR);
+    await git.init();
+    await git.addConfig("user.email", "kb@amazingg.ai");
+    await git.addConfig("user.name", "Amazingg KB");
+    return git;
+  } catch {
+    return null;
+  }
+}
+
+let commitTimer: ReturnType<typeof setTimeout> | null = null;
+
+export async function autoCommit(pagePath: string, action: "Update" | "Add" | "Delete") {
+  // Debounce commits — batch within 5 seconds
+  if (commitTimer) clearTimeout(commitTimer);
+  commitTimer = setTimeout(async () => {
+    try {
+      const g = await getGit();
+      if (!g) return;
+
+      await g.add(".");
+      const status = await g.status();
+      if (status.staged.length === 0 && status.modified.length === 0) return;
+
+      await g.commit(`${action} ${pagePath}`);
+    } catch (error) {
+      console.error("Auto-commit failed:", error);
+    }
+  }, 5000);
+}
+
+export interface GitLogEntry {
+  hash: string;
+  date: string;
+  message: string;
+  author: string;
+}
+
+export async function getPageHistory(virtualPath: string): Promise<GitLogEntry[]> {
+  const g = await getGit();
+  if (!g) return [];
+
+  try {
+    // Try both directory and file paths
+    const candidates = [
+      path.join(virtualPath, "index.md"),
+      `${virtualPath}.md`,
+      virtualPath,
+    ];
+
+    for (const candidate of candidates) {
+      try {
+        const log = await g.log({ file: candidate, maxCount: 50 });
+        if (log.all.length > 0) {
+          return log.all.map((entry) => ({
+            hash: entry.hash,
+            date: entry.date,
+            message: entry.message,
+            author: entry.author_name,
+          }));
+        }
+      } catch {
+        continue;
+      }
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getDiff(hash: string): Promise<string> {
+  const g = await getGit();
+  if (!g) return "";
+
+  try {
+    return await g.diff([`${hash}~1`, hash]);
+  } catch {
+    try {
+      // First commit case
+      return await g.diff([hash]);
+    } catch {
+      return "";
+    }
+  }
+}
+
+export async function manualCommit(message: string): Promise<boolean> {
+  const g = await getGit();
+  if (!g) return false;
+
+  try {
+    await g.add(".");
+    const status = await g.status();
+    if (
+      status.staged.length === 0 &&
+      status.modified.length === 0 &&
+      status.not_added.length === 0
+    ) {
+      return false;
+    }
+    await g.commit(message);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function restoreFileFromCommit(
+  hash: string,
+  filePath: string
+): Promise<boolean> {
+  const g = await getGit();
+  if (!g) return false;
+
+  try {
+    // Restore file to state at the given commit
+    await g.checkout([hash, "--", filePath]);
+    // Commit the restoration
+    await g.add(filePath);
+    await g.commit(`Restore ${filePath} to version ${hash.slice(0, 8)}`);
+    return true;
+  } catch (error) {
+    console.error("Restore failed:", error);
+    return false;
+  }
+}
+
+export async function gitPull(): Promise<{ pulled: boolean; summary: string }> {
+  const g = await getGit();
+  if (!g) return { pulled: false, summary: "Git not available" };
+
+  try {
+    // Check if remote exists
+    const remotes = await g.getRemotes(true);
+    if (remotes.length === 0) {
+      return { pulled: false, summary: "No remote configured" };
+    }
+
+    const result = await g.pull();
+    const changed = (result.files?.length || 0) > 0;
+    const summary = changed
+      ? `Pulled ${result.files.length} file(s) updated`
+      : "Already up to date";
+    return { pulled: changed, summary };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Pull failed";
+    console.error("Git pull failed:", message);
+    return { pulled: false, summary: message };
+  }
+}
+
+export async function getStatus(): Promise<{ uncommitted: number }> {
+  const g = await getGit();
+  if (!g) return { uncommitted: 0 };
+
+  try {
+    const status = await g.status();
+    return {
+      uncommitted:
+        status.modified.length +
+        status.not_added.length +
+        status.created.length +
+        status.deleted.length,
+    };
+  } catch {
+    return { uncommitted: 0 };
+  }
+}

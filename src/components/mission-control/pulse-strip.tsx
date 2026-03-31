@@ -1,0 +1,545 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { cn } from "@/lib/utils";
+import {
+  Bot,
+  Play,
+  BarChart3,
+  Target,
+  AlertTriangle,
+  DollarSign,
+  Activity,
+  X,
+  Loader2,
+  TrendingUp,
+} from "lucide-react";
+
+interface PulseMetrics {
+  totalAgents: number;
+  activeAgents: number;
+  runningPlays: number;
+  playsThisWeek: number;
+  goalsOnTrack: number;
+  totalGoals: number;
+  alerts: number;
+  estimatedCost?: number; // Estimated daily cost in dollars
+}
+
+interface TickerMessage {
+  emoji: string;
+  text: string;
+  time: string;
+}
+
+interface RunningAgent {
+  slug: string;
+  name: string;
+  emoji: string;
+  startedAt?: string;
+}
+
+interface WeeklyPlayEntry {
+  timestamp: string;
+  agent?: string;
+  agentEmoji?: string;
+  play?: string;
+  status?: string;
+  duration?: number;
+  summary?: string;
+}
+
+interface CostEntry {
+  agent: string;
+  emoji: string;
+  heartbeats: number;
+  cost: number;
+}
+
+interface PulseStripProps {
+  metrics: PulseMetrics;
+  onAlertClick?: () => void;
+  onGoalClick?: () => void;
+  onPlaybookClick?: () => void;
+  onAgentClick?: (slug: string) => void;
+}
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  subValue,
+  status,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string | number;
+  subValue?: string;
+  status?: "ok" | "warning" | "critical";
+  onClick?: () => void;
+}) {
+  const Wrapper = onClick ? "button" : "div";
+  return (
+    <Wrapper
+      className={cn(
+        "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-muted/30 min-w-0",
+        onClick && "hover:bg-muted/50 transition-colors cursor-pointer"
+      )}
+      onClick={onClick}
+    >
+      <Icon
+        className={cn(
+          "h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0",
+          status === "critical" ? "text-red-500" :
+          status === "warning" ? "text-amber-500" :
+          status === "ok" ? "text-emerald-500" :
+          "text-muted-foreground"
+        )}
+      />
+      <div className="min-w-0">
+        <p
+          className={cn(
+            "text-[13px] sm:text-[15px] font-semibold tabular-nums leading-none",
+            status === "critical" && "text-red-500",
+            status === "warning" && "text-amber-500",
+            status === "ok" && "text-emerald-500"
+          )}
+        >
+          {value}
+        </p>
+        <p className="text-[9px] sm:text-[10px] text-muted-foreground/60 truncate">
+          {subValue || label}
+        </p>
+      </div>
+    </Wrapper>
+  );
+}
+
+// Popover panel for pulse strip metric details
+function PulsePopover({
+  title,
+  icon: Icon,
+  onClose,
+  children,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", keyHandler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", keyHandler);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-0 right-0 mx-4 mt-1 bg-background border border-border rounded-xl shadow-lg z-30 animate-in fade-in slide-in-from-top-1 duration-150"
+    >
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50">
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-[13px] font-semibold">{title}</h3>
+        </div>
+        <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground transition-colors">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="px-4 py-3 max-h-[240px] overflow-y-auto">{children}</div>
+    </div>
+  );
+}
+
+export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick, onAgentClick }: PulseStripProps) {
+  const goalStatus = metrics.totalGoals === 0 ? "ok" :
+    metrics.goalsOnTrack / metrics.totalGoals >= 0.7 ? "ok" :
+    metrics.goalsOnTrack / metrics.totalGoals >= 0.4 ? "warning" : "critical";
+
+  // Live activity ticker — shows latest agent action
+  const [ticker, setTicker] = useState<TickerMessage | null>(null);
+  // Popover states
+  const [showRunning, setShowRunning] = useState(false);
+  const [showWeekly, setShowWeekly] = useState(false);
+  const [showCost, setShowCost] = useState(false);
+  const [runningAgents, setRunningAgents] = useState<RunningAgent[]>([]);
+  const [weeklyPlays, setWeeklyPlays] = useState<WeeklyPlayEntry[]>([]);
+  const [costBreakdown, setCostBreakdown] = useState<CostEntry[]>([]);
+  const [loadingPanel, setLoadingPanel] = useState(false);
+
+  const loadTicker = useCallback(async () => {
+    try {
+      const res = await fetch("/api/agents/slack?limit=10");
+      if (!res.ok) return;
+      const data = await res.json();
+      const msgs = (data.messages || []).filter(
+        (m: { agent: string }) => m.agent !== "human" && m.agent !== "system"
+      );
+      if (msgs.length > 0) {
+        const latest = msgs[msgs.length - 1];
+        const timeStr = new Date(latest.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        setTicker({
+          emoji: latest.emoji || "🤖",
+          text: `${latest.displayName || latest.agent}: ${latest.content?.slice(0, 80)}`,
+          time: timeStr,
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    loadTicker();
+    const handleRefresh = () => loadTicker();
+    window.addEventListener("cabinet:slack-refresh", handleRefresh);
+    const interval = setInterval(loadTicker, 15000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("cabinet:slack-refresh", handleRefresh);
+    };
+  }, [loadTicker]);
+
+  const loadRunningAgents = useCallback(async () => {
+    setLoadingPanel(true);
+    try {
+      const res = await fetch("/api/agents/personas");
+      if (!res.ok) return;
+      const data = await res.json();
+      const personas = data.personas || [];
+      const running = personas
+        .filter((p: { running?: boolean; slug: string }) => p.running && p.slug !== "editor")
+        .map((p: { slug: string; name: string; emoji?: string; lastHeartbeat?: string }) => ({
+          slug: p.slug,
+          name: p.name,
+          emoji: p.emoji || "🤖",
+          startedAt: p.lastHeartbeat,
+        }));
+      setRunningAgents(running);
+    } catch { /* ignore */ } finally {
+      setLoadingPanel(false);
+    }
+  }, []);
+
+  const loadWeeklyPlays = useCallback(async () => {
+    setLoadingPanel(true);
+    try {
+      const res = await fetch("/api/plays?history=true");
+      if (!res.ok) return;
+      const data = await res.json();
+      const history: WeeklyPlayEntry[] = data.history || [];
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const thisWeek = history
+        .filter((h) => new Date(h.timestamp).getTime() > weekAgo)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 20);
+      setWeeklyPlays(thisWeek);
+    } catch { /* ignore */ } finally {
+      setLoadingPanel(false);
+    }
+  }, []);
+
+  const loadCostBreakdown = useCallback(async () => {
+    setLoadingPanel(true);
+    try {
+      const res = await fetch("/api/agents/personas");
+      if (!res.ok) return;
+      const data = await res.json();
+      const personas = data.personas || [];
+      const costPerHeartbeat = 0.15;
+      const entries: CostEntry[] = personas
+        .filter((p: { slug: string }) => p.slug !== "editor")
+        .map((p: { slug: string; name: string; emoji?: string; heartbeatsUsed?: number }) => ({
+          agent: p.name,
+          emoji: p.emoji || "🤖",
+          heartbeats: p.heartbeatsUsed || 0,
+          cost: (p.heartbeatsUsed || 0) * costPerHeartbeat,
+        }))
+        .filter((e: CostEntry) => e.heartbeats > 0)
+        .sort((a: CostEntry, b: CostEntry) => b.cost - a.cost);
+      setCostBreakdown(entries);
+    } catch { /* ignore */ } finally {
+      setLoadingPanel(false);
+    }
+  }, []);
+
+  const handleRunningClick = () => {
+    setShowWeekly(false);
+    setShowCost(false);
+    setShowRunning(!showRunning);
+    if (!showRunning) loadRunningAgents();
+  };
+
+  const handleWeeklyClick = () => {
+    setShowRunning(false);
+    setShowCost(false);
+    setShowWeekly(!showWeekly);
+    if (!showWeekly) loadWeeklyPlays();
+  };
+
+  const handleCostClick = () => {
+    setShowRunning(false);
+    setShowWeekly(false);
+    setShowCost(!showCost);
+    if (!showCost) loadCostBreakdown();
+  };
+
+  function formatTimeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const secs = Math.floor(diff / 1000);
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.floor(secs / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }
+
+  function formatDuration(secs?: number): string {
+    if (!secs) return "";
+    if (secs < 60) return `${secs}s`;
+    const mins = Math.floor(secs / 60);
+    return mins > 0 ? `${mins}m ${secs % 60}s` : `${secs}s`;
+  }
+
+  return (
+    <div className="border-b border-border/50 relative">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 px-3 sm:px-4 py-2">
+        <MetricCard
+          icon={Bot}
+          label="Agents"
+          value={metrics.totalAgents}
+          subValue={`${metrics.activeAgents} active`}
+          status={
+            metrics.activeAgents > 0 ? "ok" :
+            metrics.totalAgents > 0 ? "warning" :
+            undefined
+          }
+        />
+        <MetricCard
+          icon={Play}
+          label="Running"
+          value={metrics.runningPlays}
+          subValue="plays running"
+          onClick={handleRunningClick}
+          status={metrics.runningPlays > 0 ? "ok" : undefined}
+        />
+        <MetricCard
+          icon={BarChart3}
+          label="This week"
+          value={metrics.playsThisWeek}
+          subValue="plays this week"
+          onClick={handleWeeklyClick}
+          status={metrics.playsThisWeek > 0 ? "ok" : undefined}
+        />
+        <MetricCard
+          icon={Target}
+          label="Goals"
+          value={`${metrics.goalsOnTrack}/${metrics.totalGoals}`}
+          subValue="goals on track"
+          status={goalStatus}
+          onClick={onGoalClick}
+        />
+        <MetricCard
+          icon={AlertTriangle}
+          label="Alerts"
+          value={metrics.alerts}
+          subValue="pending alerts"
+          status={metrics.alerts >= 3 ? "critical" : metrics.alerts > 0 ? "warning" : "ok"}
+          onClick={onAlertClick}
+        />
+        <MetricCard
+          icon={DollarSign}
+          label="Cost"
+          value={metrics.estimatedCost !== undefined && metrics.estimatedCost > 0
+            ? `$${metrics.estimatedCost.toFixed(2)}`
+            : "$0"}
+          subValue={metrics.estimatedCost !== undefined && metrics.estimatedCost > 0 ? "est. today" : "today"}
+          onClick={handleCostClick}
+        />
+      </div>
+
+      {/* Running plays popover */}
+      {showRunning && (
+        <PulsePopover title="Running Plays" icon={Play} onClose={() => setShowRunning(false)}>
+          {loadingPanel ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
+            </div>
+          ) : runningAgents.length === 0 ? (
+            <p className="text-[12px] text-muted-foreground/50 py-2">No agents currently running.</p>
+          ) : (
+            <div className="space-y-2">
+              {runningAgents.map((a) => (
+                <button
+                  key={a.slug}
+                  onClick={() => { onAgentClick?.(a.slug); setShowRunning(false); }}
+                  className="w-full flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-muted/30 transition-colors text-left"
+                >
+                  <span className="text-sm">{a.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-medium truncate">{a.name}</p>
+                    <p className="text-[10px] text-muted-foreground/50">
+                      Started {a.startedAt ? formatTimeAgo(a.startedAt) : "just now"}
+                    </p>
+                  </div>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </PulsePopover>
+      )}
+
+      {/* Weekly plays popover */}
+      {showWeekly && (
+        <PulsePopover title="Plays This Week" icon={BarChart3} onClose={() => setShowWeekly(false)}>
+          {loadingPanel ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
+            </div>
+          ) : weeklyPlays.length === 0 ? (
+            <p className="text-[12px] text-muted-foreground/50 py-2">No plays executed this week.</p>
+          ) : (
+            <div className="space-y-1">
+              {/* Summary bar */}
+              <div className="flex items-center gap-3 mb-3 text-[11px] text-muted-foreground/70">
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3 text-emerald-500" />
+                  <span className="font-medium">{weeklyPlays.length} total runs</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span>{weeklyPlays.filter((p) => p.status === "completed").length} completed</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                  <span>{weeklyPlays.filter((p) => p.status === "failed").length} failed</span>
+                </div>
+              </div>
+              {weeklyPlays.map((p, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 py-1.5 px-1 rounded text-left"
+                >
+                  <span className="text-[10px] text-muted-foreground/40 w-14 text-right shrink-0 tabular-nums">
+                    {formatTimeAgo(p.timestamp)}
+                  </span>
+                  <span className="text-sm shrink-0">{p.agentEmoji || "🤖"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium truncate">
+                      {p.play || p.agent || "Heartbeat"}
+                    </p>
+                    {p.summary && (
+                      <p className="text-[10px] text-muted-foreground/50 truncate">
+                        {p.summary.slice(0, 60)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {p.duration && (
+                      <span className="text-[9px] text-muted-foreground/40 tabular-nums">
+                        {formatDuration(p.duration)}
+                      </span>
+                    )}
+                    <span className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      p.status === "completed" ? "bg-emerald-500" : p.status === "failed" ? "bg-red-500" : "bg-muted-foreground/30"
+                    )} />
+                  </div>
+                </div>
+              ))}
+              {metrics.playsThisWeek > 20 && (
+                <button
+                  onClick={() => { onPlaybookClick?.(); setShowWeekly(false); }}
+                  className="w-full text-center text-[11px] text-primary/70 hover:text-primary py-1.5 transition-colors"
+                >
+                  View all {metrics.playsThisWeek} plays →
+                </button>
+              )}
+            </div>
+          )}
+        </PulsePopover>
+      )}
+
+      {/* Cost breakdown popover */}
+      {showCost && (
+        <PulsePopover title="Cost Breakdown" icon={DollarSign} onClose={() => setShowCost(false)}>
+          {loadingPanel ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
+            </div>
+          ) : costBreakdown.length === 0 ? (
+            <div className="py-2">
+              <p className="text-[12px] text-muted-foreground/50">No API usage yet.</p>
+              <p className="text-[10px] text-muted-foreground/40 mt-1">
+                Cost is estimated at ~$0.15 per heartbeat/play execution.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[10px] text-muted-foreground/40 mb-2">
+                Estimated at ~$0.15 per heartbeat. Actual costs vary by prompt length.
+              </p>
+              {costBreakdown.map((entry) => {
+                const totalCost = costBreakdown.reduce((s, e) => s + e.cost, 0);
+                const pct = totalCost > 0 ? (entry.cost / totalCost) * 100 : 0;
+                return (
+                  <div key={entry.agent} className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm">{entry.emoji}</span>
+                        <span className="font-medium">{entry.agent}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground/60">
+                        <span className="tabular-nums">{entry.heartbeats} runs</span>
+                        <span className="font-medium text-foreground tabular-nums">${entry.cost.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="h-1 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary/50 rounded-full transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex items-center justify-between pt-2 border-t border-border/30 text-[12px] font-medium">
+                <span>Total estimated</span>
+                <span className="tabular-nums">${costBreakdown.reduce((s, e) => s + e.cost, 0).toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+        </PulsePopover>
+      )}
+
+      {/* Activity ticker */}
+      {ticker && (
+        <div className="flex items-center gap-2 px-4 py-1 text-[11px] text-muted-foreground/60 border-t border-border/30 bg-muted/10">
+          <Activity className="h-3 w-3 text-emerald-500/50 shrink-0 animate-pulse" />
+          <span className="truncate">
+            <span>{ticker.emoji} </span>
+            <span>{ticker.text}</span>
+          </span>
+          <span className="text-[10px] text-muted-foreground/40 shrink-0 tabular-nums ml-auto">
+            {ticker.time}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}

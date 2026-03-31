@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+data
+*.md
+!README.md
+!CLAUDE.md
+.env
+.env.local

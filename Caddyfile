@@ -1,0 +1,11 @@
+{$DOMAIN:localhost} {
+	# Main app
+	reverse_proxy kb:3000
+
+	# WebSocket for terminal
+	@websocket {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websocket kb:3001
+}

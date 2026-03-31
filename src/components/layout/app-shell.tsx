@@ -1,0 +1,181 @@
+"use client";
+
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Sidebar } from "@/components/sidebar/sidebar";
+import { Header } from "@/components/layout/header";
+import { KBEditor } from "@/components/editor/editor";
+import { WebsiteViewer } from "@/components/editor/website-viewer";
+import { PdfViewer } from "@/components/editor/pdf-viewer";
+import { CsvViewer } from "@/components/editor/csv-viewer";
+import { AgentDashboard } from "@/components/agents/agent-dashboard";
+import { AgentSessionView, GeneralAgentView } from "@/components/agents/agent-session-view";
+import { MissionControl } from "@/components/mission-control/mission-control";
+import { JobsManager } from "@/components/jobs/jobs-manager";
+import { SettingsPage } from "@/components/settings/settings-page";
+import { TerminalTabs } from "@/components/terminal/terminal-tabs";
+import { AIPanel } from "@/components/ai-panel/ai-panel";
+import { SearchDialog } from "@/components/search/search-dialog";
+import { KeyboardShortcuts } from "@/components/shortcuts/keyboard-shortcuts";
+import { StatusBar } from "@/components/layout/status-bar";
+import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { useTreeStore } from "@/stores/tree-store";
+import { useAppStore } from "@/stores/app-store";
+import type { TreeNode } from "@/types";
+
+function findNode(nodes: TreeNode[], path: string): TreeNode | null {
+  for (const node of nodes) {
+    if (node.path === path) return node;
+    if (node.children) {
+      const found = findNode(node.children, path);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+export function AppShell() {
+  const loadTree = useTreeStore((s) => s.loadTree);
+  const nodes = useTreeStore((s) => s.nodes);
+  const selectedPath = useTreeStore((s) => s.selectedPath);
+  const section = useAppStore((s) => s.section);
+  const setSection = useAppStore((s) => s.setSection);
+  const terminalOpen = useAppStore((s) => s.terminalOpen);
+  const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
+  const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
+  const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
+
+  // Onboarding wizard state
+  const [showWizard, setShowWizard] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    loadTree();
+  }, [loadTree]);
+
+  // Check if company config exists (first-time setup)
+  useEffect(() => {
+    fetch("/api/agents/config")
+      .then((r) => r.json())
+      .then((data) => setShowWizard(!data.exists))
+      .catch(() => setShowWizard(false));
+  }, []);
+
+  const handleWizardComplete = useCallback(() => {
+    setShowWizard(false);
+    setSection({ type: "mission-control" });
+    loadTree();
+  }, [setSection, loadTree]);
+
+  const selectedNode = selectedPath ? findNode(nodes, selectedPath) : null;
+  // For paths not in the tree (e.g. .agents/ workspace files), infer type from extension
+  const inferredType = !selectedNode && selectedPath
+    ? selectedPath.endsWith(".csv") ? "csv"
+    : selectedPath.endsWith(".pdf") ? "pdf"
+    : null
+    : null;
+  const isWebsite = selectedNode?.type === "website";
+  const isApp = selectedNode?.type === "app";
+  const isPdf = selectedNode?.type === "pdf" || inferredType === "pdf";
+  const isCsv = selectedNode?.type === "csv" || inferredType === "csv";
+
+  // Auto-collapse sidebar + AI panel when entering app mode
+  const prevIsApp = useRef(false);
+  useEffect(() => {
+    if (isApp && !prevIsApp.current) {
+      setSidebarCollapsed(true);
+      setAiPanelCollapsed(true);
+    }
+    prevIsApp.current = !!isApp;
+  }, [isApp, setSidebarCollapsed, setAiPanelCollapsed]);
+
+  const handleExitApp = () => {
+    setSidebarCollapsed(false);
+    setAiPanelCollapsed(false);
+  };
+
+  // Determine what to render in the main area
+  const renderContent = () => {
+    // System sections (non-page views)
+    if (section.type === "mission-control") return <MissionControl />;
+    if (section.type === "settings") return <SettingsPage />;
+    if (section.type === "jobs") return <JobsManager />;
+    if (section.type === "agents") return <AgentDashboard />;
+    if (section.type === "agent") {
+      if (section.slug === "general") return <GeneralAgentView />;
+      return <AgentSessionView slug={section.slug!} />;
+    }
+
+    // Page-based views (when a KB page is selected)
+    if (isApp && selectedNode) {
+      return (
+        <WebsiteViewer
+          path={selectedNode.path}
+          title={selectedNode.frontmatter?.title || selectedNode.name}
+          fullscreen
+          onExit={handleExitApp}
+        />
+      );
+    }
+    if (isCsv && (selectedNode || selectedPath)) {
+      const csvPath = selectedNode?.path || selectedPath!;
+      const csvTitle = selectedNode?.frontmatter?.title || selectedNode?.name || csvPath.split("/").pop() || "CSV";
+      return (
+        <CsvViewer
+          path={csvPath}
+          title={csvTitle}
+        />
+      );
+    }
+    if (isPdf && (selectedNode || selectedPath)) {
+      const pdfPath = selectedNode?.path || selectedPath!;
+      const pdfTitle = selectedNode?.frontmatter?.title || selectedNode?.name || pdfPath.split("/").pop() || "PDF";
+      return (
+        <PdfViewer
+          path={pdfPath}
+          title={pdfTitle}
+        />
+      );
+    }
+    if (isWebsite && selectedNode) {
+      return (
+        <WebsiteViewer
+          path={selectedNode.path}
+          title={selectedNode.frontmatter?.title || selectedNode.name}
+        />
+      );
+    }
+
+    // Default: editor
+    return (
+      <>
+        <Header />
+        <KBEditor />
+      </>
+    );
+  };
+
+  // Show nothing while checking config
+  if (showWizard === null) {
+    return <div className="flex h-screen bg-background" />;
+  }
+
+  // Show onboarding wizard for first-time users
+  if (showWizard) {
+    return <OnboardingWizard onComplete={handleWizardComplete} />;
+  }
+
+  return (
+    <div className="flex h-screen bg-background text-foreground">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {renderContent()}
+        </main>
+        {terminalOpen && <TerminalTabs />}
+        <StatusBar />
+      </div>
+      {!aiPanelCollapsed && <AIPanel />}
+      <SearchDialog />
+      <KeyboardShortcuts />
+    </div>
+  );
+}
