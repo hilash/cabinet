@@ -15,6 +15,7 @@ import { MissionControl } from "@/components/mission-control/mission-control";
 import { MissionList } from "@/components/missions/mission-list";
 import { MissionDetail } from "@/components/missions/mission-detail";
 import { ChatPage } from "@/components/chat/chat-page";
+import { ActivityFeed } from "@/components/activity/activity-feed";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
@@ -126,9 +127,7 @@ export function AppShell() {
       return <MissionDetail missionId={section.slug} />;
     }
     if (section.type === "chat") return <ChatPage />;
-    if (section.type === "activity") {
-      return <PlaceholderSection title="Activity" description="Activity feed coming soon" />;
-    }
+    if (section.type === "activity") return <ActivityFeed />;
 
     // Page-based views (when a KB page is selected)
     if (isApp && selectedNode) {
