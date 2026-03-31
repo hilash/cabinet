@@ -9,3 +9,5 @@
 [2026-03-31] Phase 1, Step 4: Built agent detail view (`src/components/agents/agent-detail.tsx`) with 5 tabs: Definition (metadata grid + persona body), Jobs (agent's plays list), Skills (placeholder), Sessions (heartbeat history), and Goals (progress bars with color-coded completion). Header shows back button, agent emoji/name, Run/Pause/Refresh controls.
 
 [2026-03-31] Phase 1, Step 5: Restructured job storage to live under agents. Updated `job-manager.ts` to load jobs from both legacy `/data/.jobs/` and new `/data/.agents/{slug}/jobs/` directories. Added `agentSlug` field to `JobConfig` type. Created agent-scoped job API endpoints: `GET/POST /api/agents/[slug]/jobs` and `GET/PUT/DELETE /api/agents/[slug]/jobs/[id]` with run and toggle actions.
+
+[2026-03-31] Phase 1, Step 6: Updated sidebar navigation with Team section (Agents, Missions, Chat) and System section (Activity, Settings). Added `NavButton` component for consistent nav items with active state highlighting. Added new section types to `SectionType` union: `missions`, `mission`, `chat`, `activity`.

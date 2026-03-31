@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PanelLeftClose, PanelLeft, Settings } from "lucide-react";
+import {
+  PanelLeftClose,
+  PanelLeft,
+  Settings,
+  Users,
+  Target,
+  MessageSquare,
+  Activity,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +28,33 @@ function useIsMobile() {
     return () => window.removeEventListener("resize", check);
   }, []);
   return { isMobile, mounted };
+}
+
+function NavButton({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: typeof Users;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-[12px] transition-colors",
+        active
+          ? "bg-accent text-foreground font-medium"
+          : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+      )}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      {label}
+    </button>
+  );
 }
 
 export function Sidebar() {
@@ -71,18 +106,54 @@ export function Sidebar() {
         <Separator />
         <TreeView />
         <Separator />
-        <div className="p-2 flex items-center gap-1">
-          <div className="flex-1">
-            <NewPageDialog />
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("h-8 w-8 shrink-0", section.type === "settings" && "text-primary")}
+
+        {/* Team section */}
+        <div className="px-3 pt-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Team
+          </p>
+          <NavButton
+            icon={Users}
+            label="Agents"
+            active={section.type === "agents" || section.type === "agent"}
+            onClick={() => setSection({ type: "agents" })}
+          />
+          <NavButton
+            icon={Target}
+            label="Missions"
+            active={section.type === "missions"}
+            onClick={() => setSection({ type: "missions" })}
+          />
+          <NavButton
+            icon={MessageSquare}
+            label="Chat"
+            active={section.type === "chat"}
+            onClick={() => setSection({ type: "chat" })}
+          />
+        </div>
+
+        {/* System section */}
+        <div className="px-3 pt-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            System
+          </p>
+          <NavButton
+            icon={Activity}
+            label="Activity"
+            active={section.type === "activity"}
+            onClick={() => setSection({ type: "activity" })}
+          />
+          <NavButton
+            icon={Settings}
+            label="Settings"
+            active={section.type === "settings"}
             onClick={() => setSection({ type: "settings" })}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+          />
+        </div>
+
+        <div className="flex-1" />
+        <div className="p-2">
+          <NewPageDialog />
         </div>
       </aside>
       {collapsed && (
