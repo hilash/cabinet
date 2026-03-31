@@ -28,17 +28,6 @@ import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import type { TreeNode } from "@/types";
 
-function PlaceholderSection({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="text-sm text-muted-foreground mt-1">{description}</p>
-      </div>
-    </div>
-  );
-}
-
 function findNode(nodes: TreeNode[], path: string): TreeNode | null {
   for (const node of nodes) {
     if (node.path === path) return node;
