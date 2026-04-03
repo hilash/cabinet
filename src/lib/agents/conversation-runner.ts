@@ -114,6 +114,46 @@ export async function buildManualConversationPrompt(input: {
   };
 }
 
+export async function buildEditorConversationPrompt(input: {
+  pagePath: string;
+  userMessage: string;
+  mentionedPaths?: string[];
+}): Promise<{
+  prompt: string;
+  title: string;
+  cwd?: string;
+  mentionedPaths: string[];
+}> {
+  const persona = await readPersona("editor");
+  const combinedMentionedPaths = Array.from(
+    new Set([input.pagePath, ...(input.mentionedPaths || [])])
+  );
+  const mentionContext = await buildMentionContext(combinedMentionedPaths);
+  const cwd =
+    persona?.workdir && persona.workdir !== "/data"
+      ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
+      : DATA_DIR;
+
+  const prompt = [
+    buildAgentContextHeader(persona, "editor"),
+    "",
+    `You are editing the page at /data/${input.pagePath}.`,
+    `Prefer making the requested changes directly in ${input.pagePath} unless the task clearly belongs in another KB file.`,
+    "Work in the Cabinet knowledge base at /data.",
+    "Edit KB files directly and reflect useful outputs in the KB, not only in terminal text.",
+    buildCabinetEpilogueInstructions(),
+    "",
+    `User request:\n${input.userMessage}${mentionContext}`,
+  ].join("\n");
+
+  return {
+    prompt,
+    title: makeTitle(input.userMessage),
+    cwd,
+    mentionedPaths: combinedMentionedPaths,
+  };
+}
+
 export async function startConversationRun(
   input: StartConversationInput
 ): Promise<ConversationMeta> {
