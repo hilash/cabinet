@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flavor Trends — ChocoBar Co</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #faf8f5; color: #2a2a2a;
+    padding: 2rem; min-height: 100vh;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a1a; color: #f0f0f0; }
+    .card { background: #222; border-color: #333; }
+    .bar-track { background: rgba(255,255,255,0.06); }
+    .filter-btn { border-color: #444; }
+    .subtitle { color: #888; }
+    .bar-label { color: #ccc; }
+    .bar-value { color: #aaa; }
+    .source { color: #666; }
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .subtitle { color: #888; font-size: 0.85rem; margin-bottom: 2rem; }
+  .card {
+    background: #fff; border: 1px solid #e8e0d8; border-radius: 12px;
+    padding: 1.5rem; margin-bottom: 1.5rem; max-width: 640px;
+  }
+  .card h2 { font-size: 1rem; margin-bottom: 1rem; font-weight: 600; }
+  .chart-row {
+    display: flex; align-items: center; margin-bottom: 0.75rem; gap: 0.75rem;
+  }
+  .bar-label { width: 160px; font-size: 0.85rem; flex-shrink: 0; text-align: right; color: #444; }
+  .bar-track { flex: 1; height: 28px; background: #f0ebe4; border-radius: 6px; overflow: hidden; position: relative; }
+  .chart-bar {
+    height: 100%; border-radius: 6px;
+    transition: width 0.6s ease-out; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
+    min-width: 40px;
+  }
+  .bar-value { font-size: 0.75rem; font-weight: 600; color: #777; margin-left: 0.5rem; width: 36px; flex-shrink: 0; }
+  .filters { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem;
+    border: 1px solid #d0c8be; background: transparent; color: inherit; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover { border-color: #e8a44a; }
+  .filter-btn.active { background: #e8a44a; color: #fff; border-color: #e8a44a; font-weight: 600; }
+  .source { font-size: 0.75rem; color: #999; margin-top: 1rem; }
+</style>
+</head>
+<body>
+  <h1>Flavor Trends</h1>
+  <p class="subtitle">Consumer preference data — Q1 2026 survey (n=2,400)</p>
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="showAll()">All Flavors</button>
+    <button class="filter-btn" onclick="filterCategory('chocolate')">Chocolate</button>
+    <button class="filter-btn" onclick="filterCategory('fusion')">Fusion</button>
+    <button class="filter-btn" onclick="filterCategory('specialty')">Specialty</button>
+  </div>
+
+  <div class="card">
+    <h2>Purchase Intent by Flavor (% "Would Buy")</h2>
+    <div id="chart"></div>
+    <p class="source">Source: ChocoBar Co consumer panel, Jan–Mar 2026</p>
+  </div>
+
+  <div class="card">
+    <h2>Trending Up (YoY Change)</h2>
+    <div id="trend-chart"></div>
+  </div>
+
+<script>
+const data = [
+  { name: 'Salted Caramel', value: 78, trend: 12, cat: 'chocolate' },
+  { name: 'Dark Choc Sea Salt', value: 72, trend: 8, cat: 'chocolate' },
+  { name: 'Peanut Butter Crunch', value: 68, trend: 5, cat: 'chocolate' },
+  { name: 'Oat Milk Chocolate', value: 61, trend: 22, cat: 'specialty' },
+  { name: 'Matcha White Choc', value: 54, trend: 18, cat: 'specialty' },
+  { name: 'Spicy Mango', value: 47, trend: 31, cat: 'fusion' },
+  { name: 'Lavender Honey', value: 39, trend: 15, cat: 'fusion' },
+  { name: 'Espresso Crunch', value: 58, trend: 3, cat: 'chocolate' },
+];
+
+let currentFilter = 'all';
+
+function renderChart(containerId, items, valueKey, maxVal, color) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = items.map(d => `
+    <div class="chart-row" data-cat="${d.cat}">
+      <span class="bar-label">${d.name}</span>
+      <div class="bar-track">
+        <div class="chart-bar" style="width:${(d[valueKey]/maxVal)*100}%;background:${color || '#D4A54A'}"></div>
+      </div>
+      <span class="bar-value">${d[valueKey]}${valueKey === 'trend' ? '%' : '%'}</span>
+    </div>
+  `).join('');
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? data : data.filter(d => d.cat === currentFilter);
+  const sorted = [...filtered].sort((a, b) => b.value - a.value);
+  const trendSorted = [...filtered].sort((a, b) => b.trend - a.trend);
+  renderChart('chart', sorted, 'value', 100, '#e8a44a');
+  renderChart('trend-chart', trendSorted, 'trend', 40, '#7bc4a8');
+}
+
+function showAll() { currentFilter = 'all'; updateButtons(); render(); }
+function filterCategory(cat) { currentFilter = cat; updateButtons(); render(); }
+function updateButtons() {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  const idx = currentFilter === 'all' ? 0 : currentFilter === 'chocolate' ? 1 : currentFilter === 'fusion' ? 2 : 3;
+  document.querySelectorAll('.filter-btn')[idx].classList.add('active');
+}
+
+render();
+</script>
+</body>
+</html>

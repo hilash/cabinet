@@ -1,0 +1,5 @@
+name: chocobar-store
+remote: https://github.com/chocobar-co/store
+source: remote
+branch: main
+description: ChocoBar Co e-commerce storefront — Next.js + Shopify

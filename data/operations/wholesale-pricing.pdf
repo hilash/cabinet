@@ -1,0 +1,65 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]
+   /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+
+4 0 obj
+<< /Length 580 >>
+stream
+BT
+/F1 28 Tf
+72 700 Td
+(ChocoBar Co) Tj
+0 -40 Td
+/F1 18 Tf
+(Wholesale Pricing Sheet) Tj
+0 -24 Td
+(Q2 2026) Tj
+0 -50 Td
+/F1 12 Tf
+(Bar Name                  Case Qty    Unit Price    Case Price) Tj
+0 -20 Td
+(The Classic Dark           24          $4.50         $78.00) Tj
+0 -18 Td
+(Salted Caramel Crunch      24          $5.00         $84.00) Tj
+0 -18 Td
+(Peanut Butter Dream        24          $5.50         $90.00) Tj
+0 -18 Td
+(Matcha Moment              24          $5.50         $90.00) Tj
+0 -18 Td
+(Oat Milk Velvet            24          $5.00         $84.00) Tj
+0 -30 Td
+(Minimum order: 5 cases. Free shipping on 20+ cases.) Tj
+0 -18 Td
+(Contact: wholesale@chocobar.co) Tj
+ET
+endstream
+endobj
+
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000266 00000 n 
+0000000898 00000 n 
+
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+977
+%%EOF

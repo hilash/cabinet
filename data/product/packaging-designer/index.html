@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Packaging Designer — ChocoBar Co</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #faf8f5; color: #2a2a2a;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; padding: 2rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a1a; color: #f0f0f0; }
+    .controls { background: #222; border-color: #333; }
+    .control-label { color: #999; }
+    select, input[type="text"] { border-color: #444; background: rgba(255,255,255,0.05); }
+    .color-swatch.active { border-color: #fff; }
+  }
+  .app { display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center; align-items: flex-start; max-width: 900px; }
+  .controls {
+    background: #fff; border: 1px solid #e8e0d8; border-radius: 12px;
+    padding: 1.5rem; width: 260px; flex-shrink: 0;
+  }
+  .controls h2 { font-size: 1rem; margin-bottom: 1.25rem; }
+  .control-group { margin-bottom: 1.25rem; }
+  .control-label { display: block; font-size: 0.8rem; color: #777; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  select, input[type="text"] {
+    width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #d0c8be;
+    background: #faf8f5; color: inherit; font-size: 0.9rem;
+  }
+  .color-options { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .color-swatch {
+    width: 36px; height: 36px; border-radius: 8px; cursor: pointer;
+    border: 2px solid transparent; transition: all 0.2s;
+  }
+  .color-swatch:hover { transform: scale(1.1); }
+  .color-swatch.active { border-color: #2a2a2a; box-shadow: 0 0 0 2px #e8a44a; }
+
+  .wrapper-preview {
+    width: 320px; height: 440px; border-radius: 16px; overflow: hidden;
+    position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    transition: background 0.3s;
+  }
+  .wrapper-inner { padding: 2rem; height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+  .wrapper-logo { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.7; }
+  .wrapper-name { font-size: 2rem; font-weight: 800; line-height: 1.1; margin: 0.5rem 0; }
+  .wrapper-flavor { font-size: 0.95rem; opacity: 0.8; font-style: italic; }
+  .wrapper-divider { width: 40px; height: 3px; background: rgba(255,255,255,0.3); margin: 1rem 0; border-radius: 2px; }
+  .wrapper-weight { font-size: 0.8rem; opacity: 0.6; }
+  .wrapper-bottom { text-align: center; }
+  .wrapper-tagline { font-size: 0.7rem; opacity: 0.5; letter-spacing: 0.1em; text-transform: uppercase; }
+  .wrapper-pattern {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    opacity: 0.06; pointer-events: none;
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,1) 20px, rgba(255,255,255,1) 22px);
+  }
+  .badge {
+    display: inline-block; font-size: 0.65rem; padding: 0.2rem 0.5rem;
+    border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.6; margin-top: 0.5rem;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="controls">
+    <h2>Packaging Designer</h2>
+    <div class="control-group">
+      <label class="control-label">Bar Name</label>
+      <input type="text" id="barName" value="Salted Caramel Crunch" oninput="update()">
+    </div>
+    <div class="control-group">
+      <label class="control-label">Flavor Description</label>
+      <input type="text" id="flavorDesc" value="Milk chocolate, sea salt, caramel bits" oninput="update()">
+    </div>
+    <div class="control-group">
+      <label class="control-label">Weight</label>
+      <select id="weight" onchange="update()">
+        <option>40g</option>
+        <option>45g</option>
+        <option>50g</option>
+        <option>60g</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label">Wrapper Color</label>
+      <div class="color-options" id="colors"></div>
+    </div>
+    <div class="control-group">
+      <label class="control-label">Badge</label>
+      <select id="badge" onchange="update()">
+        <option value="">None</option>
+        <option value="NEW" selected>New</option>
+        <option value="LIMITED EDITION">Limited Edition</option>
+        <option value="BEST SELLER">Best Seller</option>
+        <option value="VEGAN">Vegan</option>
+        <option value="SEASONAL">Seasonal</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="wrapper-preview" id="wrapper">
+    <div class="wrapper-pattern"></div>
+    <div class="wrapper-inner">
+      <div>
+        <div class="wrapper-logo">ChocoBar Co</div>
+        <div class="wrapper-name" id="wName">Salted Caramel Crunch</div>
+        <div class="wrapper-flavor" id="wFlavor">Milk chocolate, sea salt, caramel bits</div>
+        <div class="wrapper-divider"></div>
+        <div class="wrapper-weight" id="wWeight">Net Wt. 40g</div>
+        <div class="badge" id="wBadge">NEW</div>
+      </div>
+      <div class="wrapper-bottom">
+        <div class="wrapper-tagline">Real ingredients. Real chocolate.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const themes = [
+  { name: 'Chocolate', bg: '#3C1A0B', text: '#FFF8F0' },
+  { name: 'Caramel', bg: '#8B6914', text: '#FFF8F0' },
+  { name: 'Midnight', bg: '#1a1a2e', text: '#e0e0e0' },
+  { name: 'Matcha', bg: '#2d5016', text: '#f0fff0' },
+  { name: 'Berry', bg: '#5c1a3a', text: '#ffe0f0' },
+  { name: 'Sea Salt', bg: '#1a3a5c', text: '#e0f0ff' },
+  { name: 'Mango', bg: '#8B4513', text: '#FFF8DC' },
+  { name: 'Cream', bg: '#f5e6d3', text: '#3C1A0B' },
+];
+
+let activeColor = 0;
+const colorsEl = document.getElementById('colors');
+
+themes.forEach((t, i) => {
+  const swatch = document.createElement('div');
+  swatch.className = 'color-swatch' + (i === 0 ? ' active' : '');
+  swatch.style.background = t.bg;
+  swatch.title = t.name;
+  swatch.onclick = () => { activeColor = i; updateColors(); update(); };
+  colorsEl.appendChild(swatch);
+});
+
+function updateColors() {
+  document.querySelectorAll('.color-swatch').forEach((s, i) => {
+    s.classList.toggle('active', i === activeColor);
+  });
+}
+
+function update() {
+  const theme = themes[activeColor];
+  const wrapper = document.getElementById('wrapper');
+  wrapper.style.background = theme.bg;
+  wrapper.style.color = theme.text;
+
+  document.getElementById('wName').textContent = document.getElementById('barName').value;
+  document.getElementById('wFlavor').textContent = document.getElementById('flavorDesc').value;
+  document.getElementById('wWeight').textContent = 'Net Wt. ' + document.getElementById('weight').value;
+
+  const badge = document.getElementById('badge').value;
+  const wBadge = document.getElementById('wBadge');
+  wBadge.textContent = badge;
+  wBadge.style.display = badge ? 'inline-block' : 'none';
+}
+
+update();
+</script>
+</body>
+</html>
