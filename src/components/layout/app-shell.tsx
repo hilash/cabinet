@@ -51,6 +51,18 @@ export function AppShell() {
     loadTree();
   }, [loadTree]);
 
+  // Auto-refresh sidebar when /data changes (detected via SSE)
+  useEffect(() => {
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource("/api/agents/events");
+      es.addEventListener("tree_changed", () => loadTree());
+    } catch {
+      // SSE not supported
+    }
+    return () => es?.close();
+  }, [loadTree]);
+
   // Check if company config exists (first-time setup)
   useEffect(() => {
     fetch("/api/agents/config")

@@ -142,7 +142,7 @@ function LibraryDialog({
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <ScrollArea className="flex-1 p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-6">
             {Object.entries(grouped).map(([dept, items]) => (
               <div key={dept}>
@@ -182,7 +182,7 @@ function LibraryDialog({
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
