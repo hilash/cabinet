@@ -21,8 +21,6 @@ interface AppState {
   sidebarCollapsed: boolean;
   aiPanelCollapsed: boolean;
   setSection: (section: SelectedSection) => void;
-  // Keep setViewMode as alias for backward compat
-  setViewMode: (mode: string) => void;
   toggleTerminal: () => void;
   closeTerminal: () => void;
   addTerminalTab: (label?: string, prompt?: string) => void;
@@ -42,14 +40,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiPanelCollapsed: false,
 
   setSection: (section) => set({ section }),
-
-  setViewMode: (mode) => {
-    // Backward compat: map old viewMode strings to sections
-    if (mode === "editor") set({ section: { type: "page" } });
-    else if (mode === "agents") set({ section: { type: "agents" } });
-    else if (mode === "jobs") set({ section: { type: "jobs" } });
-    else if (mode === "settings") set({ section: { type: "settings" } });
-  },
 
   toggleTerminal: () => {
     const { terminalOpen, terminalTabs } = get();

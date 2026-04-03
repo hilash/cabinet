@@ -9,7 +9,7 @@ import { PdfViewer } from "@/components/editor/pdf-viewer";
 import { CsvViewer } from "@/components/editor/csv-viewer";
 import { AgentList } from "@/components/agents/agent-list";
 import { AgentDetail } from "@/components/agents/agent-detail";
-import { GeneralAgentView } from "@/components/agents/agent-session-view";
+import { GeneralAgentView } from "@/components/agents/general-agent-view";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";

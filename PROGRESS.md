@@ -1,5 +1,9 @@
 # Progress
 
+[2026-04-03] Dead code removal: deleted agent-dashboard.tsx (never rendered), chat/ components (ChatPage, ChannelList, ChannelView — never used), mention-input.tsx (no longer imported), api/missions/, api/activity/, api/jobs/, api/ai/edit/ (all legacy routes with no frontend callers), lib/missions/, lib/activity/, and removed setViewMode() alias from app-store. Build remains clean.
+
+[2026-04-03] Removed dead code: deleted agent-session-view.tsx (AgentSessionView was never rendered). Extracted GeneralAgentView into its own general-agent-view.tsx and updated the import in app-shell.tsx.
+
 [2026-04-03] Created marketing/reddit-campaign/index.md with a full Reddit organic outreach plan for Bible Way — 15 targeted subreddits across Bible study, church, and podcast categories, a 3-phase engagement strategy, high-value thread search queries, rules, and KPIs.
 
 [2026-04-03] Added @mention support to the agent session view prompt input. Replaced the plain `<input>` + Send button with the reusable `MentionInput` component; `handleSendPrompt` now accepts `(text, mentionedPages)` and fetches KB page content as context via `fetchMentionedPagesContext` before building the full prompt.
