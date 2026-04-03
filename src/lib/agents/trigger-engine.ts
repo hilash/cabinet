@@ -137,6 +137,10 @@ function shouldTriggerFire(
       return { fire: true, reason: "agent_message received" };
     }
 
+    case "schedule": {
+      return { fire: true, reason: "schedule triggered" };
+    }
+
     default:
       return { fire: false, reason: `unhandled trigger type: ${trigger.type}` };
   }

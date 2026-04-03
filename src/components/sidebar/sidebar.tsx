@@ -266,6 +266,7 @@ export function Sidebar() {
               ))}
             </div>
           )}
+
         </div>
 
         <Separator />
