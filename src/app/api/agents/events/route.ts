@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { listPersonas, getRegisteredHeartbeats, getRunningHeartbeats } from "@/lib/agents/persona-manager";
+import { listPersonas } from "@/lib/agents/persona-manager";
 import { getGoalState } from "@/lib/agents/goal-manager";
 import { getMessages } from "@/lib/agents/slack-manager";
 import { getRespondingAgents } from "@/app/api/agents/slack/route";
 import fs from "fs/promises";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
 
 async function getDataDirVersion(): Promise<string> {
   try {
@@ -56,15 +57,18 @@ export async function GET() {
         try {
           // Gather current state
           const personas = await listPersonas();
-          const registered = getRegisteredHeartbeats();
-          const running = getRunningHeartbeats();
+          const registered = personas
+            .filter((persona) => persona.active && !!persona.heartbeat)
+            .map((persona) => persona.slug);
+          const runningCounts = await getRunningConversationCounts();
 
           // Agent statuses
           const agentStatuses = personas.map((p) => ({
             slug: p.slug,
             active: p.active,
             scheduled: registered.includes(p.slug),
-            running: running.includes(p.slug),
+            running: (runningCounts[p.slug] || 0) > 0,
+            runningCount: runningCounts[p.slug] || 0,
             lastHeartbeat: p.lastHeartbeat,
             nextHeartbeat: p.nextHeartbeat,
           }));
@@ -150,7 +154,7 @@ export async function GET() {
             totalAgents: personas.length,
             activeAgents: personas.filter((p) => p.active).length,
             scheduledAgents: registered.length,
-            runningPlays: running.length,
+            runningPlays: Object.values(runningCounts).reduce((sum, count) => sum + count, 0),
             goalsOnTrack,
             totalGoals: allGoals.length,
           });

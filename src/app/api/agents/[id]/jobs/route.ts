@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadAgentJobsBySlug, saveAgentJob, scheduleJob } from "@/lib/jobs/job-manager";
+import { loadAgentJobsBySlug, saveAgentJob } from "@/lib/jobs/job-manager";
 import type { JobConfig } from "@/types/jobs";
+import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 
 export async function GET(
   _req: NextRequest,
@@ -41,8 +42,7 @@ export async function POST(
     };
 
     await saveAgentJob(slug, job);
-    // Register with cron scheduler so it actually runs
-    scheduleJob(job);
+    await reloadDaemonSchedules().catch(() => {});
     return NextResponse.json({ ok: true, job }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

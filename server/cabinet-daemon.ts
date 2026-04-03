@@ -19,7 +19,14 @@ import cron from "node-cron";
 import yaml from "js-yaml";
 import chokidar from "chokidar";
 import { execSync } from "child_process";
+import matter from "gray-matter";
 import { getDb, closeDb } from "./db";
+import {
+  appendConversationTranscript,
+  finalizeConversation,
+  readConversationMeta,
+  readConversationTranscript,
+} from "../src/lib/agents/conversation-store";
 
 const PORT = 3001;
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -28,7 +35,7 @@ const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 // ----- Database Initialization -----
 
 console.log("Initializing Cabinet database...");
-const db = getDb();
+getDb();
 console.log("Database ready.");
 
 // ----- Claude Binary Resolution -----
@@ -82,16 +89,46 @@ interface PtySession {
   output: string[];
   exited: boolean;
   exitCode: number | null;
+  timeoutHandle?: NodeJS.Timeout;
 }
 
 const sessions = new Map<string, PtySession>();
 const completedOutput = new Map<string, { output: string; completedAt: number }>();
+
+function resolveSessionCwd(input?: string): string {
+  if (!input) return DATA_DIR;
+
+  const resolved = path.resolve(input);
+  if (resolved.startsWith(DATA_DIR)) {
+    return resolved;
+  }
+
+  return DATA_DIR;
+}
 
 function stripAnsi(str: string): string {
   return str.replace(
     /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
     ""
   );
+}
+
+async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
+  const meta = await readConversationMeta(sessionId);
+  if (!meta) return;
+  await appendConversationTranscript(sessionId, chunk);
+}
+
+async function finalizeSessionConversation(session: PtySession): Promise<void> {
+  const meta = await readConversationMeta(session.id);
+  if (!meta) return;
+
+  const plain = stripAnsi(session.output.join(""));
+  await finalizeConversation(session.id, {
+    status: session.exitCode === 0 ? "completed" : "failed",
+    exitCode: session.exitCode,
+    output: plain,
+  });
 }
 
 // Cleanup old completed output every 5 minutes
@@ -171,26 +208,10 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
   }
 
   // New session — spawn PTY
-  const shell = CLAUDE_PATH;
-  const args = prompt
-    ? ["--dangerously-skip-permissions", prompt]
-    : ["--dangerously-skip-permissions"];
-
-  let term: pty.IPty;
   try {
-    term = pty.spawn(shell, args, {
-      name: "xterm-256color",
-      cols: 120,
-      rows: 30,
-      cwd: DATA_DIR,
-      env: {
-        ...(process.env as Record<string, string>),
-        PATH: enrichedPath,
-        TERM: "xterm-256color",
-        COLORTERM: "truecolor",
-        FORCE_COLOR: "3",
-        LANG: "en_US.UTF-8",
-      },
+    createDetachedSession({
+      sessionId,
+      prompt: prompt || undefined,
     });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -201,27 +222,9 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
     ws.close();
     return;
   }
-
-  const session: PtySession = {
-    id: sessionId,
-    pty: term,
-    ws,
-    createdAt: new Date(),
-    output: [],
-    exited: false,
-    exitCode: null,
-  };
-
-  sessions.set(sessionId, session);
+  const session = sessions.get(sessionId)!;
+  session.ws = ws;
   console.log(`Session ${sessionId} started (${prompt ? "agent" : "interactive"} mode)`);
-
-  // PTY output → WebSocket + capture
-  term.onData((data: string) => {
-    session.output.push(data);
-    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-      session.ws.send(data);
-    }
-  });
 
   // WebSocket input → PTY
   ws.on("message", (data: Buffer) => {
@@ -229,13 +232,13 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
     try {
       const parsed = JSON.parse(msg);
       if (parsed.type === "resize" && parsed.cols && parsed.rows) {
-        term.resize(parsed.cols, parsed.rows);
+        session.pty.resize(parsed.cols, parsed.rows);
         return;
       }
     } catch {
       // Not JSON, treat as terminal input
     }
-    term.write(msg);
+    session.pty.write(msg);
   });
 
   // On WebSocket close: DETACH, don't kill the PTY
@@ -244,20 +247,86 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
     session.ws = null;
   });
 
-  // PTY exit: finalize if no client connected, otherwise notify client
+}
+
+function createDetachedSession(input: {
+  sessionId: string;
+  prompt?: string;
+  args?: string[];
+  cwd?: string;
+  timeoutSeconds?: number;
+  onData?: (chunk: string) => void;
+}): PtySession {
+  const args = input.args
+    ? input.args
+    : input.prompt
+      ? ["--dangerously-skip-permissions", input.prompt]
+      : ["--dangerously-skip-permissions"];
+
+  const term = pty.spawn(CLAUDE_PATH, args, {
+    name: "xterm-256color",
+    cols: 120,
+    rows: 30,
+    cwd: resolveSessionCwd(input.cwd),
+    env: {
+      ...(process.env as Record<string, string>),
+      PATH: enrichedPath,
+      TERM: "xterm-256color",
+      COLORTERM: "truecolor",
+      FORCE_COLOR: "3",
+      LANG: "en_US.UTF-8",
+    },
+  });
+
+  const session: PtySession = {
+    id: input.sessionId,
+    pty: term,
+    ws: null,
+    createdAt: new Date(),
+    output: [],
+    exited: false,
+    exitCode: null,
+  };
+  sessions.set(input.sessionId, session);
+
+  term.onData((data: string) => {
+    session.output.push(data);
+    void syncConversationChunk(input.sessionId, data).catch(() => {});
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      session.ws.send(data);
+    }
+    input.onData?.(data);
+  });
+
   term.onExit(({ exitCode }) => {
-    console.log(`Session ${sessionId} PTY exited with code ${exitCode}`);
+    console.log(`Session ${input.sessionId} PTY exited with code ${exitCode}`);
     session.exited = true;
     session.exitCode = exitCode;
+    if (session.timeoutHandle) {
+      clearTimeout(session.timeoutHandle);
+      delete session.timeoutHandle;
+    }
+
+    const plain = stripAnsi(session.output.join(""));
+    completedOutput.set(input.sessionId, { output: plain, completedAt: Date.now() });
+    void finalizeSessionConversation(session).catch(() => {});
 
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-      const raw = session.output.join("");
-      const plain = stripAnsi(raw);
-      completedOutput.set(sessionId, { output: plain, completedAt: Date.now() });
-      sessions.delete(sessionId);
+      sessions.delete(input.sessionId);
       session.ws.close();
     }
   });
+
+  if (input.timeoutSeconds && input.timeoutSeconds > 0) {
+    session.timeoutHandle = setTimeout(() => {
+      console.warn(`Session ${input.sessionId} timed out after ${input.timeoutSeconds}s`);
+      try {
+        term.kill();
+      } catch {}
+    }, input.timeoutSeconds * 1000);
+  }
+
+  return session;
 }
 
 // ===== WebSocket Event Bus =====
@@ -317,15 +386,97 @@ interface JobConfig {
 }
 
 const scheduledJobs = new Map<string, ReturnType<typeof cron.schedule>>();
+const scheduledHeartbeats = new Map<string, ReturnType<typeof cron.schedule>>();
+let scheduleReloadTimer: NodeJS.Timeout | null = null;
 
-async function loadAndScheduleJobs(): Promise<void> {
+async function putJson(url: string, body: Record<string, unknown>): Promise<void> {
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
+}
+
+function stopScheduledTasks(): void {
+  for (const [, task] of scheduledJobs) task.stop();
+  for (const [, task] of scheduledHeartbeats) task.stop();
+  scheduledJobs.clear();
+  scheduledHeartbeats.clear();
+}
+
+function scheduleJob(job: JobConfig): void {
+  const key = `${job.agentSlug}/${job.id}`;
+
+  if (!cron.validate(job.schedule)) {
+    console.warn(`Invalid cron schedule for job ${key}: ${job.schedule}`);
+    return;
+  }
+
+  const task = cron.schedule(job.schedule, () => {
+    console.log(`Triggering scheduled job ${key}`);
+    void putJson(`http://localhost:3000/api/agents/${job.agentSlug}/jobs/${job.id}`, {
+      action: "run",
+      source: "scheduler",
+    }).catch((error) => {
+      console.error(`Failed to trigger scheduled job ${key}:`, error);
+    });
+  });
+
+  scheduledJobs.set(key, task);
+  console.log(`  Scheduled job: ${key} (${job.schedule})`);
+}
+
+function scheduleHeartbeat(slug: string, cronExpr: string): void {
+  if (!cron.validate(cronExpr)) {
+    console.warn(`Invalid heartbeat schedule for ${slug}: ${cronExpr}`);
+    return;
+  }
+
+  const task = cron.schedule(cronExpr, () => {
+    console.log(`Triggering heartbeat ${slug}`);
+    void putJson(`http://localhost:3000/api/agents/personas/${slug}`, {
+      action: "run",
+      source: "scheduler",
+    }).catch((error) => {
+      console.error(`Failed to trigger heartbeat ${slug}:`, error);
+    });
+  });
+
+  scheduledHeartbeats.set(slug, task);
+  console.log(`  Scheduled heartbeat: ${slug} (${cronExpr})`);
+}
+
+async function reloadSchedules(): Promise<void> {
+  stopScheduledTasks();
+
   if (!fs.existsSync(AGENTS_DIR)) return;
 
   const entries = fs.readdirSync(AGENTS_DIR, { withFileTypes: true });
   let jobCount = 0;
+  let heartbeatCount = 0;
 
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+
+    const personaPath = path.join(AGENTS_DIR, entry.name, "persona.md");
+    if (fs.existsSync(personaPath)) {
+      try {
+        const rawPersona = fs.readFileSync(personaPath, "utf-8");
+        const { data } = matter(rawPersona);
+        const active = data.active !== false;
+        const heartbeat = typeof data.heartbeat === "string" ? data.heartbeat : "";
+        if (active && heartbeat) {
+          scheduleHeartbeat(entry.name, heartbeat);
+          heartbeatCount++;
+        }
+      } catch {
+        // Skip malformed personas.
+      }
+    }
 
     const jobsDir = path.join(AGENTS_DIR, entry.name, "jobs");
     if (!fs.existsSync(jobsDir)) continue;
@@ -343,116 +494,30 @@ async function loadAndScheduleJobs(): Promise<void> {
           jobCount++;
         }
       } catch {
-        // Skip malformed job files
+        // Skip malformed jobs.
       }
     }
   }
 
-  console.log(`Scheduled ${jobCount} jobs.`);
+  console.log(`Scheduled ${jobCount} jobs and ${heartbeatCount} heartbeats.`);
 }
 
-function scheduleJob(job: JobConfig): void {
-  const key = `${job.agentSlug}/${job.id}`;
-
-  const existing = scheduledJobs.get(key);
-  if (existing) existing.stop();
-
-  if (!cron.validate(job.schedule)) {
-    console.warn(`Invalid cron schedule for job ${key}: ${job.schedule}`);
-    return;
+function queueScheduleReload(): void {
+  if (scheduleReloadTimer) {
+    clearTimeout(scheduleReloadTimer);
   }
 
-  const task = cron.schedule(job.schedule, () => {
-    executeJob(job);
-  });
-
-  scheduledJobs.set(key, task);
-  console.log(`  Scheduled: ${key} (${job.schedule})`);
-}
-
-function executeJob(job: JobConfig): void {
-  const sessionId = `job-${job.agentSlug}-${job.id}-${Date.now()}`;
-  const runId = sessionId;
-  console.log(`Executing job: ${job.agentSlug}/${job.id} (session: ${sessionId})`);
-
-  broadcast("job:started", { agent: job.agentSlug, jobId: job.id, runId });
-
-  db.prepare(
-    `INSERT INTO job_runs (id, job_id, agent_slug, status, started_at)
-     VALUES (?, ?, ?, 'running', datetime('now'))`
-  ).run(runId, job.id, job.agentSlug);
-
-  let term: pty.IPty;
-  try {
-    term = pty.spawn(CLAUDE_PATH, ["--dangerously-skip-permissions", "-p", job.prompt, "--output-format", "text"], {
-      name: "xterm-256color",
-      cols: 120,
-      rows: 30,
-      cwd: DATA_DIR,
-      env: {
-        ...(process.env as Record<string, string>),
-        PATH: enrichedPath,
-        TERM: "xterm-256color",
-        COLORTERM: "truecolor",
-        FORCE_COLOR: "3",
-        LANG: "en_US.UTF-8",
-      },
+  scheduleReloadTimer = setTimeout(() => {
+    scheduleReloadTimer = null;
+    void reloadSchedules().catch((error) => {
+      console.error("Failed to reload daemon schedules:", error);
     });
-  } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`Failed to spawn PTY for job ${job.agentSlug}/${job.id}:`, errMsg);
-    db.prepare(`UPDATE job_runs SET status = 'failed', completed_at = datetime('now'), error = ? WHERE id = ?`).run(errMsg, runId);
-    broadcast("job:completed", { agent: job.agentSlug, jobId: job.id, runId, status: "failed" });
-    return;
-  }
-
-  const session: PtySession = {
-    id: sessionId,
-    pty: term,
-    ws: null,
-    createdAt: new Date(),
-    output: [],
-    exited: false,
-    exitCode: null,
-  };
-  sessions.set(sessionId, session);
-
-  term.onData((data: string) => {
-    session.output.push(data);
-    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-      session.ws.send(data);
-    }
-    broadcast("agent:output", { agent: job.agentSlug, runId, chunk: stripAnsi(data) });
-  });
-
-  const timeout = setTimeout(() => {
-    term.kill();
-    console.warn(`Job ${job.agentSlug}/${job.id} timed out`);
-  }, (job.timeout || 600) * 1000);
-
-  term.onExit(({ exitCode }) => {
-    clearTimeout(timeout);
-    session.exited = true;
-    session.exitCode = exitCode;
-    const plain = stripAnsi(session.output.join(""));
-    completedOutput.set(sessionId, { output: plain, completedAt: Date.now() });
-    sessions.delete(sessionId);
-
-    const status = exitCode === 0 ? "completed" : "failed";
-    db.prepare(
-      `UPDATE job_runs SET status = ?, completed_at = datetime('now'),
-       duration_ms = CAST((julianday('now') - julianday(started_at)) * 86400000 AS INTEGER),
-       output = ? WHERE id = ?`
-    ).run(status, plain.slice(0, 10000), runId);
-
-    broadcast("job:completed", { agent: job.agentSlug, jobId: job.id, runId, status });
-    console.log(`Job ${job.agentSlug}/${job.id} ${status} (exit: ${exitCode})`);
-  });
+  }, 200);
 }
 
 // ===== HTTP Server =====
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -475,7 +540,31 @@ const server = http.createServer((req, res) => {
       const raw = active.output.join("");
       const plain = stripAnsi(raw);
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ sessionId, status: "running", output: plain }));
+      res.end(
+        JSON.stringify({
+          sessionId,
+          status: active.exited
+            ? active.exitCode === 0
+              ? "completed"
+              : "failed"
+            : "running",
+          output: plain,
+        })
+      );
+      return;
+    }
+
+    const conversationMeta = await readConversationMeta(sessionId).catch(() => null);
+    if (conversationMeta) {
+      const transcript = await readConversationTranscript(sessionId).catch(() => "");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          sessionId,
+          status: conversationMeta.status,
+          output: transcript,
+        })
+      );
       return;
     }
 
@@ -497,7 +586,19 @@ const server = http.createServer((req, res) => {
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
       try {
-        const { id, args } = JSON.parse(body) as { id: string; args: string[] };
+        const {
+          id,
+          args,
+          prompt,
+          cwd,
+          timeoutSeconds,
+        } = JSON.parse(body) as {
+          id: string;
+          args?: string[];
+          prompt?: string;
+          cwd?: string;
+          timeoutSeconds?: number;
+        };
         const sessionId = id || `session-${Date.now()}`;
 
         if (sessions.has(sessionId)) {
@@ -506,21 +607,13 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        let term: pty.IPty;
         try {
-          term = pty.spawn(CLAUDE_PATH, args || ["--dangerously-skip-permissions"], {
-            name: "xterm-256color",
-            cols: 120,
-            rows: 30,
-            cwd: DATA_DIR,
-            env: {
-              ...(process.env as Record<string, string>),
-              PATH: enrichedPath,
-              TERM: "xterm-256color",
-              COLORTERM: "truecolor",
-              FORCE_COLOR: "3",
-              LANG: "en_US.UTF-8",
-            },
+          createDetachedSession({
+            sessionId,
+            args,
+            prompt,
+            cwd,
+            timeoutSeconds,
           });
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -529,37 +622,7 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        const session: PtySession = {
-          id: sessionId,
-          pty: term,
-          ws: null,
-          createdAt: new Date(),
-          output: [],
-          exited: false,
-          exitCode: null,
-        };
-        sessions.set(sessionId, session);
         console.log(`Session ${sessionId} started via HTTP (agent mode)`);
-
-        term.onData((data: string) => {
-          session.output.push(data);
-          if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-            session.ws.send(data);
-          }
-        });
-
-        term.onExit(({ exitCode }) => {
-          console.log(`Session ${sessionId} PTY exited with code ${exitCode}`);
-          session.exited = true;
-          session.exitCode = exitCode;
-          if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-            const raw = session.output.join("");
-            const plain = stripAnsi(raw);
-            completedOutput.set(sessionId, { output: plain, completedAt: Date.now() });
-            sessions.delete(sessionId);
-            session.ws.close();
-          }
-        });
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ sessionId }));
@@ -585,6 +648,25 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === "/reload-schedules" && req.method === "POST") {
+    try {
+      await reloadSchedules();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          ok: true,
+          jobs: scheduledJobs.size,
+          heartbeats: scheduledHeartbeats.size,
+        })
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: message }));
+    }
+    return;
+  }
+
   // Health check
   if (url.pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -593,6 +675,7 @@ const server = http.createServer((req, res) => {
         status: "ok",
         ptySessions: sessions.size,
         scheduledJobs: scheduledJobs.size,
+        scheduledHeartbeats: scheduledHeartbeats.size,
         subscribers: subscribers.length,
       })
     );
@@ -605,18 +688,16 @@ const server = http.createServer((req, res) => {
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
       try {
-        const { agentSlug, jobId, prompt } = JSON.parse(body);
+        const { agentSlug, jobId, prompt, timeoutSeconds } = JSON.parse(body);
         if (prompt) {
-          executeJob({
-            id: jobId || `manual-${Date.now()}`,
-            name: "Manual run",
-            enabled: true,
-            schedule: "",
+          const sessionId = jobId || `manual-${Date.now()}`;
+          createDetachedSession({
+            sessionId,
             prompt,
-            agentSlug: agentSlug || "manual",
+            timeoutSeconds,
           });
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ ok: true }));
+          res.end(JSON.stringify({ ok: true, sessionId, agentSlug: agentSlug || "manual" }));
         } else {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "prompt is required" }));
@@ -667,17 +748,29 @@ wssEvents.on("connection", (ws) => {
 
 // ===== Startup =====
 
+const scheduleWatcher = chokidar.watch(
+  [path.join(AGENTS_DIR, "*/persona.md"), path.join(AGENTS_DIR, "*/jobs/*.yaml")],
+  {
+    ignoreInitial: true,
+  }
+);
+
+scheduleWatcher.on("all", () => {
+  queueScheduleReload();
+});
+
 server.listen(PORT, () => {
   console.log(`Cabinet Daemon running on port ${PORT}`);
   console.log(`  Terminal WebSocket: ws://localhost:${PORT}`);
   console.log(`  Events WebSocket: ws://localhost:${PORT}/events`);
   console.log(`  Session API: http://localhost:${PORT}/sessions`);
+  console.log(`  Reload schedules: POST http://localhost:${PORT}/reload-schedules`);
   console.log(`  Health check: http://localhost:${PORT}/health`);
   console.log(`  Trigger endpoint: POST http://localhost:${PORT}/trigger`);
   console.log(`  Using claude: ${CLAUDE_PATH}`);
   console.log(`  Working directory: ${DATA_DIR}`);
 
-  loadAndScheduleJobs();
+  void reloadSchedules();
 });
 
 // ===== Graceful Shutdown =====
@@ -687,9 +780,13 @@ process.on("SIGINT", () => {
   for (const [, task] of scheduledJobs) {
     task.stop();
   }
+  for (const [, task] of scheduledHeartbeats) {
+    task.stop();
+  }
   for (const [, session] of sessions) {
     try { session.pty.kill(); } catch {}
   }
+  void scheduleWatcher.close();
   closeDb();
   server.close();
   process.exit(0);

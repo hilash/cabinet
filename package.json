@@ -7,6 +7,7 @@
     "dev:terminal": "npx tsx server/terminal-server.ts",
     "dev:daemon": "npx tsx server/cabinet-daemon.ts",
     "dev:all": "npm run dev & npm run dev:daemon",
+    "debug:chrome": "bash scripts/launch-chrome-debug.sh",
     "build": "next build",
     "start": "npm run start:next & npm run start:daemon",
     "start:next": "next start",
