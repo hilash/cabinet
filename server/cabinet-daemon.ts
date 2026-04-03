@@ -90,6 +90,9 @@ interface PtySession {
   exited: boolean;
   exitCode: number | null;
   timeoutHandle?: NodeJS.Timeout;
+  initialPrompt?: string;
+  initialPromptSent?: boolean;
+  initialPromptTimer?: NodeJS.Timeout;
 }
 
 const sessions = new Map<string, PtySession>();
@@ -111,6 +114,29 @@ function stripAnsi(str: string): string {
     /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
     ""
   );
+}
+
+function claudePromptReady(output: string): boolean {
+  const plain = stripAnsi(output).replace(/\r/g, "\n");
+  return (
+    plain.includes("shift+tab to cycle") ||
+    /(?:^|\n)[❯>]\s*$/.test(plain)
+  );
+}
+
+function submitInitialPrompt(session: PtySession): void {
+  if (!session.initialPrompt || session.initialPromptSent || session.exited) {
+    return;
+  }
+
+  session.initialPromptSent = true;
+  if (session.initialPromptTimer) {
+    clearTimeout(session.initialPromptTimer);
+    delete session.initialPromptTimer;
+  }
+
+  session.pty.write(session.initialPrompt);
+  session.pty.write("\r");
 }
 
 async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
@@ -226,6 +252,11 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
   session.ws = ws;
   console.log(`Session ${sessionId} started (${prompt ? "agent" : "interactive"} mode)`);
 
+  const replay = session.output.join("");
+  if (replay && ws.readyState === WebSocket.OPEN) {
+    ws.send(replay);
+  }
+
   // WebSocket input → PTY
   ws.on("message", (data: Buffer) => {
     const msg = data.toString();
@@ -259,9 +290,7 @@ function createDetachedSession(input: {
 }): PtySession {
   const args = input.args
     ? input.args
-    : input.prompt
-      ? ["--dangerously-skip-permissions", input.prompt]
-      : ["--dangerously-skip-permissions"];
+    : ["--dangerously-skip-permissions"];
 
   const term = pty.spawn(CLAUDE_PATH, args, {
     name: "xterm-256color",
@@ -286,11 +315,20 @@ function createDetachedSession(input: {
     output: [],
     exited: false,
     exitCode: null,
+    initialPrompt: input.args ? undefined : input.prompt?.trim() || undefined,
+    initialPromptSent: false,
   };
   sessions.set(input.sessionId, session);
 
   term.onData((data: string) => {
     session.output.push(data);
+    if (
+      session.initialPrompt &&
+      !session.initialPromptSent &&
+      claudePromptReady(session.output.join(""))
+    ) {
+      submitInitialPrompt(session);
+    }
     void syncConversationChunk(input.sessionId, data).catch(() => {});
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
       session.ws.send(data);
@@ -305,6 +343,10 @@ function createDetachedSession(input: {
     if (session.timeoutHandle) {
       clearTimeout(session.timeoutHandle);
       delete session.timeoutHandle;
+    }
+    if (session.initialPromptTimer) {
+      clearTimeout(session.initialPromptTimer);
+      delete session.initialPromptTimer;
     }
 
     const plain = stripAnsi(session.output.join(""));
@@ -324,6 +366,12 @@ function createDetachedSession(input: {
         term.kill();
       } catch {}
     }, input.timeoutSeconds * 1000);
+  }
+
+  if (session.initialPrompt) {
+    session.initialPromptTimer = setTimeout(() => {
+      submitInitialPrompt(session);
+    }, 1500);
   }
 
   return session;

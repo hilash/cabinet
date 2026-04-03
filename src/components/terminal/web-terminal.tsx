@@ -6,11 +6,23 @@ import { cn } from "@/lib/utils";
 interface WebTerminalProps {
   sessionId?: string;
   prompt?: string;
+  displayPrompt?: string;
   reconnect?: boolean;  // If true, connect without sending prompt (session already exists on server)
   onClose: () => void;
 }
 
-export function WebTerminal({ sessionId, prompt, reconnect, onClose }: WebTerminalProps) {
+function replacePastedTextNotice(output: string, displayPrompt?: string): string {
+  if (!displayPrompt) return output;
+  return output.replace(/\[Pasted text #\d+(?: \+\d+ lines)?\]/g, displayPrompt);
+}
+
+export function WebTerminal({
+  sessionId,
+  prompt,
+  displayPrompt,
+  reconnect,
+  onClose,
+}: WebTerminalProps) {
   const termRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const xtermRef = useRef<import("@xterm/xterm").Terminal | null>(null);
@@ -158,7 +170,7 @@ export function WebTerminal({ sessionId, prompt, reconnect, onClose }: WebTermin
           if (event.data instanceof ArrayBuffer) {
             terminal.write(new Uint8Array(event.data));
           } else {
-            terminal.write(event.data);
+            terminal.write(replacePastedTextNotice(event.data, displayPrompt));
           }
         };
 
@@ -197,7 +209,7 @@ export function WebTerminal({ sessionId, prompt, reconnect, onClose }: WebTermin
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sessionId, prompt, reconnect]);
+  }, [sessionId, prompt, displayPrompt, reconnect]);
 
   return (
     <div className="h-full w-full relative overflow-hidden bg-[#0a0a0a]">

@@ -29,6 +29,7 @@ import type { JobConfig } from "@/types/jobs";
 type TriggerFilter = "all" | "manual" | "job" | "heartbeat";
 type StatusFilter = "all" | "running" | "failed";
 type MainPanelMode = "composer" | "conversation" | "settings";
+type NonSettingsMode = Exclude<MainPanelMode, "settings">;
 type SettingsTarget = "directory" | "__new__" | string | null;
 
 interface AgentSummary {
@@ -86,6 +87,11 @@ const TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
   job: "bg-amber-500/10 text-amber-500",
   heartbeat: "bg-emerald-500/10 text-emerald-500",
 };
+
+function replacePastedTextNotice(output: string, displayPrompt?: string): string {
+  if (!displayPrompt) return output;
+  return output.replace(/\[Pasted text #\d+(?: \+\d+ lines)?\]/g, displayPrompt);
+}
 
 const AGENT_EMOJI_OPTIONS = [
   "🤖",
@@ -200,7 +206,9 @@ export function AgentsWorkspace({
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [mode, setMode] = useState<MainPanelMode>("composer");
+  const [previousMode, setPreviousMode] = useState<NonSettingsMode>("composer");
   const [activeAgentSlug, setActiveAgentSlug] = useState<string | null>(
     selectedScope === "agent" ? selectedAgentSlug || null : null
   );
@@ -263,7 +271,9 @@ export function AgentsWorkspace({
   }
 
   async function refreshConversations() {
-    setConversationsLoading(true);
+    if (!hasLoadedConversations) {
+      setConversationsLoading(true);
+    }
     const params = new URLSearchParams();
     if (activeAgentSlug) params.set("agent", activeAgentSlug);
     const trigger = triggerFromFilter(triggerFilter);
@@ -278,6 +288,7 @@ export function AgentsWorkspace({
       setConversations((data.conversations || []) as ConversationMeta[]);
     }
     setConversationsLoading(false);
+    setHasLoadedConversations(true);
   }
 
   async function refreshSettings(agentSlug: string) {
@@ -339,6 +350,8 @@ export function AgentsWorkspace({
     setSelectedConversationId(null);
     setSelectedConversation(null);
     setSettingsTarget(null);
+    setHasLoadedConversations(false);
+    setConversationsLoading(true);
     setMode("composer");
   }, [selectedAgentSlug, selectedScope]);
 
@@ -373,6 +386,9 @@ export function AgentsWorkspace({
   }
 
   function openAgentDirectory() {
+    if (mode !== "settings") {
+      setPreviousMode(mode === "conversation" ? "conversation" : "composer");
+    }
     setMode("settings");
     setSettingsTarget("directory");
     setSelectedJobId(null);
@@ -380,6 +396,9 @@ export function AgentsWorkspace({
   }
 
   function openAgentSettings(agentSlug: string) {
+    if (mode !== "settings") {
+      setPreviousMode(mode === "conversation" ? "conversation" : "composer");
+    }
     setMode("settings");
     setSettingsTarget(agentSlug);
     setSelectedJobId(null);
@@ -387,11 +406,21 @@ export function AgentsWorkspace({
   }
 
   function startNewAgentDraft() {
+    if (mode !== "settings") {
+      setPreviousMode(mode === "conversation" ? "conversation" : "composer");
+    }
     setMode("settings");
     setSettingsTarget("__new__");
     setSelectedJobId(null);
     setJobDraft(null);
     setNewAgentDraft(DEFAULT_NEW_AGENT);
+  }
+
+  function exitSettings() {
+    setSettingsTarget(null);
+    setSelectedJobId(null);
+    setJobDraft(null);
+    setMode(selectedConversationId && previousMode === "conversation" ? "conversation" : "composer");
   }
 
   function handleComposerInput(value: string, cursorPosition: number) {
@@ -687,44 +716,16 @@ export function AgentsWorkspace({
                   : "Recent runs across your whole team"}
               </p>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 text-xs"
-                onClick={() => {
-                  if (mode === "settings") {
-                    setMode("composer");
-                    setSettingsTarget(null);
-                    setSelectedJobId(null);
-                    setJobDraft(null);
-                    return;
-                  }
-                  if (activeAgentSlug) {
-                    openAgentSettings(activeAgentSlug);
-                  } else {
-                    openAgentDirectory();
-                  }
-                }}
-              >
-                <Settings className="h-3.5 w-3.5" />
-                {mode === "settings"
-                  ? "Done"
-                  : activeAgentSlug
-                    ? "Settings"
-                    : "Manage"}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => {
-                  void refreshAgents();
-                  void refreshConversations();
-                }}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                void refreshAgents();
+                void refreshConversations();
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {(["all", "manual", "job", "heartbeat"] as TriggerFilter[]).map((filter) => (
@@ -751,13 +752,15 @@ export function AgentsWorkspace({
         </div>
         <ScrollArea className="h-[calc(100vh-115px)]">
           <div className="space-y-1 p-2">
-            {conversationsLoading ? (
+            {conversationsLoading && conversations.length > 0 ? (
               <div className="flex items-center gap-2 px-3 py-6 text-[12px] text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading conversations...
               </div>
+            ) : !hasLoadedConversations && conversations.length === 0 ? (
+              <div className="px-3 py-8" />
             ) : conversations.length === 0 ? (
-              <div className="px-3 py-8 text-[12px] text-muted-foreground">
+              <div className="animate-in fade-in duration-300 px-3 py-8 text-[12px] text-muted-foreground">
                 No conversations yet.
               </div>
             ) : (
@@ -863,6 +866,7 @@ export function AgentsWorkspace({
               {selectedConversationMeta.status === "running" ? (
                 <WebTerminal
                   sessionId={selectedConversationMeta.id}
+                  displayPrompt={selectedConversationMeta.title}
                   reconnect
                   onClose={() => {
                     void refreshConversations();
@@ -871,7 +875,10 @@ export function AgentsWorkspace({
               ) : selectedConversation ? (
                 <ScrollArea className="h-full bg-[#0a0a0a]">
                   <pre className="min-h-full whitespace-pre-wrap p-5 font-mono text-[12px] leading-relaxed text-neutral-200">
-                    {selectedConversation.transcript || "No transcript captured."}
+                    {replacePastedTextNotice(
+                      selectedConversation.transcript || "No transcript captured.",
+                      selectedConversationMeta.title
+                    )}
                   </pre>
                 </ScrollArea>
               ) : (
@@ -884,33 +891,22 @@ export function AgentsWorkspace({
         ) : mode === "settings" ? (
           <div className="flex h-full flex-col">
             <div className="border-b border-border px-5 py-4">
-              {settingsTarget === "directory" || !settingsTarget ? (
-                <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start justify-between gap-3">
+                {settingsTarget === "directory" || !settingsTarget ? (
                   <div>
                     <h3 className="text-[15px] font-semibold">Agent settings</h3>
                     <p className="text-[11px] text-muted-foreground">
                       Big-picture management for your team. Add agents, remove agents, or open detailed settings.
                     </p>
                   </div>
-                  <Button size="sm" className="h-8 gap-1 text-xs" onClick={startNewAgentDraft}>
-                    <Plus className="h-3.5 w-3.5" />
-                    Add agent
-                  </Button>
-                </div>
-              ) : settingsTarget === "__new__" ? (
-                <div className="flex items-center justify-between gap-3">
+                ) : settingsTarget === "__new__" ? (
                   <div>
                     <h3 className="text-[15px] font-semibold">Create agent</h3>
                     <p className="text-[11px] text-muted-foreground">
                       Add a new agent to the team and define its default heartbeat and instructions.
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={openAgentDirectory}>
-                    Back to agents
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-3">
+                ) : (
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{settingsAgent?.emoji || "🤖"}</span>
                     <div>
@@ -922,28 +918,19 @@ export function AgentsWorkspace({
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    {settingsAgentSlug ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => selectAgent(settingsAgentSlug, "composer")}
-                      >
-                        Open conversations
-                      </Button>
-                    ) : null}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={openAgentDirectory}
-                    >
-                      Back to agents
+                )}
+                <div className="flex gap-2">
+                  {(settingsTarget === "directory" || !settingsTarget) ? (
+                    <Button size="sm" className="h-8 gap-1 text-xs" onClick={startNewAgentDraft}>
+                      <Plus className="h-3.5 w-3.5" />
+                      Add agent
                     </Button>
-                  </div>
+                  ) : null}
+                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={exitSettings}>
+                    Done
+                  </Button>
                 </div>
-              )}
+              </div>
             </div>
             <ScrollArea className="h-full">
               <div className="space-y-6 p-5">
@@ -1447,7 +1434,7 @@ export function AgentsWorkspace({
                   }}
                 >
                   <Settings className="h-3.5 w-3.5" />
-                  {activeAgentSlug ? "Settings" : "Manage agents"}
+                  Settings
                 </Button>
               </div>
             </div>
@@ -1457,7 +1444,7 @@ export function AgentsWorkspace({
                   <Bot className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
                   <p className="text-[14px] font-medium">Pick an agent from the left rail</p>
                   <p className="mt-2 text-[12px] text-muted-foreground">
-                    The center column already shows the team timeline. Choose one agent on the left to start a focused session, or open Manage agents to add and remove teammates.
+                    The center column already shows the team timeline. Choose one agent on the left to start a focused session, or open Settings to manage the team.
                   </p>
                 </div>
               ) : (
