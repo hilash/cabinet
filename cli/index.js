@@ -8,7 +8,11 @@ const REPO = "https://github.com/hilash/cabinet.git"; // UPDATE THIS
 const DIR = "cabinet";
 
 const args = process.argv.slice(2);
-const command = args[0] || "init";
+const COMMANDS = ["init", "help", "--help"];
+const firstArg = args[0] || "init";
+const command = COMMANDS.includes(firstArg) ? firstArg : "init";
+// If first arg isn't a command, treat it as the directory name
+const dirArg = COMMANDS.includes(firstArg) ? args[1] : firstArg;
 const yes = args.includes("--yes") || args.includes("-y");
 
 const log = (msg) => console.log(`\x1b[36m>\x1b[0m ${msg}`);
@@ -24,7 +28,7 @@ function run(cmd, opts = {}) {
 }
 
 if (command === "init") {
-  const targetDir = args[1] || DIR;
+  const targetDir = dirArg || DIR;
 
   console.log(`
   ┌─────────────────────────────┐
@@ -75,8 +79,8 @@ if (command === "init") {
   create-cabinet - Create a new Cabinet project
 
   Usage:
-    npx create-cabinet init [directory]    Create a new project
-    npx create-cabinet init --yes          Skip prompts
+    npx create-cabinet [directory]          Create a new project
+    npx create-cabinet --yes               Skip prompts
     npx create-cabinet help                Show this help
 
   Options:
