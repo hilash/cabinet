@@ -17,7 +17,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Manual Install
 
 ```bash
-git clone https://github.com/user/cabinet.git
+git clone https://github.com/hilash/cabinet.git
 cd cabinet
 npm install
 cp .env.example .env.local
