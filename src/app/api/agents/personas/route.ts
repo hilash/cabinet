@@ -8,10 +8,6 @@ import {
   registerAllHeartbeats,
   getRegisteredHeartbeats,
 } from "@/lib/agents/persona-manager";
-import {
-  registerScheduledPlays,
-  getRegisteredScheduledPlays,
-} from "@/lib/agents/play-manager";
 import { initScheduler } from "@/lib/jobs/job-manager";
 
 // Initialize heartbeats on first request
@@ -20,19 +16,16 @@ let initialized = false;
 export async function GET() {
   if (!initialized) {
     await registerAllHeartbeats();
-    await registerScheduledPlays();
     await initScheduler();
     initialized = true;
   }
 
   const personas = await listPersonas();
   const activeHeartbeats = getRegisteredHeartbeats();
-  const scheduledPlays = getRegisteredScheduledPlays();
 
   return NextResponse.json({
     personas,
     activeHeartbeats,
-    scheduledPlays,
   });
 }
 
@@ -50,9 +43,8 @@ export async function POST(req: NextRequest) {
   const wsDir = path.join(DATA_DIR, ".agents", slug, "workspace");
   await ensureDirectory(wsDir);
 
-  // Re-register heartbeats and scheduled plays
+  // Re-register heartbeats
   await registerAllHeartbeats();
-  await registerScheduledPlays();
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }

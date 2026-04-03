@@ -24,10 +24,6 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const body = await req.json();
     await writePage(virtualPath, body.content, body.frontmatter);
     autoCommit(virtualPath, "Update");
-    // Fire file_changed triggers (non-blocking)
-    import("@/lib/agents/trigger-engine")
-      .then((m) => m.emitFileChanged(virtualPath))
-      .catch(() => {});
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

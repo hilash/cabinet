@@ -49,7 +49,6 @@ interface IntegrationConfig {
   };
   scheduling: {
     max_concurrent_agents: number;
-    max_concurrent_plays_per_agent: number;
     default_heartbeat_interval: string;
     active_hours: string;
     pause_on_error: boolean;
@@ -451,33 +450,20 @@ export function SettingsPage() {
               <div className="border-t border-border pt-6">
                 <h3 className="text-[14px] font-semibold mb-1">Scheduling Defaults</h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Configure default scheduling behavior for agents and plays.
+                  Configure default scheduling behavior for agents and jobs.
                 </p>
 
                 <div className="bg-card border border-border rounded-lg p-3 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Max Concurrent Agents</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={config.scheduling.max_concurrent_agents}
-                        onChange={(e) => updateScheduling("max_concurrent_agents", parseInt(e.target.value) || 10)}
-                        className="w-full mt-0.5 text-[12px] bg-muted/30 border border-border/50 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Max Plays per Agent</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={config.scheduling.max_concurrent_plays_per_agent}
-                        onChange={(e) => updateScheduling("max_concurrent_plays_per_agent", parseInt(e.target.value) || 3)}
-                        className="w-full mt-0.5 text-[12px] bg-muted/30 border border-border/50 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
-                      />
-                    </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Max Concurrent Agents</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={config.scheduling.max_concurrent_agents}
+                      onChange={(e) => updateScheduling("max_concurrent_agents", parseInt(e.target.value) || 10)}
+                      className="w-full mt-0.5 text-[12px] bg-muted/30 border border-border/50 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
                   </div>
 
                   <div>

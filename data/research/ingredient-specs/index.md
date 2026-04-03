@@ -1,7 +1,7 @@
 ---
 title: Ingredient Specs
 created: '2026-04-03T00:00:00.000Z'
-modified: '2026-04-03T00:00:00.000Z'
+modified: '2026-04-03T12:00:00.000Z'
 tags:
   - research
   - engineering
@@ -90,3 +90,18 @@ Every new batch goes through these gates before shipping:
 6. **Packaging seal test** — vacuum and visual inspection for wrapper integrity
 
 See <a data-wiki-link="true" data-page-name="Operations" href="#page:operations" class="wiki-link">Operations</a> for supplier contact details and lead times.
+
+## Ingredient Pages
+
+Detailed sourcing specs, supplier lists, and storage requirements for each ingredient:
+
+| Ingredient | Category | Allergen |
+|---|---|---|
+| [[Cocoa Beans]] | Core / Cocoa | — |
+| [[Cocoa Butter]] | Core / Cocoa | — |
+| [[Cocoa Powder]] | Core / Cocoa | — |
+| [[Oat Milk]] | Dairy Alternative | Gluten (if not certified GF) |
+| [[Milk (Dairy)]] | Dairy | **Milk** |
+| [[Soy (Soy Lecithin)]] | Emulsifier | **Soy** |
+| [[Caramel]] | Inclusion / Filling | **Milk**, Soy |
+| [[Sea Salt]] | Seasoning | — |

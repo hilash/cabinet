@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   }
 
   // Read the raw agent markdown file
-  const agentFile = path.join(DATA_DIR, ".agents", `${slug}.md`);
+  const agentFile = path.join(DATA_DIR, ".agents", slug, "persona.md");
   let agentMd = "";
   try {
     agentMd = await fs.readFile(agentFile, "utf-8");
@@ -23,19 +23,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Agent file not found" }, { status: 404 });
   }
 
-  // Parse frontmatter to get clean config
   const { data: frontmatter, content: body } = matter(agentMd);
-
-  // Read assigned play definitions
-  const plays: Record<string, string> = {};
-  const playsDir = path.join(DATA_DIR, ".playbooks", "plays");
-  for (const playSlug of persona.plays || []) {
-    const playFile = path.join(playsDir, `${playSlug}.md`);
-    try {
-      const playContent = await fs.readFile(playFile, "utf-8");
-      plays[playSlug] = playContent;
-    } catch { /* play file may not exist */ }
-  }
 
   // Read workspace index.md if exists
   let workspaceIndex: string | null = null;
@@ -44,16 +32,14 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     workspaceIndex = await fs.readFile(wsIndexPath, "utf-8");
   } catch { /* no workspace */ }
 
-  // Build export bundle
   const bundle = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     agent: {
       slug,
       frontmatter,
       body: body.trim(),
     },
-    plays,
     workspaceIndex,
   };
 

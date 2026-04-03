@@ -5,21 +5,19 @@ import { cn } from "@/lib/utils";
 import {
   Bot,
   Play,
-  BarChart3,
   Target,
   AlertTriangle,
   DollarSign,
   Activity,
   X,
   Loader2,
-  TrendingUp,
 } from "lucide-react";
 
 interface PulseMetrics {
   totalAgents: number;
   activeAgents: number;
   runningPlays: number;
-  playsThisWeek: number;
+  playsThisWeek?: number;
   goalsOnTrack: number;
   totalGoals: number;
   alerts: number;
@@ -37,16 +35,6 @@ interface RunningAgent {
   name: string;
   emoji: string;
   startedAt?: string;
-}
-
-interface WeeklyPlayEntry {
-  timestamp: string;
-  agent?: string;
-  agentEmoji?: string;
-  play?: string;
-  status?: string;
-  duration?: number;
-  summary?: string;
 }
 
 interface CostEntry {
@@ -175,10 +163,8 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
   const [ticker, setTicker] = useState<TickerMessage | null>(null);
   // Popover states
   const [showRunning, setShowRunning] = useState(false);
-  const [showWeekly, setShowWeekly] = useState(false);
   const [showCost, setShowCost] = useState(false);
   const [runningAgents, setRunningAgents] = useState<RunningAgent[]>([]);
-  const [weeklyPlays, setWeeklyPlays] = useState<WeeklyPlayEntry[]>([]);
   const [costBreakdown, setCostBreakdown] = useState<CostEntry[]>([]);
   const [loadingPanel, setLoadingPanel] = useState(false);
 
@@ -234,24 +220,6 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
     }
   }, []);
 
-  const loadWeeklyPlays = useCallback(async () => {
-    setLoadingPanel(true);
-    try {
-      const res = await fetch("/api/plays?history=true");
-      if (!res.ok) return;
-      const data = await res.json();
-      const history: WeeklyPlayEntry[] = data.history || [];
-      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      const thisWeek = history
-        .filter((h) => new Date(h.timestamp).getTime() > weekAgo)
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, 20);
-      setWeeklyPlays(thisWeek);
-    } catch { /* ignore */ } finally {
-      setLoadingPanel(false);
-    }
-  }, []);
-
   const loadCostBreakdown = useCallback(async () => {
     setLoadingPanel(true);
     try {
@@ -277,22 +245,13 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
   }, []);
 
   const handleRunningClick = () => {
-    setShowWeekly(false);
     setShowCost(false);
     setShowRunning(!showRunning);
     if (!showRunning) loadRunningAgents();
   };
 
-  const handleWeeklyClick = () => {
-    setShowRunning(false);
-    setShowCost(false);
-    setShowWeekly(!showWeekly);
-    if (!showWeekly) loadWeeklyPlays();
-  };
-
   const handleCostClick = () => {
     setShowRunning(false);
-    setShowWeekly(false);
     setShowCost(!showCost);
     if (!showCost) loadCostBreakdown();
   };
@@ -308,16 +267,9 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
     return `${Math.floor(hours / 24)}d ago`;
   }
 
-  function formatDuration(secs?: number): string {
-    if (!secs) return "";
-    if (secs < 60) return `${secs}s`;
-    const mins = Math.floor(secs / 60);
-    return mins > 0 ? `${mins}m ${secs % 60}s` : `${secs}s`;
-  }
-
   return (
     <div className="border-b border-border/50 relative">
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 px-3 sm:px-4 py-2">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2 px-3 sm:px-4 py-2">
         <MetricCard
           icon={Bot}
           label="Agents"
@@ -333,17 +285,9 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
           icon={Play}
           label="Running"
           value={metrics.runningPlays}
-          subValue="plays running"
+          subValue="running now"
           onClick={handleRunningClick}
           status={metrics.runningPlays > 0 ? "ok" : undefined}
-        />
-        <MetricCard
-          icon={BarChart3}
-          label="This week"
-          value={metrics.playsThisWeek}
-          subValue="plays this week"
-          onClick={handleWeeklyClick}
-          status={metrics.playsThisWeek > 0 ? "ok" : undefined}
         />
         <MetricCard
           icon={Target}
@@ -399,77 +343,6 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 </button>
               ))}
-            </div>
-          )}
-        </PulsePopover>
-      )}
-
-      {/* Weekly plays popover */}
-      {showWeekly && (
-        <PulsePopover title="Plays This Week" icon={BarChart3} onClose={() => setShowWeekly(false)}>
-          {loadingPanel ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
-            </div>
-          ) : weeklyPlays.length === 0 ? (
-            <p className="text-[12px] text-muted-foreground/50 py-2">No plays executed this week.</p>
-          ) : (
-            <div className="space-y-1">
-              {/* Summary bar */}
-              <div className="flex items-center gap-3 mb-3 text-[11px] text-muted-foreground/70">
-                <div className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3 text-emerald-500" />
-                  <span className="font-medium">{weeklyPlays.length} total runs</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <span>{weeklyPlays.filter((p) => p.status === "completed").length} completed</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                  <span>{weeklyPlays.filter((p) => p.status === "failed").length} failed</span>
-                </div>
-              </div>
-              {weeklyPlays.map((p, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 py-1.5 px-1 rounded text-left"
-                >
-                  <span className="text-[10px] text-muted-foreground/40 w-14 text-right shrink-0 tabular-nums">
-                    {formatTimeAgo(p.timestamp)}
-                  </span>
-                  <span className="text-sm shrink-0">{p.agentEmoji || "🤖"}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium truncate">
-                      {p.play || p.agent || "Heartbeat"}
-                    </p>
-                    {p.summary && (
-                      <p className="text-[10px] text-muted-foreground/50 truncate">
-                        {p.summary.slice(0, 60)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {p.duration && (
-                      <span className="text-[9px] text-muted-foreground/40 tabular-nums">
-                        {formatDuration(p.duration)}
-                      </span>
-                    )}
-                    <span className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      p.status === "completed" ? "bg-emerald-500" : p.status === "failed" ? "bg-red-500" : "bg-muted-foreground/30"
-                    )} />
-                  </div>
-                </div>
-              ))}
-              {metrics.playsThisWeek > 20 && (
-                <button
-                  onClick={() => { onPlaybookClick?.(); setShowWeekly(false); }}
-                  className="w-full text-center text-[11px] text-primary/70 hover:text-primary py-1.5 transition-colors"
-                >
-                  View all {metrics.playsThisWeek} plays →
-                </button>
-              )}
             </div>
           )}
         </PulsePopover>

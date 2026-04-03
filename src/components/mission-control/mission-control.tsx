@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Gauge, Plus, RefreshCw, Zap, MessageSquare, Loader2, BookOpen, Library, Power, Pause, PlayCircle, FolderOpen, Upload, ChevronsUpDown } from "lucide-react";
+import { Gauge, Plus, RefreshCw, Zap, MessageSquare, Loader2, BookOpen, Power, Pause, PlayCircle, FolderOpen, Upload, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
@@ -14,7 +14,6 @@ import { SlackPanel } from "./slack-panel";
 import { CreateAgentDialog } from "./create-agent-dialog";
 import { AgentDetailPanel } from "./agent-detail-panel";
 import { GoalBar } from "./goal-bar";
-import { PlaybookCatalog } from "./playbook-catalog";
 import { WorkspaceGallery } from "./workspace-gallery";
 import type { GoalMetric } from "@/types/agents";
 
@@ -28,7 +27,6 @@ interface AgentSummary {
   type: string;
   department: string;
   goals: GoalMetric[];
-  plays: string[];
   lastHeartbeat?: string;
   nextHeartbeat?: string;
   lastAction?: string;
@@ -42,11 +40,9 @@ interface DepartmentGroup {
 
 export function MissionControl() {
   const [agents, setAgents] = useState<AgentSummary[]>([]);
-  const [playsThisWeek, setPlaysThisWeek] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [catalogOpen, setCatalogOpen] = useState(false);
   const [nlOpen, setNlOpen] = useState(false);
   const [nlInput, setNlInput] = useState("");
   const [nlGenerating, setNlGenerating] = useState(false);
@@ -76,9 +72,8 @@ export function MissionControl() {
 
   const loadAgents = useCallback(async () => {
     try {
-      const [agentRes, playsRes, alertsRes] = await Promise.all([
+      const [agentRes, alertsRes] = await Promise.all([
         fetch("/api/agents/personas"),
-        fetch("/api/plays?history=true"),
         fetch("/api/agents/slack?channel=alerts&limit=100"),
       ]);
       if (agentRes.ok) {
@@ -93,20 +88,10 @@ export function MissionControl() {
             type: (p.type as string) || "specialist",
             department: (p.department as string) || "general",
             goals: (p.goals as GoalMetric[]) || [],
-            plays: (p.plays as string[]) || [],
             lastHeartbeat: p.lastHeartbeat as string | undefined,
             nextHeartbeat: p.nextHeartbeat as string | undefined,
           }))
         );
-      }
-      if (playsRes.ok) {
-        const data = await playsRes.json();
-        const history = data.history || [];
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const thisWeek = history.filter(
-          (h: { timestamp: string }) => new Date(h.timestamp).getTime() > weekAgo
-        );
-        setPlaysThisWeek(thisWeek.length);
       }
       if (alertsRes.ok) {
         const data = await alertsRes.json();
@@ -284,20 +269,15 @@ export function MissionControl() {
   const goalsWithData = allGoals.filter((g) => g.target > 0 && g.current > 0);
   const goalsOnTrack = goalsWithData.filter((g) => g.current / g.target >= 0.4).length;
 
-  // Estimate cost: ~$0.15 per heartbeat/play run (rough Claude API estimate)
-  const estimatedCostPerRun = 0.15;
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
   const pulseMetrics = {
     totalAgents: mcAgents.length,
     activeAgents: mcAgents.filter((a) => a.active).length,
     runningPlays: mcAgents.filter((a) => a.running).length,
-    playsThisWeek,
+    playsThisWeek: 0,
     goalsOnTrack,
     totalGoals: goalsWithData.length > 0 ? goalsWithData.length : allGoals.length,
     alerts: alertCount,
-    estimatedCost: playsThisWeek > 0 ? Math.round(playsThisWeek / 7 * estimatedCostPerRun * 100) / 100 : 0,
+    estimatedCost: 0,
   };
 
   const handleSchedulerToggle = async () => {
@@ -406,7 +386,6 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
               budget: 200,
               active: false,
               workdir: "/data",
-              plays: [],
               channels: [config.department === "general" ? "general" : config.department, "general"],
               tags: [config.department || "general"],
               focus: [],
@@ -507,7 +486,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
             onClick={() => setSection({ type: "jobs" })}
           >
             <BookOpen className="h-3 w-3" />
-            <span className="hidden md:inline">Playbooks</span>
+            <span className="hidden md:inline">Jobs</span>
           </Button>
           <Button
             variant="default"
@@ -653,13 +632,6 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                   </p>
                   <div className="flex gap-2 justify-center">
                     <button
-                      onClick={() => setCatalogOpen(true)}
-                      className="flex-1 max-w-[120px] py-2 px-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors text-center"
-                    >
-                      <Library className="h-4 w-4 mx-auto mb-1 text-emerald-500/60" />
-                      <p className="text-[11px] font-medium text-muted-foreground">From Playbook</p>
-                    </button>
-                    <button
                       onClick={() => setCreateOpen(true)}
                       className="flex-1 max-w-[120px] py-2 px-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors text-center"
                     >
@@ -732,12 +704,6 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
       <CreateAgentDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={loadAgents}
-      />
-
-      <PlaybookCatalog
-        open={catalogOpen}
-        onClose={() => setCatalogOpen(false)}
         onCreated={loadAgents}
       />
 

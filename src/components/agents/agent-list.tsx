@@ -210,7 +210,6 @@ export function AgentList() {
               department: string;
               role: string;
               active: boolean;
-              plays: string[];
             }) => ({
               name: p.name,
               slug: p.slug,
@@ -219,7 +218,7 @@ export function AgentList() {
               department: p.department || "general",
               role: p.role || "",
               active: p.active,
-              jobCount: (p.plays || []).length,
+              jobCount: 0,
               status: p.active ? "active" : "idle",
             })
           )

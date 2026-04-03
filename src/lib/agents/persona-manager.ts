@@ -48,7 +48,6 @@ export interface AgentPersona {
   department: string;
   type: AgentType;
   goals: GoalMetric[];
-  plays: string[];        // play slugs this agent can run
   channels: string[];     // Agent Slack channels
   workspace: string;      // relative path under data/.agents/{slug}/
   // Computed
@@ -193,7 +192,6 @@ export async function readPersona(slug: string): Promise<AgentPersona | null> {
     department: (data.department as string) || "general",
     type: (data.type as AgentPersona["type"]) || "specialist",
     goals: (data.goals as AgentPersona["goals"]) || [],
-    plays: (data.plays as string[]) || [],
     channels: (data.channels as string[]) || ["general"],
     workspace: (data.workspace as string) || `workspace`,
     slug,
@@ -259,7 +257,6 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
     department: merged.department || "general",
     type: merged.type || "specialist",
     ...(merged.goals && merged.goals.length > 0 ? { goals: merged.goals } : {}),
-    ...(merged.plays && merged.plays.length > 0 ? { plays: merged.plays } : {}),
     ...(merged.channels && merged.channels.length > 0 ? { channels: merged.channels } : {}),
   };
 

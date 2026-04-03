@@ -35,7 +35,6 @@ export interface IntegrationConfig {
   };
   scheduling: {
     max_concurrent_agents: number;
-    max_concurrent_plays_per_agent: number;
     default_heartbeat_interval: string;
     active_hours: string;
     pause_on_error: boolean;
@@ -95,7 +94,6 @@ const DEFAULT_CONFIG: IntegrationConfig = {
   },
   scheduling: {
     max_concurrent_agents: 10,
-    max_concurrent_plays_per_agent: 3,
     default_heartbeat_interval: "*/15 * * * *",
     active_hours: "8-22",
     pause_on_error: true,
