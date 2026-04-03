@@ -1,8 +1,16 @@
 # Progress
 
+[2026-04-03] Created marketing/reddit-campaign/index.md with a full Reddit organic outreach plan for Bible Way — 15 targeted subreddits across Bible study, church, and podcast categories, a 3-phase engagement strategy, high-value thread search queries, rules, and KPIs.
+
+[2026-04-03] Added @mention support to the agent session view prompt input. Replaced the plain `<input>` + Send button with the reusable `MentionInput` component; `handleSendPrompt` now accepts `(text, mentionedPages)` and fetches KB page content as context via `fetchMentionedPagesContext` before building the full prompt.
+
 [2026-04-03] Created product/roadmap/index.md with 5 milestones covering Foundation Launch, 1,000 paying users, 10 church partnerships, public podcast, and Scale & Community — aligned to Bible Way company goals.
 
 [2026-04-03] Created /marketing/app-store/apple/index.md with the iOS App Store listing draft (title, subtitle, keywords, description, copy notes) from the drafts directory.
+
+[2026-04-03] Added marketing/app-store/index.md parent page (launch checklist + platform comparison table) so both App Store listings appear in the sidebar tree. Fixed Android listing title field: Play Store allows 50 chars, not 30; updated to "Bible Way: Read the Bible as One Story" (38 chars).
+
+[2026-04-03] Created /marketing/app-store/android/index.md with the Google Play Store listing draft (title, short description, full description, category, content rating, keyword table, and copy notes).
 
 [2026-04-03] Live agent sessions: agent heartbeats now run via the daemon PTY (same path as AI editor) instead of `child_process.spawn`. Added `POST /sessions` to daemon, `startManualHeartbeat()` to heartbeat.ts, `agentSessions` slice to ai-panel-store, new `AgentLivePanel` component (identical card+terminal UX to AI editor panel), and wired into `AgentDashboard` — clicking a persona opens the live panel where "Run Now" shows a streaming xterm.js terminal.
 

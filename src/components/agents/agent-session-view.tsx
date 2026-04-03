@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { Loader2 } from "lucide-react";
+import { MentionInput, fetchMentionedPagesContext } from "@/components/shared/mention-input";
 
 interface HeartbeatRecord {
   agentSlug: string;
@@ -60,7 +61,6 @@ export function AgentSessionView({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [sidePanel, setSidePanel] = useState<SidePanel>("sessions");
   const [selectedSession, setSelectedSession] = useState<HeartbeatRecord | null>(null);
-  const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
   const [manualOutput, setManualOutput] = useState<string | null>(null);
   const [toggling, setToggling] = useState(false);
@@ -120,14 +120,15 @@ export function AgentSessionView({ slug }: { slug: string }) {
     setTimeout(refresh, 3000);
   };
 
-  const handleSendPrompt = async () => {
-    if (!prompt.trim() || !detail) return;
+  const handleSendPrompt = async (text: string, mentionedPages: string[]) => {
+    if (!text.trim() || !detail) return;
     setSending(true);
     setManualOutput(null);
     setSelectedSession(null);
 
     try {
-      const fullPrompt = `${detail.persona.body}\n\n---\n\nUser request: ${prompt}`;
+      const contextBlock = await fetchMentionedPagesContext(mentionedPages);
+      const fullPrompt = `${detail.persona.body}\n\n---\n\nUser request: ${text}${contextBlock}`;
       const res = await fetch("/api/agents/headless", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,7 +144,6 @@ export function AgentSessionView({ slug }: { slug: string }) {
       setManualOutput("Error: " + (err instanceof Error ? err.message : "Unknown"));
     }
     setSending(false);
-    setPrompt("");
     refresh();
   };
 
@@ -505,33 +505,12 @@ export function AgentSessionView({ slug }: { slug: string }) {
           </ScrollArea>
           )}
 
-          {/* Prompt input */}
-          <div className="border-t border-border p-3">
-            <div className="flex gap-2">
-              <input
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendPrompt();
-                  }
-                }}
-                placeholder={`Ask ${persona.name} something...`}
-                className="flex-1 px-3 py-1.5 text-[13px] rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
-                disabled={sending}
-              />
-              <Button
-                size="sm"
-                className="h-8 gap-1"
-                onClick={handleSendPrompt}
-                disabled={sending || !prompt.trim()}
-              >
-                <Send className="h-3.5 w-3.5" />
-                {sending ? "..." : "Send"}
-              </Button>
-            </div>
-          </div>
+          <MentionInput
+            placeholder={`Ask ${persona.name} something...`}
+            disabled={sending}
+            sending={sending}
+            onSubmit={handleSendPrompt}
+          />
         </div>
       </div>
     </div>
