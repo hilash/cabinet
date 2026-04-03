@@ -3,6 +3,29 @@ import { listPersonas, getRegisteredHeartbeats, getRunningHeartbeats } from "@/l
 import { getGoalState } from "@/lib/agents/goal-manager";
 import { getMessages } from "@/lib/agents/slack-manager";
 import { getRespondingAgents } from "@/app/api/agents/slack/route";
+import fs from "fs/promises";
+import path from "path";
+import { DATA_DIR } from "@/lib/storage/path-utils";
+
+async function getDataDirVersion(): Promise<string> {
+  try {
+    const stat = await fs.stat(DATA_DIR);
+    const entries = await fs.readdir(DATA_DIR, { recursive: false });
+
+    // Also watch .agents dir so agent add/remove triggers a refresh
+    let agentsSig = "";
+    try {
+      const agentsDir = path.join(DATA_DIR, ".agents");
+      const agentStat = await fs.stat(agentsDir);
+      const agentEntries = await fs.readdir(agentsDir);
+      agentsSig = `${agentStat.mtimeMs}-${agentEntries.length}`;
+    } catch { /* ignore if .agents doesn't exist yet */ }
+
+    return `${stat.mtimeMs}-${entries.length}-${agentsSig}`;
+  } catch {
+    return "0";
+  }
+}
 
 /**
  * GET /api/agents/events — Server-Sent Events for real-time Mission Control updates.
@@ -25,6 +48,7 @@ export async function GET() {
 
       // Track last known state for diffing
       let lastSlackCounts: Record<string, number> = {};
+      let lastDataVersion = await getDataDirVersion();
 
       const tick = async () => {
         if (closed) return;
@@ -130,6 +154,13 @@ export async function GET() {
             goalsOnTrack,
             totalGoals: allGoals.length,
           });
+
+          // Tree change detection — notify client to reload sidebar
+          const currentDataVersion = await getDataDirVersion();
+          if (currentDataVersion !== lastDataVersion) {
+            lastDataVersion = currentDataVersion;
+            send("tree_changed", {});
+          }
         } catch {
           // Ignore errors in SSE tick
         }
