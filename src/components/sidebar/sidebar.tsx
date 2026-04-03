@@ -52,6 +52,7 @@ interface AgentSummary {
   slug: string;
   emoji: string;
   active: boolean;
+  runningCount?: number;
 }
 
 const AGENT_ICONS: Record<string, LucideIcon> = {
@@ -134,6 +135,7 @@ export function Sidebar() {
             slug: p.slug,
             emoji: p.emoji,
             active: p.active,
+            runningCount: p.runningCount || 0,
           }))
         );
       }
@@ -143,7 +145,15 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
-    loadAgents();
+    void loadAgents();
+    const interval = window.setInterval(() => {
+      void loadAgents();
+    }, 5000);
+    window.addEventListener("focus", loadAgents);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", loadAgents);
+    };
   }, [loadAgents]);
 
   useEffect(() => {
@@ -259,7 +269,9 @@ export function Sidebar() {
                   <span
                     className={cn(
                       "ml-auto w-1.5 h-1.5 rounded-full shrink-0",
-                      agent.active ? "bg-green-500" : "bg-muted-foreground/30"
+                      (agent.runningCount || 0) > 0
+                        ? "bg-green-500"
+                        : "bg-muted-foreground/30"
                     )}
                   />
                 </button>

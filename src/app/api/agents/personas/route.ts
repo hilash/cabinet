@@ -5,26 +5,30 @@ import { ensureDirectory } from "@/lib/storage/fs-operations";
 import {
   listPersonas,
   writePersona,
-  registerAllHeartbeats,
-  getRegisteredHeartbeats,
 } from "@/lib/agents/persona-manager";
-import { initScheduler } from "@/lib/jobs/job-manager";
+import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
 
 // Initialize heartbeats on first request
 let initialized = false;
 
 export async function GET() {
   if (!initialized) {
-    await registerAllHeartbeats();
-    await initScheduler();
+    await reloadDaemonSchedules().catch(() => {});
     initialized = true;
   }
 
   const personas = await listPersonas();
-  const activeHeartbeats = getRegisteredHeartbeats();
+  const activeHeartbeats = personas
+    .filter((persona) => persona.active && !!persona.heartbeat)
+    .map((persona) => persona.slug);
+  const runningCounts = await getRunningConversationCounts();
 
   return NextResponse.json({
-    personas,
+    personas: personas.map((persona) => ({
+      ...persona,
+      runningCount: runningCounts[persona.slug] || 0,
+    })),
     activeHeartbeats,
   });
 }
@@ -43,8 +47,7 @@ export async function POST(req: NextRequest) {
   const wsDir = path.join(DATA_DIR, ".agents", slug, "workspace");
   await ensureDirectory(wsDir);
 
-  // Re-register heartbeats
-  await registerAllHeartbeats();
+  await reloadDaemonSchedules().catch(() => {});
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }

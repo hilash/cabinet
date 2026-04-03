@@ -12,12 +12,10 @@ import {
   readInbox,
   sendMessage,
   getHeartbeatHistory,
-  registerAllHeartbeats,
-  registerHeartbeat,
-  unregisterHeartbeat,
 } from "@/lib/agents/persona-manager";
-import { runHeartbeat, startManualHeartbeat } from "@/lib/agents/heartbeat";
+import { startManualHeartbeat } from "@/lib/agents/heartbeat";
 import { updateGoal, getGoalHistory } from "@/lib/agents/goal-manager";
+import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -71,11 +69,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const persona = await readPersona(slug);
     if (!persona) return NextResponse.json({ error: "Not found" }, { status: 404 });
     await writePersona(slug, { active: !persona.active });
-    if (!persona.active) {
-      registerHeartbeat(slug, persona.heartbeat);
-    } else {
-      unregisterHeartbeat(slug);
-    }
+    await reloadDaemonSchedules().catch(() => {});
     return NextResponse.json({ ok: true, active: !persona.active });
   }
 
@@ -104,12 +98,13 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
   // Default: update persona
   await writePersona(slug, body);
-  await registerAllHeartbeats();
+  await reloadDaemonSchedules().catch(() => {});
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const { slug } = await params;
   await deletePersona(slug);
+  await reloadDaemonSchedules().catch(() => {});
   return NextResponse.json({ ok: true });
 }
