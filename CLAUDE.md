@@ -77,65 +77,6 @@ When the AI panel sends an edit request:
 
 The AI panel supports `@` mentions — users type `@PageName` to attach other pages as context. The mentioned pages' content is fetched and appended to the prompt so Claude has full context.
 
-## What's been built
-
-### Phase 1 — Core KB
-- File-backed storage layer with CRUD API routes
-- Collapsible tree sidebar with drag-and-drop page reordering
-- Right-click context menu: "Add Sub Page", "Delete"
-- Tiptap WYSIWYG editor with formatting toolbar
-- Markdown roundtrip: MD → remark → HTML → Tiptap (load) / Tiptap → HTML → turndown → MD (save)
-- Auto-save with status indicator (500ms debounce)
-- Dark/light theme toggle (Inter + JetBrains Mono fonts)
-- Paste/drag-drop media upload with asset serving API
-- Full-text search (Cmd+K) across all markdown files
-- Export: Copy MD, Copy HTML, Download .md, Download PDF
-- Embedded website rendering (index.html dirs → iframe with globe icon)
-
-### Phase 2 — AI & Tasks
-- AI Editor panel with @ file mentions for context injection
-- Claude edits files DIRECTLY via tools (not stdout replacement)
-- Kanban task board (Backlog, In Progress, Review, Done) with Board/List toggle
-- My Tasks date view (grouped by Overdue, Today, This Week, Later)
-- "Run with Agent" button on task cards
-- Agent Dashboard with live stats and session control
-- Claude Code web terminal (xterm.js + node-pty via WebSocket)
-- Git auto-commit on save (5s debounce via simple-git)
-- Version history panel with diff viewer + Restore to previous version
-- Scheduled jobs engine (node-cron + YAML configs in `/data/.jobs/`)
-- Jobs Manager UI (create, toggle, run now, delete, history)
-- Global keyboard shortcuts: Cmd+S, Cmd+K, Cmd+`, Cmd+Shift+A
-
-### Phase 3-4 — Polish & Infrastructure
-- Wiki-links [[Page Name]] with input rule and styled rendering
-- Slash commands (/ palette with 10 commands)
-- Markdown source toggle (WYSIWYG ↔ raw markdown)
-- Table support (Tiptap tables + GFM roundtrip)
-- Rename page in context menu
-- Provider abstraction layer + settings page
-- Mobile-responsive layout
-- Global status bar with git info
-- Headless AI operations endpoint (/api/agents/headless)
-
-### Phase 5 — KB as Startup OS
-- Full-screen app embedding (`.app` marker → auto-collapse sidebar/AI panel, iframe fills viewport)
-- Linked repositories (`.repo.yaml` → agents discover and read source code in context)
-- Wiki-links render in MD→HTML pipeline (not just live input rules)
-- Task list checkboxes render with proper Tiptap DOM structure
-- Sidebar collapsed state in Zustand store (cross-component control)
-- KB reorganized: product/, market/, people/ (CRM), research/, operations/, presentations/
-- Inline PDF viewer — PDFs appear in sidebar (red icon), click to view with browser native renderer
-- CSV viewer/editor — CSVs appear in sidebar (green table icon), interactive table with cell editing, add/delete rows/columns, source mode toggle, save with auto-commit
-- Relative URL resolution in markdown (./file.pdf → /api/assets/path/file.pdf)
-- Distinct sidebar icons per content type: AppWindow (green), Globe (blue), GitBranch (orange), FileType (red), Table (green), Folder, FileText
-- Assets API supports PUT for raw file writes (CSV save, etc.)
-
-### What's NOT built yet
-- Multi-user authentication
-- Real-time collaborative editing (Yjs)
-- Google Drive export
-- Multi-provider implementation (Gemini, Codex, APIs — settings page ready)
-- Telegram/Slack/email notifications for jobs
 
 ## Commands
 

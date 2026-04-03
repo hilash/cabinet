@@ -39,6 +39,18 @@ export interface PlayDefinition {
   body: string;         // markdown body (play instructions)
 }
 
+export interface CatalogIntegration {
+  name: string;
+  slug: string;
+  required: boolean;
+}
+
+export interface CatalogPlayDefinition extends PlayDefinition {
+  integrations?: CatalogIntegration[];
+  inputs?: { name: string; type: string; description: string }[];
+  outputs?: { name: string; type: string; description?: string }[];
+}
+
 export interface SlackMessage {
   id: string;
   channel: string;

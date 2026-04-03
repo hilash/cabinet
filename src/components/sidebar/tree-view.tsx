@@ -9,7 +9,6 @@ import {
   Bot,
   Clock,
   ChevronRight,
-  Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +46,7 @@ function SystemSections() {
     }
   }, [section]);
 
-  const handleSection = (type: "agents" | "jobs" | "mission-control") => {
+  const handleSection = (type: "agents" | "jobs") => {
     selectPage(null as unknown as string);
     setSection({ type });
   };
@@ -65,21 +64,6 @@ function SystemSections() {
 
   return (
     <div className="py-1" suppressHydrationWarning>
-      {/* Mission Control */}
-      <button
-        suppressHydrationWarning
-        onClick={() => handleSection("mission-control")}
-        className={cn(
-          "flex items-center gap-2 w-full pl-[22px] pr-3 py-1.5 text-[13px] rounded-md transition-colors",
-          isSelected("mission-control")
-            ? "bg-accent text-accent-foreground font-medium"
-            : "text-foreground/80 hover:bg-accent/50"
-        )}
-      >
-        <Gauge className="h-4 w-4 shrink-0 text-primary" />
-        <span>Mission Control</span>
-      </button>
-
       {/* Agents (collapsible) */}
       <button
         suppressHydrationWarning

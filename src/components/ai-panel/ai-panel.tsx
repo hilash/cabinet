@@ -448,8 +448,8 @@ Work in the /data directory. Edit files directly. After editing, briefly confirm
       </div>
 
       {/* Sessions */}
-      <div className="flex-1 overflow-y-auto min-h-0" ref={scrollRef}>
-        <div className="p-3 space-y-3">
+      <div className={cn("flex-1 min-h-0 flex flex-col", currentPageSessions.length === 0 && "overflow-y-auto")} ref={scrollRef}>
+        <div className={cn("p-3 space-y-3", currentPageSessions.length > 0 ? "flex-1 flex flex-col" : "")}>
           {!hasAnySessions && (
             <div className="text-center py-8 space-y-2">
               <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/40" />
@@ -560,9 +560,9 @@ Work in the /data directory. Edit files directly. After editing, briefly confirm
           )}
 
           {/* Live sessions for current page — these render terminals */}
-          {currentPageSessions.map((session) => (
-            <div key={session.id} className="space-y-2">
-              <div className="flex items-center gap-2">
+          {currentPageSessions.map((session, i) => (
+            <div key={session.id} className={cn("space-y-2 flex flex-col", i === currentPageSessions.length - 1 ? "flex-1 min-h-0" : "")}>
+              <div className="flex items-center gap-2 shrink-0">
                 <div className="bg-accent/50 rounded-lg px-3 py-2 text-[13px] leading-relaxed flex-1">
                   {session.userMessage}
                 </div>
@@ -579,8 +579,7 @@ Work in the /data directory. Edit files directly. After editing, briefly confirm
               </div>
 
               <div
-                className="rounded-lg overflow-hidden border border-[#ffffff10]"
-                style={{ height: "300px" }}
+                className="rounded-lg overflow-hidden border border-[#ffffff10] flex-1 min-h-[200px]"
               >
                 <WebTerminal
                   sessionId={session.sessionId}
