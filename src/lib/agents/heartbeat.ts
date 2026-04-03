@@ -18,6 +18,7 @@ import { postMessage } from "./slack-manager";
 import { getGoalState, updateGoal } from "./goal-manager";
 import { startConversationRun } from "./conversation-runner";
 import { reloadDaemonSchedules } from "./daemon-client";
+import { getDaemonUrl, getOrCreateDaemonToken } from "./daemon-auth";
 
 interface HeartbeatContext {
   prompt: string;
@@ -471,9 +472,15 @@ Respond naturally as ${persona.name}. Be concise (1-3 short paragraphs max). Ref
   let response = "";
   try {
     const sessionId = `slack-${slug}-${Date.now()}`;
-    await fetch("http://localhost:3001/sessions", {
+    const token = await getOrCreateDaemonToken();
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    await fetch(`${getDaemonUrl()}/sessions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         id: sessionId,
         args: ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"],
@@ -484,7 +491,9 @@ Respond naturally as ${persona.name}. Be concise (1-3 short paragraphs max). Ref
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 2000));
       try {
-        const res = await fetch(`http://localhost:3001/session/${sessionId}/output`);
+        const res = await fetch(`${getDaemonUrl()}/session/${sessionId}/output`, {
+          headers,
+        });
         if (res.ok) {
           const data = await res.json() as { status: string; output: string };
           if (data.status === "completed") { response = data.output; break; }

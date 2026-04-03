@@ -9,7 +9,6 @@ services:
       - ./data:/app/data
     ports:
       - "3000:3000"
-      - "3001:3001"
 
   caddy:
     image: caddy:2-alpine
