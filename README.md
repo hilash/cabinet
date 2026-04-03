@@ -1,3 +1,5 @@
+![Cabinet demo](https://runcabinet.com/demo.gif)
+
 # Cabinet
 
 **Your knowledge base. Your AI team.**
@@ -5,15 +7,6 @@
 The AI-first startup OS where everything lives as markdown files on disk. No database. No vendor lock-in. Self-hosted. Your data never leaves your machine.
 
 [runcabinet.com](https://runcabinet.com) | [hi@runcabinet.com](mailto:hi@runcabinet.com) | [Star on GitHub](https://github.com/hilash/cabinet)
-
----
-
-<div align="center">
-
-<video src="https://runcabinet.com/demo.webm" autoplay loop muted playsinline width="100%"></video>
-<img src="https://runcabinet.com/demo.gif" alt="Cabinet demo" width="100%" />
-
-</div>
 
 ---
 
