@@ -96,7 +96,7 @@ export function AIPanel() {
 
       // Check which restored sessions are still alive on the terminal server
       try {
-        const res = await fetch("http://localhost:3001/sessions");
+        const res = await fetch("/api/daemon/sessions");
         if (res.ok) {
           const serverSessions: { id: string; exited: boolean }[] = await res.json();
           const aliveIds = new Set(serverSessions.filter((s) => !s.exited).map((s) => s.id));
@@ -296,7 +296,7 @@ export function AIPanel() {
       let summary = "";
       try {
         const res = await fetch(
-          `http://localhost:3001/session/${sessionId}/output`
+          `/api/daemon/session/${sessionId}/output`
         );
         if (res.ok) {
           const data = await res.json();

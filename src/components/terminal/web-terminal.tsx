@@ -11,6 +11,10 @@ interface WebTerminalProps {
   onClose: () => void;
 }
 
+interface DaemonAuthPayload {
+  token: string;
+}
+
 function replacePastedTextNotice(output: string, displayPrompt?: string): string {
   if (!displayPrompt) return output;
   return output.replace(/\[Pasted text #\d+(?: \+\d+ lines)?\]/g, displayPrompt);
@@ -138,58 +142,81 @@ export function WebTerminal({
       function connectWebSocket() {
         if (disposed || !terminal) return;
 
-        const id = sessionId || `session-${Date.now()}`;
-        const params = new URLSearchParams({ id });
-        // Only send prompt for new sessions, not reconnections
-        if (prompt && !reconnect) params.set("prompt", prompt);
+        void (async () => {
+          const id = sessionId || `session-${Date.now()}`;
 
-        ws = new WebSocket(`ws://localhost:3001?${params}`);
-        wsRef.current = ws;
+          try {
+            const authResponse = await fetch("/api/daemon/auth");
+            if (!authResponse.ok) {
+              throw new Error(`Auth failed (${authResponse.status})`);
+            }
 
-        ws.binaryType = "arraybuffer";
+            const auth = (await authResponse.json()) as DaemonAuthPayload;
+            const params = new URLSearchParams({ id, token: auth.token });
+            if (prompt && !reconnect) params.set("prompt", prompt);
 
-        ws.onopen = () => {
-          if (disposed) return;
-          setConnected(true);
-          setError(null);
-          // Send initial resize so PTY matches terminal dimensions
-          if (terminal) {
-            ws?.send(
-              JSON.stringify({
-                type: "resize",
-                cols: terminal.cols,
-                rows: terminal.rows,
-              })
+            const isLocalDev =
+              (window.location.hostname === "localhost" ||
+                window.location.hostname === "127.0.0.1") &&
+              window.location.port === "3000";
+            const protocol = isLocalDev
+              ? "ws"
+              : window.location.protocol === "https:"
+                ? "wss"
+                : "ws";
+            const host = isLocalDev ? "127.0.0.1:3001" : window.location.host;
+            const wsUrl = `${protocol}://${host}/api/daemon/pty?${params.toString()}`;
+
+            ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
+            ws.binaryType = "arraybuffer";
+
+            ws.onopen = () => {
+              if (disposed) return;
+              setConnected(true);
+              setError(null);
+              if (terminal) {
+                ws?.send(
+                  JSON.stringify({
+                    type: "resize",
+                    cols: terminal.cols,
+                    rows: terminal.rows,
+                  })
+                );
+              }
+            };
+
+            ws.onmessage = (event) => {
+              if (disposed || !terminal) return;
+              if (event.data instanceof ArrayBuffer) {
+                terminal.write(new Uint8Array(event.data));
+              } else {
+                terminal.write(replacePastedTextNotice(event.data, displayPrompt));
+              }
+            };
+
+            ws.onerror = () => {
+              if (disposed) return;
+              setError("Connection failed. Is the daemon running?");
+              terminal?.write(
+                "\r\n\x1b[31mConnection error.\x1b[0m Run \x1b[33mnpm run dev:all\x1b[0m to start Cabinet locally.\r\n"
+              );
+            };
+
+            ws.onclose = () => {
+              if (disposed) return;
+              setConnected(false);
+              terminal?.write("\r\n\x1b[90m[Session ended]\x1b[0m\r\n");
+              onClose?.();
+            };
+          } catch {
+            setError("Connection failed. Is the daemon running?");
+            terminal?.write(
+              "\r\n\x1b[31mConnection error.\x1b[0m Run \x1b[33mnpm run dev:all\x1b[0m to start Cabinet locally.\r\n"
             );
           }
-        };
+        })();
 
-        ws.onmessage = (event) => {
-          if (disposed || !terminal) return;
-          // Handle both string and ArrayBuffer data
-          if (event.data instanceof ArrayBuffer) {
-            terminal.write(new Uint8Array(event.data));
-          } else {
-            terminal.write(replacePastedTextNotice(event.data, displayPrompt));
-          }
-        };
-
-        ws.onerror = () => {
-          if (disposed) return;
-          setError("Connection failed. Is the terminal server running?");
-          terminal?.write(
-            "\r\n\x1b[31mConnection error.\x1b[0m Run \x1b[33mnpm run dev:terminal\x1b[0m to start the terminal server.\r\n"
-          );
-        };
-
-        ws.onclose = (event) => {
-          if (disposed) return;
-          setConnected(false);
-          terminal?.write("\r\n\x1b[90m[Session ended]\x1b[0m\r\n");
-          onClose?.();
-        };
-
-        // Terminal input → WebSocket
         terminal.onData((data) => {
           if (ws?.readyState === WebSocket.OPEN) {
             ws.send(data);

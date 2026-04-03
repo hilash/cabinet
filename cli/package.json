@@ -1,11 +1,18 @@
 {
   "name": "create-cabinet",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "description": "Create a new Cabinet project — AI-first knowledge base and startup OS",
   "bin": {
     "create-cabinet": "./index.js"
   },
-  "keywords": ["ai", "agents", "knowledge-base", "startup", "cabinet", "claude"],
+  "keywords": [
+    "ai",
+    "agents",
+    "knowledge-base",
+    "startup",
+    "cabinet",
+    "claude"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

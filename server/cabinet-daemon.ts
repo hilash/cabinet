@@ -27,10 +27,23 @@ import {
   readConversationMeta,
   readConversationTranscript,
 } from "../src/lib/agents/conversation-store";
+import {
+  getTokenFromAuthorizationHeader,
+  isDaemonTokenValid,
+} from "../src/lib/agents/daemon-auth";
 
 const PORT = 3001;
 const DATA_DIR = path.join(process.cwd(), "data");
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
+const ALLOWED_BROWSER_ORIGINS = new Set(
+  [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    ...(process.env.CABINET_APP_ORIGIN
+      ? process.env.CABINET_APP_ORIGIN.split(",").map((value) => value.trim()).filter(Boolean)
+      : []),
+  ]
+);
 
 // ----- Database Initialization -----
 
@@ -107,6 +120,28 @@ function resolveSessionCwd(input?: string): string {
   }
 
   return DATA_DIR;
+}
+
+function applyCors(req: http.IncomingMessage, res: http.ServerResponse): void {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_BROWSER_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+}
+
+function requestToken(req: http.IncomingMessage, url: URL): string | null {
+  const authHeader = Array.isArray(req.headers.authorization)
+    ? req.headers.authorization[0]
+    : req.headers.authorization;
+  return getTokenFromAuthorizationHeader(authHeader) || url.searchParams.get("token");
+}
+
+function rejectUnauthorized(res: http.ServerResponse): void {
+  res.writeHead(401, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "Unauthorized" }));
 }
 
 function stripAnsi(str: string): string {
@@ -566,9 +601,7 @@ function queueScheduleReload(): void {
 // ===== HTTP Server =====
 
 const server = http.createServer(async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  applyCors(req, res);
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
@@ -577,6 +610,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   const url = new URL(req.url || "", `http://localhost:${PORT}`);
+  if (url.pathname !== "/health" && !isDaemonTokenValid(requestToken(req, url))) {
+    rejectUnauthorized(res);
+    return;
+  }
 
   // GET /session/:id/output — retrieve captured output for a completed session
   const outputMatch = url.pathname.match(/^\/session\/([^/]+)\/output$/);
@@ -773,16 +810,23 @@ const wssEvents = new WebSocketServer({ noServer: true });
 // Route WebSocket upgrades based on path
 server.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url || "", `http://localhost:${PORT}`);
+  if (!isDaemonTokenValid(requestToken(req, url))) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
 
-  if (url.pathname === "/events") {
+  if (url.pathname === "/events" || url.pathname === "/api/daemon/events") {
     wssEvents.handleUpgrade(req, socket, head, (ws) => {
       wssEvents.emit("connection", ws, req);
     });
-  } else {
-    // Root path and everything else → PTY terminal
+  } else if (url.pathname === "/" || url.pathname === "/api/daemon/pty") {
     wssPty.handleUpgrade(req, socket, head, (ws) => {
       wssPty.emit("connection", ws, req);
     });
+  } else {
+    socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
+    socket.destroy();
   }
 });
 
@@ -809,8 +853,8 @@ scheduleWatcher.on("all", () => {
 
 server.listen(PORT, () => {
   console.log(`Cabinet Daemon running on port ${PORT}`);
-  console.log(`  Terminal WebSocket: ws://localhost:${PORT}`);
-  console.log(`  Events WebSocket: ws://localhost:${PORT}/events`);
+  console.log(`  Terminal WebSocket: ws://localhost:${PORT}/api/daemon/pty`);
+  console.log(`  Events WebSocket: ws://localhost:${PORT}/api/daemon/events`);
   console.log(`  Session API: http://localhost:${PORT}/sessions`);
   console.log(`  Reload schedules: POST http://localhost:${PORT}/reload-schedules`);
   console.log(`  Health check: http://localhost:${PORT}/health`);

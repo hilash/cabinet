@@ -1,11 +1,18 @@
 {$DOMAIN:localhost} {
-	# Main app
-	reverse_proxy kb:3000
-
-	# WebSocket for terminal
-	@websocket {
+	@daemon_ws {
+		path /api/daemon/pty /api/daemon/pty/*
 		header Connection *Upgrade*
 		header Upgrade websocket
 	}
-	reverse_proxy @websocket kb:3001
+	reverse_proxy @daemon_ws kb:3001
+
+	@daemon_events {
+		path /api/daemon/events /api/daemon/events/*
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @daemon_events kb:3001
+
+	# Main app
+	reverse_proxy kb:3000
 }

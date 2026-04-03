@@ -1,4 +1,4 @@
-const DAEMON_URL = "http://localhost:3001";
+import { getDaemonUrl, getOrCreateDaemonToken } from "./daemon-auth";
 
 interface CreateDaemonSessionInput {
   id: string;
@@ -7,10 +7,21 @@ interface CreateDaemonSessionInput {
   timeoutSeconds?: number;
 }
 
+async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {
+  const token = await getOrCreateDaemonToken();
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+
+  return fetch(`${getDaemonUrl()}${path}`, {
+    ...init,
+    headers,
+  });
+}
+
 export async function createDaemonSession(
   input: CreateDaemonSessionInput
 ): Promise<void> {
-  const response = await fetch(`${DAEMON_URL}/sessions`, {
+  const response = await daemonFetch("/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -25,15 +36,27 @@ export async function getDaemonSessionOutput(id: string): Promise<{
   status: string;
   output: string;
 }> {
-  const response = await fetch(`${DAEMON_URL}/session/${id}/output`);
+  const response = await daemonFetch(`/session/${id}/output`);
   if (!response.ok) {
     throw new Error(`Failed to load daemon session output (${response.status})`);
   }
   return response.json() as Promise<{ status: string; output: string }>;
 }
 
+export async function listDaemonSessions(): Promise<
+  { id: string; createdAt: string; connected: boolean; exited: boolean; exitCode: number | null }[]
+> {
+  const response = await daemonFetch("/sessions");
+  if (!response.ok) {
+    throw new Error(`Failed to list daemon sessions (${response.status})`);
+  }
+  return response.json() as Promise<
+    { id: string; createdAt: string; connected: boolean; exited: boolean; exitCode: number | null }[]
+  >;
+}
+
 export async function reloadDaemonSchedules(): Promise<void> {
-  const response = await fetch(`${DAEMON_URL}/reload-schedules`, {
+  const response = await daemonFetch("/reload-schedules", {
     method: "POST",
   });
 

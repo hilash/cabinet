@@ -45,5 +45,5 @@ EXPOSE 3000 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Start both Next.js and terminal server
-CMD ["sh", "-c", "node server.js & npx tsx server/terminal-server.ts & wait"]
+# Start both Next.js and the unified Cabinet daemon
+CMD ["sh", "-c", "node server.js & npx tsx server/cabinet-daemon.ts & wait"]

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { execSync } = require("child_process");
+const { spawnSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
@@ -19,16 +19,32 @@ const log = (msg) => console.log(`\x1b[36m>\x1b[0m ${msg}`);
 const success = (msg) => console.log(`\x1b[32m✓\x1b[0m ${msg}`);
 const error = (msg) => { console.error(`\x1b[31m✗\x1b[0m ${msg}`); process.exit(1); };
 
-function run(cmd, opts = {}) {
-  try {
-    execSync(cmd, { stdio: "inherit", ...opts });
-  } catch (e) {
-    error(`Command failed: ${cmd}`);
+function run(bin, args, opts = {}) {
+  const result = spawnSync(bin, args, {
+    stdio: "inherit",
+    ...opts,
+  });
+  if (result.status !== 0) {
+    error(`Command failed: ${bin} ${args.join(" ")}`);
+  }
+}
+
+function npmCommand() {
+  return process.platform === "win32" ? "npm.cmd" : "npm";
+}
+
+function validateTargetDir(targetDir) {
+  if (!targetDir || !targetDir.trim()) {
+    error("Please provide a valid directory name.");
+  }
+  if (targetDir.startsWith("-")) {
+    error("Directory names cannot start with '-'.");
   }
 }
 
 if (command === "init") {
   const targetDir = dirArg || DIR;
+  validateTargetDir(targetDir);
 
   console.log(`
   ┌─────────────────────────────┐
@@ -44,10 +60,10 @@ if (command === "init") {
   }
 
   log(`Cloning Cabinet into ./${targetDir}...`);
-  run(`git clone --depth 1 ${REPO} ${targetDir}`);
+  run("git", ["clone", "--depth", "1", REPO, targetDir]);
 
   log("Installing dependencies...");
-  run("npm install", { cwd: targetDir });
+  run(npmCommand(), ["install"], { cwd: targetDir });
 
   // Create .env.local from example
   const envExample = path.join(targetDir, ".env.example");
@@ -57,8 +73,8 @@ if (command === "init") {
   }
 
   // Remove .git so user starts fresh
-  run(`rm -rf ${path.join(targetDir, ".git")}`);
-  run("git init", { cwd: targetDir });
+  fs.rmSync(path.join(targetDir, ".git"), { recursive: true, force: true });
+  run("git", ["init"], { cwd: targetDir });
 
   console.log("");
   success("Cabinet is ready!");
