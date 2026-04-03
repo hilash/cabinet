@@ -4,7 +4,7 @@ const { execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
-const REPO = "https://github.com/user/cabinet.git"; // UPDATE THIS
+const REPO = "https://github.com/hilash/cabinet.git"; // UPDATE THIS
 const DIR = "cabinet";
 
 const args = process.argv.slice(2);
