@@ -15,10 +15,12 @@ import {
   Zap,
   MessageSquare,
   Brain,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { AgentLivePanel } from "./agent-live-panel";
 
 interface AgentSession {
   id: string;
@@ -58,17 +60,19 @@ interface HeartbeatRecord {
   summary: string;
 }
 
-function PersonaCard({ persona, onRefresh }: { persona: AgentPersona; onRefresh: () => void }) {
+function PersonaCard({
+  persona,
+  onRefresh,
+  onSelect,
+}: {
+  persona: AgentPersona;
+  onRefresh: () => void;
+  onSelect: (persona: AgentPersona) => void;
+}) {
   const [toggling, setToggling] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [detail, setDetail] = useState<{
-    memory: Record<string, string>;
-    inbox: Array<{ from: string; timestamp: string; message: string }>;
-    history: HeartbeatRecord[];
-  } | null>(null);
 
-  const handleToggle = async () => {
+  const handleToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     setToggling(true);
     await fetch(`/api/agents/personas/${persona.slug}`, {
       method: "PUT",
@@ -79,38 +83,12 @@ function PersonaCard({ persona, onRefresh }: { persona: AgentPersona; onRefresh:
     onRefresh();
   };
 
-  const handleRun = async () => {
-    setRunning(true);
-    await fetch(`/api/agents/personas/${persona.slug}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "run" }),
-    });
-    setTimeout(() => {
-      setRunning(false);
-      onRefresh();
-    }, 2000);
-  };
-
-  const loadDetail = async () => {
-    if (expanded) {
-      setExpanded(false);
-      return;
-    }
-    const res = await fetch(`/api/agents/personas/${persona.slug}`);
-    if (res.ok) {
-      const data = await res.json();
-      setDetail(data);
-    }
-    setExpanded(true);
-  };
-
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div
-        className="p-3 cursor-pointer hover:bg-accent/30 transition-colors"
-        onClick={loadDetail}
-      >
+    <div
+      className="bg-card border border-border rounded-lg overflow-hidden cursor-pointer hover:bg-accent/30 transition-colors"
+      onClick={() => onSelect(persona)}
+    >
+      <div className="p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={cn(
@@ -122,17 +100,7 @@ function PersonaCard({ persona, onRefresh }: { persona: AgentPersona; onRefresh:
               <p className="text-[11px] text-muted-foreground">{persona.role}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-[10px] gap-1"
-              onClick={handleRun}
-              disabled={running}
-            >
-              <Zap className="h-3 w-3" />
-              {running ? "Running..." : "Run Now"}
-            </Button>
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
@@ -143,6 +111,7 @@ function PersonaCard({ persona, onRefresh }: { persona: AgentPersona; onRefresh:
               {persona.active ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
               {persona.active ? "Pause" : "Activate"}
             </Button>
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
           </div>
         </div>
         <div className="flex items-center gap-2 mt-2 ml-5.5">
@@ -164,73 +133,6 @@ function PersonaCard({ persona, onRefresh }: { persona: AgentPersona; onRefresh:
           ))}
         </div>
       </div>
-
-      {/* Expanded detail */}
-      {expanded && detail && (
-        <div className="border-t border-border p-3 space-y-3 bg-muted/20">
-          {/* Memory */}
-          <div>
-            <h4 className="text-[11px] font-medium flex items-center gap-1 mb-1">
-              <Brain className="h-3 w-3" /> Memory
-            </h4>
-            {Object.entries(detail.memory).filter(([k]) => k.endsWith(".md")).length === 0 ? (
-              <p className="text-[10px] text-muted-foreground">No memory yet</p>
-            ) : (
-              Object.entries(detail.memory)
-                .filter(([k]) => k.endsWith(".md"))
-                .map(([file, content]) => (
-                  <details key={file} className="text-[10px]">
-                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{file}</summary>
-                    <pre className="mt-1 p-2 bg-muted rounded text-[9px] whitespace-pre-wrap max-h-32 overflow-y-auto">{content || "(empty)"}</pre>
-                  </details>
-                ))
-            )}
-          </div>
-
-          {/* Inbox */}
-          <div>
-            <h4 className="text-[11px] font-medium flex items-center gap-1 mb-1">
-              <MessageSquare className="h-3 w-3" /> Inbox ({detail.inbox.length})
-            </h4>
-            {detail.inbox.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground">No messages</p>
-            ) : (
-              detail.inbox.slice(0, 5).map((msg, i) => (
-                <div key={i} className="text-[10px] p-1.5 bg-muted rounded mb-1">
-                  <span className="font-medium">{msg.from}</span>
-                  <span className="text-muted-foreground ml-1">{new Date(msg.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                  <p className="text-muted-foreground mt-0.5 line-clamp-2">{msg.message}</p>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Recent heartbeats */}
-          <div>
-            <h4 className="text-[11px] font-medium flex items-center gap-1 mb-1">
-              <Activity className="h-3 w-3" /> Recent Heartbeats
-            </h4>
-            {detail.history.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground">No heartbeats yet</p>
-            ) : (
-              detail.history.slice(0, 5).map((hb, i) => (
-                <div key={i} className="flex items-center gap-2 text-[10px] py-0.5">
-                  {hb.status === "completed" ? (
-                    <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
-                  ) : (
-                    <XCircle className="h-3 w-3 text-red-500 shrink-0" />
-                  )}
-                  <span className="text-muted-foreground">
-                    {new Date(hb.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                  <span className="text-muted-foreground">{Math.round(hb.duration / 1000)}s</span>
-                  <span className="text-muted-foreground truncate flex-1">{hb.summary.slice(0, 100)}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -247,6 +149,7 @@ export function AgentDashboard() {
   const [personas, setPersonas] = useState<AgentPersona[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"sessions" | "team">("team");
+  const [selectedPersona, setSelectedPersona] = useState<AgentPersona | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -302,6 +205,16 @@ export function AgentDashboard() {
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
         Loading...
       </div>
+    );
+  }
+
+  // Show live panel when a persona is selected
+  if (selectedPersona) {
+    return (
+      <AgentLivePanel
+        persona={selectedPersona}
+        onBack={() => setSelectedPersona(null)}
+      />
     );
   }
 
@@ -383,7 +296,12 @@ export function AgentDashboard() {
                 ) : (
                   <div className="space-y-2">
                     {personas.map((persona) => (
-                      <PersonaCard key={persona.slug} persona={persona} onRefresh={refresh} />
+                      <PersonaCard
+                        key={persona.slug}
+                        persona={persona}
+                        onRefresh={refresh}
+                        onSelect={setSelectedPersona}
+                      />
                     ))}
                   </div>
                 )}

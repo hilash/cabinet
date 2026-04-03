@@ -1,3 +1,4 @@
+"use client";
 import { create } from "zustand";
 
 export interface ChatMessage {
@@ -18,7 +19,36 @@ export interface EditorSession {
   reconnect?: boolean;  // true when restored from sessionStorage after refresh
 }
 
+export interface AgentLiveSession {
+  sessionId: string;
+  slug: string;
+  personaName: string;
+  personaEmoji?: string;
+  timestamp: number;
+  status: "running" | "completed";
+  reconnect?: boolean;
+}
+
 const SESSION_STORAGE_KEY = "ai-panel-running-sessions";
+const AGENT_SESSION_STORAGE_KEY = "ai-panel-running-agent-sessions";
+
+function saveAgentSessionsToStorage(sessions: AgentLiveSession[]) {
+  try {
+    const running = sessions.filter((s) => s.status === "running");
+    sessionStorage.setItem(AGENT_SESSION_STORAGE_KEY, JSON.stringify(running));
+  } catch {}
+}
+
+function loadAgentSessionsFromStorage(): AgentLiveSession[] {
+  try {
+    const raw = sessionStorage.getItem(AGENT_SESSION_STORAGE_KEY);
+    if (!raw) return [];
+    const sessions: AgentLiveSession[] = JSON.parse(raw);
+    return sessions.map((s) => ({ ...s, reconnect: true }));
+  } catch {
+    return [];
+  }
+}
 
 function saveRunningSessionsToStorage(sessions: EditorSession[]) {
   try {
@@ -47,6 +77,9 @@ interface AIPanelState {
   // Live editor sessions (persist across page navigation)
   editorSessions: EditorSession[];
 
+  // Live agent sessions (persist across navigation)
+  agentSessions: AgentLiveSession[];
+
   open: () => void;
   close: () => void;
   toggle: () => void;
@@ -63,6 +96,13 @@ interface AIPanelState {
   getSessionsForPage: (pagePath: string) => EditorSession[];
   getAllRunningSessions: () => EditorSession[];
   restoreSessionsFromStorage: () => void;
+
+  // Agent session management
+  addAgentSession: (session: AgentLiveSession) => void;
+  markAgentSessionCompleted: (sessionId: string) => void;
+  removeAgentSession: (sessionId: string) => void;
+  getSessionsForAgent: (slug: string) => AgentLiveSession[];
+  restoreAgentSessionsFromStorage: () => void;
 }
 
 export const useAIPanelStore = create<AIPanelState>((set, get) => ({
@@ -70,6 +110,7 @@ export const useAIPanelStore = create<AIPanelState>((set, get) => ({
   messages: [],
   isLoading: false,
   editorSessions: [],
+  agentSessions: [],
 
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
@@ -131,10 +172,46 @@ export const useAIPanelStore = create<AIPanelState>((set, get) => ({
     const restored = loadRunningSessionsFromStorage();
     if (restored.length > 0) {
       set((s) => {
-        // Only add sessions that aren't already in the store
         const existingIds = new Set(s.editorSessions.map((es) => es.sessionId));
         const newSessions = restored.filter((r) => !existingIds.has(r.sessionId));
         return { editorSessions: [...s.editorSessions, ...newSessions] };
+      });
+    }
+  },
+
+  addAgentSession: (session) =>
+    set((s) => {
+      const next = [...s.agentSessions, session];
+      saveAgentSessionsToStorage(next);
+      return { agentSessions: next };
+    }),
+
+  markAgentSessionCompleted: (sessionId) =>
+    set((s) => {
+      const next = s.agentSessions.map((as) =>
+        as.sessionId === sessionId ? { ...as, status: "completed" as const } : as
+      );
+      saveAgentSessionsToStorage(next);
+      return { agentSessions: next };
+    }),
+
+  removeAgentSession: (sessionId) =>
+    set((s) => {
+      const next = s.agentSessions.filter((as) => as.sessionId !== sessionId);
+      saveAgentSessionsToStorage(next);
+      return { agentSessions: next };
+    }),
+
+  getSessionsForAgent: (slug) =>
+    get().agentSessions.filter((as) => as.slug === slug),
+
+  restoreAgentSessionsFromStorage: () => {
+    const restored = loadAgentSessionsFromStorage();
+    if (restored.length > 0) {
+      set((s) => {
+        const existingIds = new Set(s.agentSessions.map((as) => as.sessionId));
+        const newSessions = restored.filter((r) => !existingIds.has(r.sessionId));
+        return { agentSessions: [...s.agentSessions, ...newSessions] };
       });
     }
   },

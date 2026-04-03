@@ -496,6 +496,86 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // POST /sessions — create a PTY session without a WebSocket (for agent heartbeats)
+  if (url.pathname === "/sessions" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      try {
+        const { id, args } = JSON.parse(body) as { id: string; args: string[] };
+        const sessionId = id || `session-${Date.now()}`;
+
+        if (sessions.has(sessionId)) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ sessionId, existing: true }));
+          return;
+        }
+
+        let term: pty.IPty;
+        try {
+          term = pty.spawn(CLAUDE_PATH, args || ["--dangerously-skip-permissions"], {
+            name: "xterm-256color",
+            cols: 120,
+            rows: 30,
+            cwd: DATA_DIR,
+            env: {
+              ...(process.env as Record<string, string>),
+              PATH: enrichedPath,
+              TERM: "xterm-256color",
+              COLORTERM: "truecolor",
+              FORCE_COLOR: "3",
+              LANG: "en_US.UTF-8",
+            },
+          });
+        } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: errMsg }));
+          return;
+        }
+
+        const session: PtySession = {
+          id: sessionId,
+          pty: term,
+          ws: null,
+          createdAt: new Date(),
+          output: [],
+          exited: false,
+          exitCode: null,
+        };
+        sessions.set(sessionId, session);
+        console.log(`Session ${sessionId} started via HTTP (agent mode)`);
+
+        term.onData((data: string) => {
+          session.output.push(data);
+          if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+            session.ws.send(data);
+          }
+        });
+
+        term.onExit(({ exitCode }) => {
+          console.log(`Session ${sessionId} PTY exited with code ${exitCode}`);
+          session.exited = true;
+          session.exitCode = exitCode;
+          if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+            const raw = session.output.join("");
+            const plain = stripAnsi(raw);
+            completedOutput.set(sessionId, { output: plain, completedAt: Date.now() });
+            sessions.delete(sessionId);
+            session.ws.close();
+          }
+        });
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ sessionId }));
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+      }
+    });
+    return;
+  }
+
   // GET /sessions — list all active sessions
   if (url.pathname === "/sessions" && req.method === "GET") {
     const activeSessions = Array.from(sessions.values()).map((s) => ({

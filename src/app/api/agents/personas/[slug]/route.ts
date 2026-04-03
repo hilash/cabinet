@@ -16,7 +16,7 @@ import {
   registerHeartbeat,
   unregisterHeartbeat,
 } from "@/lib/agents/persona-manager";
-import { runHeartbeat } from "@/lib/agents/heartbeat";
+import { runHeartbeat, startManualHeartbeat } from "@/lib/agents/heartbeat";
 import { updateGoal, getGoalHistory } from "@/lib/agents/goal-manager";
 
 type RouteParams = { params: Promise<{ slug: string }> };
@@ -80,11 +80,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   }
 
   if (body.action === "run") {
-    // Trigger immediate heartbeat
-    runHeartbeat(slug).catch((err) => {
-      console.error(`Manual heartbeat failed for ${slug}:`, err);
-    });
-    return NextResponse.json({ ok: true, message: "Heartbeat triggered" });
+    const sessionId = await startManualHeartbeat(slug);
+    if (!sessionId) {
+      return NextResponse.json({ ok: false, message: "Agent inactive or over budget" }, { status: 400 });
+    }
+    return NextResponse.json({ ok: true, sessionId });
   }
 
   if (body.action === "updateMemory") {
