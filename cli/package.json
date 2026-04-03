@@ -1,0 +1,14 @@
+{
+  "name": "paperclipai",
+  "version": "0.1.0",
+  "description": "Create a new Cabinet project — AI-first knowledge base and startup OS",
+  "bin": {
+    "paperclipai": "./index.js"
+  },
+  "keywords": ["ai", "agents", "knowledge-base", "startup", "cabinet", "claude"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/user/cabinet.git"
+  }
+}

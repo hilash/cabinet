@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,36 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# user data (created at runtime)
+data/.agents/.config/
+data/.agents/.history/
+data/.agents/.memory/
+data/.agents/.messages/
+data/.agents/.slack/
+data/.agents/.config.json
+data/.agents/ceo/
+data/.agents/editor/
+data/.agents/content-marketer/
+data/.agents/*/
+!data/.agents/.library/
+data/.chat/
+data/.missions/
+data/.playbooks/
+data/.cabinet.db
+data/.cabinet.db-shm
+data/.cabinet.db-wal
+
+# user KB content (ship only getting-started template)
+data/marketing/
+data/operations/
+data/product/
+data/research/
+data/people/
+data/presentations/
+
+# claude code
+.claude/
+
+# stray build artifacts
+data/.agents/.library/.next/
