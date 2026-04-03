@@ -1,0 +1,10 @@
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+Created `marketing/candies-suggestions.csv` with 10 candy name concepts. Here are some highlights:
+
+- **Velvet Crunch** — luxury meets playful contradiction
+- **Moonbite** — cosmic, nostalgic vibes
+- **Sugar Heist** — mischievous and bold
+- **Fizz & Fury** — calm outside, wild inside
+- **Riot Bar** — edgy and rebellious
+
+Each entry includes a tagline and a vibe descriptor. Let me know if you want to riff on any of these or go in a different direction.

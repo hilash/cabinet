@@ -28,6 +28,26 @@ We sound like a friend who *really* knows chocolate. Warm, a little playful, nev
 - **Be specific.** Not "premium chocolate" — "72% Ecuadorian dark chocolate with hints of red fruit."
 - **Skip the jargon.** *Single-origin* is fine. *Terroir-driven bean-to-bar artisanal micro-batch* is not.
 
+## Brand Lines
+
+Approved taglines and one-liners for use across packaging, ads, social, and web:
+
+- **Primary tagline:** "Stupid good chocolate."
+- "Made simple. Tastes anything but."
+- "Ingredients you know. Flavor you won't forget."
+- "The candy bar grew up."
+- "No weird stuff. Just chocolate."
+- "Melt-in-your-mouth honest."
+- "One ingredient list you'll actually want to read."
+- "Snack like you give a damn."
+- "Less filler. More flavor. Way more chocolate."
+- "Your 3pm just got a serious upgrade."
+
+**Usage notes:**
+- The primary tagline ("Stupid good chocolate.") should appear on all packaging and hero sections.
+- Rotate the others across social posts, email subject lines, and ad creatives — keep it fresh.
+- Always lowercase after the first word unless it's a proper noun. We're casual, not sloppy.
+
 ## Visual Identity
 
 **Primary colors:**

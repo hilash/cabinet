@@ -1,0 +1,2 @@
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+Done. The current date and time has been written to `/tmp/cabinet-cron-test.txt`.
