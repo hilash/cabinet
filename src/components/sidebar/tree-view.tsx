@@ -115,7 +115,7 @@ function SystemSections() {
         </div>
       )}
 
-      {/* Scheduling (Plays) */}
+      {/* Jobs */}
       <button
         suppressHydrationWarning
         onClick={() => handleSection("jobs")}
@@ -127,7 +127,7 @@ function SystemSections() {
         )}
       >
         <Clock className="h-4 w-4 shrink-0 text-amber-400" />
-        <span>Plays</span>
+        <span>Jobs</span>
       </button>
 
       {/* Separator */}

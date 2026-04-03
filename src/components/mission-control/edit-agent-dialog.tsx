@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { SchedulePicker } from "./schedule-picker";
 import { cn } from "@/lib/utils";
 import { Plus, X, Save, Trash2 } from "lucide-react";
-import type { PlayDefinition, GoalMetric } from "@/types/agents";
+import type { GoalMetric } from "@/types/agents";
 
 interface GoalInput {
   metric: string;
@@ -46,8 +46,6 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
   const [department, setDepartment] = useState("general");
   const [type, setType] = useState<"specialist" | "lead">("specialist");
   const [heartbeat, setHeartbeat] = useState("0 */4 * * *");
-  const [selectedPlays, setSelectedPlays] = useState<string[]>([]);
-  const [availablePlays, setAvailablePlays] = useState<PlayDefinition[]>([]);
   const [goals, setGoals] = useState<GoalInput[]>([]);
   const [channels, setChannels] = useState<string[]>([]);
   const [body, setBody] = useState("");
@@ -61,11 +59,9 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
     setLoading(true);
     setDirty(false);
 
-    Promise.all([
-      fetch(`/api/agents/personas/${slug}`).then((r) => r.json()),
-      fetch("/api/plays").then((r) => r.json()),
-    ])
-      .then(([agentData, playsData]) => {
+    fetch(`/api/agents/personas/${slug}`)
+      .then((r) => r.json())
+      .then((agentData) => {
         const p = agentData.persona || agentData;
         setName(p.name || "");
         setRole(p.role || "");
@@ -73,7 +69,6 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
         setDepartment(p.department || "general");
         setType(p.type || "specialist");
         setHeartbeat(p.heartbeat || "0 */4 * * *");
-        setSelectedPlays(p.plays || []);
         setChannels(p.channels || ["general"]);
         setBody(p.body || "");
         setGoals(
@@ -85,7 +80,6 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
             floor: g.floor,
           }))
         );
-        setAvailablePlays(playsData.plays || []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -114,7 +108,6 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
         department,
         type,
         heartbeat,
-        plays: selectedPlays,
         goals: goalsFmt,
         channels,
         body,
@@ -136,13 +129,6 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
     } finally {
       setSaving(false);
     }
-  };
-
-  const togglePlay = (playSlug: string) => {
-    markDirty();
-    setSelectedPlays((prev) =>
-      prev.includes(playSlug) ? prev.filter((s) => s !== playSlug) : [...prev, playSlug]
-    );
   };
 
   const addGoal = () => {
@@ -379,43 +365,6 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Plays */}
-          <div className="space-y-3">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground/60 font-medium">
-              Assigned Plays ({selectedPlays.length})
-            </div>
-            {availablePlays.length === 0 ? (
-              <p className="text-[12px] text-muted-foreground/50">No plays available</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-1.5 max-h-[150px] overflow-y-auto">
-                {availablePlays.map((p) => (
-                  <button
-                    key={p.slug}
-                    onClick={() => togglePlay(p.slug)}
-                    className={cn(
-                      "flex items-center gap-2 px-2.5 py-2 rounded-md text-left text-[12px] transition-colors",
-                      selectedPlays.includes(p.slug)
-                        ? "bg-primary/10 ring-1 ring-primary/30 text-foreground"
-                        : "bg-muted/30 text-muted-foreground/60 hover:bg-muted/50"
-                    )}
-                  >
-                    <span className={cn(
-                      "h-3 w-3 rounded border flex items-center justify-center shrink-0",
-                      selectedPlays.includes(p.slug)
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "border-muted-foreground/30"
-                    )}>
-                      {selectedPlays.includes(p.slug) && (
-                        <svg className="h-2 w-2" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="2" fill="none" /></svg>
-                      )}
-                    </span>
-                    <span className="truncate">{p.title}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* System Prompt */}

@@ -10,46 +10,6 @@ export interface GoalMetric {
   stretch?: number;     // Stretch goal
 }
 
-export interface PlaySchedule {
-  type: "interval" | "cron" | "daily" | "weekly";
-  every?: string;       // e.g., "4h", "15m"
-  cron?: string;        // raw cron expression
-  at?: string;          // e.g., "09:00" for daily/weekly
-  days?: string;        // "weekdays" | "weekends" | "daily" | "mon,wed,fri"
-  active_hours?: string; // e.g., "9-17"
-}
-
-export interface PlayTrigger {
-  type: "manual" | "schedule" | "file_changed" | "webhook" | "agent_message" | "goal_behind" | "on_complete";
-  path?: string;        // for file_changed
-  play?: string;        // for on_complete
-}
-
-export interface PlayDefinition {
-  name: string;
-  title: string;
-  category: string;
-  schedule?: PlaySchedule;
-  triggers: PlayTrigger[];
-  tools?: string[];
-  timeout?: number;     // seconds, default 300
-  estimated_duration?: string;
-  // Computed
-  slug: string;
-  body: string;         // markdown body (play instructions)
-}
-
-export interface CatalogIntegration {
-  name: string;
-  slug: string;
-  required: boolean;
-}
-
-export interface CatalogPlayDefinition extends PlayDefinition {
-  integrations?: CatalogIntegration[];
-  inputs?: { name: string; type: string; description: string }[];
-  outputs?: { name: string; type: string; description?: string }[];
-}
 
 export interface SlackMessage {
   id: string;

@@ -1,4 +1,3 @@
-import { spawn } from "child_process";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import {
@@ -15,7 +14,6 @@ import {
 } from "./persona-manager";
 import { readFileContent, fileExists } from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
-import { listPlays } from "./play-manager";
 import { postMessage } from "./slack-manager";
 import { getGoalState, updateGoal } from "./goal-manager";
 
@@ -47,17 +45,6 @@ async function buildHeartbeatContext(slug: string): Promise<HeartbeatContext | n
     if (await fileExists(indexPath)) {
       const content = await readFileContent(indexPath);
       focusContext += `\n### ${focusPath}\n${content.slice(0, 500)}...\n`;
-    }
-  }
-
-  let playsContext = "";
-  if (persona.plays && persona.plays.length > 0) {
-    const allPlays = await listPlays();
-    const assignedPlays = allPlays.filter((p) => persona.plays.includes(p.slug));
-    if (assignedPlays.length > 0) {
-      playsContext = assignedPlays.map((p) =>
-        `- **${p.title}** (\`${p.slug}\`): ${p.body.slice(0, 200)}...`
-      ).join("\n");
     }
   }
 
@@ -112,11 +99,6 @@ ${focusContext || "(no focus areas configured)"}
 
 ---
 
-## Your Assigned Plays
-${playsContext || "(no plays assigned)"}
-
----
-
 ## Goal Progress
 ${goalsContext || "(no goals configured)"}
 
@@ -130,8 +112,8 @@ ${tasksContext || "(no pending tasks)"}
 ## Instructions for this heartbeat
 
 1. Review your focus areas, inbox messages, and goal progress
-2. Decide which plays to run based on schedules and goal status
-3. Take action: edit KB pages, run plays, create/update tasks, or send messages to other agents
+2. Review goal progress and determine what actions to take
+3. Take action: edit KB pages, run jobs, create/update tasks, or send messages to other agents
 4. At the END of your response, include a structured section like this:
 
 \`\`\`memory
@@ -336,87 +318,24 @@ async function processHeartbeatOutput(
     }
   }
 
-  import("./trigger-engine").then((m) => m.checkGoalBehindTriggers()).catch(() => {});
   autoCommit(`.agents/${slug}`, "Update");
 }
 
 /**
- * Execute a scheduled/background heartbeat via child_process.spawn.
- * Used by cron scheduler. No live terminal.
- */
-export async function runHeartbeat(slug: string): Promise<void> {
-  const ctx = await buildHeartbeatContext(slug);
-  if (!ctx) return;
-  const { prompt, persona, inbox, cwd, startTime } = ctx;
-
-  markHeartbeatRunning(slug);
-
-  if (persona.heartbeatsUsed !== undefined && persona.heartbeatsUsed >= persona.budget) {
-    console.log(`Agent ${slug} has exceeded budget (${persona.heartbeatsUsed}/${persona.budget}). Skipping.`);
-    return;
-  }
-
-  let output = "";
-  let status: "completed" | "failed" = "completed";
-  const MAX_RETRIES = 2;
-
-  const executeOnce = (timeoutMs: number): Promise<string> =>
-    new Promise<string>((resolve, reject) => {
-      const proc = spawn(
-        "claude",
-        ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"],
-        { cwd, env: { ...process.env }, stdio: ["pipe", "pipe", "pipe"] }
-      );
-      let stdout = "", stderr = "";
-      proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
-      proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
-      proc.on("close", (code) => { code === 0 ? resolve(stdout.trim()) : reject(new Error(stderr || `Exit code ${code}`)); });
-      proc.on("error", (err) => reject(err));
-      setTimeout(() => { proc.kill(); reject(new Error("Heartbeat timed out")); }, timeoutMs);
-    });
-
-  let lastError = "";
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      output = await executeOnce(attempt === 0 ? 300_000 : 180_000);
-      status = "completed";
-      break;
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : "Unknown error";
-      if (attempt < MAX_RETRIES) {
-        console.log(`Agent ${slug} heartbeat attempt ${attempt + 1}/${MAX_RETRIES + 1} failed: ${lastError}. Retrying...`);
-        await new Promise((r) => setTimeout(r, 2000));
-      } else {
-        status = "failed";
-        output = lastError;
-        await postMessage({
-          channel: "alerts", agent: slug, emoji: persona.emoji, displayName: persona.name,
-          type: "alert",
-          content: `Heartbeat failed after ${MAX_RETRIES + 1} attempts: ${lastError.slice(0, 200)}. @human`,
-          mentions: ["human"], kbRefs: [],
-        });
-      }
-    }
-  }
-
-  await processHeartbeatOutput(slug, output, status, persona, inbox, startTime);
-}
-
-/**
- * Start a manual heartbeat via daemon PTY so the user sees live output.
- * Creates a PTY session in the daemon and returns the sessionId immediately.
+ * Run a heartbeat via daemon PTY — used by both cron scheduler and manual "Run Now".
+ * Creates a PTY session so output is always visible and buffered.
  * Post-processing (memory updates, goal tracking etc.) runs in the background.
  *
- * Returns the sessionId for the frontend to connect a WebTerminal to.
+ * Returns the sessionId (cron ignores it; frontend connects WebTerminal to it).
  * Returns null if the agent is inactive or over budget.
  */
-export async function startManualHeartbeat(slug: string): Promise<string | null> {
+export async function runHeartbeat(slug: string): Promise<string | null> {
   const ctx = await buildHeartbeatContext(slug);
   if (!ctx) return null;
   const { prompt, persona, inbox, startTime } = ctx;
 
   if (persona.heartbeatsUsed !== undefined && persona.heartbeatsUsed >= persona.budget) {
-    console.log(`Agent ${slug} has exceeded budget. Skipping.`);
+    console.log(`Agent ${slug} has exceeded budget (${persona.heartbeatsUsed}/${persona.budget}). Skipping.`);
     return null;
   }
 
@@ -424,7 +343,6 @@ export async function startManualHeartbeat(slug: string): Promise<string | null>
 
   const sessionId = `agent-${slug}-${Date.now()}`;
 
-  // Create PTY session in daemon (starts immediately)
   try {
     await fetch("http://localhost:3001/sessions", {
       method: "POST",
@@ -457,14 +375,20 @@ export async function startManualHeartbeat(slug: string): Promise<string | null>
             status = "completed";
             break;
           }
-          // still running — keep polling
         } else if (res.status === 404) {
-          // Session cleaned up — try completedOutput via output endpoint was 404
-          // This means it was never found; bail out
           output = "Session not found after polling";
           break;
         }
       } catch { /* retry */ }
+    }
+
+    if (status === "failed" && !output) {
+      await postMessage({
+        channel: "alerts", agent: slug, emoji: persona.emoji, displayName: persona.name,
+        type: "alert",
+        content: `Heartbeat timed out or failed for ${slug}. @human`,
+        mentions: ["human"], kbRefs: [],
+      });
     }
 
     await processHeartbeatOutput(slug, output, status, persona, inbox, startTime);
@@ -474,9 +398,17 @@ export async function startManualHeartbeat(slug: string): Promise<string | null>
 }
 
 /**
+ * Start a manual heartbeat — thin wrapper over runHeartbeat.
+ * Returns sessionId for the frontend to connect a WebTerminal to.
+ */
+export async function startManualHeartbeat(slug: string): Promise<string | null> {
+  return runHeartbeat(slug);
+}
+
+/**
  * Run a quick response to a human message in Agent Slack.
  * Lightweight variant of runHeartbeat — focused on responding to the human,
- * not executing full plays or heartbeat duties.
+ * not executing full jobs or heartbeat duties.
  *
  * Returns the agent's response text (also posted to Slack).
  */
@@ -555,52 +487,31 @@ Respond naturally as ${persona.name}. Be concise (1-3 short paragraphs max). Ref
 
   let response = "";
   try {
-    const cwd =
-      persona.workdir === "/data"
-        ? DATA_DIR
-        : path.join(DATA_DIR, persona.workdir);
-
-    response = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(
-        "claude",
-        [
-          "--dangerously-skip-permissions",
-          "-p",
-          prompt,
-          "--output-format",
-          "text",
-        ],
-        { cwd, env: { ...process.env }, stdio: ["pipe", "pipe", "pipe"] },
-      );
-
-      let stdout = "";
-      let stderr = "";
-
-      proc.stdout.on("data", (d: Buffer) => {
-        stdout += d.toString();
-      });
-      proc.stderr.on("data", (d: Buffer) => {
-        stderr += d.toString();
-      });
-
-      proc.on("close", (code) => {
-        if (code === 0) resolve(stdout.trim());
-        else reject(new Error(stderr || `Exit code ${code}`));
-      });
-
-      proc.on("error", (err) => reject(err));
-
-      // 2 minute timeout for quick responses
-      setTimeout(() => {
-        proc.kill();
-        reject(new Error("Response timed out"));
-      }, 120_000);
+    const sessionId = `slack-${slug}-${Date.now()}`;
+    await fetch("http://localhost:3001/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: sessionId,
+        args: ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"],
+      }),
     });
+
+    const deadline = Date.now() + 120_000; // 2 min timeout
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const res = await fetch(`http://localhost:3001/session/${sessionId}/output`);
+        if (res.ok) {
+          const data = await res.json() as { status: string; output: string };
+          if (data.status === "completed") { response = data.output; break; }
+        }
+      } catch { /* retry */ }
+    }
   } catch (err) {
-    response =
-      err instanceof Error
-        ? `Sorry, I encountered an error: ${err.message}`
-        : "Sorry, I encountered an error processing your request.";
+    response = err instanceof Error
+      ? `Sorry, I encountered an error: ${err.message}`
+      : "Sorry, I encountered an error processing your request.";
   }
 
   // Post the response to Slack

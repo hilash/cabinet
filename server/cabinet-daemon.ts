@@ -18,7 +18,6 @@ import fs from "fs";
 import cron from "node-cron";
 import yaml from "js-yaml";
 import chokidar from "chokidar";
-import { spawn } from "child_process";
 import { execSync } from "child_process";
 import { getDb, closeDb } from "./db";
 
@@ -372,86 +371,82 @@ function scheduleJob(job: JobConfig): void {
 }
 
 function executeJob(job: JobConfig): void {
-  const runId = `${Date.now()}-${job.id}`;
-  console.log(`Executing job: ${job.agentSlug}/${job.id} (run: ${runId})`);
+  const sessionId = `job-${job.agentSlug}-${job.id}-${Date.now()}`;
+  const runId = sessionId;
+  console.log(`Executing job: ${job.agentSlug}/${job.id} (session: ${sessionId})`);
 
-  broadcast("job:started", {
-    agent: job.agentSlug,
-    jobId: job.id,
-    runId,
-  });
+  broadcast("job:started", { agent: job.agentSlug, jobId: job.id, runId });
 
   db.prepare(
     `INSERT INTO job_runs (id, job_id, agent_slug, status, started_at)
      VALUES (?, ?, ?, 'running', datetime('now'))`
   ).run(runId, job.id, job.agentSlug);
 
-  const proc = spawn(
-    CLAUDE_PATH,
-    ["--dangerously-skip-permissions", "-p", job.prompt, "--output-format", "text"],
-    {
+  let term: pty.IPty;
+  try {
+    term = pty.spawn(CLAUDE_PATH, ["--dangerously-skip-permissions", "-p", job.prompt, "--output-format", "text"], {
+      name: "xterm-256color",
+      cols: 120,
+      rows: 30,
       cwd: DATA_DIR,
       env: {
-        ...process.env,
+        ...(process.env as Record<string, string>),
         PATH: enrichedPath,
-      } as NodeJS.ProcessEnv,
-      stdio: ["pipe", "pipe", "pipe"],
-    }
-  );
-
-  let output = "";
-
-  proc.stdout?.on("data", (data: Buffer) => {
-    output += data.toString();
-    broadcast("agent:output", {
-      agent: job.agentSlug,
-      runId,
-      chunk: data.toString(),
+        TERM: "xterm-256color",
+        COLORTERM: "truecolor",
+        FORCE_COLOR: "3",
+        LANG: "en_US.UTF-8",
+      },
     });
-  });
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`Failed to spawn PTY for job ${job.agentSlug}/${job.id}:`, errMsg);
+    db.prepare(`UPDATE job_runs SET status = 'failed', completed_at = datetime('now'), error = ? WHERE id = ?`).run(errMsg, runId);
+    broadcast("job:completed", { agent: job.agentSlug, jobId: job.id, runId, status: "failed" });
+    return;
+  }
 
-  proc.stderr?.on("data", (data: Buffer) => {
-    output += data.toString();
+  const session: PtySession = {
+    id: sessionId,
+    pty: term,
+    ws: null,
+    createdAt: new Date(),
+    output: [],
+    exited: false,
+    exitCode: null,
+  };
+  sessions.set(sessionId, session);
+
+  term.onData((data: string) => {
+    session.output.push(data);
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      session.ws.send(data);
+    }
+    broadcast("agent:output", { agent: job.agentSlug, runId, chunk: stripAnsi(data) });
   });
 
   const timeout = setTimeout(() => {
-    proc.kill();
+    term.kill();
     console.warn(`Job ${job.agentSlug}/${job.id} timed out`);
   }, (job.timeout || 600) * 1000);
 
-  proc.on("close", (code: number | null) => {
+  term.onExit(({ exitCode }) => {
     clearTimeout(timeout);
-    const status = code === 0 ? "completed" : "failed";
+    session.exited = true;
+    session.exitCode = exitCode;
+    const plain = stripAnsi(session.output.join(""));
+    completedOutput.set(sessionId, { output: plain, completedAt: Date.now() });
+    sessions.delete(sessionId);
 
+    const status = exitCode === 0 ? "completed" : "failed";
     db.prepare(
       `UPDATE job_runs SET status = ?, completed_at = datetime('now'),
        duration_ms = CAST((julianday('now') - julianday(started_at)) * 86400000 AS INTEGER),
        output = ? WHERE id = ?`
-    ).run(status, output.slice(0, 10000), runId);
+    ).run(status, plain.slice(0, 10000), runId);
 
-    broadcast("job:completed", {
-      agent: job.agentSlug,
-      jobId: job.id,
-      runId,
-      status,
-    });
-
-    console.log(`Job ${job.agentSlug}/${job.id} ${status} (exit: ${code})`);
-  });
-
-  proc.on("error", (err: Error) => {
-    clearTimeout(timeout);
-    db.prepare(
-      `UPDATE job_runs SET status = 'failed', completed_at = datetime('now'),
-       error = ? WHERE id = ?`
-    ).run(err.message, runId);
-
-    broadcast("job:completed", {
-      agent: job.agentSlug,
-      jobId: job.id,
-      runId,
-      status: "failed",
-    });
+    broadcast("job:completed", { agent: job.agentSlug, jobId: job.id, runId, status });
+    console.log(`Job ${job.agentSlug}/${job.id} ${status} (exit: ${exitCode})`);
   });
 }
 
