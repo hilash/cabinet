@@ -1,5 +1,11 @@
 # Progress
 
+[2026-04-03] Created product/roadmap/index.md with 5 milestones covering Foundation Launch, 1,000 paying users, 10 church partnerships, public podcast, and Scale & Community — aligned to Bible Way company goals.
+
+[2026-04-03] Created /marketing/app-store/apple/index.md with the iOS App Store listing draft (title, subtitle, keywords, description, copy notes) from the drafts directory.
+
+[2026-04-03] Live agent sessions: agent heartbeats now run via the daemon PTY (same path as AI editor) instead of `child_process.spawn`. Added `POST /sessions` to daemon, `startManualHeartbeat()` to heartbeat.ts, `agentSessions` slice to ai-panel-store, new `AgentLivePanel` component (identical card+terminal UX to AI editor panel), and wired into `AgentDashboard` — clicking a persona opens the live panel where "Run Now" shows a streaming xterm.js terminal.
+
 [2026-03-31] Phase 1, Step 1: Added `better-sqlite3` dependency and created DB initialization. Created `server/db.ts` and `src/lib/db.ts` (shared accessor for Next.js API routes) with automatic schema migrations. Initial migration (`server/migrations/001_initial.sql`) creates tables: sessions, messages, activity, job_runs, mission_tasks, schema_version. Database stored at `/data/.cabinet.db` with WAL mode enabled.
 
 [2026-03-31] Phase 1, Step 2: Created agent library templates in `/data/.agents/.library/` for CEO, Editor, Content Marketer, SEO Specialist, Sales Agent, and QA Agent. Each template has a `persona.md` with full frontmatter (name, slug, emoji, type, department, goals, channels, etc.) and markdown body with role instructions. Added API endpoints: `GET /api/agents/library` (list templates) and `POST /api/agents/library/[slug]/add` (instantiate agent from template).

@@ -10,9 +10,8 @@ The AI-first startup OS where everything lives as markdown files on disk. No dat
 
 <div align="center">
 
-[![Watch the demo](https://runcabinet.com/cabinet-icon.png)](https://runcabinet.com)
-
-**[Watch the full demo on runcabinet.com](https://runcabinet.com)**
+<video src="https://runcabinet.com/demo.webm" autoplay loop muted playsinline width="100%"></video>
+<img src="https://runcabinet.com/demo.gif" alt="Cabinet demo" width="100%" />
 
 </div>
 
