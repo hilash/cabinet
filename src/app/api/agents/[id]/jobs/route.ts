@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadAgentJobsBySlug, saveAgentJob } from "@/lib/jobs/job-manager";
+import { loadAgentJobsBySlug, saveAgentJob, scheduleJob } from "@/lib/jobs/job-manager";
 import type { JobConfig } from "@/types/jobs";
 
 export async function GET(
@@ -41,6 +41,8 @@ export async function POST(
     };
 
     await saveAgentJob(slug, job);
+    // Register with cron scheduler so it actually runs
+    scheduleJob(job);
     return NextResponse.json({ ok: true, job }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

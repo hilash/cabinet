@@ -4,6 +4,7 @@ import {
   saveAgentJob,
   deleteAgentJob,
   executeJob,
+  scheduleJob,
 } from "@/lib/jobs/job-manager";
 
 export async function GET(
@@ -49,6 +50,8 @@ export async function PUT(
       existing.enabled = !existing.enabled;
       existing.updatedAt = new Date().toISOString();
       await saveAgentJob(slug, existing);
+      // Re-schedule (will start or stop based on enabled flag)
+      scheduleJob(existing);
       return NextResponse.json({ ok: true, job: existing });
     }
 
@@ -61,6 +64,8 @@ export async function PUT(
       updatedAt: new Date().toISOString(),
     };
     await saveAgentJob(slug, updated);
+    // Re-schedule with updated cron/settings
+    scheduleJob(updated);
     return NextResponse.json({ ok: true, job: updated });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

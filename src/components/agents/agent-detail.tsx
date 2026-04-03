@@ -55,14 +55,6 @@ interface HeartbeatRecord {
   summary: string;
 }
 
-interface JobDef {
-  name: string;
-  slug: string;
-  schedule?: { cron?: string; type?: string; every?: string };
-  enabled?: boolean;
-  body?: string;
-}
-
 const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
   { id: "definition", label: "Definition", icon: FileText },
   { id: "jobs", label: "Jobs", icon: Briefcase },
@@ -417,23 +409,33 @@ function DefinitionTab({
 }
 
 /* ─── Jobs Tab ─── */
+interface AgentJob {
+  id: string;
+  name: string;
+  enabled: boolean;
+  schedule: string;
+  prompt: string;
+  timeout?: number;
+}
+
 function JobsTab({ slug }: { slug: string }) {
-  const [jobs, setJobs] = useState<JobDef[]>([]);
+  const [jobs, setJobs] = useState<AgentJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCron, setNewCron] = useState("0 9 * * 1-5");
-  const [newBody, setNewBody] = useState("");
+  const [newPrompt, setNewPrompt] = useState("");
   const [editingJob, setEditingJob] = useState<string | null>(null);
   const [editCron, setEditCron] = useState("");
-  const [editBody, setEditBody] = useState("");
+  const [editPrompt, setEditPrompt] = useState("");
+  const [running, setRunning] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`/api/plays?agent=${slug}`);
+      const res = await fetch(`/api/agents/${slug}/jobs`);
       if (res.ok) {
         const data = await res.json();
-        setJobs(data.plays || []);
+        setJobs(data.jobs || []);
       }
     } catch {}
     setLoading(false);
@@ -444,39 +446,36 @@ function JobsTab({ slug }: { slug: string }) {
   }, [refresh]);
 
   const handleAdd = async () => {
-    if (!newName.trim()) return;
-    const jobSlug = newName.trim().toLowerCase().replace(/\s+/g, "-");
-    await fetch(`/api/plays`, {
+    if (!newName.trim() || !newPrompt.trim()) return;
+    await fetch(`/api/agents/${slug}/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: newName.trim(),
-        slug: jobSlug,
-        agent: slug,
-        schedule: { cron: newCron },
-        enabled: true,
-        body: newBody.trim(),
+        schedule: newCron,
+        prompt: newPrompt.trim(),
       }),
     });
     setAdding(false);
     setNewName("");
     setNewCron("0 9 * * 1-5");
-    setNewBody("");
+    setNewPrompt("");
     refresh();
   };
 
-  const handleDelete = async (jobSlug: string) => {
-    await fetch(`/api/plays/${jobSlug}`, { method: "DELETE" });
+  const handleDelete = async (jobId: string) => {
+    await fetch(`/api/agents/${slug}/jobs/${jobId}`, { method: "DELETE" });
     refresh();
   };
 
-  const handleUpdateJob = async (jobSlug: string) => {
+  const handleUpdateJob = async (jobId: string) => {
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return;
     const updates: Record<string, unknown> = {};
-    const job = jobs.find((j) => j.slug === jobSlug);
-    if (editCron && editCron !== job?.schedule?.cron) updates.schedule = { cron: editCron };
-    if (editBody !== (job?.body || "")) updates.body = editBody;
+    if (editCron && editCron !== job.schedule) updates.schedule = editCron;
+    if (editPrompt !== job.prompt) updates.prompt = editPrompt;
     if (Object.keys(updates).length > 0) {
-      await fetch(`/api/plays/${jobSlug}`, {
+      await fetch(`/api/agents/${slug}/jobs/${jobId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
@@ -486,12 +485,23 @@ function JobsTab({ slug }: { slug: string }) {
     refresh();
   };
 
-  const handleToggle = async (jobSlug: string, enabled: boolean) => {
-    await fetch(`/api/plays/${jobSlug}`, {
+  const handleToggle = async (jobId: string) => {
+    await fetch(`/api/agents/${slug}/jobs/${jobId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: !enabled }),
+      body: JSON.stringify({ action: "toggle" }),
     });
+    refresh();
+  };
+
+  const handleRun = async (jobId: string) => {
+    setRunning(jobId);
+    await fetch(`/api/agents/${slug}/jobs/${jobId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "run" }),
+    });
+    setRunning(null);
     refresh();
   };
 
@@ -531,11 +541,11 @@ function JobsTab({ slug }: { slug: string }) {
             <CronPicker value={newCron} onChange={setNewCron} />
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground mb-1.5">Prompt / Description</p>
+            <p className="text-[10px] text-muted-foreground mb-1.5">Prompt</p>
             <textarea
-              value={newBody}
-              onChange={(e) => setNewBody(e.target.value)}
-              placeholder="What should this job do? This is the prompt sent to the agent..."
+              value={newPrompt}
+              onChange={(e) => setNewPrompt(e.target.value)}
+              placeholder="What should this job do? This is the prompt sent to Claude..."
               className="w-full bg-background border border-border rounded px-2 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none min-h-[80px]"
             />
           </div>
@@ -543,7 +553,7 @@ function JobsTab({ slug }: { slug: string }) {
             <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setAdding(false)}>
               Cancel
             </Button>
-            <Button size="sm" className="h-6 text-[10px]" onClick={handleAdd} disabled={!newName.trim()}>
+            <Button size="sm" className="h-6 text-[10px]" onClick={handleAdd} disabled={!newName.trim() || !newPrompt.trim()}>
               Create
             </Button>
           </div>
@@ -557,67 +567,77 @@ function JobsTab({ slug }: { slug: string }) {
             No jobs configured
           </p>
           <p className="text-[11px] text-muted-foreground mt-1">
-            Jobs are recurring scheduled tasks the agent runs automatically
+            Jobs are recurring scheduled tasks the agent runs automatically.
           </p>
         </div>
       )}
 
       {jobs.map((job) => (
         <div
-          key={job.slug}
+          key={job.id}
           className="bg-card border border-border rounded-lg p-3"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => handleToggle(job.slug, job.enabled !== false)}
+                onClick={() => handleToggle(job.id)}
                 className={cn(
-                  "w-2 h-2 rounded-full shrink-0",
-                  job.enabled !== false ? "bg-green-500" : "bg-muted-foreground/30"
+                  "w-2 h-2 rounded-full shrink-0 cursor-pointer",
+                  job.enabled ? "bg-green-500" : "bg-muted-foreground/30"
                 )}
-                title={job.enabled !== false ? "Enabled — click to disable" : "Disabled — click to enable"}
+                title={job.enabled ? "Enabled — click to disable" : "Disabled — click to enable"}
               />
               <h4 className="text-[13px] font-medium">{job.name}</h4>
             </div>
             <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 text-[10px] gap-1 px-1.5"
+                onClick={() => handleRun(job.id)}
+                disabled={running === job.id}
+              >
+                {running === job.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                Run
+              </Button>
               <button
-                onClick={() => { setEditingJob(editingJob === job.slug ? null : job.slug); setEditCron(job.schedule?.cron || ""); setEditBody(job.body || ""); }}
+                onClick={() => { setEditingJob(editingJob === job.id ? null : job.id); setEditCron(job.schedule); setEditPrompt(job.prompt); }}
                 className={cn(
                   "text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded hover:bg-muted/80 transition-colors",
-                  editingJob === job.slug ? "ring-1 ring-primary/50" : ""
+                  editingJob === job.id ? "ring-1 ring-primary/50" : ""
                 )}
               >
-                <span className="font-mono">{job.schedule?.cron || "manual"}</span>
-                <span className="ml-1 text-muted-foreground/50">({cronToHuman(job.schedule?.cron || "")})</span>
+                <span className="font-mono">{job.schedule}</span>
+                <span className="ml-1 text-muted-foreground/50">({cronToHuman(job.schedule)})</span>
               </button>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 text-muted-foreground/40 hover:text-destructive"
-                onClick={() => handleDelete(job.slug)}
+                onClick={() => handleDelete(job.id)}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
           </div>
-          {job.body && editingJob !== job.slug && (
-            <p className="text-[11px] text-muted-foreground/70 mt-1.5 line-clamp-2">{job.body}</p>
+          {job.prompt && editingJob !== job.id && (
+            <p className="text-[11px] text-muted-foreground/70 mt-1.5 line-clamp-2">{job.prompt}</p>
           )}
-          {editingJob === job.slug && (
+          {editingJob === job.id && (
             <div className="mt-2 pt-2 border-t border-border space-y-3">
               <div>
                 <p className="text-[10px] text-muted-foreground mb-1.5">Schedule</p>
                 <CronPicker
-                  value={editCron || job.schedule?.cron || ""}
+                  value={editCron}
                   onChange={(v) => setEditCron(v)}
                   compact
                 />
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-1.5">Prompt / Description</p>
+                <p className="text-[10px] text-muted-foreground mb-1.5">Prompt</p>
                 <textarea
-                  value={editBody}
-                  onChange={(e) => setEditBody(e.target.value)}
+                  value={editPrompt}
+                  onChange={(e) => setEditPrompt(e.target.value)}
                   placeholder="What should this job do?"
                   className="w-full bg-background border border-border rounded px-2 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none min-h-[80px]"
                 />
@@ -626,7 +646,7 @@ function JobsTab({ slug }: { slug: string }) {
                 <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setEditingJob(null)}>
                   Cancel
                 </Button>
-                <Button size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleUpdateJob(job.slug)}>
+                <Button size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleUpdateJob(job.id)}>
                   <Save className="h-3 w-3" />
                   Save
                 </Button>

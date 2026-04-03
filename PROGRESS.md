@@ -59,3 +59,5 @@
 [2026-04-03] Removed Skills tab from agent detail view. Added 14 new agent library templates (20 total): COO, CFO, CTO, Product Manager, UX Designer, Data Analyst, Social Media Manager, Growth Marketer, Customer Success, Copywriter, DevOps Engineer, People Ops, Legal Advisor, Researcher. Each has full persona.md with role description, responsibilities, and working style. Updated sidebar icon mapping for all new agent types.
 
 [2026-04-03] Added light cabinet icon as sidebar logo (public/logo-light.png) next to 'Cabinet' text. Updated favicon to match.
+
+[2026-04-03] Fixed scheduled plays never executing: added cron registration for plays with schedule triggers in play-manager.ts. Plays with schedule triggers now get registered with node-cron on app startup (via /api/agents/personas init) and re-registered when plays are created/updated. Added "schedule" case to trigger-engine.ts. Rewrote README.md to match runcabinet.com website style with demo video, problem/solution framing, feature matrix, comparison table, and strong CTAs.

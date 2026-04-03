@@ -1,5 +1,6 @@
 import path from "path";
 import matter from "gray-matter";
+import cron from "node-cron";
 import { spawn } from "child_process";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import {
@@ -11,6 +12,9 @@ import {
 } from "@/lib/storage/fs-operations";
 import type { PlayDefinition } from "@/types/agents";
 import { updateGoal } from "./goal-manager";
+
+// Track scheduled play cron tasks
+const scheduledPlayJobs = new Map<string, ReturnType<typeof cron.schedule>>();
 
 const PLAYBOOKS_DIR = path.join(DATA_DIR, ".playbooks");
 const PLAYS_DIR = path.join(PLAYBOOKS_DIR, "plays");
@@ -273,4 +277,72 @@ async function parseHistoryFile(
     .reverse();
 
   return limit > 0 ? records.slice(0, limit) : records;
+}
+
+// ---------------------------------------------------------------------------
+// Cron scheduler for plays with schedule triggers
+// ---------------------------------------------------------------------------
+
+function getCronExpression(play: PlayDefinition): string | null {
+  // First check schedule triggers for explicit cron
+  for (const trigger of play.triggers) {
+    if (trigger.type === "schedule") {
+      const t = trigger as PlayTrigger & { cron?: string };
+      if (t.cron) return t.cron;
+    }
+  }
+  // Fall back to the play-level schedule
+  if (play.schedule?.cron) return play.schedule.cron;
+  return null;
+}
+
+// Re-import PlayTrigger so we can extend it
+type PlayTrigger = PlayDefinition["triggers"][number];
+
+function schedulePlay(play: PlayDefinition, cronExpr: string): void {
+  unschedulePlay(play.slug);
+  if (!cron.validate(cronExpr)) {
+    console.warn(`Invalid cron for play ${play.slug}: ${cronExpr}`);
+    return;
+  }
+
+  const task = cron.schedule(cronExpr, () => {
+    console.log(`Cron firing play: ${play.slug}`);
+    executePlay(play.slug).catch((err) => {
+      console.error(`Scheduled play ${play.slug} failed:`, err);
+    });
+  });
+
+  scheduledPlayJobs.set(play.slug, task);
+  console.log(`  Scheduled play: ${play.slug} (${cronExpr})`);
+}
+
+function unschedulePlay(slug: string): void {
+  const existing = scheduledPlayJobs.get(slug);
+  if (existing) {
+    existing.stop();
+    scheduledPlayJobs.delete(slug);
+  }
+}
+
+export async function registerScheduledPlays(): Promise<void> {
+  const plays = await listPlays();
+  let count = 0;
+
+  for (const play of plays) {
+    const hasScheduleTrigger = play.triggers.some((t) => t.type === "schedule");
+    if (!hasScheduleTrigger) continue;
+
+    const cronExpr = getCronExpression(play);
+    if (cronExpr) {
+      schedulePlay(play, cronExpr);
+      count++;
+    }
+  }
+
+  console.log(`Registered ${count} scheduled plays.`);
+}
+
+export function getRegisteredScheduledPlays(): string[] {
+  return Array.from(scheduledPlayJobs.keys());
 }

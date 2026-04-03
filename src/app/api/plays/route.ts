@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listPlays, writePlay, getPlayHistory } from "@/lib/agents/play-manager";
+import { listPlays, writePlay, getPlayHistory, registerScheduledPlays } from "@/lib/agents/play-manager";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
     slug,
     body: playBody || "",
   });
+
+  // Re-register scheduled plays in case the new one has a cron trigger
+  await registerScheduledPlays();
 
   return NextResponse.json({ slug });
 }
