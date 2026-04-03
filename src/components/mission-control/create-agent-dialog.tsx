@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { SchedulePicker } from "./schedule-picker";
 import { cn } from "@/lib/utils";
 import { Plus, X } from "lucide-react";
-import type { PlayDefinition } from "@/types/agents";
+
 
 interface GoalInput {
   metric: string;
@@ -43,19 +43,8 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
   const [department, setDepartment] = useState("general");
   const [type, setType] = useState<"specialist" | "lead">("specialist");
   const [heartbeat, setHeartbeat] = useState("0 */4 * * *");
-  const [selectedPlays, setSelectedPlays] = useState<string[]>([]);
-  const [availablePlays, setAvailablePlays] = useState<PlayDefinition[]>([]);
   const [goals, setGoals] = useState<GoalInput[]>([]);
   const [creating, setCreating] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      fetch("/api/plays")
-        .then((r) => r.json())
-        .then((d) => setAvailablePlays(d.plays || []))
-        .catch(() => {});
-    }
-  }, [open]);
 
   const slug = name
     .toLowerCase()
@@ -88,7 +77,6 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
         budget: 200,
         active: false,
         workdir: "/data",
-        plays: selectedPlays,
         goals: goalsFmt,
         channels: [department === "general" ? "general" : department, "general"],
         tags: [department],
@@ -121,14 +109,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
     setDepartment("general");
     setType("specialist");
     setHeartbeat("0 */4 * * *");
-    setSelectedPlays([]);
     setGoals([]);
-  };
-
-  const togglePlay = (slug: string) => {
-    setSelectedPlays((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
-    );
   };
 
   return (
@@ -137,7 +118,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
         <DialogHeader>
           <DialogTitle>Create Agent</DialogTitle>
           <DialogDescription>
-            Define a new agent with its identity, schedule, and assigned plays.
+            Define a new agent with its identity, schedule, and goals.
           </DialogDescription>
         </DialogHeader>
 
@@ -328,48 +309,6 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
             )}
           </div>
 
-          {/* Plays */}
-          {availablePlays.length > 0 && (
-            <div className="space-y-3">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground/60">
-                Assigned Plays ({selectedPlays.length})
-              </div>
-              <div className="space-y-1 max-h-[150px] overflow-y-auto">
-                {availablePlays.map((play) => (
-                  <button
-                    key={play.slug}
-                    type="button"
-                    onClick={() => togglePlay(play.slug)}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors text-[12px]",
-                      selectedPlays.includes(play.slug)
-                        ? "bg-primary/10 text-primary border border-primary/20"
-                        : "hover:bg-muted border border-transparent"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0",
-                        selectedPlays.includes(play.slug)
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "border-muted-foreground/30"
-                      )}
-                    >
-                      {selectedPlays.includes(play.slug) && (
-                        <span className="text-[9px]">✓</span>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{play.title}</p>
-                      <p className="text-[10px] text-muted-foreground/60 truncate">
-                        {play.category}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <DialogFooter>

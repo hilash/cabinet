@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-03] Major agent system refactor — removed "Plays" concept entirely: deleted play-manager.ts, trigger-engine.ts, api/plays/ routes, playbook-catalog.tsx, webhook/[slug] and triggers API routes. Unified all Claude invocations to use PTY via the cabinet daemon (heartbeat.ts runHeartbeat, daemon executeJob). Cleaned up all play references from 15+ components/types/API routes. Build passes clean with no play routes.
+
 [2026-04-03] Dead code removal: deleted agent-dashboard.tsx (never rendered), chat/ components (ChatPage, ChannelList, ChannelView — never used), mention-input.tsx (no longer imported), api/missions/, api/activity/, api/jobs/, api/ai/edit/ (all legacy routes with no frontend callers), lib/missions/, lib/activity/, and removed setViewMode() alias from app-store. Build remains clean.
 
 [2026-04-03] Removed dead code: deleted agent-session-view.tsx (AgentSessionView was never rendered). Extracted GeneralAgentView into its own general-agent-view.tsx and updated the import in app-shell.tsx.

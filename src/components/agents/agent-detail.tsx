@@ -39,7 +39,6 @@ interface AgentPersona {
   heartbeat: string;
   body: string;
   workspace: string;
-  plays: string[];
   tags: string[];
   focus: string[];
   heartbeatsUsed?: number;

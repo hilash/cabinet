@@ -22,7 +22,6 @@ import {
   AlertTriangle,
   Terminal,
   Download,
-  Webhook,
   Trash2,
   Inbox,
   CheckCircle2,
@@ -46,18 +45,10 @@ interface AgentDetail {
   type: string;
   department: string;
   goals: GoalMetric[];
-  plays: string[];
   channels: string[];
   lastHeartbeat?: string;
   heartbeat: string;
   body: string;
-}
-
-interface PlayInfo {
-  slug: string;
-  title: string;
-  category: string;
-  estimated_duration?: string;
 }
 
 interface HeartbeatRecord {
@@ -159,7 +150,6 @@ function getFileIcon(name: string) {
 
 export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile }: AgentDetailPanelProps) {
   const [agent, setAgent] = useState<AgentDetail | null>(null);
-  const [plays, setPlays] = useState<PlayInfo[]>([]);
   const [history, setHistory] = useState<HeartbeatRecord[]>([]);
   const [slackMessages, setSlackMessages] = useState<SlackMessage[]>([]);
   const [memory, setMemory] = useState<string>("");
@@ -167,7 +157,6 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
   const [activeMemoryTab, setActiveMemoryTab] = useState<string>("context.md");
   const [workspace, setWorkspace] = useState<WorkspaceFile[]>([]);
   const [goalHistory, setGoalHistory] = useState<Record<string, { current: number; target: number; period_start: string; period_end: string; history: { period: string; actual: number; target: number }[] }>>({});
-  const [triggerLog, setTriggerLog] = useState<{ playSlug: string; fired: boolean; reason: string; timestamp: string; event: { type: string } }[]>([]);
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
@@ -177,10 +166,9 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
 
   const loadAll = useCallback(async () => {
     try {
-      // Load agent detail, plays, workspace, and slack messages in parallel
-      const [agentRes, playsRes, wsRes, slackRes] = await Promise.all([
+      // Load agent detail, workspace, and slack messages in parallel
+      const [agentRes, wsRes, slackRes] = await Promise.all([
         fetch(`/api/agents/personas/${slug}`),
-        fetch("/api/plays"),
         fetch(`/api/agents/personas/${slug}/workspace`),
         // Fetch messages from all channels this agent participates in
         fetch(`/api/agents/slack?limit=100`),
@@ -195,11 +183,6 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
         const memObj = data.memory || {};
         setMemoryFiles(memObj);
         setMemory(memObj["context.md"] || memObj["notes.md"] || "");
-      }
-
-      if (playsRes.ok) {
-        const data = await playsRes.json();
-        setPlays(data.plays || []);
       }
 
       if (wsRes.ok) {
@@ -225,17 +208,6 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
         }
       } catch { /* ignore */ }
 
-      // Load trigger log for this agent
-      try {
-        const trigRes = await fetch("/api/agents/triggers?limit=50");
-        if (trigRes.ok) {
-          const trigData = await trigRes.json();
-          const agentTriggers = (trigData.log || []).filter(
-            (t: { agentSlug?: string }) => t.agentSlug === slug
-          );
-          setTriggerLog(agentTriggers.slice(0, 10));
-        }
-      } catch { /* ignore */ }
     } catch { /* ignore */ }
   }, [slug]);
 
@@ -288,7 +260,6 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
   };
 
   const [runningHeartbeat, setRunningHeartbeat] = useState(false);
-  const [runningPlay, setRunningPlay] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -334,31 +305,6 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
     }
   };
 
-  const handleRunPlay = async (playSlug: string) => {
-    setRunningPlay(playSlug);
-    try {
-      await fetch(`/api/plays/${playSlug}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "trigger",
-          agentContext: agent ? { agentSlug: slug, persona: agent.body } : undefined,
-        }),
-      });
-      // Poll for completion
-      const poll = setInterval(async () => {
-        await loadAll();
-      }, 3000);
-      setTimeout(() => {
-        clearInterval(poll);
-        setRunningPlay(null);
-        loadAll();
-      }, 30000);
-    } catch {
-      setRunningPlay(null);
-    }
-  };
-
   const handleDelete = async () => {
     try {
       const res = await fetch(`/api/agents/personas/${slug}`, { method: "DELETE" });
@@ -367,10 +313,6 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
       }
     } catch { /* ignore */ }
   };
-
-  const agentPlays = agent
-    ? plays.filter((p) => agent.plays.includes(p.slug))
-    : [];
 
   const statusDot = agent?.active ? (
     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
@@ -569,101 +511,6 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
                 </Section>
               )}
 
-              {/* PLAYS */}
-              <Section icon={Zap} title="Plays" action={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-[11px] gap-1"
-                  onClick={handleRunHeartbeat}
-                  disabled={runningHeartbeat}
-                >
-                  {runningHeartbeat ? (
-                    <RefreshCw className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Play className="h-3 w-3" />
-                  )}
-                  {runningHeartbeat ? "Running..." : "Run All"}
-                </Button>
-              }>
-                {agentPlays.length === 0 ? (
-                  <p className="text-[12px] text-muted-foreground/50">No plays assigned</p>
-                ) : (
-                  <div className="space-y-1">
-                    {agentPlays.map((p) => {
-                      const isRunning = runningPlay === p.slug;
-                      return (
-                        <div
-                          key={p.slug}
-                          className="flex items-center justify-between py-2 px-2 rounded-md hover:bg-muted/30 transition-colors group"
-                        >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              {isRunning ? (
-                                <RefreshCw className="h-3 w-3 text-emerald-500 animate-spin shrink-0" />
-                              ) : (
-                                <Zap className="h-3 w-3 text-amber-500 shrink-0" />
-                              )}
-                              <span className="text-[12px] font-medium truncate">{p.title}</span>
-                            </div>
-                            <div className="flex items-center gap-2 ml-5 mt-0.5 text-[10px] text-muted-foreground/40">
-                              <span>{p.estimated_duration || "~5 min"}</span>
-                              {history.filter((h) => h.summary?.includes(p.slug) || h.summary?.includes(p.title)).length > 0 && (
-                                <span>
-                                  Last: {timeAgo(history.find((h) => h.summary?.includes(p.slug) || h.summary?.includes(p.title))?.timestamp)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 px-1.5 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                            onClick={() => handleRunPlay(p.slug)}
-                            disabled={isRunning || runningHeartbeat}
-                          >
-                            {isRunning ? "Running" : "Run"}
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </Section>
-
-              {/* TRIGGERS */}
-              {triggerLog.length > 0 && (
-                <Section icon={Webhook} title="Recent Triggers">
-                  <div className="space-y-1">
-                    {triggerLog.map((t, i) => (
-                      <div
-                        key={i}
-                        className="flex items-start gap-2 py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors"
-                      >
-                        <span className="text-[10px] text-muted-foreground/50 mt-0.5 w-12 text-right shrink-0 tabular-nums">
-                          {timeAgo(t.timestamp)}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className={cn(
-                              "h-1.5 w-1.5 rounded-full shrink-0",
-                              t.fired ? "bg-emerald-500" : "bg-muted-foreground/30"
-                            )} />
-                            <span className="text-[11px] font-medium">{t.playSlug}</span>
-                            <span className="text-[9px] px-1 py-0 rounded bg-muted text-muted-foreground/70 font-medium">
-                              {t.event.type}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground/50">
-                            {t.fired ? "Triggered" : t.reason}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Section>
-              )}
-
               {/* WORKSPACE */}
               <Section icon={FolderOpen} title="Workspace" action={
                 workspace.length > 0 ? (
@@ -829,7 +676,7 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
                     <div className="text-[#e5e5e5]/50 space-y-1">
                       <p>$ Loading persona &amp; memory...</p>
                       <p>$ Checking goals &amp; inbox...</p>
-                      <p>$ Executing assigned plays...</p>
+                      <p>$ Running agent jobs &amp; heartbeat...</p>
                       <p className="text-emerald-400/60 animate-pulse">&gt; Agent is working...</p>
                     </div>
                   </div>
