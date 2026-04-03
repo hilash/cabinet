@@ -7,9 +7,7 @@ import { KBEditor } from "@/components/editor/editor";
 import { WebsiteViewer } from "@/components/editor/website-viewer";
 import { PdfViewer } from "@/components/editor/pdf-viewer";
 import { CsvViewer } from "@/components/editor/csv-viewer";
-import { AgentList } from "@/components/agents/agent-list";
-import { AgentDetail } from "@/components/agents/agent-detail";
-import { GeneralAgentView } from "@/components/agents/general-agent-view";
+import { AgentsWorkspace } from "@/components/agents/agents-workspace";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
@@ -109,10 +107,16 @@ export function AppShell() {
     // System sections (non-page views)
     if (section.type === "settings") return <SettingsPage />;
     if (section.type === "jobs") return <JobsManager />;
-    if (section.type === "agents") return <AgentList />;
+    if (section.type === "agents") {
+      return <AgentsWorkspace selectedScope="all" selectedAgentSlug={null} />;
+    }
     if (section.type === "agent") {
-      if (section.slug === "general") return <GeneralAgentView />;
-      return <AgentDetail slug={section.slug!} />;
+      return (
+        <AgentsWorkspace
+          selectedScope="agent"
+          selectedAgentSlug={section.slug || null}
+        />
+      );
     }
 
     // Page-based views (when a KB page is selected)

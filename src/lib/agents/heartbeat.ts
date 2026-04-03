@@ -16,6 +16,8 @@ import { readFileContent, fileExists } from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
 import { postMessage } from "./slack-manager";
 import { getGoalState, updateGoal } from "./goal-manager";
+import { startConversationRun } from "./conversation-runner";
+import { reloadDaemonSchedules } from "./daemon-client";
 
 interface HeartbeatContext {
   prompt: string;
@@ -125,6 +127,14 @@ MESSAGE_TO [agent-slug]: (optional) A message to send to another agent.
 SLACK [channel-name]: (optional) A message to post to Agent Slack. Use this to report your activity.
 TASK_CREATE [target-agent-slug] [priority 1-5]: title | description (optional — create a structured task handoff to another agent)
 TASK_COMPLETE [task-id]: result summary (mark a pending task as completed)
+\`\`\`
+
+Also include a second block at the very end:
+
+\`\`\`cabinet
+SUMMARY: One short summary line of what happened.
+CONTEXT: Optional lightweight context summary to remember later.
+ARTIFACT: relative/path/to/created-or-updated-kb-file
 \`\`\`
 
 Now execute your heartbeat. Check your focus areas, process inbox, review goals, and take action.`;
@@ -272,14 +282,6 @@ async function processHeartbeatOutput(
   const timestamp = new Date().toISOString();
   await recordHeartbeat({ agentSlug: slug, timestamp, duration, status, summary: output.slice(0, 500) });
 
-  // Save full session output
-  try {
-    const sessionsDir = path.join(DATA_DIR, ".agents", slug, "sessions");
-    const fs = await import("fs/promises");
-    await fs.mkdir(sessionsDir, { recursive: true });
-    await fs.writeFile(path.join(sessionsDir, `${timestamp.replace(/[:.]/g, "-")}.txt`), output, "utf-8");
-  } catch { /* ignore */ }
-
   // Auto-generate workspace index
   try {
     const fs = await import("fs/promises");
@@ -306,9 +308,9 @@ async function processHeartbeatOutput(
     const recentHistory = await getHeartbeatHistory(slug);
     const lastThree = recentHistory.slice(0, 3);
     if (lastThree.length >= 3 && lastThree.every((h) => h.status === "failed")) {
-      const { writePersona, unregisterHeartbeat } = await import("./persona-manager");
+      const { writePersona } = await import("./persona-manager");
       await writePersona(slug, { active: false });
-      unregisterHeartbeat(slug);
+      await reloadDaemonSchedules().catch(() => {});
       await postMessage({
         channel: "alerts", agent: slug, emoji: persona.emoji, displayName: persona.name,
         type: "alert",
@@ -332,7 +334,7 @@ async function processHeartbeatOutput(
 export async function runHeartbeat(slug: string): Promise<string | null> {
   const ctx = await buildHeartbeatContext(slug);
   if (!ctx) return null;
-  const { prompt, persona, inbox, startTime } = ctx;
+  const { prompt, persona, inbox, startTime, cwd } = ctx;
 
   if (persona.heartbeatsUsed !== undefined && persona.heartbeatsUsed >= persona.budget) {
     console.log(`Agent ${slug} has exceeded budget (${persona.heartbeatsUsed}/${persona.budget}). Skipping.`);
@@ -341,60 +343,41 @@ export async function runHeartbeat(slug: string): Promise<string | null> {
 
   markHeartbeatRunning(slug);
 
-  const sessionId = `agent-${slug}-${Date.now()}`;
-
   try {
-    await fetch("http://localhost:3001/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: sessionId,
-        args: ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"],
-      }),
+    const meta = await startConversationRun({
+      agentSlug: slug,
+      title: `${persona.name} heartbeat`,
+      trigger: "heartbeat",
+      prompt,
+      cwd,
+      timeoutSeconds: 600,
+      onComplete: async (completion) => {
+        if (completion.status === "failed" && !completion.output) {
+          await postMessage({
+            channel: "alerts", agent: slug, emoji: persona.emoji, displayName: persona.name,
+            type: "alert",
+            content: `Heartbeat timed out or failed for ${slug}. @human`,
+            mentions: ["human"], kbRefs: [],
+          });
+        }
+
+        await processHeartbeatOutput(
+          slug,
+          completion.output,
+          completion.status,
+          persona,
+          inbox,
+          startTime
+        );
+      },
     });
+
+    return meta.id;
   } catch (err) {
     console.error(`Failed to create daemon session for ${slug}:`, err);
     markHeartbeatComplete(slug);
     return null;
   }
-
-  // Poll for completion and run post-processing in the background
-  (async () => {
-    let output = "";
-    let status: "completed" | "failed" = "failed";
-    const deadline = Date.now() + 10 * 60 * 1000; // 10 min max
-
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 3000));
-      try {
-        const res = await fetch(`http://localhost:3001/session/${sessionId}/output`);
-        if (res.ok) {
-          const data = await res.json() as { status: string; output: string };
-          if (data.status === "completed") {
-            output = data.output;
-            status = "completed";
-            break;
-          }
-        } else if (res.status === 404) {
-          output = "Session not found after polling";
-          break;
-        }
-      } catch { /* retry */ }
-    }
-
-    if (status === "failed" && !output) {
-      await postMessage({
-        channel: "alerts", agent: slug, emoji: persona.emoji, displayName: persona.name,
-        type: "alert",
-        content: `Heartbeat timed out or failed for ${slug}. @human`,
-        mentions: ["human"], kbRefs: [],
-      });
-    }
-
-    await processHeartbeatOutput(slug, output, status, persona, inbox, startTime);
-  })().catch((err) => console.error(`Post-processing failed for ${slug}:`, err));
-
-  return sessionId;
 }
 
 /**

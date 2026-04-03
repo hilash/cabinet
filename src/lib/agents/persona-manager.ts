@@ -256,6 +256,7 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
     emoji: merged.emoji || "🤖",
     department: merged.department || "general",
     type: merged.type || "specialist",
+    workspace: merged.workspace || "workspace",
     ...(merged.goals && merged.goals.length > 0 ? { goals: merged.goals } : {}),
     ...(merged.channels && merged.channels.length > 0 ? { channels: merged.channels } : {}),
   };
