@@ -72,17 +72,17 @@ if (command === "init") {
 
 } else if (command === "help" || command === "--help") {
   console.log(`
-  paperclipai - Create a new Cabinet project
+  create-cabinet - Create a new Cabinet project
 
   Usage:
-    npx paperclipai init [directory]    Create a new project
-    npx paperclipai init --yes          Skip prompts
-    npx paperclipai help                Show this help
+    npx create-cabinet init [directory]    Create a new project
+    npx create-cabinet init --yes          Skip prompts
+    npx create-cabinet help                Show this help
 
   Options:
     --yes, -y    Accept all defaults
   `);
 
 } else {
-  error(`Unknown command: ${command}. Run "paperclipai help" for usage.`);
+  error(`Unknown command: ${command}. Run "create-cabinet help" for usage.`);
 }

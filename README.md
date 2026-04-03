@@ -7,7 +7,7 @@ Cabinet is a self-hosted platform where you onboard an AI team that works for yo
 ## Quick Start
 
 ```bash
-npx paperclipai@latest init
+npx create-cabinet@latest
 cd cabinet
 npm run dev:all
 ```
