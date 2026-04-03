@@ -15,6 +15,9 @@ interface Session {
   output: string[];  // captured output chunks
   exited: boolean;   // true when PTY process has exited
   exitCode: number | null;
+  initialPrompt?: string;
+  initialPromptSent?: boolean;
+  initialPromptTimer?: NodeJS.Timeout;
 }
 
 // Active sessions (includes detached ones where PTY is still running)
@@ -53,6 +56,29 @@ function stripAnsi(str: string): string {
     /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
     ""
   );
+}
+
+function claudePromptReady(output: string): boolean {
+  const plain = stripAnsi(output).replace(/\r/g, "\n");
+  return (
+    plain.includes("shift+tab to cycle") ||
+    /(?:^|\n)[❯>]\s*$/.test(plain)
+  );
+}
+
+function submitInitialPrompt(session: Session): void {
+  if (!session.initialPrompt || session.initialPromptSent || session.exited) {
+    return;
+  }
+
+  session.initialPromptSent = true;
+  if (session.initialPromptTimer) {
+    clearTimeout(session.initialPromptTimer);
+    delete session.initialPromptTimer;
+  }
+
+  session.pty.write(session.initialPrompt);
+  session.pty.write("\r");
 }
 
 // Resolve the claude binary path at startup
@@ -223,13 +249,8 @@ wss.on("connection", (ws, req) => {
   let shell: string;
   let args: string[];
 
-  if (prompt) {
-    shell = CLAUDE_PATH;
-    args = ["--dangerously-skip-permissions", prompt];
-  } else {
-    shell = CLAUDE_PATH;
-    args = ["--dangerously-skip-permissions"];
-  }
+  shell = CLAUDE_PATH;
+  args = ["--dangerously-skip-permissions"];
 
   let term: pty.IPty;
   try {
@@ -265,6 +286,8 @@ wss.on("connection", (ws, req) => {
     output: [],
     exited: false,
     exitCode: null,
+    initialPrompt: prompt?.trim() || undefined,
+    initialPromptSent: false,
   };
 
   sessions.set(sessionId, session);
@@ -273,6 +296,13 @@ wss.on("connection", (ws, req) => {
   // PTY output → WebSocket + capture (always capture, send only if connected)
   term.onData((data: string) => {
     session.output.push(data);
+    if (
+      session.initialPrompt &&
+      !session.initialPromptSent &&
+      claudePromptReady(session.output.join(""))
+    ) {
+      submitInitialPrompt(session);
+    }
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
       session.ws.send(data);
     }
@@ -304,6 +334,10 @@ wss.on("connection", (ws, req) => {
     console.log(`Session ${sessionId} PTY exited with code ${exitCode}`);
     session.exited = true;
     session.exitCode = exitCode;
+    if (session.initialPromptTimer) {
+      clearTimeout(session.initialPromptTimer);
+      delete session.initialPromptTimer;
+    }
 
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
       // Client is connected — notify and finalize
@@ -315,6 +349,12 @@ wss.on("connection", (ws, req) => {
     }
     // If no client connected, session stays in map as exited — will be picked up on reconnect or cleanup
   });
+
+  if (session.initialPrompt) {
+    session.initialPromptTimer = setTimeout(() => {
+      submitInitialPrompt(session);
+    }, 1500);
+  }
 });
 
 server.listen(PORT);
