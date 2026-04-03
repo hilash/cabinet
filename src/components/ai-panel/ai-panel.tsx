@@ -235,47 +235,45 @@ export function AIPanel() {
 
     const instruction = input.trim();
     setInput("");
-
-    // Build context from mentioned pages
-    let contextBlock = "";
-    if (mentionedPages.length > 0) {
-      const pageContents = await Promise.all(
-        mentionedPages.map(async (pagePath) => {
-          try {
-            const res = await fetch(`/api/pages/${pagePath}`);
-            if (res.ok) {
-              const data = await res.json();
-              return `--- ${data.frontmatter?.title || pagePath} (${pagePath}) ---\n${data.content}`;
-            }
-          } catch {}
-          return null;
-        })
-      );
-      const validContents = pageContents.filter(Boolean);
-      if (validContents.length > 0) {
-        contextBlock = `\n\nReferenced pages:\n${validContents.join("\n\n")}`;
-      }
-    }
-
+    const selectedMentionedPages = mentionedPages;
     setMentionedPages([]);
-    const fullInstruction = instruction + contextBlock;
 
-    const prompt = `You are editing the page at /data/${currentPath}.
-${fullInstruction}
+    try {
+      const response = await fetch("/api/agents/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "editor",
+          pagePath: currentPath,
+          userMessage: instruction,
+          mentionedPaths: selectedMentionedPages,
+        }),
+      });
 
-Work in the /data directory. Edit files directly. After editing, briefly confirm what you changed.`;
+      if (!response.ok) {
+        setInput(instruction);
+        setMentionedPages(selectedMentionedPages);
+        return;
+      }
 
-    const sessionId = `ai-edit-${Date.now()}`;
+      const data = await response.json();
+      const conversation = data.conversation as { id: string; title: string };
 
-    addEditorSession({
-      id: sessionId,
-      sessionId,
-      pagePath: currentPath,
-      userMessage: instruction,
-      prompt,
-      timestamp: Date.now(),
-      status: "running",
-    });
+      addEditorSession({
+        id: conversation.id,
+        sessionId: conversation.id,
+        pagePath: currentPath,
+        userMessage: instruction,
+        prompt: conversation.title,
+        timestamp: Date.now(),
+        status: "running",
+        reconnect: true,
+      });
+    } catch {
+      setInput(instruction);
+      setMentionedPages(selectedMentionedPages);
+      return;
+    }
 
     setTimeout(() => {
       if (scrollRef.current) {
@@ -584,6 +582,7 @@ Work in the /data directory. Edit files directly. After editing, briefly confirm
                 <WebTerminal
                   sessionId={session.sessionId}
                   prompt={session.prompt}
+                  displayPrompt={session.userMessage}
                   reconnect={session.reconnect}
                   onClose={() => handleSessionEnd(session.sessionId)}
                 />
@@ -604,6 +603,7 @@ Work in the /data directory. Edit files directly. After editing, briefly confirm
             <WebTerminal
               sessionId={session.sessionId}
               prompt={session.prompt}
+              displayPrompt={session.userMessage}
               reconnect={session.reconnect}
               onClose={() => handleSessionEnd(session.sessionId)}
             />

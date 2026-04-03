@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  buildEditorConversationPrompt,
   buildManualConversationPrompt,
   startConversationRun,
 } from "@/lib/agents/conversation-runner";
@@ -35,11 +36,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const agentSlug = body.agentSlug || "general";
+    const source = body.source === "editor" ? "editor" : "manual";
+    const agentSlug = source === "editor" ? "editor" : body.agentSlug || "general";
     const userMessage = (body.userMessage || "").trim();
     const mentionedPaths = Array.isArray(body.mentionedPaths)
       ? body.mentionedPaths.filter((value: unknown): value is string => typeof value === "string")
       : [];
+    const pagePath =
+      typeof body.pagePath === "string" && body.pagePath.trim()
+        ? body.pagePath.trim()
+        : undefined;
 
     if (!userMessage) {
       return NextResponse.json(
@@ -48,19 +54,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const manual = await buildManualConversationPrompt({
-      agentSlug,
-      userMessage,
-      mentionedPaths,
-    });
+    if (source === "editor" && !pagePath) {
+      return NextResponse.json(
+        { error: "pagePath is required for editor conversations" },
+        { status: 400 }
+      );
+    }
+
+    const conversationInput =
+      source === "editor" && pagePath
+        ? await buildEditorConversationPrompt({
+            pagePath,
+            userMessage,
+            mentionedPaths,
+          })
+        : await buildManualConversationPrompt({
+            agentSlug,
+            userMessage,
+            mentionedPaths,
+          });
 
     const conversation = await startConversationRun({
       agentSlug,
-      title: manual.title,
+      title: conversationInput.title,
       trigger: "manual",
-      prompt: manual.prompt,
-      mentionedPaths,
-      cwd: manual.cwd,
+      prompt: conversationInput.prompt,
+      mentionedPaths:
+        "mentionedPaths" in conversationInput
+          ? conversationInput.mentionedPaths
+          : mentionedPaths,
+      cwd: conversationInput.cwd,
       onComplete: async (completion) => {
         if (agentSlug === "general" || !completion.meta.contextSummary) return;
         const timestamp = new Date().toISOString();
