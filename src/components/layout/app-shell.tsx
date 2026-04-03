@@ -9,13 +9,7 @@ import { PdfViewer } from "@/components/editor/pdf-viewer";
 import { CsvViewer } from "@/components/editor/csv-viewer";
 import { AgentList } from "@/components/agents/agent-list";
 import { AgentDetail } from "@/components/agents/agent-detail";
-import { AgentDashboard } from "@/components/agents/agent-dashboard";
-import { AgentSessionView, GeneralAgentView } from "@/components/agents/agent-session-view";
-import { MissionControl } from "@/components/mission-control/mission-control";
-import { MissionList } from "@/components/missions/mission-list";
-import { MissionDetail } from "@/components/missions/mission-detail";
-import { ChatPage } from "@/components/chat/chat-page";
-import { ActivityFeed } from "@/components/activity/activity-feed";
+import { GeneralAgentView } from "@/components/agents/agent-session-view";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
@@ -101,7 +95,6 @@ export function AppShell() {
   // Determine what to render in the main area
   const renderContent = () => {
     // System sections (non-page views)
-    if (section.type === "mission-control") return <MissionControl />;
     if (section.type === "settings") return <SettingsPage />;
     if (section.type === "jobs") return <JobsManager />;
     if (section.type === "agents") return <AgentList />;
@@ -109,14 +102,6 @@ export function AppShell() {
       if (section.slug === "general") return <GeneralAgentView />;
       return <AgentDetail slug={section.slug!} />;
     }
-
-    // Team sections
-    if (section.type === "missions") return <MissionList />;
-    if (section.type === "mission" && section.slug) {
-      return <MissionDetail missionId={section.slug} />;
-    }
-    if (section.type === "chat") return <ChatPage />;
-    if (section.type === "activity") return <ActivityFeed />;
 
     // Page-based views (when a KB page is selected)
     if (isApp && selectedNode) {

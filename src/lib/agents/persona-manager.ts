@@ -148,9 +148,18 @@ export async function listPersonas(): Promise<AgentPersona[]> {
   const personas: AgentPersona[] = [];
 
   for (const entry of entries) {
+    // Directory-based agents: {slug}/persona.md (PRD format)
+    if (entry.isDirectory && !entry.name.startsWith(".")) {
+      const personaPath = path.join(AGENTS_DIR, entry.name, "persona.md");
+      if (await fileExists(personaPath)) {
+        const persona = await readPersona(entry.name);
+        if (persona && persona.role) personas.push(persona);
+      }
+      continue;
+    }
+    // Legacy flat-file agents: {slug}.md
     if (!entry.name.endsWith(".md") || entry.isDirectory) continue;
     const persona = await readPersona(slugFromFilename(entry.name));
-    // Skip files without proper frontmatter (e.g. loop-prompt.md)
     if (persona && persona.role) personas.push(persona);
   }
 
@@ -158,8 +167,13 @@ export async function listPersonas(): Promise<AgentPersona[]> {
 }
 
 export async function readPersona(slug: string): Promise<AgentPersona | null> {
-  const filePath = path.join(AGENTS_DIR, `${slug}.md`);
-  if (!(await fileExists(filePath))) return null;
+  // Try directory-based first: {slug}/persona.md
+  let filePath = path.join(AGENTS_DIR, slug, "persona.md");
+  if (!(await fileExists(filePath))) {
+    // Fall back to legacy flat file: {slug}.md
+    filePath = path.join(AGENTS_DIR, `${slug}.md`);
+    if (!(await fileExists(filePath))) return null;
+  }
 
   const raw = await readFileContent(filePath);
   const { data, content } = matter(raw);
@@ -186,8 +200,10 @@ export async function readPersona(slug: string): Promise<AgentPersona | null> {
     body: content.trim(),
   };
 
-  // Load stats
-  const statsPath = path.join(MEMORY_DIR, slug, "stats.json");
+  // Load stats — check agent dir first, then legacy shared dir
+  const agentStatsPath = path.join(AGENTS_DIR, slug, "memory", "stats.json");
+  const legacyStatsPath = path.join(MEMORY_DIR, slug, "stats.json");
+  const statsPath = (await fileExists(agentStatsPath)) ? agentStatsPath : legacyStatsPath;
   if (await fileExists(statsPath)) {
     try {
       const stats = JSON.parse(await readFileContent(statsPath));
@@ -220,7 +236,10 @@ export async function readPersona(slug: string): Promise<AgentPersona | null> {
 
 export async function writePersona(slug: string, persona: Partial<AgentPersona> & { body?: string }): Promise<void> {
   await initAgentsDir();
-  const filePath = path.join(AGENTS_DIR, `${slug}.md`);
+  // Use directory-based structure: {slug}/persona.md
+  const agentDir = path.join(AGENTS_DIR, slug);
+  await ensureDirectory(agentDir);
+  const filePath = path.join(agentDir, "persona.md");
 
   const existing = await readPersona(slug);
   const merged = { ...existing, ...persona };
@@ -249,9 +268,16 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
 }
 
 export async function deletePersona(slug: string): Promise<void> {
-  const filePath = path.join(AGENTS_DIR, `${slug}.md`);
   const fs = await import("fs/promises");
-  await fs.unlink(filePath).catch(() => {});
+  // Try directory-based first
+  const agentDir = path.join(AGENTS_DIR, slug);
+  try {
+    await fs.rm(agentDir, { recursive: true, force: true });
+  } catch {
+    // Fall back to legacy flat file
+    const filePath = path.join(AGENTS_DIR, `${slug}.md`);
+    await fs.unlink(filePath).catch(() => {});
+  }
   unregisterHeartbeat(slug);
 }
 

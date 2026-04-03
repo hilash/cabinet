@@ -32,11 +32,13 @@ export async function POST(req: NextRequest) {
       JSON.stringify(
         {
           exists: true,
-          name: answers.companyName,
-          description: answers.description,
-          goals: answers.goals,
-          teamSize: answers.teamSize,
-          priority: answers.priority,
+          company: {
+            name: answers.companyName,
+            description: answers.description,
+            goals: answers.goals,
+            teamSize: answers.teamSize,
+            priority: answers.priority,
+          },
           setupDate: new Date().toISOString(),
         },
         null,
@@ -100,71 +102,70 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Create default chat channels
+    // 4. Create chat channels from all agent channel references
     await fs.mkdir(CHAT_DIR, { recursive: true });
-    const defaultChannels = [
-      {
-        slug: "general",
-        name: "General",
-        members: selectedAgents,
-        description: "Company-wide announcements and discussion",
-      },
-    ];
 
-    // Add department-specific channels based on selected agents
-    const deptChannels = new Set<string>();
+    // Collect all channels referenced by agents + map members
+    const channelMembers = new Map<string, Set<string>>();
+    // Always create #general with all agents
+    channelMembers.set("general", new Set(selectedAgents));
+
     for (const slug of selectedAgents) {
       try {
         const personaPath = path.join(AGENTS_DIR, slug, "persona.md");
         const raw = await fs.readFile(personaPath, "utf-8");
         const { data } = matter(raw);
-        if (data.department && data.department !== "leadership") {
-          deptChannels.add(data.department);
+        const agentChannels = (data.channels as string[]) || [];
+        for (const ch of agentChannels) {
+          if (!channelMembers.has(ch)) {
+            channelMembers.set(ch, new Set());
+          }
+          channelMembers.get(ch)!.add(slug);
+        }
+        // Also add leadership agents to all channels
+        if (data.type === "lead") {
+          for (const [, members] of channelMembers) {
+            members.add(slug);
+          }
         }
       } catch {
         // Skip
       }
     }
 
-    for (const dept of deptChannels) {
-      const members = [];
-      for (const slug of selectedAgents) {
-        try {
-          const personaPath = path.join(AGENTS_DIR, slug, "persona.md");
-          const raw = await fs.readFile(personaPath, "utf-8");
-          const { data } = matter(raw);
-          if (
-            data.department === dept ||
-            data.department === "leadership"
-          ) {
-            members.push(slug);
-          }
-        } catch {
-          // Skip
-        }
-      }
-      defaultChannels.push({
-        slug: dept,
-        name: dept.charAt(0).toUpperCase() + dept.slice(1),
-        members,
-        description: `${dept} team channel`,
-      });
-    }
+    const channelDescriptions: Record<string, string> = {
+      general: "Company-wide announcements and discussion",
+      leadership: "Strategic planning and goal setting",
+      marketing: "Marketing campaigns, content, and SEO",
+      content: "Content creation, editing, and review",
+      sales: "Lead generation, outreach, and deals",
+      engineering: "Technical work and code quality",
+    };
+
+    const channels = Array.from(channelMembers.entries()).map(
+      ([slug, members]) => ({
+        slug,
+        name: slug.charAt(0).toUpperCase() + slug.slice(1),
+        members: Array.from(members),
+        description:
+          channelDescriptions[slug] || `${slug} team channel`,
+      })
+    );
 
     await fs.writeFile(
       path.join(CHAT_DIR, "channels.json"),
-      JSON.stringify(defaultChannels, null, 2)
+      JSON.stringify(channels, null, 2)
     );
 
     // Create channel directories
-    for (const ch of defaultChannels) {
+    for (const ch of channels) {
       const chDir = path.join(CHAT_DIR, ch.slug);
       await fs.mkdir(chDir, { recursive: true });
-      await fs.writeFile(path.join(chDir, "messages.md"), "");
-      await fs.writeFile(
-        path.join(chDir, "pins.json"),
-        JSON.stringify([])
-      );
+      // Only create files if they don't exist (don't wipe existing messages)
+      const msgPath = path.join(chDir, "messages.md");
+      const pinPath = path.join(chDir, "pins.json");
+      await fs.writeFile(msgPath, "", { flag: "wx" }).catch(() => {});
+      await fs.writeFile(pinPath, JSON.stringify([]), { flag: "wx" }).catch(() => {});
     }
 
     return NextResponse.json({ ok: true }, { status: 201 });
