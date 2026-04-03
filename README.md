@@ -2,6 +2,8 @@
 
 **The AI-first knowledge base and startup OS.**
 
+[runcabinet.com](https://runcabinet.com) | [hi@runcabinet.com](mailto:hi@runcabinet.com)
+
 Cabinet is a self-hosted platform where you onboard an AI team that works for you. Each agent has a role, recurring jobs, and a workspace in the knowledge base. You watch them work like watching a real team.
 
 ## Quick Start
@@ -95,6 +97,12 @@ npm run start        # Production mode (both servers)
 | **Sales & Support** | Sales Agent, Customer Success |
 | **Analytics** | Data Analyst |
 | **Operations** | People Ops, Legal Advisor, Researcher |
+
+## Links
+
+- **Website:** [runcabinet.com](https://runcabinet.com)
+- **Email:** [hi@runcabinet.com](mailto:hi@runcabinet.com)
+- **GitHub:** [github.com/hilash/cabinet](https://github.com/hilash/cabinet)
 
 ## License
 
