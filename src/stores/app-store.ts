@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type SectionType = "page" | "agents" | "agent" | "jobs" | "settings" | "mission-control" | "missions" | "mission" | "chat" | "activity";
+export type SectionType = "page" | "agents" | "agent" | "jobs" | "settings";
 
 export interface SelectedSection {
   type: SectionType;
@@ -34,7 +34,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  section: { type: "mission-control" },
+  section: { type: "agents" },
   terminalOpen: false,
   terminalTabs: [],
   activeTerminalTab: null,
