@@ -12,6 +12,7 @@ import {
 import { runHeartbeat } from "./heartbeat";
 import { getGoalState } from "./goal-manager";
 import type { GoalMetric, AgentType } from "@/types/agents";
+import { getDefaultProviderId } from "./provider-runtime";
 
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 const MEMORY_DIR = path.join(AGENTS_DIR, ".memory");
@@ -181,7 +182,7 @@ export async function readPersona(slug: string): Promise<AgentPersona | null> {
   const persona: AgentPersona = {
     name: (data.name as string) || slug,
     role: (data.role as string) || "",
-    provider: (data.provider as string) || "claude-code",
+    provider: (data.provider as string) || getDefaultProviderId(),
     heartbeat: (data.heartbeat as string) || "0 8 * * *",
     budget: (data.budget as number) || 100,
     active: data.active !== false,

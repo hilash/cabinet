@@ -8,6 +8,7 @@ interface WebTerminalProps {
   displayPrompt?: string;
   reconnect?: boolean; // If true, connect without sending prompt (session already exists on server)
   themeSurface?: "terminal" | "page";
+  providerId?: string;
   onClose: () => void;
 }
 
@@ -62,6 +63,7 @@ export function WebTerminal({
   sessionId,
   prompt,
   displayPrompt,
+  providerId,
   reconnect,
   themeSurface = "terminal",
   onClose,
@@ -196,6 +198,7 @@ export function WebTerminal({
             const auth = (await authResponse.json()) as DaemonAuthPayload;
             const params = new URLSearchParams({ id, token: auth.token });
             if (prompt && !reconnect) params.set("prompt", prompt);
+            if (providerId && !reconnect) params.set("providerId", providerId);
 
             const wsOrigin =
               auth.wsOrigin ||
@@ -273,6 +276,10 @@ export function WebTerminal({
       fitAddonRef.current = null;
     };
   }, [sessionId, prompt, displayPrompt, reconnect, themeSurface]);
+
+  const surfaceBackground = themeSurface === "page" ? "var(--background)" : "var(--terminal-bg)";
+  const surfaceForeground = themeSurface === "page" ? "var(--foreground)" : "var(--terminal-fg)";
+  }, [sessionId, prompt, displayPrompt, providerId, reconnect, themeSurface]);
 
   const surfaceBackground = themeSurface === "page" ? "var(--background)" : "var(--terminal-bg)";
   const surfaceForeground = themeSurface === "page" ? "var(--foreground)" : "var(--terminal-fg)";

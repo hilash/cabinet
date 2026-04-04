@@ -441,24 +441,6 @@ export function SettingsPage() {
                               )}
                             </div>
                           ))}
-
-                        {[
-                          { name: "Gemini CLI", status: "Coming soon" },
-                          { name: "Codex CLI", status: "Coming soon" },
-                        ].map((p) => (
-                          <div
-                            key={p.name}
-                            className="flex items-center justify-between bg-card border border-border rounded-lg p-3 opacity-50"
-                          >
-                            <div className="flex items-center gap-3">
-                              <XCircle className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="text-[13px] font-medium">{p.name}</p>
-                                <p className="text-[11px] text-muted-foreground">{p.status}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
                       </div>
                     </div>
 
@@ -501,7 +483,7 @@ export function SettingsPage() {
                   <p>Version 0.1.0</p>
                   <p className="flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5" />
-                    Powered by Claude Code
+                    Powered by local AI CLIs
                   </p>
                 </div>
               </div>

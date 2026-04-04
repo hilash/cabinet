@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { spawn } from "child_process";
 import { buildTree } from "@/lib/storage/tree-builder";
+import { DATA_DIR } from "@/lib/storage/path-utils";
+import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 import type { TreeNode } from "@/types";
 
 function flattenPaths(nodes: TreeNode[]): string[] {
@@ -32,21 +33,10 @@ ${pageList}
 Return ONLY a JSON array of page paths that are relevant to this task. Example: ["companies/competitors", "engineering/api-docs"]
 If no pages are relevant, return []. Return ONLY the JSON array, nothing else.`;
 
-    const result = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(
-        "claude",
-        ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"],
-        { stdio: ["pipe", "pipe", "pipe"] }
-      );
-
-      let stdout = "";
-      proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
-      proc.on("close", (code) => {
-        if (code === 0) resolve(stdout.trim());
-        else reject(new Error(`Exit code ${code}`));
-      });
-      proc.on("error", reject);
-      setTimeout(() => { proc.kill(); reject(new Error("Timeout")); }, 30_000);
+    const result = await runOneShotProviderPrompt({
+      prompt,
+      cwd: DATA_DIR,
+      timeoutMs: 30_000,
     });
 
     // Parse the JSON array from Claude's response

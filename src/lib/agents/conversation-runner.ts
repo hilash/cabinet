@@ -10,6 +10,7 @@ import {
 } from "./conversation-store";
 import { createDaemonSession, getDaemonSessionOutput } from "./daemon-client";
 import { readPersona, type AgentPersona } from "./persona-manager";
+import { getDefaultProviderId } from "./provider-runtime";
 
 export interface ConversationCompletion {
   meta: ConversationMeta;
@@ -22,6 +23,7 @@ interface StartConversationInput {
   title: string;
   trigger: ConversationMeta["trigger"];
   prompt: string;
+  providerId?: string;
   mentionedPaths?: string[];
   jobId?: string;
   jobName?: string;
@@ -87,6 +89,7 @@ export async function buildManualConversationPrompt(input: {
   prompt: string;
   title: string;
   cwd?: string;
+  providerId: string;
 }> {
   const persona = input.agentSlug === "general"
     ? null
@@ -111,6 +114,7 @@ export async function buildManualConversationPrompt(input: {
     prompt,
     title: makeTitle(input.userMessage),
     cwd,
+    providerId: persona?.provider || getDefaultProviderId(),
   };
 }
 
@@ -123,6 +127,7 @@ export async function buildEditorConversationPrompt(input: {
   title: string;
   cwd?: string;
   mentionedPaths: string[];
+  providerId: string;
 }> {
   const persona = await readPersona("editor");
   const combinedMentionedPaths = Array.from(
@@ -151,6 +156,7 @@ export async function buildEditorConversationPrompt(input: {
     title: makeTitle(input.userMessage),
     cwd,
     mentionedPaths: combinedMentionedPaths,
+    providerId: persona?.provider || getDefaultProviderId(),
   };
 }
 
@@ -171,6 +177,7 @@ export async function startConversationRun(
     await createDaemonSession({
       id: meta.id,
       prompt: input.prompt,
+      providerId: input.providerId,
       cwd: input.cwd,
       timeoutSeconds: input.timeoutSeconds,
     });
@@ -321,6 +328,7 @@ export async function startJobConversation(job: JobConfig): Promise<JobRun> {
     title: job.name,
     trigger: "job",
     prompt,
+    providerId: job.provider || persona?.provider || getDefaultProviderId(),
     jobId: job.id,
     jobName: job.name,
     cwd,

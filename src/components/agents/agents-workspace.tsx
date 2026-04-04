@@ -62,12 +62,22 @@ interface AgentTemplate {
   description: string;
 }
 
+interface ProviderInfo {
+  id: string;
+  name: string;
+  type: "cli" | "api";
+  available: boolean;
+  version?: string;
+  error?: string;
+}
+
 interface NewAgentDraft {
   name: string;
   slug: string;
   emoji: string;
   role: string;
   heartbeat: string;
+  provider: string;
   department: string;
   type: string;
   workspace: string;
@@ -80,6 +90,7 @@ const GENERAL_AGENT: AgentListItem = {
   slug: "general",
   emoji: "🤖",
   role: "Manual Cabinet assistant",
+  provider: "claude-code",
   active: true,
   runningCount: 0,
   department: "general",
@@ -121,6 +132,7 @@ const DEFAULT_NEW_AGENT: NewAgentDraft = {
   emoji: "🤖",
   role: "",
   heartbeat: "0 */4 * * *",
+  provider: "claude-code",
   department: "general",
   type: "specialist",
   workspace: "workspace",
@@ -352,14 +364,14 @@ function TriggerIcon({
   return <HeartPulse className={cn("h-3 w-3", className)} />;
 }
 
-function blankJobDraft(agentSlug: string): JobConfig {
+function blankJobDraft(agentSlug: string, provider = "claude-code"): JobConfig {
   const now = new Date().toISOString();
   return {
     id: "",
     name: "",
     enabled: true,
     schedule: "0 9 * * 1-5",
-    provider: "claude-code",
+    provider,
     agentSlug,
     prompt: "",
     timeout: 600,
@@ -389,6 +401,8 @@ export function AgentsWorkspace({
   const [settingsPersona, setSettingsPersona] = useState<AgentListItem | null>(null);
   const [settingsBody, setSettingsBody] = useState("");
   const [settingsJobs, setSettingsJobs] = useState<JobConfig[]>([]);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [defaultProvider, setDefaultProvider] = useState("claude-code");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [jobDraft, setJobDraft] = useState<JobConfig | null>(null);
   const [triggerFilter, setTriggerFilter] = useState<TriggerFilter>("all");
@@ -440,6 +454,25 @@ export function AgentsWorkspace({
       page.title.toLowerCase().includes(mentionQuery.toLowerCase()) ||
       page.path.toLowerCase().includes(mentionQuery.toLowerCase())
   );
+  const cliProviders = providers.filter((provider) => provider.type === "cli");
+  const selectableCliProviders = cliProviders.length > 0
+    ? cliProviders
+    : [
+        {
+          id: defaultProvider || "claude-code",
+          name: defaultProvider || "claude-code",
+          type: "cli",
+          available: true,
+        } as ProviderInfo,
+      ];
+
+  async function refreshProviders() {
+    const response = await fetch("/api/agents/providers");
+    if (!response.ok) return;
+    const data = await response.json();
+    setProviders((data.providers || []) as ProviderInfo[]);
+    setDefaultProvider(data.defaultProvider || "claude-code");
+  }
 
   async function refreshAgents() {
     const response = await fetch("/api/agents/personas");
@@ -579,6 +612,7 @@ export function AgentsWorkspace({
 
   useEffect(() => {
     void refreshLibrary();
+    void refreshProviders();
   }, []);
 
   useEffect(() => {
@@ -741,14 +775,20 @@ export function AgentsWorkspace({
   function handleCustomAgentDialogOpenChange(open: boolean) {
     setCustomAgentDialogOpen(open);
     if (!open) {
-      setNewAgentDraft(DEFAULT_NEW_AGENT);
+      setNewAgentDraft({
+        ...DEFAULT_NEW_AGENT,
+        provider: defaultProvider || DEFAULT_NEW_AGENT.provider,
+      });
       setAgentFlowError(null);
     }
   }
 
   function openCustomAgentDialog() {
     setAddAgentDialogOpen(false);
-    setNewAgentDraft(DEFAULT_NEW_AGENT);
+    setNewAgentDraft({
+      ...DEFAULT_NEW_AGENT,
+      provider: defaultProvider || DEFAULT_NEW_AGENT.provider,
+    });
     setAgentFlowError(null);
     setCustomAgentDialogOpen(true);
   }
@@ -897,6 +937,7 @@ export function AgentsWorkspace({
       department: settingsEditorDraft.department || "",
       type: settingsEditorDraft.type || "",
       heartbeat: settingsEditorDraft.heartbeat || "",
+      provider: settingsEditorDraft.provider || "",
       workspace: settingsEditorDraft.workspace || "",
       body: settingsEditorBody,
     });
@@ -970,7 +1011,12 @@ export function AgentsWorkspace({
   function startNewJobDraft() {
     if (!settingsAgentSlug) return;
     setSelectedJobId("__new__");
-    setJobDraft(blankJobDraft(settingsAgentSlug));
+    setJobDraft(
+      blankJobDraft(
+        settingsAgentSlug,
+        settingsPersona?.provider || defaultProvider || "claude-code"
+      )
+    );
     setNewJobDialogOpen(true);
   }
 
@@ -982,7 +1028,10 @@ export function AgentsWorkspace({
     if (!settingsAgentSlug) return;
     setSelectedJobId("__new__");
     setJobDraft({
-      ...blankJobDraft(settingsAgentSlug),
+      ...blankJobDraft(
+        settingsAgentSlug,
+        settingsPersona?.provider || defaultProvider || "claude-code"
+      ),
       id: template.id,
       name: template.name,
       schedule: template.schedule,
@@ -1111,7 +1160,7 @@ export function AgentsWorkspace({
           type: newAgentDraft.type,
           heartbeat: newAgentDraft.heartbeat,
           workspace: newAgentDraft.workspace || "workspace",
-          provider: "claude-code",
+          provider: newAgentDraft.provider,
           budget: 100,
           active: newAgentDraft.active,
           workdir: "/data",
@@ -1221,6 +1270,7 @@ export function AgentsWorkspace({
     department: settingsEditorDraft.department || "",
     type: settingsEditorDraft.type || "",
     heartbeat: settingsEditorDraft.heartbeat || "",
+    provider: settingsEditorDraft.provider || "",
     workspace: settingsEditorDraft.workspace || "",
     body: settingsEditorBody,
   }) !== lastSavedSettingsRef.current;
@@ -2007,6 +2057,22 @@ export function AgentsWorkspace({
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
                       />
                     </label>
+                    <label className="space-y-1 text-[11px] text-muted-foreground">
+                      <span>Provider</span>
+                      <select
+                        value={newAgentDraft.provider}
+                        onChange={(event) =>
+                          setNewAgentDraft({ ...newAgentDraft, provider: event.target.value })
+                        }
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                      >
+                        {selectableCliProviders.map((provider) => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.name}{provider.available ? "" : " (not installed)"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <label className="space-y-1 text-[11px] text-muted-foreground md:col-span-2">
                       <span>Workspace</span>
                       <input
@@ -2289,6 +2355,25 @@ export function AgentsWorkspace({
                               className="w-full rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
                             />
                           </label>
+                          <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                            <span>Provider</span>
+                            <select
+                              value={settingsEditorDraft.provider || defaultProvider}
+                              onChange={(event) =>
+                                setSettingsEditorDraft({
+                                  ...settingsEditorDraft,
+                                  provider: event.target.value,
+                                })
+                              }
+                              className="w-full rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors focus:bg-muted"
+                            >
+                              {selectableCliProviders.map((provider) => (
+                                <option key={provider.id} value={provider.id}>
+                                  {provider.name}{provider.available ? "" : " (not installed)"}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
                             <span>Workspace</span>
                             <input
@@ -2414,6 +2499,24 @@ export function AgentsWorkspace({
                               }
                             />
                           </div>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-medium text-muted-foreground">Provider</label>
+                          <select
+                            value={jobDraft.provider}
+                            onChange={(event) =>
+                              setJobDraft((current) =>
+                                current ? { ...current, provider: event.target.value } : current
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                          >
+                            {selectableCliProviders.map((provider) => (
+                              <option key={provider.id} value={provider.id}>
+                                {provider.name}{provider.available ? "" : " (not installed)"}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <div>
                           <label className="text-[11px] font-medium text-muted-foreground">Timeout (seconds)</label>
@@ -2723,6 +2826,24 @@ export function AgentsWorkspace({
                                   }
                                 />
                               </div>
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Provider</label>
+                              <select
+                                value={jobDraft.provider}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, provider: event.target.value } : current
+                                  )
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                              >
+                                {selectableCliProviders.map((provider) => (
+                                  <option key={provider.id} value={provider.id}>
+                                    {provider.name}{provider.available ? "" : " (not installed)"}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                             <div>
                               <label className="text-[11px] font-medium text-muted-foreground">Timeout (seconds)</label>

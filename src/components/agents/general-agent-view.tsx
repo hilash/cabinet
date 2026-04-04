@@ -34,7 +34,7 @@ export function GeneralAgentView() {
         <Terminal className="h-5 w-5 text-blue-400" />
         <div>
           <h2 className="text-[15px] font-semibold tracking-[-0.02em]">General</h2>
-          <p className="text-[11px] text-muted-foreground">Manual Claude sessions — no persona, no heartbeat</p>
+          <p className="text-[11px] text-muted-foreground">Manual sessions with the default provider — no persona, no heartbeat</p>
         </div>
       </div>
 
@@ -46,7 +46,7 @@ export function GeneralAgentView() {
             </pre>
           ) : (
             <p className="text-muted-foreground text-[13px]">
-              Send a prompt below to run Claude in headless mode, or use the terminal (Cmd+`) for interactive sessions.
+              Send a prompt below to run the default provider in headless mode, or use the terminal (Cmd+`) for interactive sessions.
             </p>
           )}
         </div>
@@ -63,7 +63,7 @@ export function GeneralAgentView() {
                 handleSend();
               }
             }}
-            placeholder="Ask Claude something..."
+            placeholder="Ask the default provider something..."
             className="flex-1 px-3 py-1.5 text-[13px] rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
             disabled={sending}
           />
