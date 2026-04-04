@@ -7,6 +7,7 @@ interface WebTerminalProps {
   sessionId?: string;
   prompt?: string;
   displayPrompt?: string;
+  providerId?: string;
   reconnect?: boolean;  // If true, connect without sending prompt (session already exists on server)
   onClose: () => void;
 }
@@ -24,6 +25,7 @@ export function WebTerminal({
   sessionId,
   prompt,
   displayPrompt,
+  providerId,
   reconnect,
   onClose,
 }: WebTerminalProps) {
@@ -66,7 +68,7 @@ export function WebTerminal({
           cursorAccent: "#0a0a0a",
           selectionBackground: "#ffffff30",
           selectionForeground: "#ffffff",
-          // ANSI colors - rich palette for Claude Code output
+          // ANSI colors for readable CLI output
           black: "#1a1a2e",
           red: "#ff6b6b",
           green: "#51cf66",
@@ -154,6 +156,7 @@ export function WebTerminal({
             const auth = (await authResponse.json()) as DaemonAuthPayload;
             const params = new URLSearchParams({ id, token: auth.token });
             if (prompt && !reconnect) params.set("prompt", prompt);
+            if (providerId && !reconnect) params.set("providerId", providerId);
 
             const isLocalDev =
               (window.location.hostname === "localhost" ||
@@ -236,7 +239,7 @@ export function WebTerminal({
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sessionId, prompt, displayPrompt, reconnect]);
+  }, [sessionId, prompt, displayPrompt, providerId, reconnect]);
 
   return (
     <div className="h-full w-full relative overflow-hidden bg-[#0a0a0a]">

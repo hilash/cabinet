@@ -20,8 +20,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install Claude CLI
+# Install supported CLI providers
 RUN npm install -g @anthropic-ai/claude-code || true
+RUN npm install -g @openai/codex || true
 
 # Create non-root user
 RUN addgroup --system --gid 1001 cabinet

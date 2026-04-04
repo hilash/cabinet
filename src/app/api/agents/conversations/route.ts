@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
       title: conversationInput.title,
       trigger: "manual",
       prompt: conversationInput.prompt,
+      providerId: conversationInput.providerId,
       mentionedPaths:
         "mentionedPaths" in conversationInput
           ? conversationInput.mentionedPaths

@@ -23,6 +23,14 @@ interface GoalInput {
   period: string;
 }
 
+interface ProviderInfo {
+  id: string;
+  name: string;
+  type: "cli" | "api";
+  available: boolean;
+  error?: string;
+}
+
 interface CreateAgentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,8 +51,25 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
   const [department, setDepartment] = useState("general");
   const [type, setType] = useState<"specialist" | "lead">("specialist");
   const [heartbeat, setHeartbeat] = useState("0 */4 * * *");
+  const [provider, setProvider] = useState("claude-code");
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [defaultProvider, setDefaultProvider] = useState("claude-code");
   const [goals, setGoals] = useState<GoalInput[]>([]);
   const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+
+    fetch("/api/agents/providers")
+      .then((r) => r.json())
+      .then((data) => {
+        setProviders((data.providers || []).filter((entry: ProviderInfo) => entry.type === "cli"));
+        const nextDefault = data.defaultProvider || "claude-code";
+        setDefaultProvider(nextDefault);
+        setProvider((current) => current || nextDefault);
+      })
+      .catch(() => {});
+  }, [open]);
 
   const slug = name
     .toLowerCase()
@@ -74,6 +99,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
         department,
         type,
         heartbeat,
+        provider,
         budget: 200,
         active: false,
         workdir: "/data",
@@ -109,6 +135,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
     setDepartment("general");
     setType("specialist");
     setHeartbeat("0 */4 * * *");
+    setProvider(defaultProvider);
     setGoals([]);
   };
 
@@ -229,6 +256,24 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
                   </button>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[12px] font-medium">Provider</label>
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                className="w-full h-8 text-[12px] bg-background border border-border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                {(providers.length > 0
+                  ? providers
+                  : [{ id: defaultProvider, name: defaultProvider, type: "cli", available: true } as ProviderInfo]
+                ).map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}{entry.available ? "" : " (not installed)"}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

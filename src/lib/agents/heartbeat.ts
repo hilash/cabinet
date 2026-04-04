@@ -350,6 +350,7 @@ export async function runHeartbeat(slug: string): Promise<string | null> {
       title: `${persona.name} heartbeat`,
       trigger: "heartbeat",
       prompt,
+      providerId: persona.provider,
       cwd,
       timeoutSeconds: 600,
       onComplete: async (completion) => {

@@ -1,43 +1,53 @@
 import { spawn } from "child_process";
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
 
-export const claudeCodeProvider: AgentProvider = {
-  id: "claude-code",
-  name: "Claude Code Max",
+export const codexCliProvider: AgentProvider = {
+  id: "codex-cli",
+  name: "Codex CLI",
   type: "cli",
-  icon: "sparkles",
-  installMessage: "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code",
-  command: "claude",
+  icon: "bot",
+  installMessage: "Codex CLI not found. Install with: npm install -g @openai/codex or brew install --cask codex",
+  command: "codex",
   commandCandidates: [
-    `${process.env.HOME || ""}/.local/bin/claude`,
-    "/usr/local/bin/claude",
-    "/opt/homebrew/bin/claude",
-    "claude",
+    `${process.env.HOME || ""}/.local/bin/codex`,
+    "/usr/local/bin/codex",
+    "/opt/homebrew/bin/codex",
+    "codex",
   ],
 
   buildArgs(prompt: string, _workdir: string): string[] {
-    return ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"];
+    return [
+      "exec",
+      "--skip-git-repo-check",
+      "--dangerously-bypass-approvals-and-sandbox",
+      prompt,
+    ];
   },
 
   buildOneShotInvocation(prompt: string, workdir: string) {
     return {
-      command: this.command || "claude",
+      command: this.command || "codex",
       args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
     };
   },
 
-  buildSessionInvocation(prompt: string | undefined, _workdir: string) {
+  buildSessionInvocation(prompt: string | undefined, workdir: string) {
+    if (!prompt?.trim()) {
+      return {
+        command: this.command || "codex",
+        args: [],
+      };
+    }
+
     return {
-      command: this.command || "claude",
-      args: ["--dangerously-skip-permissions"],
-      initialPrompt: prompt?.trim() || undefined,
-      readyStrategy: prompt ? "claude" : undefined,
+      command: this.command || "codex",
+      args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
     };
   },
 
   async isAvailable(): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn("claude", ["--version"], {
+      const proc = spawn("codex", ["--version"], {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
@@ -69,8 +79,8 @@ export const claudeCodeProvider: AgentProvider = {
 
       return {
         available: true,
-        authenticated: true, // Max subscription auth is inherited
-        version: "Claude Code Max",
+        authenticated: true,
+        version: "Codex CLI",
       };
     } catch (error) {
       return {
