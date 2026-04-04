@@ -2,6 +2,7 @@ import fs from "fs";
 import { execSync, spawn } from "child_process";
 import type { AgentProvider, CliProviderInvocation } from "./provider-interface";
 import { providerRegistry } from "./provider-registry";
+import { getConfiguredDefaultProviderId, isProviderEnabled } from "./provider-settings";
 
 const RUNTIME_PATH = [
   `${process.env.HOME || ""}/.local/bin`,
@@ -15,9 +16,10 @@ export interface ProviderLaunchSpec extends CliProviderInvocation {
 }
 
 function resolveProviderOrThrow(providerId?: string): AgentProvider {
+  const defaultProviderId = getConfiguredDefaultProviderId();
   const provider = providerId
     ? providerRegistry.get(providerId)
-    : providerRegistry.getDefault();
+    : providerRegistry.get(defaultProviderId);
 
   if (!provider) {
     throw new Error(
@@ -25,6 +27,10 @@ function resolveProviderOrThrow(providerId?: string): AgentProvider {
         ? `Unknown provider: ${providerId}`
         : "No default provider is configured"
     );
+  }
+
+  if (!isProviderEnabled(provider.id)) {
+    throw new Error(`Provider ${provider.id} is disabled in settings`);
   }
 
   return provider;
@@ -118,7 +124,7 @@ function buildLaunchSpec(
 }
 
 export function getDefaultProviderId(): string {
-  return resolveProviderOrThrow().id;
+  return getConfiguredDefaultProviderId();
 }
 
 export function resolveProviderId(providerId?: string): string {

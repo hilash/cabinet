@@ -66,6 +66,7 @@ interface ProviderInfo {
   id: string;
   name: string;
   type: "cli" | "api";
+  enabled: boolean;
   available: boolean;
   version?: string;
   error?: string;
@@ -465,6 +466,22 @@ export function AgentsWorkspace({
           available: true,
         } as ProviderInfo,
       ];
+  const enabledCliProviders = providers.filter(
+    (provider) => provider.type === "cli" && provider.enabled
+  );
+  const selectableCliProviders = enabledCliProviders.length > 0
+    ? enabledCliProviders
+    : cliProviders.length > 0
+      ? cliProviders
+      : [
+          {
+            id: defaultProvider || "claude-code",
+            name: defaultProvider || "claude-code",
+            type: "cli",
+            enabled: true,
+            available: true,
+          } as ProviderInfo,
+        ];
 
   async function refreshProviders() {
     const response = await fetch("/api/agents/providers");
