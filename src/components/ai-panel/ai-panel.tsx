@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { Button } from "@/components/ui/button";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -63,6 +64,7 @@ export function AIPanel() {
     clearAllSessions,
   } = useAIPanelStore();
   const { currentPath, loadPage } = useEditorStore();
+  const { isMobile } = useIsMobile();
   const [input, setInput] = useState("");
   const [mentionedPages, setMentionedPages] = useState<string[]>([]);
   const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
@@ -405,7 +407,18 @@ export function AIPanel() {
     otherPageRunningSessions.length > 0;
 
   return (
-    <div className="w-[480px] min-w-[420px] border-l border-border bg-background flex flex-col">
+    <>
+      {/* Mobile scrim */}
+      {isMobile && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30"
+          onClick={close}
+        />
+      )}
+      <div className={cn(
+        "w-[480px] min-w-[420px] border-l border-border bg-background flex flex-col",
+        "max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-0 max-md:z-40 max-md:border-l-0"
+      )}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
@@ -701,5 +714,6 @@ export function AIPanel() {
         </div>
       </div>
     </div>
+    </>
   );
 }

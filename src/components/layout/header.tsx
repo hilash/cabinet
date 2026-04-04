@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Copy, Download, Search, FileCode, Terminal, FileDown } from "lucide-react";
+import { Sparkles, Copy, Download, Search, FileCode, Terminal, FileDown, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 export function Header() {
   const { frontmatter, content, currentPath } = useEditorStore();
   const { isOpen, toggle } = useAIPanelStore();
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+  const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const { terminalOpen, toggleTerminal } = useAppStore();
 
   const handleCopyMarkdown = async () => {
@@ -52,6 +54,16 @@ export function Header() {
   return (
     <header className="flex items-center justify-between border-b border-border px-4 py-2 bg-background/80 backdrop-blur-sm">
       <div className="flex items-center gap-2">
+        {sidebarCollapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={() => setSidebarCollapsed(false)}
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+        )}
         <h1 className="text-[13px] font-medium text-foreground truncate tracking-[-0.01em]">
           {frontmatter?.title || "Cabinet"}
         </h1>

@@ -1,0 +1,6 @@
+name: league-membership
+local: /repos/league-membership
+remote: https://github.com/micahbrich/league-membership
+source: both
+branch: main
+description: League membership portal — Supabase auth, Stripe subscriptions

@@ -33,19 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { TreeView } from "./tree-view";
 import { NewPageDialog } from "./new-page-dialog";
 import { useAppStore } from "@/stores/app-store";
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    setMounted(true);
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  return { isMobile, mounted };
-}
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 interface AgentSummary {
   name: string;
@@ -160,7 +148,7 @@ export function Sidebar() {
     if (mounted && isMobile) setCollapsed(true);
   }, [mounted, isMobile, setCollapsed]);
 
-  const desktopClass = collapsed ? "w-0 overflow-hidden" : "w-[280px] min-w-[280px]";
+  const desktopClass = collapsed ? "w-0 min-w-0 overflow-hidden" : "w-[280px] min-w-[280px]";
   const mobileClass = cn(
     "fixed left-0 top-0 bottom-0 z-40",
     collapsed ? "w-0 overflow-hidden" : "w-[280px]"
@@ -308,19 +296,6 @@ export function Sidebar() {
           </Button>
         </div>
       </aside>
-      {collapsed && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "absolute top-3 z-10 h-7 w-7",
-            isMobile ? "left-3 z-50" : "left-2"
-          )}
-          onClick={() => setCollapsed(false)}
-        >
-          <PanelLeft className="h-4 w-4" />
-        </Button>
-      )}
     </>
   );
 }

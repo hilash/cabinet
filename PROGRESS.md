@@ -82,4 +82,6 @@
 
 [2026-04-03] Added light cabinet icon as sidebar logo (public/logo-light.png) next to 'Cabinet' text. Updated favicon to match.
 
+[2026-04-04] Mobile responsiveness overhaul: extracted shared useIsMobile hook, added master-detail pattern to agents workspace (list/detail toggle with back nav on mobile), made AI panel a full-screen overlay on mobile with auto-collapse, moved sidebar toggle from absolute-positioned floating button to inline header placement to prevent content overlap, and fixed sidebar expand animation on desktop.
+
 [2026-04-03] Fixed scheduled plays never executing: added cron registration for plays with schedule triggers in play-manager.ts. Plays with schedule triggers now get registered with node-cron on app startup (via /api/agents/personas init) and re-registered when plays are created/updated. Added "schedule" case to trigger-engine.ts. Rewrote README.md to match runcabinet.com website style with demo video, problem/solution framing, feature matrix, comparison table, and strong CTAs.

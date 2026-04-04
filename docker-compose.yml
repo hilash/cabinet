@@ -6,23 +6,23 @@ services:
       - KB_PASSWORD=${KB_PASSWORD:-}
       - NODE_ENV=production
     volumes:
+      # Cabinet data (KB pages, agents, sqlite)
       - ./data:/app/data
+
+      # Auth pass-through (read-only for isolation)
+      - ~/.claude:/home/cabinet/.claude:ro
+      - ~/.config/gh:/home/cabinet/.config/gh:ro
+
+      # League repos (read-write for agent commits/worktrees)
+      - ~/orgs/theleagueof/theleagueof-v3:/repos/theleagueof-v3
+      - ~/orgs/theleagueof/courses:/repos/courses
+      - ~/orgs/theleagueof/league-membership:/repos/league-membership
+      - ~/orgs/theleagueof:/repos/league-org
+
+      # Worktree scratch space (ephemeral, inside container)
+      - worktrees:/worktrees
     ports:
       - "3000:3000"
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - kb
-
 volumes:
-  caddy_data:
-  caddy_config:
+  worktrees:

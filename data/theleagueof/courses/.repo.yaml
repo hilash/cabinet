@@ -1,0 +1,6 @@
+name: courses
+local: /repos/courses
+remote: https://github.com/micahbrich/courses
+source: both
+branch: main
+description: League course content and learning platform — The Confident Designer, Typography 101
