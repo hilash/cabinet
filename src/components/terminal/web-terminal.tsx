@@ -164,7 +164,7 @@ export function WebTerminal({
               : window.location.protocol === "https:"
                 ? "wss"
                 : "ws";
-            const host = isLocalDev ? "127.0.0.1:3001" : window.location.host;
+            const host = isLocalDev ? "localhost:3001" : window.location.host;
             const wsUrl = `${protocol}://${host}/api/daemon/pty?${params.toString()}`;
 
             ws = new WebSocket(wsUrl);
