@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "child_process";
 import path from "path";
+import { providerRegistry } from "./provider-registry";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 
@@ -12,6 +13,8 @@ export interface AgentSession {
   completedAt?: string;
   output: string;
   process?: ChildProcess;
+  provider?: string;
+  profile?: string;
 }
 
 // In-memory session store
@@ -65,9 +68,22 @@ export async function runAgent(
   taskTitle: string,
   prompt: string,
   taskId?: string,
-  workdir?: string
+  workdir?: string,
+  profile?: string
 ): Promise<string> {
   const id = `agent-${Date.now()}`;
+
+  // Get the default provider (Hermes Agent if available)
+  const provider = providerRegistry.getDefault();
+  if (!provider) {
+    throw new Error("No agent provider available. Please install Hermes Agent or Claude Code.");
+  }
+
+  // Check if provider is available
+  const isAvailable = await provider.isAvailable();
+  if (!isAvailable) {
+    throw new Error(`Provider ${provider.name} is not available. Please check installation.`);
+  }
 
   const session: AgentSession = {
     id,
@@ -76,13 +92,49 @@ export async function runAgent(
     status: "running",
     startedAt: new Date().toISOString(),
     output: "",
+    provider: provider.id,
+    profile: profile || undefined,
   };
 
   const cwd = workdir ? path.join(DATA_DIR, workdir) : DATA_DIR;
-  const proc = spawn("claude", ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"], {
+  
+  // Build command based on provider type
+  let command: string;
+  let args: string[];
+  
+  if (provider.type === "cli" && provider.command && provider.buildArgs) {
+    command = provider.command;
+    args = provider.buildArgs(prompt, cwd, profile);
+  } else if (provider.type === "api" && provider.runPrompt) {
+    // API providers are handled differently
+    session.status = "running";
+    sessions.set(id, session);
+    
+    // Async execution for API providers
+    provider.runPrompt(prompt, cwd).then((output) => {
+      session.output = output;
+      session.status = "completed";
+      session.completedAt = new Date().toISOString();
+      
+      if (taskId) {
+        autoSummarize(session).catch(() => {});
+      }
+    }).catch((error) => {
+      session.output = String(error);
+      session.status = "failed";
+      session.completedAt = new Date().toISOString();
+    });
+    
+    return id;
+  } else {
+    throw new Error(`Provider ${provider.name} is not properly configured.`);
+  }
+
+  const proc = spawn(command, args, {
     cwd,
     env: { ...process.env },
     stdio: ["pipe", "pipe", "pipe"],
+    shell: true,
   });
 
   session.process = proc;
@@ -107,7 +159,8 @@ export async function runAgent(
     }
   });
 
-  proc.on("error", () => {
+  proc.on("error", (error) => {
+    session.output += `\nError: ${error.message}`;
     session.status = "failed";
     session.completedAt = new Date().toISOString();
     delete session.process;
@@ -145,4 +198,34 @@ export function stopAgent(id: string): boolean {
   session.completedAt = new Date().toISOString();
   delete session.process;
   return true;
+}
+
+// New function to run agent with specific provider
+export async function runAgentWithProvider(
+  providerId: string,
+  taskTitle: string,
+  prompt: string,
+  taskId?: string,
+  workdir?: string,
+  profile?: string
+): Promise<string> {
+  const provider = providerRegistry.get(providerId);
+  if (!provider) {
+    throw new Error(`Provider ${providerId} not found.`);
+  }
+
+  const isAvailable = await provider.isAvailable();
+  if (!isAvailable) {
+    throw new Error(`Provider ${provider.name} is not available.`);
+  }
+
+  // Temporarily override the default
+  const originalDefault = providerRegistry.defaultProvider;
+  providerRegistry.defaultProvider = providerId;
+  
+  try {
+    return await runAgent(taskTitle, prompt, taskId, workdir, profile);
+  } finally {
+    providerRegistry.defaultProvider = originalDefault;
+  }
 }

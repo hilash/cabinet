@@ -51,9 +51,50 @@ console.log("Initializing Cabinet database...");
 getDb();
 console.log("Database ready.");
 
-// ----- Claude Binary Resolution -----
+// ----- AI Agent Backend Resolution -----
+// Supports: Hermes Agent (preferred), Claude Code (fallback)
 
-function resolveClaudePath(): string {
+interface AgentBackend {
+  name: string;
+  path: string;
+  type: "hermes" | "claude";
+  buildArgs: (prompt?: string) => string[];
+}
+
+function resolveHermesPath(): string | null {
+  const candidates = [
+    path.join(process.env.HOME || "", ".local", "bin", "hermes"),
+    "/usr/local/bin/hermes",
+    "/opt/homebrew/bin/hermes",
+    path.join(process.cwd(), "venv", "bin", "hermes"),
+    path.join(process.cwd(), ".venv", "bin", "hermes"),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      console.log(`Found hermes at: ${candidate}`);
+      return candidate;
+    }
+  }
+
+  try {
+    const resolved = execSync("which hermes", {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${process.env.HOME}/.local/bin:${process.env.HOME}/.hermes/venv/bin:${process.env.PATH}`,
+      },
+    }).trim();
+    if (resolved) {
+      console.log(`Resolved hermes via which: ${resolved}`);
+      return resolved;
+    }
+  } catch {}
+
+  return null;
+}
+
+function resolveClaudePath(): string | null {
   const candidates = [
     path.join(process.env.HOME || "", ".local", "bin", "claude"),
     "/usr/local/bin/claude",
@@ -81,11 +122,96 @@ function resolveClaudePath(): string {
     }
   } catch {}
 
-  console.warn("Could not resolve claude path, using 'claude' directly");
-  return "claude";
+  return null;
 }
 
-const CLAUDE_PATH = resolveClaudePath();
+function detectBackend(): AgentBackend {
+  // Check for explicit override
+  const explicitBackend = process.env.CABINET_AI_BACKEND;
+  if (explicitBackend === "hermes" || explicitBackend === "claude") {
+    if (explicitBackend === "hermes") {
+      const hermesPath = resolveHermesPath();
+      if (hermesPath) {
+        return {
+          name: "Hermes Agent",
+          path: hermesPath,
+          type: "hermes",
+          buildArgs: (prompt?: string) => {
+            const args = ["--dangerously-skip-permissions"];
+            if (prompt) {
+              args.push("-p", prompt);
+            }
+            return args;
+          },
+        };
+      }
+    }
+    if (explicitBackend === "claude") {
+      const claudePath = resolveClaudePath();
+      if (claudePath) {
+        return {
+          name: "Claude Code",
+          path: claudePath,
+          type: "claude",
+          buildArgs: (prompt?: string) => {
+            const args = ["--dangerously-skip-permissions"];
+            if (prompt) {
+              args.push("-p", prompt, "--output-format", "text");
+            }
+            return args;
+          },
+        };
+      }
+    }
+  }
+
+  // Auto-detect: prefer Hermes
+  const hermesPath = resolveHermesPath();
+  if (hermesPath) {
+    return {
+      name: "Hermes Agent",
+      path: hermesPath,
+      type: "hermes",
+      buildArgs: (prompt?: string) => {
+        const args = ["--dangerously-skip-permissions"];
+        if (prompt) {
+          args.push("-p", prompt);
+        }
+        return args;
+      },
+    };
+  }
+
+  // Fallback to Claude
+  const claudePath = resolveClaudePath();
+  if (claudePath) {
+    return {
+      name: "Claude Code",
+      path: claudePath,
+      type: "claude",
+      buildArgs: (prompt?: string) => {
+        const args = ["--dangerously-skip-permissions"];
+        if (prompt) {
+          args.push("-p", prompt, "--output-format", "text");
+        }
+        return args;
+      },
+    };
+  }
+
+  // No backend found
+  console.error("ERROR: No AI agent backend found!");
+  console.error("Please install either:");
+  console.error("  - Hermes Agent: pip install hermes-agent");
+  console.error("  - Claude Code: npm install -g @anthropic-ai/claude-code");
+  throw new Error("No AI agent backend available");
+}
+
+const BACKEND = detectBackend();
+console.log(`Using AI backend: ${BACKEND.name} (${BACKEND.path})`);
+
+// Legacy compatibility
+const CLAUDE_PATH = BACKEND.path;
 
 const enrichedPath = [
   `${process.env.HOME}/.local/bin`,
@@ -151,8 +277,21 @@ function stripAnsi(str: string): string {
   );
 }
 
-function claudePromptReady(output: string): boolean {
+function agentPromptReady(output: string, backendType: "hermes" | "claude" = BACKEND.type): boolean {
   const plain = stripAnsi(output).replace(/\r/g, "\n");
+  
+  // Hermes Agent prompt indicators
+  if (backendType === "hermes") {
+    // Hermes typically shows a prompt like "╭─" or simple ">" or "❯"
+    return (
+      /(?:^|\n)[❯>╭]\s*$/.test(plain) ||
+      plain.includes("╭─") ||
+      /\$\s*$/.test(plain) ||
+      plain.includes("hermes") && /[❯>]\s*$/.test(plain)
+    );
+  }
+  
+  // Claude Code prompt indicators
   return (
     plain.includes("shift+tab to cycle") ||
     /(?:^|\n)[❯>]\s*$/.test(plain)
@@ -277,9 +416,9 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error(`Failed to spawn PTY for session ${sessionId}:`, errMsg);
-    ws.send(`\r\n\x1b[31mError: Failed to start Claude CLI\x1b[0m\r\n`);
+    ws.send(`\r\n\x1b[31mError: Failed to start ${BACKEND.name}\x1b[0m\r\n`);
     ws.send(`\x1b[90m${errMsg}\x1b[0m\r\n`);
-    ws.send(`\r\n\x1b[33mMake sure 'claude' is installed and accessible.\x1b[0m\r\n`);
+    ws.send(`\r\n\x1b[33mMake sure '${BACKEND.type === "hermes" ? "hermes" : "claude"}' is installed and accessible.\x1b[0m\r\n`);
     ws.close();
     return;
   }
@@ -322,12 +461,15 @@ function createDetachedSession(input: {
   cwd?: string;
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
+  backend?: AgentBackend;
 }): PtySession {
+  const selectedBackend = input.backend || BACKEND;
+  
   const args = input.args
     ? input.args
-    : ["--dangerously-skip-permissions"];
+    : selectedBackend.buildArgs(input.prompt);
 
-  const term = pty.spawn(CLAUDE_PATH, args, {
+  const term = pty.spawn(selectedBackend.path, args, {
     name: "xterm-256color",
     cols: 120,
     rows: 30,
@@ -360,7 +502,7 @@ function createDetachedSession(input: {
     if (
       session.initialPrompt &&
       !session.initialPromptSent &&
-      claudePromptReady(session.output.join(""))
+      agentPromptReady(session.output.join(""))
     ) {
       submitInitialPrompt(session);
     }

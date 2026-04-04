@@ -1,9 +1,10 @@
 import type { AgentProvider, ProviderRegistry } from "./provider-interface";
 import { claudeCodeProvider } from "./providers/claude-code";
+import { hermesAgentProvider } from "./providers/hermes-agent";
 
 class ProviderRegistryImpl implements ProviderRegistry {
   providers = new Map<string, AgentProvider>();
-  defaultProvider = "claude-code";
+  defaultProvider = "hermes-agent";
 
   register(provider: AgentProvider): void {
     this.providers.set(provider.id, provider);
@@ -37,6 +38,7 @@ export const providerRegistry = new ProviderRegistryImpl();
 
 // Register built-in providers
 providerRegistry.register(claudeCodeProvider);
+providerRegistry.register(hermesAgentProvider);
 
 // Future providers will be registered here:
 // providerRegistry.register(geminiCliProvider);
