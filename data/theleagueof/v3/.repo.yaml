@@ -1,0 +1,6 @@
+name: theleagueof-v3
+local: /repos/theleagueof-v3
+remote: https://github.com/micahbrich/theleagueof-v3
+source: both
+branch: main
+description: The League of Moveable Type — main website and font foundry platform
