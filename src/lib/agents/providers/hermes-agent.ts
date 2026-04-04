@@ -9,18 +9,33 @@ export const hermesAgentProvider: AgentProvider = {
   command: "hermes",
 
   buildArgs(prompt: string, workdir: string, profile?: string): string[] {
-    const args = ["--dangerously-skip-permissions"];
+    // Hermes CLI structure:
+    //   hermes [global flags] [command] [command flags]
+    //
+    // Global flags:
+    //   -p, --profile NAME      Use a named profile
+    //
+    // Chat command:
+    //   chat [-q, --query TEXT]   Single query, non-interactive
+    //
+    // Examples:
+    //   hermes chat -q "prompt"                    (default profile)
+    //   hermes -p ceo chat -q "prompt"             (with profile)
+    //   hermes -p ceo -q "prompt"                  (shorthand, no 'chat' subcommand needed for -q)
     
-    // Add profile if specified (maps to Cabinet agent slug)
+    const args: string[] = [];
+    
+    // Add profile if specified (BEFORE the command)
+    // Cabinet agent slug maps to Hermes profile name
     if (profile) {
       args.push("-p", profile);
     }
     
-    // Add the prompt
-    args.push("-p", prompt);
-    
-    // Request structured output
-    args.push("--output-format", "json");
+    // For single-query non-interactive mode, we can use:
+    // Option 1: hermes chat -q "prompt"
+    // Option 2: hermes -q "prompt" (shorthand)
+    // Using Option 2 for simplicity
+    args.push("-q", prompt);
     
     return args;
   },
@@ -54,7 +69,7 @@ export const hermesAgentProvider: AgentProvider = {
         return {
           available: false,
           authenticated: false,
-          error: "Hermes Agent CLI not found. Install with: pip install hermes-agent or see https://github.com/hermes-agent",
+          error: "Hermes Agent CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash",
         };
       }
 

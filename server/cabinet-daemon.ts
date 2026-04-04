@@ -137,9 +137,11 @@ function detectBackend(): AgentBackend {
           path: hermesPath,
           type: "hermes",
           buildArgs: (prompt?: string) => {
-            const args = ["--dangerously-skip-permissions"];
+            // Hermes: -q for query/prompt (NOT -p which is for profile)
+            // Structure: hermes [-p profile] -q "prompt"
+            const args: string[] = [];
             if (prompt) {
-              args.push("-p", prompt);
+              args.push("-q", prompt);
             }
             return args;
           },
@@ -154,6 +156,7 @@ function detectBackend(): AgentBackend {
           path: claudePath,
           type: "claude",
           buildArgs: (prompt?: string) => {
+            // Claude: -p for prompt
             const args = ["--dangerously-skip-permissions"];
             if (prompt) {
               args.push("-p", prompt, "--output-format", "text");
@@ -173,9 +176,10 @@ function detectBackend(): AgentBackend {
       path: hermesPath,
       type: "hermes",
       buildArgs: (prompt?: string) => {
-        const args = ["--dangerously-skip-permissions"];
+        // Hermes: -q for query/prompt (NOT -p which is for profile)
+        const args: string[] = [];
         if (prompt) {
-          args.push("-p", prompt);
+          args.push("-q", prompt);
         }
         return args;
       },
@@ -202,7 +206,7 @@ function detectBackend(): AgentBackend {
   // No backend found
   console.error("ERROR: No AI agent backend found!");
   console.error("Please install either:");
-  console.error("  - Hermes Agent: pip install hermes-agent");
+  console.error("  - Hermes Agent: curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash");
   console.error("  - Claude Code: npm install -g @anthropic-ai/claude-code");
   throw new Error("No AI agent backend available");
 }

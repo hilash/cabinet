@@ -37,10 +37,11 @@ You need **one** of these AI agents installed:
 
 #### Option A: Hermes Agent (Recommended)
 ```bash
+# Official install script
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+
+# Or from PyPI (if available)
 pip install hermes-agent
-# or from source
-git clone https://github.com/hermes-agent
-cd hermes-agent && pip install -e .
 ```
 
 #### Option B: Claude Code
