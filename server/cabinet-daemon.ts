@@ -137,9 +137,9 @@ function detectBackend(): AgentBackend {
           path: hermesPath,
           type: "hermes",
           buildArgs: (prompt?: string) => {
-            // Hermes: -q for query/prompt (NOT -p which is for profile)
-            // Structure: hermes [-p profile] -q "prompt"
-            const args: string[] = [];
+            // Hermes: requires explicit 'chat' subcommand with -q flag
+            // Structure: hermes chat [-p profile] -q "prompt"
+            const args: string[] = ["chat"];
             if (prompt) {
               args.push("-q", prompt);
             }
@@ -176,8 +176,8 @@ function detectBackend(): AgentBackend {
       path: hermesPath,
       type: "hermes",
       buildArgs: (prompt?: string) => {
-        // Hermes: -q for query/prompt (NOT -p which is for profile)
-        const args: string[] = [];
+        // Hermes: requires explicit 'chat' subcommand with -q flag
+        const args: string[] = ["chat"];
         if (prompt) {
           args.push("-q", prompt);
         }

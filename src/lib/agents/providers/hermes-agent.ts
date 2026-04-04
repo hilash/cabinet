@@ -12,29 +12,27 @@ export const hermesAgentProvider: AgentProvider = {
     // Hermes CLI structure:
     //   hermes [global flags] [command] [command flags]
     //
-    // Global flags:
+    // Global flags (before command):
     //   -p, --profile NAME      Use a named profile
     //
     // Chat command:
     //   chat [-q, --query TEXT]   Single query, non-interactive
     //
-    // Examples:
-    //   hermes chat -q "prompt"                    (default profile)
-    //   hermes -p ceo chat -q "prompt"             (with profile)
-    //   hermes -p ceo -q "prompt"                  (shorthand, no 'chat' subcommand needed for -q)
+    // Full structure:
+    //   hermes [-p profile] chat -q "prompt text"
     
     const args: string[] = [];
     
-    // Add profile if specified (BEFORE the command)
+    // Add profile if specified (BEFORE the command - global flag)
     // Cabinet agent slug maps to Hermes profile name
     if (profile) {
       args.push("-p", profile);
     }
     
-    // For single-query non-interactive mode, we can use:
-    // Option 1: hermes chat -q "prompt"
-    // Option 2: hermes -q "prompt" (shorthand)
-    // Using Option 2 for simplicity
+    // Add the 'chat' subcommand (REQUIRED for -q flag)
+    args.push("chat");
+    
+    // Add the prompt via -q flag
     args.push("-q", prompt);
     
     return args;
