@@ -27,6 +27,7 @@ interface ProviderInfo {
   id: string;
   name: string;
   type: "cli" | "api";
+  enabled: boolean;
   available: boolean;
   error?: string;
 }
@@ -63,10 +64,10 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
     fetch("/api/agents/providers")
       .then((r) => r.json())
       .then((data) => {
-        setProviders((data.providers || []).filter((entry: ProviderInfo) => entry.type === "cli"));
+        setProviders((data.providers || []).filter((entry: ProviderInfo) => entry.type === "cli" && entry.enabled));
         const nextDefault = data.defaultProvider || "claude-code";
         setDefaultProvider(nextDefault);
-        setProvider((current) => current || nextDefault);
+        setProvider(nextDefault);
       })
       .catch(() => {});
   }, [open]);

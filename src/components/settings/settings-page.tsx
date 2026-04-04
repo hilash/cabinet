@@ -38,6 +38,7 @@ interface ProviderInfo {
   name: string;
   type: "cli" | "api";
   icon: string;
+  enabled: boolean;
   available: boolean;
   authenticated: boolean;
   version?: string;
@@ -74,6 +75,7 @@ export function SettingsPage() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savingProviders, setSavingProviders] = useState(false);
   const [tab, setTab] = useState<Tab>("providers");
   const [config, setConfig] = useState<IntegrationConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
@@ -126,6 +128,27 @@ export function SettingsPage() {
       setLoading(false);
     }
   }, []);
+
+  const saveProviderSettings = useCallback(async (nextDefaultProvider: string, disabledProviderIds: string[]) => {
+    setSavingProviders(true);
+    try {
+      const res = await fetch("/api/agents/providers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          defaultProvider: nextDefaultProvider,
+          disabledProviderIds,
+        }),
+      });
+      if (res.ok) {
+        await refresh();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSavingProviders(false);
+    }
+  }, [refresh]);
 
   const loadConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -410,6 +433,34 @@ export function SettingsPage() {
                 ) : (
                   <div className="space-y-3">
                     <div>
+                      <div className="mb-3 rounded-lg border border-border bg-card p-3">
+                        <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Default provider
+                        </label>
+                        <select
+                          value={defaultProvider}
+                          onChange={(event) => {
+                            const disabledProviderIds = providers
+                              .filter((provider) => !provider.enabled)
+                              .map((provider) => provider.id);
+                            void saveProviderSettings(event.target.value, disabledProviderIds);
+                          }}
+                          disabled={savingProviders}
+                          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                        >
+                          {providers
+                            .filter((provider) => provider.type === "cli" && provider.enabled)
+                            .map((provider) => (
+                              <option key={provider.id} value={provider.id}>
+                                {provider.name}
+                              </option>
+                            ))}
+                        </select>
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          General conversations and fallback runs use this provider.
+                        </p>
+                      </div>
+
                       <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                         CLI Agents
                       </h4>
@@ -434,11 +485,45 @@ export function SettingsPage() {
                                   </p>
                                 </div>
                               </div>
-                              {provider.id === defaultProvider && (
-                                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
-                                  Default
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "text-[10px] px-2 py-0.5 rounded-full font-medium",
+                                  provider.id === defaultProvider
+                                    ? "bg-primary/10 text-primary"
+                                    : provider.enabled
+                                      ? "bg-emerald-500/10 text-emerald-500"
+                                      : "bg-muted text-muted-foreground"
+                                )}>
+                                  {provider.id === defaultProvider
+                                    ? "Default"
+                                    : provider.enabled
+                                      ? "Enabled"
+                                      : "Disabled"}
                                 </span>
-                              )}
+                                <button
+                                  onClick={() => {
+                                    const nextDisabled = provider.enabled
+                                      ? providers
+                                          .filter((entry) => !entry.enabled || entry.id === provider.id)
+                                          .map((entry) => entry.id)
+                                      : providers
+                                          .filter((entry) => !entry.enabled && entry.id !== provider.id)
+                                          .map((entry) => entry.id);
+                                    const enabledAfterToggle = providers.filter(
+                                      (entry) => !nextDisabled.includes(entry.id) && entry.type === "cli"
+                                    );
+                                    const nextDefault =
+                                      provider.id === defaultProvider && nextDisabled.includes(provider.id)
+                                        ? enabledAfterToggle[0]?.id || defaultProvider
+                                        : defaultProvider;
+                                    void saveProviderSettings(nextDefault, nextDisabled);
+                                  }}
+                                  disabled={savingProviders || (provider.id === defaultProvider && providers.filter((entry) => entry.type === "cli" && entry.enabled).length <= 1)}
+                                  className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                                >
+                                  {provider.enabled ? "Disable" : "Enable"}
+                                </button>
+                              </div>
                             </div>
                           ))}
                       </div>

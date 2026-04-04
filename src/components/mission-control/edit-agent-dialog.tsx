@@ -28,6 +28,7 @@ interface ProviderInfo {
   id: string;
   name: string;
   type: "cli" | "api";
+  enabled: boolean;
   available: boolean;
   error?: string;
 }
@@ -73,7 +74,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
     fetch("/api/agents/providers")
       .then((r) => r.json())
       .then((data) => {
-        setProviders((data.providers || []).filter((entry: ProviderInfo) => entry.type === "cli"));
+        setProviders((data.providers || []).filter((entry: ProviderInfo) => entry.type === "cli" && entry.enabled));
         setDefaultProvider(data.defaultProvider || "claude-code");
       })
       .catch(() => {});
