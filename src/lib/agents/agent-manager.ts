@@ -104,6 +104,7 @@ export async function runAgent(
   
   if (provider.type === "cli" && provider.command && provider.buildArgs) {
     command = provider.command;
+    // @ts-ignore - extended signature with profile
     args = provider.buildArgs(prompt, cwd, profile);
   } else if (provider.type === "api" && provider.runPrompt) {
     // API providers are handled differently

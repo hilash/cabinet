@@ -6,6 +6,8 @@
 
 The AI-first startup OS where everything lives as markdown files on disk. No database. No vendor lock-in. Self-hosted. Your data never leaves your machine.
 
+**🚀 Now with [Hermes Agent](https://github.com/hermes-agent) support!** — Use Hermes as your AI backend for local-first, multi-provider agent execution.
+
 [runcabinet.com](https://runcabinet.com) | [hi@runcabinet.com](mailto:hi@runcabinet.com) | [Star on GitHub](https://github.com/hilash/cabinet)
 
 ---
@@ -119,10 +121,23 @@ cabinet/
 
 ---
 
+## AI Backends
+
+Cabinet now supports multiple AI agent backends:
+
+| Backend | Install Command | Priority |
+|---------|-----------------|----------|
+| **Hermes Agent** (preferred) | `pip install hermes-agent` | Auto-detected first |
+| **Claude Code** | `npm install -g @anthropic-ai/claude-code` | Fallback |
+
+Set `CABINET_AI_BACKEND=hermes` or `CABINET_AI_BACKEND=claude` to force a specific backend.
+
+See [HERMES_INTEGRATION.md](./HERMES_INTEGRATION.md) for details.
+
 ## Requirements
 
 - **Node.js** 20+
-- **Claude Code CLI** (`npm install -g @anthropic-ai/claude-code`)
+- **AI Backend**: Hermes Agent (`pip install hermes-agent`) OR Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
 - macOS or Linux (Windows via WSL)
 
 ## Configuration
