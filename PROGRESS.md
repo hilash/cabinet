@@ -2,6 +2,8 @@
 
 [2026-04-03] Rebuilt the agents experience around durable filesystem-backed conversations. Added a shared conversation store (`data/.agents/.conversations/*`), moved manual sessions/jobs/heartbeats onto the daemon PTY runtime, added conversations APIs, and replaced the old agent list/detail split with a three-pane agents workspace focused on live and replayable Claude sessions. Also added `scripts/launch-chrome-debug.sh` plus `npm run debug:chrome` for CDP-based Chrome debugging on port 9222.
 
+[2026-04-03] Fixed heartbeat prompt not submitting in web terminal. In `submitInitialPrompt` (cabinet-daemon.ts): wrapped the prompt in bracketed paste sequences (`\x1b[200~...\x1b[201~`) so Claude CLI buffers the multi-line text as a single paste unit, and added a 300ms delay before sending `\r` so Claude's event loop finishes processing the paste before receiving the submit signal.
+
 [2026-04-03] Major agent system refactor — removed "Plays" concept entirely: deleted play-manager.ts, trigger-engine.ts, api/plays/ routes, playbook-catalog.tsx, webhook/[slug] and triggers API routes. Unified all Claude invocations to use PTY via the cabinet daemon (heartbeat.ts runHeartbeat, daemon executeJob). Cleaned up all play references from 15+ components/types/API routes. Build passes clean with no play routes.
 
 [2026-04-03] Dead code removal: deleted agent-dashboard.tsx (never rendered), chat/ components (ChatPage, ChannelList, ChannelView — never used), mention-input.tsx (no longer imported), api/missions/, api/activity/, api/jobs/, api/ai/edit/ (all legacy routes with no frontend callers), lib/missions/, lib/activity/, and removed setViewMode() alias from app-store. Build remains clean.
