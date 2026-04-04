@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
+  ArrowLeft,
   Bot,
   CheckCircle2,
   FileText,
   Loader2,
+  PanelLeft,
   Pause,
   Play,
   Plus,
@@ -17,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
@@ -207,6 +210,8 @@ export function AgentsWorkspace({
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
+  const { isMobile } = useIsMobile();
+  const [mobilePanel, setMobilePanel] = useState<"list" | "detail">("list");
   const [mode, setMode] = useState<MainPanelMode>("composer");
   const [previousMode, setPreviousMode] = useState<NonSettingsMode>("composer");
   const [activeAgentSlug, setActiveAgentSlug] = useState<string | null>(
@@ -236,6 +241,8 @@ export function AgentsWorkspace({
   const treeNodes = useTreeStore((state) => state.nodes);
   const selectPage = useTreeStore((state) => state.selectPage);
   const setSection = useAppStore((state) => state.setSection);
+  const sidebarCollapsed = useAppStore((state) => state.sidebarCollapsed);
+  const setSidebarCollapsed = useAppStore((state) => state.setSidebarCollapsed);
 
   const allPages = flattenTree(treeNodes);
   const settingsAgentSlug =
@@ -403,6 +410,7 @@ export function AgentsWorkspace({
     setSettingsTarget(agentSlug);
     setSelectedJobId(null);
     setJobDraft(null);
+    setMobilePanel("detail");
   }
 
   function startNewAgentDraft() {
@@ -414,6 +422,7 @@ export function AgentsWorkspace({
     setSelectedJobId(null);
     setJobDraft(null);
     setNewAgentDraft(DEFAULT_NEW_AGENT);
+    setMobilePanel("detail");
   }
 
   function exitSettings() {
@@ -703,9 +712,23 @@ export function AgentsWorkspace({
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-[340px] min-w-[340px] border-r border-border bg-background">
+      <div className={cn(
+        "w-[340px] min-w-[340px] border-r border-border bg-background",
+        "max-md:w-full max-md:min-w-0",
+        mobilePanel === "detail" && "max-md:hidden"
+      )}>
         <div className="border-b border-border px-4 py-3">
           <div className="flex items-start justify-between gap-3">
+            {sidebarCollapsed && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 mt-0.5"
+                onClick={() => setSidebarCollapsed(false)}
+              >
+                <PanelLeft className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <div>
               <h3 className="text-[14px] font-semibold">
                 {activeAgent ? activeAgent.name : "All agents"}
@@ -716,16 +739,29 @@ export function AgentsWorkspace({
                   : "Recent runs across your whole team"}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => {
-                void refreshAgents();
-                void refreshConversations();
-              }}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="hidden max-md:flex"
+                onClick={() => {
+                  setMode("composer");
+                  setMobilePanel("detail");
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  void refreshAgents();
+                  void refreshConversations();
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {(["all", "manual", "job", "heartbeat"] as TriggerFilter[]).map((filter) => (
@@ -772,6 +808,7 @@ export function AgentsWorkspace({
                     onClick={() => {
                       setSelectedConversationId(conversation.id);
                       setMode("conversation");
+                      setMobilePanel("detail");
                     }}
                     className={cn(
                       "w-full rounded-xl border px-3 py-3 text-left transition-colors",
@@ -822,11 +859,20 @@ export function AgentsWorkspace({
         </ScrollArea>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className={cn(
+        "flex-1 overflow-hidden",
+        mobilePanel === "list" && "max-md:hidden"
+      )}>
         {mode === "conversation" && selectedConversationMeta ? (
           <div className="flex h-full flex-col">
             <div className="border-b border-border px-5 py-4">
               <div className="flex items-center gap-2">
+                <button
+                  className="hidden max-md:block shrink-0"
+                  onClick={() => setMobilePanel("list")}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
                 <span className="text-lg">
                   {agents.find((agent) => agent.slug === selectedConversationMeta.agentSlug)?.emoji || "🤖"}
                 </span>
@@ -892,6 +938,12 @@ export function AgentsWorkspace({
           <div className="flex h-full flex-col">
             <div className="border-b border-border px-5 py-4">
               <div className="flex items-start justify-between gap-3">
+                <button
+                  className="hidden max-md:block shrink-0 mt-1"
+                  onClick={() => setMobilePanel("list")}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
                 {settingsTarget === "directory" || !settingsTarget ? (
                   <div>
                     <h3 className="text-[15px] font-semibold">Agent settings</h3>
@@ -1411,6 +1463,12 @@ export function AgentsWorkspace({
           <div className="flex h-full flex-col">
             <div className="border-b border-border px-5 py-4">
               <div className="flex items-start justify-between gap-3">
+                <button
+                  className="hidden max-md:block shrink-0 mt-1"
+                  onClick={() => setMobilePanel("list")}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
                 <div>
                   <h3 className="text-[15px] font-semibold">
                     {activeAgentSlug

@@ -18,6 +18,7 @@ import { StatusBar } from "@/components/layout/status-bar";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { TreeNode } from "@/types";
 
 function findNode(nodes: TreeNode[], path: string): TreeNode | null {
@@ -41,6 +42,14 @@ export function AppShell() {
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
   const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
+  const { isMobile, mounted } = useIsMobile();
+
+  // Auto-collapse AI panel on mobile
+  useEffect(() => {
+    if (mounted && isMobile) {
+      setAiPanelCollapsed(true);
+    }
+  }, [mounted, isMobile, setAiPanelCollapsed]);
 
   // Onboarding wizard state
   const [showWizard, setShowWizard] = useState<boolean | null>(null);
