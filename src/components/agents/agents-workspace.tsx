@@ -55,6 +55,7 @@ interface ProviderInfo {
   id: string;
   name: string;
   type: "cli" | "api";
+  enabled: boolean;
   available: boolean;
   version?: string;
   error?: string;
@@ -262,7 +263,7 @@ export function AgentsWorkspace({
       page.title.toLowerCase().includes(mentionQuery.toLowerCase()) ||
       page.path.toLowerCase().includes(mentionQuery.toLowerCase())
   );
-  const cliProviders = providers.filter((provider) => provider.type === "cli");
+  const cliProviders = providers.filter((provider) => provider.type === "cli" && provider.enabled);
 
   async function refreshProviders() {
     const response = await fetch("/api/agents/providers");
