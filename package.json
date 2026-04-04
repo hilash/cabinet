@@ -13,6 +13,7 @@
     "start:next": "next start",
     "start:daemon": "npx tsx server/cabinet-daemon.ts",
     "lint": "eslint",
+    "test": "tsx --test src/lib/agents/**/*.test.ts",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null; xattr -d com.apple.provenance node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null; xattr -d com.apple.provenance node_modules/node-pty/prebuilds/darwin-arm64/pty.node 2>/dev/null; true"
   },
   "dependencies": {
