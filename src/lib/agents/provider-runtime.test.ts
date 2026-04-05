@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import type { AgentProvider } from "./provider-interface";
 import { providerRegistry } from "./provider-registry";
+import { writeProviderSettings } from "./provider-settings";
 import {
   getOneShotLaunchSpec,
   getSessionLaunchSpec,
@@ -44,9 +45,10 @@ test("Codex provider builds the expected launch arguments", () => {
     "Say OK",
   ]);
 
-  const session = codexCliProvider.buildSessionInvocation?.(undefined, process.cwd());
+  const session = codexCliProvider.buildSessionInvocation?.("Say OK", process.cwd());
   assert.ok(session);
-  assert.deepEqual(session.args, []);
+  assert.deepEqual(session.args, ["Say OK"]);
+  assert.equal(session.initialPrompt, undefined);
 });
 
 test("Claude provider keeps the prompt injection session contract", () => {
@@ -59,6 +61,10 @@ test("Claude provider keeps the prompt injection session contract", () => {
 
 test("provider runtime resolves launch specs through registered providers", async (t) => {
   const previousDefaultProvider = providerRegistry.defaultProvider;
+  const originalSettings = await fs.readFile(
+    path.join(process.cwd(), "data", ".agents", ".config", "providers.json"),
+    "utf8"
+  ).catch(() => null);
   const scriptPath = await createExecutableScript("#!/bin/sh\nprintf '%s' \"$1\"\n");
   const provider: AgentProvider = {
     id: "test-session-provider",
@@ -95,6 +101,18 @@ test("provider runtime resolves launch specs through registered providers", asyn
 
   registerTestProvider(provider, t, previousDefaultProvider);
   providerRegistry.defaultProvider = provider.id;
+  await writeProviderSettings({
+    defaultProvider: provider.id,
+    disabledProviderIds: [],
+  });
+  t.after(async () => {
+    const providersPath = path.join(process.cwd(), "data", ".agents", ".config", "providers.json");
+    if (originalSettings === null) {
+      await fs.rm(providersPath, { force: true });
+      return;
+    }
+    await fs.writeFile(providersPath, originalSettings, "utf8");
+  });
 
   const oneShot = getOneShotLaunchSpec({
     providerId: provider.id,
