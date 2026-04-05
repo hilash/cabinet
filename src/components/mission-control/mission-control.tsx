@@ -779,7 +779,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
               </h2>
               <p className="text-[12px] text-muted-foreground/60 mt-2 leading-relaxed">
                 This will activate <strong>{agents.filter((a) => !a.active).length} paused agents</strong> and schedule their heartbeats.
-                Agents will begin running Claude CLI on their configured intervals, which uses API credits.
+                Agents will begin running their configured CLI providers on their configured intervals, which may use API credits.
               </p>
             </div>
             <div className="flex justify-end gap-2">

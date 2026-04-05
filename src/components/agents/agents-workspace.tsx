@@ -37,6 +37,7 @@ interface AgentSummary {
   slug: string;
   emoji: string;
   role: string;
+  provider: string;
   active: boolean;
   heartbeat?: string;
   runningCount?: number;
@@ -50,12 +51,23 @@ interface PersonaResponse {
   persona: AgentSummary;
 }
 
+interface ProviderInfo {
+  id: string;
+  name: string;
+  type: "cli" | "api";
+  enabled: boolean;
+  available: boolean;
+  version?: string;
+  error?: string;
+}
+
 interface NewAgentDraft {
   name: string;
   slug: string;
   emoji: string;
   role: string;
   heartbeat: string;
+  provider: string;
   department: string;
   type: string;
   workspace: string;
@@ -68,6 +80,7 @@ const GENERAL_AGENT: AgentSummary = {
   slug: "general",
   emoji: "🤖",
   role: "Manual Cabinet assistant",
+  provider: "claude-code",
   active: true,
   runningCount: 0,
   department: "general",
@@ -114,6 +127,7 @@ const DEFAULT_NEW_AGENT: NewAgentDraft = {
   emoji: "🤖",
   role: "",
   heartbeat: "0 */4 * * *",
+  provider: "claude-code",
   department: "general",
   type: "specialist",
   workspace: "workspace",
@@ -218,6 +232,8 @@ export function AgentsWorkspace({
   const [settingsPersona, setSettingsPersona] = useState<AgentSummary | null>(null);
   const [settingsBody, setSettingsBody] = useState("");
   const [settingsJobs, setSettingsJobs] = useState<JobConfig[]>([]);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [defaultProvider, setDefaultProvider] = useState("claude-code");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [jobDraft, setJobDraft] = useState<JobConfig | null>(null);
   const [triggerFilter, setTriggerFilter] = useState<TriggerFilter>("all");
@@ -247,48 +263,70 @@ export function AgentsWorkspace({
       page.title.toLowerCase().includes(mentionQuery.toLowerCase()) ||
       page.path.toLowerCase().includes(mentionQuery.toLowerCase())
   );
+  const cliProviders = providers.filter((provider) => provider.type === "cli" && provider.enabled);
+
+  async function refreshProviders() {
+    try {
+      const response = await fetch("/api/agents/providers");
+      if (!response.ok) return;
+      const data = await response.json();
+      setProviders((data.providers || []) as ProviderInfo[]);
+      setDefaultProvider(data.defaultProvider || "claude-code");
+    } catch {
+      // Ignore transient startup/network failures.
+    }
+  }
 
   async function refreshAgents() {
-    const response = await fetch("/api/agents/personas");
-    if (!response.ok) return;
-    const data = await response.json();
-    const personas = (data.personas || []) as AgentSummary[];
-    const generalRunning =
-      conversations.filter(
-        (conversation) =>
-          conversation.agentSlug === "general" && conversation.status === "running"
-      ).length || 0;
+    try {
+      const response = await fetch("/api/agents/personas");
+      if (!response.ok) return;
+      const data = await response.json();
+      const personas = (data.personas || []) as AgentSummary[];
+      const generalRunning =
+        conversations.filter(
+          (conversation) =>
+            conversation.agentSlug === "general" && conversation.status === "running"
+        ).length || 0;
 
-    const sorted = [
-      { ...GENERAL_AGENT, runningCount: generalRunning },
-      ...personas.sort((a, b) => {
-        if (a.slug === "editor") return -1;
-        if (b.slug === "editor") return 1;
-        return a.name.localeCompare(b.name);
-      }),
-    ];
-    setAgents(sorted);
+      const sorted = [
+        { ...GENERAL_AGENT, runningCount: generalRunning },
+        ...personas.sort((a, b) => {
+          if (a.slug === "editor") return -1;
+          if (b.slug === "editor") return 1;
+          return a.name.localeCompare(b.name);
+        }),
+      ];
+      setAgents(sorted);
+    } catch {
+      // Ignore transient startup/network failures.
+    }
   }
 
   async function refreshConversations() {
     if (!hasLoadedConversations) {
       setConversationsLoading(true);
     }
-    const params = new URLSearchParams();
-    if (activeAgentSlug) params.set("agent", activeAgentSlug);
-    const trigger = triggerFromFilter(triggerFilter);
-    const status = statusFromFilter(statusFilter);
-    if (trigger) params.set("trigger", trigger);
-    if (status) params.set("status", status);
-    params.set("limit", "200");
+    try {
+      const params = new URLSearchParams();
+      if (activeAgentSlug) params.set("agent", activeAgentSlug);
+      const trigger = triggerFromFilter(triggerFilter);
+      const status = statusFromFilter(statusFilter);
+      if (trigger) params.set("trigger", trigger);
+      if (status) params.set("status", status);
+      params.set("limit", "200");
 
-    const response = await fetch(`/api/agents/conversations?${params.toString()}`);
-    if (response.ok) {
-      const data = await response.json();
-      setConversations((data.conversations || []) as ConversationMeta[]);
+      const response = await fetch(`/api/agents/conversations?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setConversations((data.conversations || []) as ConversationMeta[]);
+      }
+    } catch {
+      // Ignore transient startup/network failures.
+    } finally {
+      setConversationsLoading(false);
+      setHasLoadedConversations(true);
     }
-    setConversationsLoading(false);
-    setHasLoadedConversations(true);
   }
 
   async function refreshSettings(agentSlug: string) {
@@ -332,6 +370,10 @@ export function AgentsWorkspace({
   useEffect(() => {
     void refreshConversations();
   }, [activeAgentSlug, triggerFilter, statusFilter]);
+
+  useEffect(() => {
+    void refreshProviders();
+  }, []);
 
   useEffect(() => {
     void refreshAgents();
@@ -413,7 +455,10 @@ export function AgentsWorkspace({
     setSettingsTarget("__new__");
     setSelectedJobId(null);
     setJobDraft(null);
-    setNewAgentDraft(DEFAULT_NEW_AGENT);
+    setNewAgentDraft({
+      ...DEFAULT_NEW_AGENT,
+      provider: defaultProvider || DEFAULT_NEW_AGENT.provider,
+    });
   }
 
   function exitSettings() {
@@ -501,6 +546,7 @@ export function AgentsWorkspace({
           department: settingsPersona.department,
           type: settingsPersona.type,
           heartbeat: settingsPersona.heartbeat,
+          provider: settingsPersona.provider,
           workspace: settingsPersona.workspace,
           body: settingsBody,
         }),
@@ -549,7 +595,7 @@ export function AgentsWorkspace({
       name: "",
       enabled: true,
       schedule: "0 9 * * 1-5",
-      provider: "claude-code",
+      provider: settingsPersona?.provider || defaultProvider || "claude-code",
       agentSlug: settingsAgentSlug || "",
       prompt: "",
       timeout: 600,
@@ -577,6 +623,7 @@ export function AgentsWorkspace({
       : {
           name: jobDraft.name,
           schedule: jobDraft.schedule,
+          provider: jobDraft.provider,
           prompt: jobDraft.prompt,
           timeout: jobDraft.timeout,
           enabled: jobDraft.enabled,
@@ -638,7 +685,7 @@ export function AgentsWorkspace({
           type: newAgentDraft.type,
           heartbeat: newAgentDraft.heartbeat,
           workspace: newAgentDraft.workspace || "workspace",
-          provider: "claude-code",
+          provider: newAgentDraft.provider,
           budget: 100,
           active: newAgentDraft.active,
           workdir: "/data",
@@ -657,7 +704,10 @@ export function AgentsWorkspace({
       if (!response.ok) return;
       await refreshAgents();
       setSettingsTarget(slug);
-      setNewAgentDraft(DEFAULT_NEW_AGENT);
+      setNewAgentDraft({
+        ...DEFAULT_NEW_AGENT,
+        provider: defaultProvider || DEFAULT_NEW_AGENT.provider,
+      });
       await refreshSettings(slug);
     } finally {
       setCreatingAgent(false);
@@ -1094,6 +1144,35 @@ export function AgentsWorkspace({
                             placeholder="workspace"
                           />
                         </label>
+                        <label className="col-span-2 space-y-1 text-[11px] text-muted-foreground">
+                          <span>Provider</span>
+                          <select
+                            value={newAgentDraft.provider}
+                            onChange={(event) =>
+                              setNewAgentDraft({
+                                ...newAgentDraft,
+                                provider: event.target.value,
+                              })
+                            }
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                          >
+                            {(cliProviders.length > 0
+                              ? cliProviders
+                              : [
+                                  {
+                                    id: defaultProvider || "claude-code",
+                                    name: defaultProvider || "claude-code",
+                                    type: "cli",
+                                    available: true,
+                                  } as ProviderInfo,
+                                ]
+                            ).map((provider) => (
+                              <option key={provider.id} value={provider.id}>
+                                {provider.name}{provider.available ? "" : " (not installed)"}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
                         <div className="col-span-2 space-y-2 text-[11px] text-muted-foreground">
                           <span>Avatar</span>
                           <div className="flex flex-wrap gap-2">
@@ -1242,6 +1321,32 @@ export function AgentsWorkspace({
                             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
                           />
                         </label>
+                        <label className="space-y-1 text-[11px] text-muted-foreground">
+                          <span>Provider</span>
+                          <select
+                            value={settingsPersona.provider || defaultProvider}
+                            onChange={(event) =>
+                              setSettingsPersona({ ...settingsPersona, provider: event.target.value })
+                            }
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                          >
+                            {(cliProviders.length > 0
+                              ? cliProviders
+                              : [
+                                  {
+                                    id: defaultProvider || "claude-code",
+                                    name: defaultProvider || "claude-code",
+                                    type: "cli",
+                                    available: true,
+                                  } as ProviderInfo,
+                                ]
+                            ).map((provider) => (
+                              <option key={provider.id} value={provider.id}>
+                                {provider.name}{provider.available ? "" : " (not installed)"}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
                         <label className="col-span-2 space-y-1 text-[11px] text-muted-foreground">
                           <span>Workspace</span>
                           <input
@@ -1368,6 +1473,30 @@ export function AgentsWorkspace({
                               />
                             </label>
                             <label className="space-y-1 text-[11px] text-muted-foreground">
+                              <span>Provider</span>
+                              <select
+                                value={jobDraft.provider}
+                                onChange={(event) => setJobDraft({ ...jobDraft, provider: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                              >
+                                {(cliProviders.length > 0
+                                  ? cliProviders
+                                  : [
+                                      {
+                                        id: defaultProvider || "claude-code",
+                                        name: defaultProvider || "claude-code",
+                                        type: "cli",
+                                        available: true,
+                                      } as ProviderInfo,
+                                    ]
+                                ).map((provider) => (
+                                  <option key={provider.id} value={provider.id}>
+                                    {provider.name}{provider.available ? "" : " (not installed)"}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="space-y-1 text-[11px] text-muted-foreground">
                               <span>Timeout (seconds)</span>
                               <input
                                 type="number"
@@ -1418,7 +1547,7 @@ export function AgentsWorkspace({
                       : "Choose an agent to start a conversation"}
                   </h3>
                   <p className="text-[11px] text-muted-foreground">
-                    Use @mentions to bring KB files into context, just like the Claude editor.
+                    Use @mentions to bring KB files into context for the selected provider.
                   </p>
                 </div>
                 <Button

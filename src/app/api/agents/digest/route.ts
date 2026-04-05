@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 import path from "path";
 
 export async function POST() {
@@ -55,20 +56,10 @@ Format the digest as a concise markdown summary with:
 
 Keep it under 200 words. Be specific about what changed.`;
 
-    const result = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(
-        "claude",
-        ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"],
-        { cwd: DATA_DIR, stdio: ["pipe", "pipe", "pipe"] }
-      );
-      let stdout = "";
-      proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
-      proc.on("close", (code) => {
-        if (code === 0) resolve(stdout.trim());
-        else reject(new Error(`Exit code ${code}`));
-      });
-      proc.on("error", reject);
-      setTimeout(() => { proc.kill(); reject(new Error("Timeout")); }, 60_000);
+    const result = await runOneShotProviderPrompt({
+      prompt,
+      cwd: DATA_DIR,
+      timeoutMs: 60_000,
     });
 
     return NextResponse.json({ ok: true, digest: result });

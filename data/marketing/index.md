@@ -1,7 +1,7 @@
 ---
 title: Marketing
 created: '2026-04-03T00:00:00.000Z'
-modified: '2026-04-03T00:00:00.000Z'
+modified: '2026-04-05T05:51:33Z'
 tags:
   - marketing
   - content
@@ -10,6 +10,8 @@ order: 3
 # Marketing
 
 We sell candy bars on the internet. Our marketing is direct, visual, and built to make people crave chocolate at 2pm on a Tuesday.
+
+Recent documented work: the resources below now include a launch messaging brief for the Pouch Starter Pack landing page.
 
 ## Strategy
 
@@ -23,6 +25,7 @@ We sell candy bars on the internet. Our marketing is direct, visual, and built t
 
 - **campaigns.csv** — Click it in the sidebar to see our full campaign calendar. You can edit it right in the table view.
 - <a data-wiki-link="true" data-page-name="Brand Guidelines" href="#page:brand-guidelines" class="wiki-link">Brand Guidelines</a> — Voice, tone, and visual identity rules
+- <a data-wiki-link="true" data-page-name="Pouch Starter Pack Messaging" href="#page:pouch-starter-pack-messaging" class="wiki-link">Pouch Starter Pack Messaging</a> — Current positioning, audiences, and landing-page copy angles
 
 ## Content Creation Tips
 

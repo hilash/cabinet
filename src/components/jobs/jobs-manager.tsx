@@ -334,7 +334,7 @@ export function JobsManager() {
               <textarea
                 value={form.prompt}
                 onChange={(e) => setForm((f) => ({ ...f, prompt: e.target.value }))}
-                placeholder="What should Claude do each run?"
+                placeholder="What should this provider do each run?"
                 rows={4}
                 className="mt-1 w-full px-3 py-2 text-[13px] rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-none"
               />

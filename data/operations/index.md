@@ -1,7 +1,7 @@
 ---
 title: Operations
 created: '2026-04-03T00:00:00.000Z'
-modified: '2026-04-03T00:00:00.000Z'
+modified: '2026-04-05T00:00:00Z'
 tags:
   - operations
   - supply-chain
@@ -28,6 +28,10 @@ Our wholesale pricing sheet is available as **wholesale-pricing.pdf** — click 
 - **Packaging:** Compostable wrappers from PackRight Inc (see suppliers.csv)
 - **Returns:** Full refund on first order, store credit after that
 
+## People Ops
+
+Current team scheduling and overtime expectations are documented in [[Working Hours and Overtime]].
+
 ## AI Agents
 
 Our AI agents help monitor supplier updates, flag cost changes, and draft restock orders. Check the Agent Dashboard in the sidebar to see who's active and what they're working on.
@@ -36,3 +40,4 @@ Our AI agents help monitor supplier updates, flag cost changes, and draft restoc
 
 - <a data-wiki-link="true" data-page-name="Ingredient Specs" href="#page:ingredient-specs" class="wiki-link">Ingredient Specs</a> — Sourcing standards and quality checkpoints
 - <a data-wiki-link="true" data-page-name="Product Catalog" href="#page:catalog" class="wiki-link">Product Catalog</a> — What we're selling and at what price
+- <a data-wiki-link="true" data-page-name="Working Hours and Overtime" href="#page:working-hours-and-overtime" class="wiki-link">Working Hours and Overtime</a> — Team scheduling and overtime policy

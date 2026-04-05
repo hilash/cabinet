@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { spawn } from "child_process";
 import path from "path";
+import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 
@@ -41,44 +41,10 @@ Rules:
 - Acceptance criteria should be concrete and verifiable
 - Output ONLY valid JSON, nothing else`;
 
-    const result = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(
-        "claude",
-        ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"],
-        {
-          cwd: DATA_DIR,
-          env: { ...process.env },
-          stdio: ["pipe", "pipe", "pipe"],
-        }
-      );
-
-      let stdout = "";
-      let stderr = "";
-
-      proc.stdout.on("data", (data: Buffer) => {
-        stdout += data.toString();
-      });
-
-      proc.stderr.on("data", (data: Buffer) => {
-        stderr += data.toString();
-      });
-
-      proc.on("close", (code: number | null) => {
-        if (code === 0) {
-          resolve(stdout.trim());
-        } else {
-          reject(new Error(stderr || `Exited with code ${code}`));
-        }
-      });
-
-      proc.on("error", (err: Error) => {
-        reject(new Error(`Failed to spawn claude: ${err.message}`));
-      });
-
-      setTimeout(() => {
-        proc.kill();
-        reject(new Error("Timed out after 2 minutes"));
-      }, 120_000);
+    const result = await runOneShotProviderPrompt({
+      prompt,
+      cwd: DATA_DIR,
+      timeoutMs: 120_000,
     });
 
     // Parse the JSON from Claude's response

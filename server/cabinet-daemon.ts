@@ -2,7 +2,7 @@
  * Cabinet Daemon — unified background server
  *
  * Combines:
- * - Terminal Server (PTY/WebSocket for AI panel Claude Code sessions)
+ * - Terminal Server (PTY/WebSocket for AI panel agent sessions)
  * - Job Scheduler (node-cron for agent jobs)
  * - WebSocket Event Bus (real-time updates to frontend)
  * - SQLite database initialization
@@ -18,9 +18,9 @@ import fs from "fs";
 import cron from "node-cron";
 import yaml from "js-yaml";
 import chokidar from "chokidar";
-import { execSync } from "child_process";
 import matter from "gray-matter";
 import { getDb, closeDb } from "./db";
+import { getSessionLaunchSpec, resolveProviderId } from "../src/lib/agents/provider-runtime";
 import {
   appendConversationTranscript,
   finalizeConversation,
@@ -51,42 +51,6 @@ console.log("Initializing Cabinet database...");
 getDb();
 console.log("Database ready.");
 
-// ----- Claude Binary Resolution -----
-
-function resolveClaudePath(): string {
-  const candidates = [
-    path.join(process.env.HOME || "", ".local", "bin", "claude"),
-    "/usr/local/bin/claude",
-    "/opt/homebrew/bin/claude",
-  ];
-
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      console.log(`Found claude at: ${candidate}`);
-      return candidate;
-    }
-  }
-
-  try {
-    const resolved = execSync("which claude", {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        PATH: `${process.env.HOME}/.local/bin:${process.env.PATH}`,
-      },
-    }).trim();
-    if (resolved) {
-      console.log(`Resolved claude via which: ${resolved}`);
-      return resolved;
-    }
-  } catch {}
-
-  console.warn("Could not resolve claude path, using 'claude' directly");
-  return "claude";
-}
-
-const CLAUDE_PATH = resolveClaudePath();
-
 const enrichedPath = [
   `${process.env.HOME}/.local/bin`,
   process.env.PATH,
@@ -96,6 +60,7 @@ const enrichedPath = [
 
 interface PtySession {
   id: string;
+  providerId: string;
   pty: pty.IPty;
   ws: WebSocket | null;
   createdAt: Date;
@@ -106,6 +71,7 @@ interface PtySession {
   initialPrompt?: string;
   initialPromptSent?: boolean;
   initialPromptTimer?: NodeJS.Timeout;
+  readyStrategy?: "claude";
 }
 
 const sessions = new Map<string, PtySession>();
@@ -220,6 +186,7 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
   const url = new URL(req.url || "", `http://localhost:${PORT}`);
   const sessionId = url.searchParams.get("id") || `session-${Date.now()}`;
   const prompt = url.searchParams.get("prompt");
+  const providerId = url.searchParams.get("providerId") || undefined;
 
   // Check if this is a reconnection to an existing session
   const existing = sessions.get(sessionId);
@@ -272,14 +239,14 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
   try {
     createDetachedSession({
       sessionId,
+      providerId,
       prompt: prompt || undefined,
     });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error(`Failed to spawn PTY for session ${sessionId}:`, errMsg);
-    ws.send(`\r\n\x1b[31mError: Failed to start Claude CLI\x1b[0m\r\n`);
+    ws.send(`\r\n\x1b[31mError: Failed to start agent CLI\x1b[0m\r\n`);
     ws.send(`\x1b[90m${errMsg}\x1b[0m\r\n`);
-    ws.send(`\r\n\x1b[33mMake sure 'claude' is installed and accessible.\x1b[0m\r\n`);
     ws.close();
     return;
   }
@@ -317,21 +284,25 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
 
 function createDetachedSession(input: {
   sessionId: string;
+  providerId?: string;
   prompt?: string;
-  args?: string[];
   cwd?: string;
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
 }): PtySession {
-  const args = input.args
-    ? input.args
-    : ["--dangerously-skip-permissions"];
+  const cwd = resolveSessionCwd(input.cwd);
+  const launch = getSessionLaunchSpec({
+    providerId: input.providerId,
+    prompt: input.prompt,
+    workdir: cwd,
+  });
+  const resolvedProviderId = resolveProviderId(input.providerId);
 
-  const term = pty.spawn(CLAUDE_PATH, args, {
+  const term = pty.spawn(launch.command, launch.args, {
     name: "xterm-256color",
     cols: 120,
     rows: 30,
-    cwd: resolveSessionCwd(input.cwd),
+    cwd,
     env: {
       ...(process.env as Record<string, string>),
       PATH: enrichedPath,
@@ -344,14 +315,16 @@ function createDetachedSession(input: {
 
   const session: PtySession = {
     id: input.sessionId,
+    providerId: resolvedProviderId,
     pty: term,
     ws: null,
     createdAt: new Date(),
     output: [],
     exited: false,
     exitCode: null,
-    initialPrompt: input.args ? undefined : input.prompt?.trim() || undefined,
+    initialPrompt: launch.initialPrompt?.trim() || undefined,
     initialPromptSent: false,
+    readyStrategy: launch.readyStrategy,
   };
   sessions.set(input.sessionId, session);
 
@@ -360,6 +333,7 @@ function createDetachedSession(input: {
     if (
       session.initialPrompt &&
       !session.initialPromptSent &&
+      session.readyStrategy === "claude" &&
       claudePromptReady(session.output.join(""))
     ) {
       submitInitialPrompt(session);
@@ -673,13 +647,13 @@ const server = http.createServer(async (req, res) => {
       try {
         const {
           id,
-          args,
+          providerId,
           prompt,
           cwd,
           timeoutSeconds,
         } = JSON.parse(body) as {
           id: string;
-          args?: string[];
+          providerId?: string;
           prompt?: string;
           cwd?: string;
           timeoutSeconds?: number;
@@ -695,7 +669,7 @@ const server = http.createServer(async (req, res) => {
         try {
           createDetachedSession({
             sessionId,
-            args,
+            providerId,
             prompt,
             cwd,
             timeoutSeconds,
@@ -773,11 +747,12 @@ const server = http.createServer(async (req, res) => {
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
       try {
-        const { agentSlug, jobId, prompt, timeoutSeconds } = JSON.parse(body);
+        const { agentSlug, jobId, prompt, providerId, timeoutSeconds } = JSON.parse(body);
         if (prompt) {
           const sessionId = jobId || `manual-${Date.now()}`;
           createDetachedSession({
             sessionId,
+            providerId,
             prompt,
             timeoutSeconds,
           });
@@ -859,7 +834,7 @@ server.listen(PORT, () => {
   console.log(`  Reload schedules: POST http://localhost:${PORT}/reload-schedules`);
   console.log(`  Health check: http://localhost:${PORT}/health`);
   console.log(`  Trigger endpoint: POST http://localhost:${PORT}/trigger`);
-  console.log(`  Using claude: ${CLAUDE_PATH}`);
+  console.log(`  Default provider: ${resolveProviderId()}`);
   console.log(`  Working directory: ${DATA_DIR}`);
 
   void reloadSchedules();

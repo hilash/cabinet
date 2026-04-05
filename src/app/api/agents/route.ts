@@ -21,7 +21,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { taskTitle, prompt, taskId, workdir } = body;
+    const { taskTitle, prompt, taskId, workdir, providerId } = body;
 
     if (!prompt) {
       return NextResponse.json(
@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
       taskTitle || "Manual agent run",
       prompt,
       taskId,
-      workdir
+      workdir,
+      providerId
     );
 
     return NextResponse.json({ ok: true, sessionId }, { status: 201 });

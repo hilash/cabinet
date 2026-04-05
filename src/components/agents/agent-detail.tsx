@@ -34,6 +34,7 @@ interface AgentPersona {
   emoji: string;
   type: string;
   department: string;
+  provider: string;
   role: string;
   active: boolean;
   heartbeat: string;
@@ -544,7 +545,7 @@ function JobsTab({ slug }: { slug: string }) {
             <textarea
               value={newPrompt}
               onChange={(e) => setNewPrompt(e.target.value)}
-              placeholder="What should this job do? This is the prompt sent to Claude..."
+              placeholder="What should this job do? This prompt is sent to the selected provider..."
               className="w-full bg-background border border-border rounded px-2 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none min-h-[80px]"
             />
           </div>
@@ -658,7 +659,7 @@ function JobsTab({ slug }: { slug: string }) {
   );
 }
 
-/* ─── Sessions Tab (Claude Code terminal style) ─── */
+/* ─── Sessions Tab ─── */
 function SessionsTab({
   persona,
   history,
@@ -675,6 +676,7 @@ function SessionsTab({
     id: string;
     prompt: string;
     userMessage: string;
+    providerId: string;
   } | null>(null);
 
   const selectedSession = selectedIndex !== null ? history[selectedIndex] : null;
@@ -685,7 +687,12 @@ function SessionsTab({
     const sessionId = `agent-${persona.slug}-${Date.now()}`;
     const fullPrompt = `${persona.body}\n\n---\n\nUser request: ${userMessage}`;
 
-    setLiveSession({ id: sessionId, prompt: fullPrompt, userMessage });
+    setLiveSession({
+      id: sessionId,
+      prompt: fullPrompt,
+      userMessage,
+      providerId: persona.provider,
+    });
     setSelectedIndex(null);
     setPrompt("");
   };
@@ -802,7 +809,7 @@ function SessionsTab({
       {/* Session content panel */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {liveSession ? (
-          /* Live Claude Code terminal */
+          /* Live agent terminal */
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 shrink-0">
               <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
@@ -812,6 +819,7 @@ function SessionsTab({
               <WebTerminal
                 sessionId={liveSession.id}
                 prompt={liveSession.prompt}
+                providerId={liveSession.providerId}
                 onClose={handleSessionEnd}
               />
             </div>
@@ -881,7 +889,7 @@ function SessionsTab({
                 New Session
               </h3>
               <p className="text-[12px] text-muted-foreground mt-1 max-w-sm">
-                Send a prompt to {persona.name} to start a live Claude Code session.
+                Send a prompt to {persona.name} to start a live session.
               </p>
             </div>
             <div className="w-full max-w-lg">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { loadAgentJobsBySlug, saveAgentJob } from "@/lib/jobs/job-manager";
 import type { JobConfig } from "@/types/jobs";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
 
 export async function GET(
   _req: NextRequest,
@@ -30,7 +31,7 @@ export async function POST(
       name: body.name || "Untitled Job",
       enabled: body.enabled ?? true,
       schedule: body.schedule || "0 9 * * *",
-      provider: body.provider || "claude-code",
+      provider: body.provider || getDefaultProviderId(),
       agentSlug: slug,
       workdir: body.workdir,
       timeout: body.timeout || 600,
