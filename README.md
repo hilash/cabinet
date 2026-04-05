@@ -28,13 +28,13 @@
 
 <p align="center">
   <a href="https://github.com/hilash/cabinet/stargazers" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/github/stars/hilash/cabinet?label=%F0%9F%8C%9F%20Star%20the%20vision&logo=github&color=f5b301" alt="Star Cabinet on GitHub" valign="middle">
+    <img src="https://img.shields.io/github/stars/hilash/cabinet?style=for-the-badge&logo=github&logoColor=white&label=Star%20the%20vision%20%F0%9F%98%8D%F0%9F%8C%9F&labelColor=4b4b4b&color=f5b301" alt="Star Cabinet on GitHub" valign="middle">
   </a>&nbsp;
   <a href="https://discord.gg/rxd8BYnN" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/discord/1489622192554512474?label=Discord&logo=discord&color=5865F2" alt="Join the Discord" valign="middle">
+    <img src="https://img.shields.io/discord/1489622192554512474?style=for-the-badge&label=Discord&logo=discord&logoColor=white&labelColor=4b4b4b&color=5865F2" alt="Join the Discord" valign="middle">
   </a>&nbsp;
   <a href="https://runcabinet.com/waitlist" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/badge/%F0%9F%97%84%EF%B8%8F%20Cabinet%20Cloud-Waitlist-8b5e3c" alt="Cabinet Cloud Waitlist" valign="middle">
+    <img src="https://img.shields.io/badge/%F0%9F%97%84%EF%B8%8F%20Cabinet-Cloud%20Waitlist-55c938?style=for-the-badge&labelColor=4b4b4b" alt="Cabinet Cloud Waitlist" valign="middle">
   </a>
 </p>
 
