@@ -22,18 +22,18 @@
 </p>
 
 <p align="center">
-  <a href="https://runcabinet.com">runcabinet.com</a>&nbsp; • &nbsp;
-  <a href="mailto:hi@runcabinet.com">hi@runcabinet.com</a>
+  <a href="https://runcabinet.com" target="_blank" rel="noopener noreferrer">runcabinet.com</a>&nbsp; • &nbsp;
+  <a href="mailto:hi@runcabinet.com" target="_blank" rel="noopener noreferrer">hi@runcabinet.com</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/hilash/cabinet/stargazers">
+  <a href="https://github.com/hilash/cabinet/stargazers" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/github/stars/hilash/cabinet?label=%F0%9F%8C%9F%20Star%20the%20vision&logo=github&color=f5b301" alt="Star Cabinet on GitHub" valign="middle">
   </a>&nbsp;
-  <a href="https://discord.gg/rxd8BYnN">
+  <a href="https://discord.gg/rxd8BYnN" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/discord/1489622192554512474?label=Discord&logo=discord&color=5865F2" alt="Join the Discord" valign="middle">
   </a>&nbsp;
-  <a href="https://runcabinet.com/waitlist">
+  <a href="https://runcabinet.com/waitlist" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/%F0%9F%97%84%EF%B8%8F%20Cabinet%20Cloud-Waitlist-8b5e3c" alt="Cabinet Cloud Waitlist" valign="middle">
   </a>
 </p>
@@ -197,7 +197,7 @@ Cabinet is free, open source, and self-hosted. Your data never leaves your machi
 npx create-cabinet my-startup
 ```
 
-[Get Started](https://runcabinet.com) | <a href="https://github.com/hilash/cabinet/stargazers"><img src="https://img.shields.io/github/stars/hilash/cabinet?label=GitHub%20Stars&logo=github&color=f5b301" alt="GitHub Stars" valign="middle"></a>
+[Get Started](https://runcabinet.com) | <a href="https://github.com/hilash/cabinet/stargazers" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/stars/hilash/cabinet?label=GitHub%20Stars&logo=github&color=f5b301" alt="GitHub Stars" valign="middle"></a>
 
 ---
 
@@ -227,7 +227,7 @@ MIT License
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=hilash%2Fcabinet&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=hilash%2Fcabinet&type=date&legend=top-left" target="_blank" rel="noopener noreferrer">
  <picture>
    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hilash/cabinet&type=date&theme=dark&legend=top-left" />
    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hilash/cabinet&type=date&legend=top-left" />
