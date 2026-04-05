@@ -145,11 +145,13 @@ export async function renamePage(
   const fs = await import("fs/promises");
   await fs.rename(fromResolved, toResolved);
 
-  // Update frontmatter title
+  // Get the old title before updating frontmatter
   const indexMd = path.join(toResolved, "index.md");
+  let oldTitle = virtualPath.split("/").pop() ?? virtualPath;
   if (await fileExists(indexMd)) {
     const raw = await readFileContent(indexMd);
     const { data, content } = matter(raw);
+    oldTitle = data.title || oldTitle;
     data.title = newName;
     data.modified = new Date().toISOString();
     const fm = Object.fromEntries(
@@ -159,6 +161,41 @@ export async function renamePage(
     await writeFileContent(indexMd, output);
   }
 
+  // Update [[wiki links]] across all markdown files in the data dir
+  const { DATA_DIR } = await import("./path-utils");
+  await rewriteWikiLinks(DATA_DIR, oldTitle, newName);
+
   const parentVirtual = virtualPath.split("/").slice(0, -1).join("/");
   return parentVirtual ? `${parentVirtual}/${slug}` : slug;
+}
+
+async function rewriteWikiLinks(
+  dir: string,
+  oldTitle: string,
+  newTitle: string
+): Promise<void> {
+  const fs = await import("fs/promises");
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await rewriteWikiLinks(fullPath, oldTitle, newTitle);
+    } else if (entry.name.endsWith(".md")) {
+      const raw = await fs.readFile(fullPath, "utf-8");
+      // Match [[OldTitle]] case-insensitively
+      const escaped = oldTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = new RegExp(`\\[\\[${escaped}\\]\\]`, "gi");
+      if (!pattern.test(raw)) continue;
+      const updated = raw.replace(
+        new RegExp(`\\[\\[${escaped}\\]\\]`, "gi"),
+        `[[${newTitle}]]`
+      );
+      await fs.writeFile(fullPath, updated, "utf-8");
+    }
+  }
 }
