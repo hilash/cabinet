@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  Built by Hila, former Engineering Manager at Apple — now building Cabinet in public, with the open-source community.
+  Built by Hila Shmuel, former Engineering Manager at Apple — now building Cabinet in public, with the open-source community.
 </p>
 
 <p align="center">
