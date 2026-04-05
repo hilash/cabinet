@@ -38,6 +38,7 @@
     "chokidar": "^5.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.0",
     "flexsearch": "^0.8.212",
     "gray-matter": "^4.0.3",
     "html2canvas": "^1.4.1",

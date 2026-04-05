@@ -10,6 +10,9 @@
  * Usage: npx tsx server/cabinet-daemon.ts
  */
 
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
+
 import { WebSocketServer, WebSocket } from "ws";
 import * as pty from "node-pty";
 import path from "path";
@@ -32,13 +35,16 @@ import {
   isDaemonTokenValid,
 } from "../src/lib/agents/daemon-auth";
 
-const PORT = 3001;
+const PORT = parseInt(process.env.CABINET_DAEMON_PORT || "3001", 10);
+const APP_URL = process.env.CABINET_APP_URL || "http://localhost:3000";
 const DATA_DIR = path.join(process.cwd(), "data");
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
+
+const appOrigin = new URL(APP_URL).origin;
 const ALLOWED_BROWSER_ORIGINS = new Set(
   [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    appOrigin,
+    appOrigin.replace("localhost", "127.0.0.1"),
     ...(process.env.CABINET_APP_ORIGIN
       ? process.env.CABINET_APP_ORIGIN.split(",").map((value) => value.trim()).filter(Boolean)
       : []),
@@ -501,7 +507,7 @@ function scheduleJob(job: JobConfig): void {
 
   const task = cron.schedule(job.schedule, () => {
     console.log(`Triggering scheduled job ${key}`);
-    void putJson(`http://localhost:3000/api/agents/${job.agentSlug}/jobs/${job.id}`, {
+    void putJson(`${APP_URL}/api/agents/${job.agentSlug}/jobs/${job.id}`, {
       action: "run",
       source: "scheduler",
     }).catch((error) => {
@@ -521,7 +527,7 @@ function scheduleHeartbeat(slug: string, cronExpr: string): void {
 
   const task = cron.schedule(cronExpr, () => {
     console.log(`Triggering heartbeat ${slug}`);
-    void putJson(`http://localhost:3000/api/agents/personas/${slug}`, {
+    void putJson(`${APP_URL}/api/agents/personas/${slug}`, {
       action: "run",
       source: "scheduler",
     }).catch((error) => {
