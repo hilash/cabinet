@@ -1,8 +1,6 @@
 # Progress
 
-[2026-04-05] Fix broken wiki links on page rename: renamePage() now scans all markdown files in the data dir and rewrites [[OldTitle]] → [[NewTitle]] after a rename.
-
-[2026-04-04] Added page linking feature to the editor. Typing `[[` now opens an autocomplete dropdown to search and insert wiki links to other pages. Added a Link2 toolbar button and a `/Link to Page` slash command that both trigger the picker. Clicking a rendered wiki link navigates to that page. Fixed wiki link href generation in both the Tiptap extension and the markdown→HTML converter so no navigable href is ever rendered.
+[2026-04-05] Added page linking feature to the editor. Typing `[[` opens an autocomplete dropdown to search and insert wiki links; a Link2 toolbar button and `/Link to Page` slash command also trigger the picker. Clicking a wiki link navigates to that page. Fixed href generation in the Tiptap extension and markdown→HTML converter to prevent browser navigation to nonexistent URLs. On rename, renamePage() now rewrites all [[OldTitle]] references across the data dir to [[NewTitle]].
 
 [2026-04-03] Rebuilt the agents experience around durable filesystem-backed conversations. Added a shared conversation store (`data/.agents/.conversations/*`), moved manual sessions/jobs/heartbeats onto the daemon PTY runtime, added conversations APIs, and replaced the old agent list/detail split with a three-pane agents workspace focused on live and replayable Claude sessions. Also added `scripts/launch-chrome-debug.sh` plus `npm run debug:chrome` for CDP-based Chrome debugging on port 9222.
 
