@@ -51,6 +51,19 @@ npm run dev:all
 
 Open [http://localhost:3000](http://localhost:3000). The onboarding wizard builds your custom AI team in 5 questions.
 
+### Docker Compose (optional)
+
+You can run the same stack in containers instead of local Node:
+
+```bash
+cp .env.example .env.local   # optional: KB_PASSWORD, etc.
+docker compose up --build
+```
+
+- **App:** [http://localhost:3000](http://localhost:3000)
+- **Daemon (agent PTY WebSocket):** port `3001` is published so the browser can reach it when you use port 3000 directly.
+- **Caddy (optional):** [http://localhost](http://localhost) proxies the app and upgrades WebSocket paths to the daemon; omit Caddy if you only need ports 3000/3001.
+
 ---
 
 ## The problem
@@ -183,9 +196,11 @@ cp .env.example .env.local
 ```bash
 npm run dev          # Next.js dev server (port 3000)
 npm run dev:daemon   # Terminal + job scheduler (port 3001)
-npm run dev:all      # Both servers
+npm run dev:all      # Both servers (development)
 npm run build        # Production build
-npm run start        # Production mode (both servers)
+npm run start        # Production mode (both servers, no Docker)
+
+docker compose up --build   # Optional: Next.js + cabinet daemon in Docker (ports 3000, 3001)
 ```
 
 ---

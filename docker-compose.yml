@@ -9,6 +9,9 @@ services:
       - ./data:/app/data
     ports:
       - "3000:3000"
+      # Daemon WebSocket (agent PTY / terminal); required when using http://localhost:3000 directly.
+      # With Caddy on :80, WS is proxied to 3001; this mapping matches that for bare port 3000.
+      - "3001:3001"
 
   caddy:
     image: caddy:2-alpine
