@@ -29,7 +29,6 @@ import type { JobConfig } from "@/types/jobs";
 type TriggerFilter = "all" | "manual" | "job" | "heartbeat";
 type StatusFilter = "all" | "running" | "failed";
 type MainPanelMode = "composer" | "conversation" | "settings";
-type NonSettingsMode = Exclude<MainPanelMode, "settings">;
 type SettingsTarget = "directory" | "__new__" | string | null;
 
 interface AgentSummary {
@@ -208,7 +207,6 @@ export function AgentsWorkspace({
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [mode, setMode] = useState<MainPanelMode>("composer");
-  const [previousMode, setPreviousMode] = useState<NonSettingsMode>("composer");
   const [activeAgentSlug, setActiveAgentSlug] = useState<string | null>(
     selectedScope === "agent" ? selectedAgentSlug || null : null
   );
@@ -349,11 +347,20 @@ export function AgentsWorkspace({
     setActiveAgentSlug(selectedScope === "agent" ? selectedAgentSlug || null : null);
     setSelectedConversationId(null);
     setSelectedConversation(null);
-    setSettingsTarget(null);
+    setSettingsTarget(selectedScope === "agent" ? selectedAgentSlug || null : null);
     setHasLoadedConversations(false);
     setConversationsLoading(true);
-    setMode("composer");
+    setMode(selectedScope === "agent" && selectedAgentSlug ? "settings" : "composer");
   }, [selectedAgentSlug, selectedScope]);
+
+  function openAgentWorkspace(agentSlug: string) {
+    setActiveAgentSlug(agentSlug);
+    setSelectedConversationId(null);
+    setSelectedConversation(null);
+    setSettingsTarget(agentSlug);
+    setMode("settings");
+    setSection({ type: "agent", slug: agentSlug });
+  }
 
   useEffect(() => {
     if (mode === "settings" && settingsAgentSlug) {
@@ -372,23 +379,7 @@ export function AgentsWorkspace({
     }
   }, [selectedConversationId, conversations]);
 
-  function selectAgent(agentSlug: string | null, nextMode: MainPanelMode = "composer") {
-    setActiveAgentSlug(agentSlug);
-    setSelectedConversationId(null);
-    setSelectedConversation(null);
-    setSettingsTarget(null);
-    setMode(nextMode);
-    if (agentSlug) {
-      setSection({ type: "agent", slug: agentSlug });
-    } else {
-      setSection({ type: "agents" });
-    }
-  }
-
   function openAgentDirectory() {
-    if (mode !== "settings") {
-      setPreviousMode(mode === "conversation" ? "conversation" : "composer");
-    }
     setMode("settings");
     setSettingsTarget("directory");
     setSelectedJobId(null);
@@ -396,9 +387,6 @@ export function AgentsWorkspace({
   }
 
   function openAgentSettings(agentSlug: string) {
-    if (mode !== "settings") {
-      setPreviousMode(mode === "conversation" ? "conversation" : "composer");
-    }
     setMode("settings");
     setSettingsTarget(agentSlug);
     setSelectedJobId(null);
@@ -406,21 +394,11 @@ export function AgentsWorkspace({
   }
 
   function startNewAgentDraft() {
-    if (mode !== "settings") {
-      setPreviousMode(mode === "conversation" ? "conversation" : "composer");
-    }
     setMode("settings");
     setSettingsTarget("__new__");
     setSelectedJobId(null);
     setJobDraft(null);
     setNewAgentDraft(DEFAULT_NEW_AGENT);
-  }
-
-  function exitSettings() {
-    setSettingsTarget(null);
-    setSelectedJobId(null);
-    setJobDraft(null);
-    setMode(selectedConversationId && previousMode === "conversation" ? "conversation" : "composer");
   }
 
   function handleComposerInput(value: string, cursorPosition: number) {
@@ -460,9 +438,8 @@ export function AgentsWorkspace({
     setShowMentions(false);
   }
 
-  async function submitConversation() {
+  async function submitConversation(targetAgentSlug: string) {
     if (!composerInput.trim()) return;
-    if (!activeAgentSlug) return;
 
     setSubmitting(true);
     try {
@@ -470,7 +447,7 @@ export function AgentsWorkspace({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          agentSlug: activeAgentSlug,
+          agentSlug: targetAgentSlug,
           userMessage: composerInput.trim(),
           mentionedPaths,
         }),
@@ -481,6 +458,8 @@ export function AgentsWorkspace({
       const conversation = data.conversation as ConversationMeta;
       setComposerInput("");
       setMentionedPaths([]);
+      setActiveAgentSlug(targetAgentSlug);
+      setSection({ type: "agent", slug: targetAgentSlug });
       setSelectedConversationId(conversation.id);
       setMode("conversation");
       await refreshConversations();
@@ -701,6 +680,103 @@ export function AgentsWorkspace({
     ? agents.find((agent) => agent.slug === settingsAgentSlug) || null
     : null;
 
+  function renderComposerPanel(agentSlug: string) {
+    const panelAgent = agents.find((agent) => agent.slug === agentSlug) || null;
+
+    return (
+      <div className="-mt-10 relative z-10">
+        <div className="mx-auto w-full max-w-3xl">
+          <div className="relative rounded-2xl border border-border bg-card p-4 shadow-xl">
+            <textarea
+              value={composerInput}
+              onChange={(event) =>
+                handleComposerInput(
+                  event.target.value,
+                  event.target.selectionStart || event.target.value.length
+                )
+              }
+              onKeyDown={(event) => {
+                if (showMentions && filteredMentions.length > 0) {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    setMentionIndex((current) => (current + 1) % filteredMentions.length);
+                  } else if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setMentionIndex((current) =>
+                      current === 0 ? filteredMentions.length - 1 : current - 1
+                    );
+                  } else if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    const page = filteredMentions[mentionIndex];
+                    if (page) insertMention(page.path, page.title);
+                  } else if (event.key === "Escape") {
+                    setShowMentions(false);
+                  }
+                  return;
+                }
+
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault();
+                  void submitConversation(agentSlug);
+                }
+              }}
+              placeholder={`Ask ${panelAgent?.name || agentSlug} to work on something...`}
+              className="min-h-[56px] w-full resize-none bg-transparent text-[14px] outline-none"
+            />
+
+            {mentionedPaths.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {mentionedPaths.map((path) => (
+                  <button
+                    key={path}
+                    onClick={() =>
+                      setMentionedPaths((current) => current.filter((entry) => entry !== path))
+                    }
+                    className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                  >
+                    @{makePageContextLabel(path, allPages)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {showMentions && filteredMentions.length > 0 ? (
+              <div className="absolute left-4 right-4 top-[calc(100%-12px)] z-20 rounded-xl border border-border bg-popover p-1 shadow-lg">
+                {filteredMentions.slice(0, 6).map((page, index) => (
+                  <button
+                    key={page.path}
+                    onClick={() => insertMention(page.path, page.title)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px]",
+                      index === mentionIndex
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    )}
+                  >
+                    <span className="truncate">{page.title}</span>
+                    <span className="ml-3 truncate text-[11px] text-muted-foreground">
+                      {page.path}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-[11px] text-muted-foreground">
+                Tip: type <span className="font-mono">@</span> to mention KB files. Press Cmd/Ctrl + Enter to send.
+              </p>
+              <Button className="gap-2" onClick={() => void submitConversation(agentSlug)} disabled={submitting}>
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Start conversation
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className="w-[340px] min-w-[340px] border-r border-border bg-background">
@@ -890,50 +966,37 @@ export function AgentsWorkspace({
           </div>
         ) : mode === "settings" ? (
           <div className="flex h-full flex-col">
-            <div className="border-b border-border px-5 py-4">
-              <div className="flex items-start justify-between gap-3">
-                {settingsTarget === "directory" || !settingsTarget ? (
-                  <div>
-                    <h3 className="text-[15px] font-semibold">Agent settings</h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Big-picture management for your team. Add agents, remove agents, or open detailed settings.
-                    </p>
-                  </div>
-                ) : settingsTarget === "__new__" ? (
-                  <div>
-                    <h3 className="text-[15px] font-semibold">Create agent</h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Add a new agent to the team and define its default heartbeat and instructions.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{settingsAgent?.emoji || "🤖"}</span>
+            {settingsTarget === "directory" || !settingsTarget || settingsTarget === "__new__" ? (
+              <div className="border-b border-border px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  {settingsTarget === "directory" || !settingsTarget ? (
                     <div>
-                      <h3 className="text-[15px] font-semibold">
-                        {settingsAgent?.name || "Agent settings"}
-                      </h3>
+                      <h3 className="text-[15px] font-semibold">Agent settings</h3>
                       <p className="text-[11px] text-muted-foreground">
-                        Definition, heartbeat, and jobs
+                        Big-picture management for your team. Add agents, remove agents, or open detailed settings.
                       </p>
                     </div>
-                  </div>
-                )}
-                <div className="flex gap-2">
+                  ) : (
+                    <div>
+                      <h3 className="text-[15px] font-semibold">Create agent</h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Add a new agent to the team and define its default heartbeat and instructions.
+                      </p>
+                    </div>
+                  )}
                   {(settingsTarget === "directory" || !settingsTarget) ? (
-                    <Button size="sm" className="h-8 gap-1 text-xs" onClick={startNewAgentDraft}>
-                      <Plus className="h-3.5 w-3.5" />
-                      Add agent
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="h-8 gap-1 text-xs" onClick={startNewAgentDraft}>
+                        <Plus className="h-3.5 w-3.5" />
+                        Add agent
+                      </Button>
+                    </div>
                   ) : null}
-                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={exitSettings}>
-                    Done
-                  </Button>
                 </div>
               </div>
-            </div>
-            <ScrollArea className="h-full">
-              <div className="space-y-6 p-5">
+            ) : null}
+            <ScrollArea className={settingsPersona ? "min-h-0 flex-1" : "h-full"}>
+              <div className={cn("space-y-6 p-5", settingsPersona ? "pb-4" : "")}>
                 {settingsTarget === "directory" || !settingsTarget ? (
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {agents.map((agent) => (
@@ -977,7 +1040,7 @@ export function AgentsWorkspace({
                             variant="outline"
                             size="sm"
                             className="h-8 flex-1 text-xs"
-                            onClick={() => selectAgent(agent.slug, "composer")}
+                            onClick={() => openAgentWorkspace(agent.slug)}
                           >
                             Open
                           </Button>
@@ -1164,13 +1227,20 @@ export function AgentsWorkspace({
                       variant="outline"
                       size="sm"
                       className="h-8 text-xs"
-                      onClick={() => selectAgent("general", "composer")}
+                      onClick={() => openAgentWorkspace("general")}
                     >
                       Open General conversations
                     </Button>
                   </div>
                 ) : settingsPersona ? (
                   <>
+                    <div className="flex items-center gap-3 px-1">
+                      <span className="text-2xl">{settingsAgent?.emoji || "🤖"}</span>
+                      <h3 className="text-[15px] font-semibold">
+                        {settingsAgent?.name || "Agent settings"}
+                      </h3>
+                    </div>
+
                     <div className="rounded-xl border border-border p-4">
                       <div className="mb-3 flex items-center justify-between">
                         <div>
@@ -1406,137 +1476,40 @@ export function AgentsWorkspace({
                 )}
               </div>
             </ScrollArea>
+            {settingsPersona ? (
+              <div className="sticky bottom-0 shrink-0 bg-transparent px-5 pt-10 pb-4">
+                {renderComposerPanel(settingsAgentSlug)}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="flex h-full flex-col">
             <div className="border-b border-border px-5 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-[15px] font-semibold">
-                    {activeAgentSlug
-                      ? `Start a new conversation with ${activeAgent?.name || activeAgentSlug}`
-                      : "Choose an agent to start a conversation"}
-                  </h3>
+                  <h3 className="text-[15px] font-semibold">Agent settings</h3>
                   <p className="text-[11px] text-muted-foreground">
-                    Use @mentions to bring KB files into context, just like the Claude editor.
+                    Pick an agent on the left to open its settings and start a conversation from the same panel.
                   </p>
                 </div>
                 <Button
-                  variant="outline"
                   size="sm"
                   className="h-8 gap-1 text-xs"
-                  onClick={() => {
-                    if (activeAgentSlug) {
-                      openAgentSettings(activeAgentSlug);
-                    } else {
-                      openAgentDirectory();
-                    }
-                  }}
+                  onClick={startNewAgentDraft}
                 >
-                  <Settings className="h-3.5 w-3.5" />
-                  Settings
+                  <Plus className="h-3.5 w-3.5" />
+                  Add agent
                 </Button>
               </div>
             </div>
-            <div className="flex flex-1 flex-col justify-center px-8 py-10">
-              {!activeAgentSlug ? (
-                <div className="mx-auto max-w-xl text-center">
-                  <Bot className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
-                  <p className="text-[14px] font-medium">Pick an agent from the left rail</p>
-                  <p className="mt-2 text-[12px] text-muted-foreground">
-                    The center column already shows the team timeline. Choose one agent on the left to start a focused session, or open Settings to manage the team.
-                  </p>
-                </div>
-              ) : (
-                <div className="mx-auto w-full max-w-3xl">
-                  <div className="relative rounded-2xl border border-border bg-card p-4 shadow-sm">
-                    <textarea
-                      value={composerInput}
-                      onChange={(event) =>
-                        handleComposerInput(
-                          event.target.value,
-                          event.target.selectionStart || event.target.value.length
-                        )
-                      }
-                      onKeyDown={(event) => {
-                        if (showMentions && filteredMentions.length > 0) {
-                          if (event.key === "ArrowDown") {
-                            event.preventDefault();
-                            setMentionIndex((current) => (current + 1) % filteredMentions.length);
-                          } else if (event.key === "ArrowUp") {
-                            event.preventDefault();
-                            setMentionIndex((current) =>
-                              current === 0 ? filteredMentions.length - 1 : current - 1
-                            );
-                          } else if (event.key === "Enter" && !event.shiftKey) {
-                            event.preventDefault();
-                            const page = filteredMentions[mentionIndex];
-                            if (page) insertMention(page.path, page.title);
-                          } else if (event.key === "Escape") {
-                            setShowMentions(false);
-                          }
-                          return;
-                        }
-
-                        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                          event.preventDefault();
-                          void submitConversation();
-                        }
-                      }}
-                      placeholder={`Ask ${agents.find((agent) => agent.slug === activeAgentSlug)?.name || activeAgentSlug} to work on something...`}
-                      className="min-h-[180px] w-full resize-none bg-transparent text-[14px] outline-none"
-                    />
-
-                    {mentionedPaths.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {mentionedPaths.map((path) => (
-                          <button
-                            key={path}
-                            onClick={() =>
-                              setMentionedPaths((current) => current.filter((entry) => entry !== path))
-                            }
-                            className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-                          >
-                            @{makePageContextLabel(path, allPages)}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {showMentions && filteredMentions.length > 0 ? (
-                      <div className="absolute left-4 right-4 top-[calc(100%-12px)] z-10 rounded-xl border border-border bg-popover p-1 shadow-lg">
-                        {filteredMentions.slice(0, 6).map((page, index) => (
-                          <button
-                            key={page.path}
-                            onClick={() => insertMention(page.path, page.title)}
-                            className={cn(
-                              "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px]",
-                              index === mentionIndex
-                                ? "bg-accent text-foreground"
-                                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                            )}
-                          >
-                            <span className="truncate">{page.title}</span>
-                            <span className="ml-3 truncate text-[11px] text-muted-foreground">
-                              {page.path}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    <div className="mt-4 flex items-center justify-between">
-                      <p className="text-[11px] text-muted-foreground">
-                        Tip: type <span className="font-mono">@</span> to mention KB files. Press Cmd/Ctrl + Enter to send.
-                      </p>
-                      <Button className="gap-2" onClick={() => void submitConversation()} disabled={submitting}>
-                        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                        Start conversation
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="flex flex-1 items-center justify-center px-8 py-10">
+              <div className="max-w-xl text-center">
+                <Bot className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
+                <p className="text-[14px] font-medium">Pick an agent from the left rail</p>
+                <p className="mt-2 text-[12px] text-muted-foreground">
+                  The right panel now combines agent settings and the conversation composer in one place.
+                </p>
+              </div>
             </div>
           </div>
         )}
