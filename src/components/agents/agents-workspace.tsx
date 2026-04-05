@@ -822,7 +822,7 @@ export function AgentsWorkspace({
   return (
     <div className="flex flex-1 overflow-hidden">
       <div
-        className="shrink-0 border-r border-border bg-background"
+        className="shrink-0 bg-background"
         style={{ width: conversationsPanel.width }}
       >
         <div className="border-b border-border px-4 py-3">
@@ -1388,9 +1388,9 @@ export function AgentsWorkspace({
                       </div>
                     </div>
 
-                    <div className="flex min-h-[420px] gap-3">
+                    <div className="flex min-h-[420px]">
                       <div
-                        className="shrink-0 rounded-xl border border-border"
+                        className="shrink-0 overflow-hidden rounded-l-xl rounded-r-none border border-r-0 border-border"
                         style={{ width: jobsPanel.width }}
                       >
                         <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -1449,7 +1449,7 @@ export function AgentsWorkspace({
                         <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
                       </div>
 
-                      <div className="min-w-0 flex-1 rounded-xl border border-border p-4">
+                      <div className="min-w-0 flex-1 rounded-r-xl rounded-l-none border border-l-0 border-border p-4">
                         {jobDraft ? (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
