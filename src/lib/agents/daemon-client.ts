@@ -5,6 +5,7 @@ interface CreateDaemonSessionInput {
   prompt: string;
   cwd?: string;
   timeoutSeconds?: number;
+  headless?: boolean;
 }
 
 async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {

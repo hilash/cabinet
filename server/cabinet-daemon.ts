@@ -321,25 +321,38 @@ function createDetachedSession(input: {
   args?: string[];
   cwd?: string;
   timeoutSeconds?: number;
+  headless?: boolean;
   onData?: (chunk: string) => void;
 }): PtySession {
+  const headless = input.headless ?? false;
   const args = input.args
     ? input.args
-    : ["--dangerously-skip-permissions"];
+    : headless
+      ? ["--dangerously-skip-permissions", "-p", input.prompt!.trim(), "--output-format", "text"]
+      : ["--dangerously-skip-permissions"];
+
+  const baseEnv: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    PATH: enrichedPath,
+    LANG: "en_US.UTF-8",
+  };
+
+  // For interactive terminal sessions keep full color; for headless strip it
+  if (!headless) {
+    baseEnv.TERM = "xterm-256color";
+    baseEnv.COLORTERM = "truecolor";
+    baseEnv.FORCE_COLOR = "3";
+  } else {
+    baseEnv.TERM = "dumb";
+    baseEnv.NO_COLOR = "1";
+  }
 
   const term = pty.spawn(CLAUDE_PATH, args, {
-    name: "xterm-256color",
+    name: headless ? "dumb" : "xterm-256color",
     cols: 120,
     rows: 30,
     cwd: resolveSessionCwd(input.cwd),
-    env: {
-      ...(process.env as Record<string, string>),
-      PATH: enrichedPath,
-      TERM: "xterm-256color",
-      COLORTERM: "truecolor",
-      FORCE_COLOR: "3",
-      LANG: "en_US.UTF-8",
-    },
+    env: baseEnv,
   });
 
   const session: PtySession = {
@@ -350,7 +363,7 @@ function createDetachedSession(input: {
     output: [],
     exited: false,
     exitCode: null,
-    initialPrompt: input.args ? undefined : input.prompt?.trim() || undefined,
+    initialPrompt: headless ? undefined : (input.args ? undefined : input.prompt?.trim() || undefined),
     initialPromptSent: false,
   };
   sessions.set(input.sessionId, session);
@@ -677,12 +690,14 @@ const server = http.createServer(async (req, res) => {
           prompt,
           cwd,
           timeoutSeconds,
+          headless,
         } = JSON.parse(body) as {
           id: string;
           args?: string[];
           prompt?: string;
           cwd?: string;
           timeoutSeconds?: number;
+          headless?: boolean;
         };
         const sessionId = id || `session-${Date.now()}`;
 
@@ -699,6 +714,7 @@ const server = http.createServer(async (req, res) => {
             prompt,
             cwd,
             timeoutSeconds,
+            headless,
           });
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);

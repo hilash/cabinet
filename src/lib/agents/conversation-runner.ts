@@ -173,6 +173,7 @@ export async function startConversationRun(
       prompt: input.prompt,
       cwd: input.cwd,
       timeoutSeconds: input.timeoutSeconds,
+      headless: input.trigger !== "manual",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to start daemon session";
