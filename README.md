@@ -6,6 +6,8 @@
   <img src="assets/cabinet-wordmark.svg" alt="cabinet /ˈkab.ɪ.nət/" width="920">
 </p>
 
+<h1 align="center">🗄️ Cabinet</h1>
+
 <p align="center">
   <strong>Your knowledge base. Your AI team.</strong><br />
   <sub>🗂️ Files on disk &nbsp;•&nbsp; 📁 AI workspaces &nbsp;•&nbsp; 🧠 Agents with memory</sub>
