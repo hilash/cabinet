@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="https://runcabinet.com/demo.gif" alt="Cabinet demo" width="900">
+  <img src="assets/cabinet-wordmark.svg" alt="cabinet /ˈkab.ɪ.nət/" width="920">
 </p>
 
 <p align="center">
-  <img src="assets/cabinet-wordmark.svg" alt="cabinet /ˈkab.ɪ.nət/" width="920">
+  <img src="https://runcabinet.com/demo.gif" alt="Cabinet demo" width="900">
 </p>
 
 <h1 align="center">🗄️ Cabinet</h1>
