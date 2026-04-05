@@ -15,6 +15,7 @@ import {
   CheckSquare,
   Info,
   AlertTriangle,
+  Link2,
 } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { cn } from "@/lib/utils";
@@ -99,6 +100,12 @@ const commands: SlashCommand[] = [
         editor.chain().focus().setImage({ src: url }).run();
       }
     },
+  },
+  {
+    label: "Link to Page",
+    icon: Link2,
+    description: "Link to another page in the knowledge base",
+    action: (editor) => editor.chain().focus().insertContent("[[").run(),
   },
   {
     label: "Checklist",

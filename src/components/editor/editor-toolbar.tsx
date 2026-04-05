@@ -21,6 +21,7 @@ import {
   CheckSquare,
   PilcrowRight,
   PilcrowLeft,
+  Link2,
 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
 
@@ -115,6 +116,12 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       action: () => editor.chain().focus().setHorizontalRule().run(),
       isActive: false,
       label: "Divider",
+    },
+    {
+      icon: Link2,
+      action: () => editor.chain().focus().insertContent("[[").run(),
+      isActive: editor.isActive("wikiLink"),
+      label: "Link to Page",
     },
     { separator: true },
     {

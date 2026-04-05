@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-04] Added page linking feature to the editor. Typing `[[` now opens an autocomplete dropdown to search and insert wiki links to other pages. Added a Link2 toolbar button and a `/Link to Page` slash command that both trigger the picker. Clicking a rendered wiki link navigates to that page. Fixed wiki link href generation in both the Tiptap extension and the markdown→HTML converter so no navigable href is ever rendered.
+
 [2026-04-03] Rebuilt the agents experience around durable filesystem-backed conversations. Added a shared conversation store (`data/.agents/.conversations/*`), moved manual sessions/jobs/heartbeats onto the daemon PTY runtime, added conversations APIs, and replaced the old agent list/detail split with a three-pane agents workspace focused on live and replayable Claude sessions. Also added `scripts/launch-chrome-debug.sh` plus `npm run debug:chrome` for CDP-based Chrome debugging on port 9222.
 
 [2026-04-03] Major agent system refactor — removed "Plays" concept entirely: deleted play-manager.ts, trigger-engine.ts, api/plays/ routes, playbook-catalog.tsx, webhook/[slug] and triggers API routes. Unified all Claude invocations to use PTY via the cabinet daemon (heartbeat.ts runHeartbeat, daemon executeJob). Cleaned up all play references from 15+ components/types/API routes. Build passes clean with no play routes.

@@ -27,17 +27,10 @@ export const WikiLink = Mark.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    const pageName = HTMLAttributes["data-page-name"] || "";
-    const slug = pageName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-
     return [
       "a",
       mergeAttributes(HTMLAttributes, {
         "data-wiki-link": "true",
-        href: `#page:${slug}`,
         class: "wiki-link",
       }),
       0,

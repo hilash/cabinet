@@ -10,11 +10,7 @@ import rehypeStringify from "rehype-stringify";
  */
 function convertWikiLinks(markdown: string): string {
   return markdown.replace(/\[\[([^\]]+)\]\]/g, (_match, pageName: string) => {
-    const slug = pageName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-    return `<a data-wiki-link="true" data-page-name="${pageName}" href="#page:${slug}" class="wiki-link">${pageName}</a>`;
+    return `<a data-wiki-link="true" data-page-name="${pageName}" class="wiki-link">${pageName}</a>`;
   });
 }
 

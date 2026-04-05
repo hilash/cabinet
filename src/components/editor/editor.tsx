@@ -6,8 +6,10 @@ import { Sparkles, Code2 } from "lucide-react";
 import { editorExtensions } from "./extensions";
 import { EditorToolbar } from "./editor-toolbar";
 import { SlashCommands } from "./slash-commands";
+import { PageLinkAutocomplete } from "./page-link-autocomplete";
 import { useEditorStore } from "@/stores/editor-store";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
+import { useTreeStore } from "@/stores/tree-store";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
 
@@ -31,6 +33,45 @@ export function KBEditor() {
   const { currentPath, content, saveStatus, frontmatter } = useEditorStore();
   const isRtl = frontmatter?.dir === "rtl";
   const { open: openAI, clearMessages } = useAIPanelStore();
+  const { nodes: treeNodes, selectPage } = useTreeStore();
+
+  // Keep a ref so editorProps.handleClick can always see latest tree state
+  const navigateWikiLinkRef = useRef<(pageName: string) => void>(() => {});
+  useEffect(() => {
+    navigateWikiLinkRef.current = (pageName: string) => {
+      const slug = pageName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      const findPage = (
+        nodes: typeof treeNodes
+      ): { path: string } | undefined => {
+        for (const node of nodes) {
+          const nodeSlug = node.path.split("/").pop() ?? "";
+          const nodeTitle = (node.frontmatter?.title || node.name).toLowerCase();
+          if (
+            nodeSlug === slug ||
+            nodeTitle === pageName.toLowerCase() ||
+            node.path === slug
+          ) {
+            return { path: node.path };
+          }
+          if (node.children) {
+            const found = findPage(node.children);
+            if (found) return found;
+          }
+        }
+      };
+
+      const match = findPage(treeNodes);
+      if (match) {
+        selectPage(match.path);
+        useEditorStore.getState().loadPage(match.path);
+      }
+    };
+  }, [treeNodes, selectPage]);
+
   const isLoadingRef = useRef(false);
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceText, setSourceText] = useState("");
@@ -108,6 +149,22 @@ export function KBEditor() {
     },
     immediatelyRender: false,
   });
+
+  // Handle wiki link clicks via direct DOM listener (editorProps.handleClick
+  // fires on mouseup and can't prevent the subsequent click/anchor navigation)
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom;
+    const onClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest<HTMLElement>(".wiki-link");
+      if (!target) return;
+      e.preventDefault();
+      const pageName = target.getAttribute("data-page-name");
+      if (pageName) navigateWikiLinkRef.current(pageName);
+    };
+    dom.addEventListener("click", onClick);
+    return () => dom.removeEventListener("click", onClick);
+  }, [editor]);
 
   // When content updates from store (after loadPage), set it in editor
   const prevPathRef = useRef<string | null>(null);
@@ -200,6 +257,7 @@ export function KBEditor() {
         <div className="flex-1 overflow-y-auto relative" dir={isRtl ? "rtl" : undefined}>
           <EditorContent editor={editor} />
           <SlashCommands editor={editor} />
+          <PageLinkAutocomplete editor={editor} />
 
           {/* AI Edit Prompt */}
           <div className="max-w-3xl mx-auto px-8 pb-8">
