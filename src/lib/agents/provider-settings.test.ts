@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeProviderSettings } from "./provider-settings";
+import { normalizeProviderSettings, resolveEnabledProviderId } from "./provider-settings";
 import { providerRegistry } from "./provider-registry";
 import type { AgentProvider } from "./provider-interface";
 
@@ -67,4 +67,13 @@ test("normalizeProviderSettings falls back to the first enabled provider when ne
   );
 
   providerRegistry.defaultProvider = previousDefault;
+});
+
+test("resolveEnabledProviderId falls back to the configured default when the requested provider is disabled", () => {
+  const providerId = resolveEnabledProviderId("claude-code", {
+    defaultProvider: "codex-cli",
+    disabledProviderIds: ["claude-code"],
+  });
+
+  assert.equal(providerId, "codex-cli");
 });

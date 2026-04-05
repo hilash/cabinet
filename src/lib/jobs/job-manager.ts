@@ -16,6 +16,7 @@ import {
   normalizeJobConfig,
   normalizeJobId,
 } from "@/lib/jobs/job-normalization";
+import { resolveEnabledProviderId } from "@/lib/agents/provider-settings";
 
 const JOBS_DIR = path.join(DATA_DIR, ".jobs");
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
@@ -32,7 +33,10 @@ async function loadNormalizedJobFile(
   if (!parsed) return null;
 
   const normalized = normalizeJobConfig(
-    parsed,
+    {
+      ...parsed,
+      provider: resolveEnabledProviderId(parsed.provider),
+    },
     agentSlug,
     normalizeJobId(path.basename(filePath, ".yaml"), parsed.name)
   );
@@ -129,7 +133,10 @@ export async function saveAgentJob(agentSlug: string, job: JobConfig): Promise<v
   const agentJobsDir = path.join(AGENTS_DIR, agentSlug, "jobs");
   await ensureDirectory(agentJobsDir);
   const normalized = normalizeJobConfig(
-    job,
+    {
+      ...job,
+      provider: resolveEnabledProviderId(job.provider),
+    },
     agentSlug,
     normalizeJobId(job.id, job.name)
   );
@@ -181,7 +188,10 @@ export async function getJob(id: string): Promise<JobConfig | null> {
 export async function saveJob(job: JobConfig): Promise<void> {
   await ensureDirectory(JOBS_DIR);
   const normalized = normalizeJobConfig(
-    job,
+    {
+      ...job,
+      provider: resolveEnabledProviderId(job.provider),
+    },
     job.agentSlug,
     normalizeJobId(job.id, job.name)
   );

@@ -455,20 +455,10 @@ export function AgentsWorkspace({
       page.title.toLowerCase().includes(mentionQuery.toLowerCase()) ||
       page.path.toLowerCase().includes(mentionQuery.toLowerCase())
   );
-  const cliProviders = providers.filter((provider) => provider.type === "cli");
-  const selectableCliProviders = cliProviders.length > 0
-    ? cliProviders
-    : [
-        {
-          id: defaultProvider || "claude-code",
-          name: defaultProvider || "claude-code",
-          type: "cli",
-          available: true,
-        } as ProviderInfo,
-      ];
   const enabledCliProviders = providers.filter(
     (provider) => provider.type === "cli" && provider.enabled
   );
+  const cliProviders = providers.filter((provider) => provider.type === "cli");
   const selectableCliProviders = enabledCliProviders.length > 0
     ? enabledCliProviders
     : cliProviders.length > 0
@@ -484,54 +474,67 @@ export function AgentsWorkspace({
         ];
 
   async function refreshProviders() {
-    const response = await fetch("/api/agents/providers");
-    if (!response.ok) return;
-    const data = await response.json();
-    setProviders((data.providers || []) as ProviderInfo[]);
-    setDefaultProvider(data.defaultProvider || "claude-code");
+    try {
+      const response = await fetch("/api/agents/providers");
+      if (!response.ok) return;
+      const data = await response.json();
+      setProviders((data.providers || []) as ProviderInfo[]);
+      setDefaultProvider(data.defaultProvider || "claude-code");
+    } catch {
+      // Ignore transient startup/network failures.
+    }
   }
 
   async function refreshAgents() {
-    const response = await fetch("/api/agents/personas");
-    if (!response.ok) return;
-    const data = await response.json();
-    const personas = (data.personas || []) as AgentListItem[];
-    const generalRunning =
-      conversations.filter(
-        (conversation) =>
-          conversation.agentSlug === "general" && conversation.status === "running"
-      ).length || 0;
+    try {
+      const response = await fetch("/api/agents/personas");
+      if (!response.ok) return;
+      const data = await response.json();
+      const personas = (data.personas || []) as AgentListItem[];
+      const generalRunning =
+        conversations.filter(
+          (conversation) =>
+            conversation.agentSlug === "general" && conversation.status === "running"
+        ).length || 0;
 
-    const sorted = [
-      { ...GENERAL_AGENT, runningCount: generalRunning },
-      ...personas.sort((a, b) => {
-        if (a.slug === "editor") return -1;
-        if (b.slug === "editor") return 1;
-        return a.name.localeCompare(b.name);
-      }),
-    ];
-    setAgents(sorted);
+      const sorted = [
+        { ...GENERAL_AGENT, runningCount: generalRunning },
+        ...personas.sort((a, b) => {
+          if (a.slug === "editor") return -1;
+          if (b.slug === "editor") return 1;
+          return a.name.localeCompare(b.name);
+        }),
+      ];
+      setAgents(sorted);
+    } catch {
+      // Ignore transient startup/network failures.
+    }
   }
 
   async function refreshConversations() {
     if (!hasLoadedConversations) {
       setConversationsLoading(true);
     }
-    const params = new URLSearchParams();
-    if (activeAgentSlug) params.set("agent", activeAgentSlug);
-    const trigger = triggerFromFilter(triggerFilter);
-    const status = statusFromFilter(statusFilter);
-    if (trigger) params.set("trigger", trigger);
-    if (status) params.set("status", status);
-    params.set("limit", "200");
+    try {
+      const params = new URLSearchParams();
+      if (activeAgentSlug) params.set("agent", activeAgentSlug);
+      const trigger = triggerFromFilter(triggerFilter);
+      const status = statusFromFilter(statusFilter);
+      if (trigger) params.set("trigger", trigger);
+      if (status) params.set("status", status);
+      params.set("limit", "200");
 
-    const response = await fetch(`/api/agents/conversations?${params.toString()}`);
-    if (response.ok) {
-      const data = await response.json();
-      setConversations((data.conversations || []) as ConversationMeta[]);
+      const response = await fetch(`/api/agents/conversations?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setConversations((data.conversations || []) as ConversationMeta[]);
+      }
+    } catch {
+      // Ignore transient startup/network failures.
+    } finally {
+      setConversationsLoading(false);
+      setHasLoadedConversations(true);
     }
-    setConversationsLoading(false);
-    setHasLoadedConversations(true);
   }
 
   async function refreshLibrary() {

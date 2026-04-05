@@ -134,6 +134,26 @@ test("provider runtime resolves launch specs through registered providers", asyn
   assert.equal(resolveProviderId(), provider.id);
 });
 
+test("provider runtime falls back to the enabled default when the requested provider is disabled", async (t) => {
+  const providersPath = path.join(process.cwd(), "data", ".agents", ".config", "providers.json");
+  const originalSettings = await fs.readFile(providersPath, "utf8").catch(() => null);
+
+  await writeProviderSettings({
+    defaultProvider: "codex-cli",
+    disabledProviderIds: ["claude-code"],
+  });
+
+  t.after(async () => {
+    if (originalSettings === null) {
+      await fs.rm(providersPath, { force: true });
+      return;
+    }
+    await fs.writeFile(providersPath, originalSettings, "utf8");
+  });
+
+  assert.equal(resolveProviderId("claude-code"), "codex-cli");
+});
+
 test("runOneShotProviderPrompt closes stdin for CLI providers", async (t) => {
   const previousDefaultProvider = providerRegistry.defaultProvider;
   const scriptPath = await createExecutableScript(

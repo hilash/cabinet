@@ -1,13 +1,5 @@
-import { spawn } from "child_process";
-import os from "os";
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
-
-const ENRICHED_PATH = [
-  `${os.homedir()}/.local/bin`,
-  "/usr/local/bin",
-  "/opt/homebrew/bin",
-  process.env.PATH,
-].join(":");
+import { checkCliProviderAvailable } from "../provider-cli";
 
 export const claudeCodeProvider: AgentProvider = {
   id: "claude-code",
@@ -44,25 +36,7 @@ export const claudeCodeProvider: AgentProvider = {
   },
 
   async isAvailable(): Promise<boolean> {
-    return new Promise((resolve) => {
-      const proc = spawn("claude", ["--version"], {
-        stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, PATH: ENRICHED_PATH },
-      });
-
-      proc.on("close", (code) => {
-        resolve(code === 0);
-      });
-
-      proc.on("error", () => {
-        resolve(false);
-      });
-
-      setTimeout(() => {
-        proc.kill();
-        resolve(false);
-      }, 5000);
-    });
+    return checkCliProviderAvailable(this);
   },
 
   async healthCheck(): Promise<ProviderStatus> {

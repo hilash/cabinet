@@ -1,5 +1,5 @@
-import { spawn } from "child_process";
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
+import { checkCliProviderAvailable } from "../provider-cli";
 
 export const codexCliProvider: AgentProvider = {
   id: "codex-cli",
@@ -39,24 +39,7 @@ export const codexCliProvider: AgentProvider = {
   },
 
   async isAvailable(): Promise<boolean> {
-    return new Promise((resolve) => {
-      const proc = spawn("codex", ["--version"], {
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-
-      proc.on("close", (code) => {
-        resolve(code === 0);
-      });
-
-      proc.on("error", () => {
-        resolve(false);
-      });
-
-      setTimeout(() => {
-        proc.kill();
-        resolve(false);
-      }, 5000);
-    });
+    return checkCliProviderAvailable(this);
   },
 
   async healthCheck(): Promise<ProviderStatus> {

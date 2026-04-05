@@ -39,6 +39,17 @@ interface ProviderInfo {
   type: "cli" | "api";
   icon: string;
   enabled: boolean;
+  usage: {
+    agentSlugs: string[];
+    jobs: Array<{
+      agentSlug: string;
+      jobId: string;
+      jobName: string;
+    }>;
+    agentCount: number;
+    jobCount: number;
+    totalCount: number;
+  };
   available: boolean;
   authenticated: boolean;
   version?: string;
@@ -129,7 +140,11 @@ export function SettingsPage() {
     }
   }, []);
 
-  const saveProviderSettings = useCallback(async (nextDefaultProvider: string, disabledProviderIds: string[]) => {
+  const saveProviderSettings = useCallback(async (
+    nextDefaultProvider: string,
+    disabledProviderIds: string[],
+    migrations: Array<{ fromProviderId: string; toProviderId: string }> = []
+  ) => {
     setSavingProviders(true);
     try {
       const res = await fetch("/api/agents/providers", {
@@ -138,17 +153,47 @@ export function SettingsPage() {
         body: JSON.stringify({
           defaultProvider: nextDefaultProvider,
           disabledProviderIds,
+          migrations,
         }),
       });
       if (res.ok) {
         await refresh();
+        return true;
+      }
+
+      const data = await res.json().catch(() => null);
+      if (res.status === 409 && data?.conflicts) {
+        const message = (data.conflicts as Array<{
+          providerId: string;
+          agentSlugs: string[];
+          jobs: Array<{ jobName: string }>;
+          suggestedProviderId: string;
+        }>).map((conflict) =>
+          `${conflict.providerId}: ${conflict.agentSlugs.length} agents, ${conflict.jobs.length} jobs`
+        ).join("\n");
+        window.alert(`Provider disable blocked until assignments are migrated:\n${message}`);
       }
     } catch {
       // ignore
     } finally {
       setSavingProviders(false);
     }
+    return false;
   }, [refresh]);
+
+  const getProviderName = (providerId: string) =>
+    providers.find((provider) => provider.id === providerId)?.name || providerId;
+
+  const describeProviderUsage = (provider: ProviderInfo) => {
+    const parts: string[] = [];
+    if (provider.usage.agentCount > 0) {
+      parts.push(`${provider.usage.agentCount} agent${provider.usage.agentCount === 1 ? "" : "s"}`);
+    }
+    if (provider.usage.jobCount > 0) {
+      parts.push(`${provider.usage.jobCount} job${provider.usage.jobCount === 1 ? "" : "s"}`);
+    }
+    return parts.join(", ");
+  };
 
   const loadConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -483,6 +528,11 @@ export function SettingsPage() {
                                   <p className="text-[11px] text-muted-foreground">
                                     {provider.available ? provider.version || "Ready" : provider.error || "Not installed"}
                                   </p>
+                                  {provider.usage.totalCount > 0 && (
+                                    <p className="text-[11px] text-muted-foreground">
+                                      In use by {describeProviderUsage(provider)}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -501,7 +551,7 @@ export function SettingsPage() {
                                       : "Disabled"}
                                 </span>
                                 <button
-                                  onClick={() => {
+                                  onClick={async () => {
                                     const nextDisabled = provider.enabled
                                       ? providers
                                           .filter((entry) => !entry.enabled || entry.id === provider.id)
@@ -516,7 +566,19 @@ export function SettingsPage() {
                                       provider.id === defaultProvider && nextDisabled.includes(provider.id)
                                         ? enabledAfterToggle[0]?.id || defaultProvider
                                         : defaultProvider;
-                                    void saveProviderSettings(nextDefault, nextDisabled);
+                                    const migrations =
+                                      provider.enabled && provider.usage.totalCount > 0
+                                        ? [{ fromProviderId: provider.id, toProviderId: nextDefault }]
+                                        : [];
+
+                                    if (provider.enabled && provider.usage.totalCount > 0) {
+                                      const confirmed = window.confirm(
+                                        `Disable ${provider.name} and migrate ${describeProviderUsage(provider)} to ${getProviderName(nextDefault)}?`
+                                      );
+                                      if (!confirmed) return;
+                                    }
+
+                                    await saveProviderSettings(nextDefault, nextDisabled, migrations);
                                   }}
                                   disabled={savingProviders || (provider.id === defaultProvider && providers.filter((entry) => entry.type === "cli" && entry.enabled).length <= 1)}
                                   className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
