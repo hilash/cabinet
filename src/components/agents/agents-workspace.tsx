@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { useTreeStore } from "@/stores/tree-store";
@@ -267,10 +268,14 @@ export function AgentsWorkspace({
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionStartPos, setMentionStartPos] = useState(0);
-  const [savingSettings, setSavingSettings] = useState(false);
   const [creatingAgent, setCreatingAgent] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState(false);
   const [newAgentDraft, setNewAgentDraft] = useState<NewAgentDraft>(DEFAULT_NEW_AGENT);
+  const [settingsBodyHtml, setSettingsBodyHtml] = useState("");
+  const [settingsBodyMode, setSettingsBodyMode] = useState<"write" | "preview">("preview");
+  const [settingsEditorOpen, setSettingsEditorOpen] = useState(false);
+  const settingsLoadedRef = useRef(false);
+  const lastSavedSettingsRef = useRef<string | null>(null);
   const conversationsPanel = useHorizontalResize(340, 260, 520);
   const jobsPanel = useHorizontalResize(280, 220, 420);
   const treeNodes = useTreeStore((state) => state.nodes);
@@ -338,6 +343,15 @@ export function AgentsWorkspace({
       setSettingsJobs([]);
       setSelectedJobId(null);
       setJobDraft(null);
+      settingsLoadedRef.current = true;
+      lastSavedSettingsRef.current = JSON.stringify({
+        role: GENERAL_AGENT.role || "",
+        department: GENERAL_AGENT.department || "",
+        type: GENERAL_AGENT.type || "",
+        heartbeat: GENERAL_AGENT.heartbeat || "",
+        workspace: GENERAL_AGENT.workspace || "",
+        body: "",
+      });
       return;
     }
 
@@ -350,6 +364,15 @@ export function AgentsWorkspace({
       const data = (await personaResponse.json()) as PersonaResponse;
       setSettingsPersona(data.persona);
       setSettingsBody(data.persona.body || "");
+      lastSavedSettingsRef.current = JSON.stringify({
+        role: data.persona.role || "",
+        department: data.persona.department || "",
+        type: data.persona.type || "",
+        heartbeat: data.persona.heartbeat || "",
+        workspace: data.persona.workspace || "",
+        body: data.persona.body || "",
+      });
+      settingsLoadedRef.current = true;
     }
 
     if (jobsResponse.ok) {
@@ -406,9 +429,70 @@ export function AgentsWorkspace({
 
   useEffect(() => {
     if (mode === "settings" && settingsAgentSlug) {
+      settingsLoadedRef.current = false;
       void refreshSettings(settingsAgentSlug);
     }
   }, [mode, settingsAgentSlug]);
+
+  useEffect(() => {
+    if (mode !== "settings" || !settingsAgentSlug || settingsAgentSlug === "general") {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void fetch("/api/ai/render-md", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markdown: settingsBody }),
+      })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => {
+          setSettingsBodyHtml(data?.html || "");
+        })
+        .catch(() => {
+          setSettingsBodyHtml("");
+        });
+    }, 200);
+
+    return () => window.clearTimeout(timeout);
+  }, [mode, settingsAgentSlug, settingsBody]);
+
+  useEffect(() => {
+    if (
+      mode !== "settings" ||
+      !settingsAgentSlug ||
+      settingsAgentSlug === "general" ||
+      !settingsPersona ||
+      !settingsLoadedRef.current
+    ) {
+      return;
+    }
+
+    const nextSnapshot = JSON.stringify({
+      role: settingsPersona.role || "",
+      department: settingsPersona.department || "",
+      type: settingsPersona.type || "",
+      heartbeat: settingsPersona.heartbeat || "",
+      workspace: settingsPersona.workspace || "",
+      body: settingsBody,
+    });
+
+    if (nextSnapshot === lastSavedSettingsRef.current) return;
+
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        const response = await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: nextSnapshot,
+        });
+        if (!response.ok) return;
+        lastSavedSettingsRef.current = nextSnapshot;
+      })();
+    }, 500);
+
+    return () => window.clearTimeout(timeout);
+  }, [mode, settingsAgentSlug, settingsPersona, settingsBody]);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -507,29 +591,6 @@ export function AgentsWorkspace({
       await refreshConversations();
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function saveAgentSettings() {
-    if (!settingsAgentSlug || settingsAgentSlug === "general" || !settingsPersona) return;
-    setSavingSettings(true);
-    try {
-      await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: settingsPersona.role,
-          department: settingsPersona.department,
-          type: settingsPersona.type,
-          heartbeat: settingsPersona.heartbeat,
-          workspace: settingsPersona.workspace,
-          body: settingsBody,
-        }),
-      });
-      await refreshAgents();
-      await refreshSettings(settingsAgentSlug);
-    } finally {
-      setSavingSettings(false);
     }
   }
 
@@ -722,97 +783,102 @@ export function AgentsWorkspace({
     ? agents.find((agent) => agent.slug === settingsAgentSlug) || null
     : null;
 
-  function renderComposerPanel(agentSlug: string) {
+  function renderSettingsComposerPanel(agentSlug: string) {
     const panelAgent = agents.find((agent) => agent.slug === agentSlug) || null;
 
     return (
-      <div className="-mt-10 relative z-10">
-        <div className="mx-auto w-full max-w-3xl">
-          <div className="relative rounded-2xl border border-border bg-card p-4 shadow-xl">
-            <textarea
-              value={composerInput}
-              onChange={(event) =>
-                handleComposerInput(
-                  event.target.value,
-                  event.target.selectionStart || event.target.value.length
-                )
-              }
-              onKeyDown={(event) => {
-                if (showMentions && filteredMentions.length > 0) {
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    setMentionIndex((current) => (current + 1) % filteredMentions.length);
-                  } else if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    setMentionIndex((current) =>
-                      current === 0 ? filteredMentions.length - 1 : current - 1
-                    );
-                  } else if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    const page = filteredMentions[mentionIndex];
-                    if (page) insertMention(page.path, page.title);
-                  } else if (event.key === "Escape") {
-                    setShowMentions(false);
-                  }
-                  return;
-                }
-
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h4 className="text-[13px] font-semibold">Chat</h4>
+            <p className="text-[11px] text-muted-foreground">
+              Ask {panelAgent?.name || agentSlug} to work on something.
+            </p>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Cmd/Ctrl + Enter to send</p>
+        </div>
+        <div className="relative flex min-h-0 flex-1 flex-col rounded-xl bg-muted/20 p-3">
+          <textarea
+            value={composerInput}
+            onChange={(event) =>
+              handleComposerInput(
+                event.target.value,
+                event.target.selectionStart || event.target.value.length
+              )
+            }
+            onKeyDown={(event) => {
+              if (showMentions && filteredMentions.length > 0) {
+                if (event.key === "ArrowDown") {
                   event.preventDefault();
-                  void submitConversation(agentSlug);
+                  setMentionIndex((current) => (current + 1) % filteredMentions.length);
+                } else if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setMentionIndex((current) =>
+                    current === 0 ? filteredMentions.length - 1 : current - 1
+                  );
+                } else if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  const page = filteredMentions[mentionIndex];
+                  if (page) insertMention(page.path, page.title);
+                } else if (event.key === "Escape") {
+                  setShowMentions(false);
                 }
-              }}
-              placeholder={`Ask ${panelAgent?.name || agentSlug} to work on something...`}
-              className="min-h-[56px] w-full resize-none bg-transparent text-[14px] outline-none"
-            />
+                return;
+              }
 
-            {mentionedPaths.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {mentionedPaths.map((path) => (
-                  <button
-                    key={path}
-                    onClick={() =>
-                      setMentionedPaths((current) => current.filter((entry) => entry !== path))
-                    }
-                    className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-                  >
-                    @{makePageContextLabel(path, allPages)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {showMentions && filteredMentions.length > 0 ? (
-              <div className="absolute left-4 right-4 top-[calc(100%-12px)] z-20 rounded-xl border border-border bg-popover p-1 shadow-lg">
-                {filteredMentions.slice(0, 6).map((page, index) => (
-                  <button
-                    key={page.path}
-                    onClick={() => insertMention(page.path, page.title)}
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px]",
-                      index === mentionIndex
-                        ? "bg-accent text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                    )}
-                  >
-                    <span className="truncate">{page.title}</span>
-                    <span className="ml-3 truncate text-[11px] text-muted-foreground">
-                      {page.path}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-[11px] text-muted-foreground">
-                Tip: type <span className="font-mono">@</span> to mention KB files. Press Cmd/Ctrl + Enter to send.
-              </p>
-              <Button className="gap-2" onClick={() => void submitConversation(agentSlug)} disabled={submitting}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Start conversation
-              </Button>
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                void submitConversation(agentSlug);
+              }
+            }}
+            placeholder={`Ask ${panelAgent?.name || agentSlug} to work on something...`}
+            className="min-h-0 flex-1 resize-none bg-transparent text-[13px] outline-none"
+          />
+          {mentionedPaths.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {mentionedPaths.map((path) => (
+                <button
+                  key={path}
+                  onClick={() =>
+                    setMentionedPaths((current) => current.filter((entry) => entry !== path))
+                  }
+                  className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  @{makePageContextLabel(path, allPages)}
+                </button>
+              ))}
             </div>
+          ) : null}
+          {showMentions && filteredMentions.length > 0 ? (
+            <div className="absolute inset-x-3 bottom-14 z-20 rounded-xl border border-border bg-popover p-1 shadow-lg">
+              {filteredMentions.slice(0, 6).map((page, index) => (
+                <button
+                  key={page.path}
+                  onClick={() => insertMention(page.path, page.title)}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px]",
+                    index === mentionIndex
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                  )}
+                >
+                  <span className="truncate">{page.title}</span>
+                  <span className="ml-3 truncate text-[11px] text-muted-foreground">
+                    {page.path}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-3 flex items-center justify-end">
+            <Button
+              className="h-8 gap-2 text-xs"
+              onClick={() => void submitConversation(agentSlug)}
+              disabled={submitting}
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Start conversation
+            </Button>
           </div>
         </div>
       </div>
@@ -827,16 +893,26 @@ export function AgentsWorkspace({
       >
         <div className="border-b border-border px-4 py-3">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-[14px] font-semibold">
-                {activeAgent ? activeAgent.name : "All agents"}
-              </h3>
-              <p className="text-[11px] text-muted-foreground">
-                {activeAgent
-                  ? `Recent runs for ${activeAgent.name}`
-                  : "Recent runs across your whole team"}
-              </p>
-            </div>
+            {activeAgent ? (
+              <button
+                onClick={() => openAgentSettings(activeAgent.slug)}
+                className="rounded-xl bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted/60"
+              >
+                <h3 className="text-[14px] font-semibold">
+                  {activeAgent.name}
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  {`Recent runs for ${activeAgent.name}`}
+                </p>
+              </button>
+            ) : (
+              <div className="rounded-xl bg-muted/40 px-3 py-2">
+                <h3 className="text-[14px] font-semibold">All agents</h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Recent runs across your whole team
+                </p>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="icon-sm"
@@ -1050,8 +1126,383 @@ export function AgentsWorkspace({
                 </div>
               </div>
             ) : null}
-            <ScrollArea className={settingsPersona ? "min-h-0 flex-1" : "h-full"}>
-              <div className={cn("space-y-6 p-5", settingsPersona ? "pb-4" : "")}>
+            {settingsPersona ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+                <div className="flex min-h-0 basis-[30%] flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{settingsAgent?.emoji || "🤖"}</span>
+                      <h3 className="text-[15px] font-semibold">
+                        {settingsAgent?.name || "Agent settings"}
+                      </h3>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 text-xs"
+                        onClick={() => setSettingsEditorOpen(true)}
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                        Edit agent
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={runHeartbeatNow}>
+                        <Zap className="h-3.5 w-3.5" />
+                        Run heartbeat
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={toggleAgentActive}>
+                        {settingsPersona.active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                        {settingsPersona.active ? "Pause" : "Activate"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 rounded-xl bg-muted/20 p-3">
+                    <div className="flex h-full min-h-0 gap-3">
+                      <div className="min-w-0 flex-[3]">
+                        <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden">
+                          {settingsBodyHtml ? (
+                            <div
+                              className="prose prose-sm max-w-none opacity-90 prose-headings:mb-1 prose-headings:font-semibold prose-h1:text-sm prose-h2:text-[12px] prose-h3:text-[12px] prose-p:my-1 prose-p:text-[12px] prose-li:my-0 prose-li:text-[12px] prose-code:text-[11px] prose-code:bg-background prose-code:px-1 prose-code:rounded prose-pre:bg-background prose-pre:border-0 prose-strong:text-foreground"
+                              dangerouslySetInnerHTML={{ __html: settingsBodyHtml }}
+                            />
+                          ) : settingsBody.trim() ? (
+                            <pre className="whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
+                              {settingsBody}
+                            </pre>
+                          ) : (
+                            <div className="text-[12px] text-muted-foreground">
+                              No instructions yet.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex min-w-0 flex-[2] flex-col justify-between gap-2">
+                        <div className="flex min-w-0 flex-1 gap-2">
+                          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                            <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-3">
+                              {settingsPersona.role || "Not set"}
+                            </div>
+                          </div>
+                          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                            <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-3">
+                              {settingsPersona.heartbeat || "Not set"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex min-w-0 flex-1 gap-2">
+                          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                            <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
+                              {settingsPersona.department || "Not set"}
+                            </div>
+                          </div>
+                          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                            <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
+                              {settingsPersona.type || "Not set"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                          <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-2">
+                            {settingsPersona.workspace || "Not set"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Dialog open={settingsEditorOpen} onOpenChange={setSettingsEditorOpen}>
+                  <DialogContent className="sm:max-w-5xl">
+                    <DialogHeader>
+                      <DialogTitle>Edit Agent</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                              Instructions
+                            </span>
+                            <div className="flex rounded-lg bg-muted/60 p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setSettingsBodyMode("write")}
+                                className={cn(
+                                  "rounded-md px-2.5 py-1 text-[11px] transition-colors",
+                                  settingsBodyMode === "write"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                Write
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSettingsBodyMode("preview")}
+                                className={cn(
+                                  "rounded-md px-2.5 py-1 text-[11px] transition-colors",
+                                  settingsBodyMode === "preview"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                Preview
+                              </button>
+                            </div>
+                          </div>
+                          {settingsBodyMode === "write" ? (
+                            <textarea
+                              value={settingsBody}
+                              onChange={(event) => setSettingsBody(event.target.value)}
+                              className="h-[60vh] w-full resize-none rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
+                              placeholder="Write markdown for this agent's instructions."
+                            />
+                          ) : (
+                            <div className="h-[60vh] overflow-auto rounded-lg bg-muted/60 px-3 py-3">
+                              {settingsBodyHtml ? (
+                                <div
+                                  className="prose prose-sm max-w-none prose-headings:font-semibold prose-h1:text-base prose-h2:text-[13px] prose-h3:text-[12px] prose-p:text-[12px] prose-li:text-[12px] prose-code:text-[11px] prose-code:bg-background prose-code:px-1 prose-code:rounded prose-pre:bg-background prose-pre:border-0 prose-strong:text-foreground"
+                                  dangerouslySetInnerHTML={{ __html: settingsBodyHtml }}
+                                />
+                              ) : settingsBody.trim() ? (
+                                <pre className="whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
+                                  {settingsBody}
+                                </pre>
+                              ) : (
+                                <div className="text-[12px] text-muted-foreground">
+                                  Nothing to preview yet.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid content-start gap-2.5 sm:grid-cols-2 xl:grid-cols-2">
+                          <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                            <span>Role</span>
+                            <input
+                              value={settingsPersona.role || ""}
+                              onChange={(event) =>
+                                setSettingsPersona({ ...settingsPersona, role: event.target.value })
+                              }
+                              className="w-full rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
+                            />
+                          </label>
+                          <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                            <span>Heartbeat</span>
+                            <input
+                              value={settingsPersona.heartbeat || ""}
+                              onChange={(event) =>
+                                setSettingsPersona({ ...settingsPersona, heartbeat: event.target.value })
+                              }
+                              className="w-full rounded-lg bg-muted/60 px-3 py-2 font-mono text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
+                            />
+                          </label>
+                          <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                            <span>Department</span>
+                            <input
+                              value={settingsPersona.department || ""}
+                              onChange={(event) =>
+                                setSettingsPersona({ ...settingsPersona, department: event.target.value })
+                              }
+                              className="w-full rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
+                            />
+                          </label>
+                          <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                            <span>Type</span>
+                            <input
+                              value={settingsPersona.type || ""}
+                              onChange={(event) =>
+                                setSettingsPersona({ ...settingsPersona, type: event.target.value })
+                              }
+                              className="w-full rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
+                            />
+                          </label>
+                          <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
+                            <span>Workspace</span>
+                            <input
+                              value={settingsPersona.workspace || ""}
+                              onChange={(event) =>
+                                setSettingsPersona({ ...settingsPersona, workspace: event.target.value })
+                              }
+                              className="w-full rounded-lg bg-muted/60 px-3 py-2 font-mono text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      <div className="flex justify-end border-t border-border pt-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1 text-xs text-destructive"
+                          onClick={deleteAgent}
+                          disabled={deletingAgent}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {deletingAgent ? "Removing..." : "Remove agent"}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <div className="min-h-0 basis-1/2">
+                  <div className="flex h-full min-h-0">
+                    <div
+                      className="shrink-0 overflow-hidden rounded-l-xl rounded-r-none border border-r-0 border-border"
+                      style={{ width: jobsPanel.width }}
+                    >
+                      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                        <div>
+                          <h4 className="text-[13px] font-semibold">Jobs</h4>
+                          <p className="text-[11px] text-muted-foreground">Heartbeat stays above, recurring jobs live here</p>
+                        </div>
+                        <Button size="sm" className="h-8 gap-1 text-xs" onClick={startNewJobDraft}>
+                          <Plus className="h-3.5 w-3.5" />
+                          Add job
+                        </Button>
+                      </div>
+                      <div className="space-y-1 p-2">
+                        {settingsJobs.length === 0 ? (
+                          <div className="px-2 py-6 text-[12px] text-muted-foreground">No jobs yet.</div>
+                        ) : (
+                          settingsJobs.map((job) => (
+                            <button
+                              key={job.id}
+                              onClick={() => openJob(job.id)}
+                              className={cn(
+                                "w-full rounded-lg border px-3 py-3 text-left transition-colors",
+                                selectedJobId === job.id
+                                  ? "border-primary/30 bg-primary/5"
+                                  : "border-border hover:bg-accent/40"
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                <span className="truncate text-[12px] font-medium">{job.name}</span>
+                                <span
+                                  className={cn(
+                                    "ml-auto rounded-full px-1.5 py-0.5 text-[10px]",
+                                    job.enabled
+                                      ? "bg-emerald-500/10 text-emerald-500"
+                                      : "bg-muted text-muted-foreground"
+                                  )}
+                                >
+                                  {job.enabled ? "On" : "Off"}
+                                </span>
+                              </div>
+                              <p className="mt-1 truncate text-[11px] text-muted-foreground">{job.schedule}</p>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="Resize jobs panel"
+                      onPointerDown={jobsPanel.startResize}
+                      className="relative w-3 shrink-0 cursor-col-resize bg-transparent"
+                    >
+                      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+                    </div>
+
+                    <div className="min-w-0 flex-1 rounded-r-xl rounded-l-none border border-l-0 border-border p-4">
+                      {jobDraft ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-[13px] font-semibold">
+                                {selectedJobId === "__new__" ? "New job" : "Job settings"}
+                              </h4>
+                              <p className="text-[11px] text-muted-foreground">
+                                Prompts relevant to the agent that run on a schedule
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              {selectedJobId && selectedJobId !== "__new__" ? (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 gap-1 text-xs"
+                                    onClick={() => runJob(selectedJobId)}
+                                  >
+                                    <Play className="h-3.5 w-3.5" />
+                                    Run
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 gap-1 text-xs text-destructive"
+                                    onClick={() => deleteJob(selectedJobId)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Delete
+                                  </Button>
+                                </>
+                              ) : null}
+                              <Button size="sm" className="h-8 text-xs" onClick={saveJob}>
+                                Save job
+                              </Button>
+                            </div>
+                          </div>
+                          <label className="space-y-1 text-[11px] text-muted-foreground">
+                            <span>Name</span>
+                            <input
+                              value={jobDraft.name}
+                              onChange={(event) => setJobDraft({ ...jobDraft, name: event.target.value })}
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1 text-[11px] text-muted-foreground">
+                            <span>Schedule</span>
+                            <input
+                              value={jobDraft.schedule}
+                              onChange={(event) => setJobDraft({ ...jobDraft, schedule: event.target.value })}
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1 text-[11px] text-muted-foreground">
+                            <span>Timeout (seconds)</span>
+                            <input
+                              type="number"
+                              value={jobDraft.timeout || 600}
+                              onChange={(event) =>
+                                setJobDraft({
+                                  ...jobDraft,
+                                  timeout: parseInt(event.target.value || "600", 10),
+                                })
+                              }
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1 text-[11px] text-muted-foreground">
+                            <span>Prompt</span>
+                            <textarea
+                              value={jobDraft.prompt}
+                              onChange={(event) => setJobDraft({ ...jobDraft, prompt: event.target.value })}
+                              className="min-h-[220px] w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="flex h-full min-h-[280px] items-center justify-center text-[12px] text-muted-foreground">
+                          Select a job to edit its settings, or create a new one.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-h-0 basis-[20%]">
+                  {renderSettingsComposerPanel(settingsAgentSlug)}
+                </div>
+              </div>
+            ) : (
+            <ScrollArea className="h-full">
+              <div className="space-y-6 p-5">
                 {settingsTarget === "directory" || !settingsTarget ? (
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {agents.map((agent) => (
@@ -1287,255 +1738,6 @@ export function AgentsWorkspace({
                       Open General conversations
                     </Button>
                   </div>
-                ) : settingsPersona ? (
-                  <>
-                    <div className="flex items-center gap-3 px-1">
-                      <span className="text-2xl">{settingsAgent?.emoji || "🤖"}</span>
-                      <h3 className="text-[15px] font-semibold">
-                        {settingsAgent?.name || "Agent settings"}
-                      </h3>
-                    </div>
-
-                    <div className="rounded-xl border border-border p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <h4 className="text-[13px] font-semibold">Agent definition</h4>
-                          <p className="text-[11px] text-muted-foreground">Core identity and heartbeat settings</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={runHeartbeatNow}>
-                            <Zap className="h-3.5 w-3.5" />
-                            Run heartbeat
-                          </Button>
-                          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={toggleAgentActive}>
-                            {settingsPersona.active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                            {settingsPersona.active ? "Pause" : "Activate"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 gap-1 text-xs text-destructive"
-                            onClick={deleteAgent}
-                            disabled={deletingAgent}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            {deletingAgent ? "Removing..." : "Remove agent"}
-                          </Button>
-                          <Button size="sm" className="h-8 text-xs" onClick={saveAgentSettings} disabled={savingSettings}>
-                            {savingSettings ? "Saving..." : "Save"}
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <label className="space-y-1 text-[11px] text-muted-foreground">
-                          <span>Role</span>
-                          <input
-                            value={settingsPersona.role || ""}
-                            onChange={(event) =>
-                              setSettingsPersona({ ...settingsPersona, role: event.target.value })
-                            }
-                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                          />
-                        </label>
-                        <label className="space-y-1 text-[11px] text-muted-foreground">
-                          <span>Heartbeat</span>
-                          <input
-                            value={settingsPersona.heartbeat || ""}
-                            onChange={(event) =>
-                              setSettingsPersona({ ...settingsPersona, heartbeat: event.target.value })
-                            }
-                            className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground"
-                          />
-                        </label>
-                        <label className="space-y-1 text-[11px] text-muted-foreground">
-                          <span>Department</span>
-                          <input
-                            value={settingsPersona.department || ""}
-                            onChange={(event) =>
-                              setSettingsPersona({ ...settingsPersona, department: event.target.value })
-                            }
-                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                          />
-                        </label>
-                        <label className="space-y-1 text-[11px] text-muted-foreground">
-                          <span>Type</span>
-                          <input
-                            value={settingsPersona.type || ""}
-                            onChange={(event) =>
-                              setSettingsPersona({ ...settingsPersona, type: event.target.value })
-                            }
-                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                          />
-                        </label>
-                        <label className="col-span-2 space-y-1 text-[11px] text-muted-foreground">
-                          <span>Workspace</span>
-                          <input
-                            value={settingsPersona.workspace || ""}
-                            onChange={(event) =>
-                              setSettingsPersona({ ...settingsPersona, workspace: event.target.value })
-                            }
-                            className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground"
-                          />
-                        </label>
-                        <label className="col-span-2 space-y-1 text-[11px] text-muted-foreground">
-                          <span>Instructions</span>
-                          <textarea
-                            value={settingsBody}
-                            onChange={(event) => setSettingsBody(event.target.value)}
-                            className="min-h-[220px] w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="flex min-h-[420px]">
-                      <div
-                        className="shrink-0 overflow-hidden rounded-l-xl rounded-r-none border border-r-0 border-border"
-                        style={{ width: jobsPanel.width }}
-                      >
-                        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                          <div>
-                            <h4 className="text-[13px] font-semibold">Jobs</h4>
-                            <p className="text-[11px] text-muted-foreground">Heartbeat stays above, recurring jobs live here</p>
-                          </div>
-                          <Button size="sm" className="h-8 gap-1 text-xs" onClick={startNewJobDraft}>
-                            <Plus className="h-3.5 w-3.5" />
-                            Add job
-                          </Button>
-                        </div>
-                        <div className="space-y-1 p-2">
-                          {settingsJobs.length === 0 ? (
-                            <div className="px-2 py-6 text-[12px] text-muted-foreground">No jobs yet.</div>
-                          ) : (
-                            settingsJobs.map((job) => (
-                              <button
-                                key={job.id}
-                                onClick={() => openJob(job.id)}
-                                className={cn(
-                                  "w-full rounded-lg border px-3 py-3 text-left transition-colors",
-                                  selectedJobId === job.id
-                                    ? "border-primary/30 bg-primary/5"
-                                    : "border-border hover:bg-accent/40"
-                                )}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <FileText className="h-4 w-4 text-muted-foreground" />
-                                  <span className="truncate text-[12px] font-medium">{job.name}</span>
-                                  <span
-                                    className={cn(
-                                      "ml-auto rounded-full px-1.5 py-0.5 text-[10px]",
-                                      job.enabled
-                                        ? "bg-emerald-500/10 text-emerald-500"
-                                        : "bg-muted text-muted-foreground"
-                                    )}
-                                  >
-                                    {job.enabled ? "On" : "Off"}
-                                  </span>
-                                </div>
-                                <p className="mt-1 truncate text-[11px] text-muted-foreground">{job.schedule}</p>
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      </div>
-
-                      <div
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label="Resize jobs panel"
-                        onPointerDown={jobsPanel.startResize}
-                        className="relative w-3 shrink-0 cursor-col-resize bg-transparent"
-                      >
-                        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
-                      </div>
-
-                      <div className="min-w-0 flex-1 rounded-r-xl rounded-l-none border border-l-0 border-border p-4">
-                        {jobDraft ? (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="text-[13px] font-semibold">
-                                  {selectedJobId === "__new__" ? "New job" : "Job settings"}
-                                </h4>
-                                <p className="text-[11px] text-muted-foreground">
-                                  Prompts relevant to the agent that run on a schedule
-                                </p>
-                              </div>
-                              <div className="flex gap-2">
-                                {selectedJobId && selectedJobId !== "__new__" ? (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-8 gap-1 text-xs"
-                                      onClick={() => runJob(selectedJobId)}
-                                    >
-                                      <Play className="h-3.5 w-3.5" />
-                                      Run
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 gap-1 text-xs text-destructive"
-                                      onClick={() => deleteJob(selectedJobId)}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      Delete
-                                    </Button>
-                                  </>
-                                ) : null}
-                                <Button size="sm" className="h-8 text-xs" onClick={saveJob}>
-                                  Save job
-                                </Button>
-                              </div>
-                            </div>
-                            <label className="space-y-1 text-[11px] text-muted-foreground">
-                              <span>Name</span>
-                              <input
-                                value={jobDraft.name}
-                                onChange={(event) => setJobDraft({ ...jobDraft, name: event.target.value })}
-                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                              />
-                            </label>
-                            <label className="space-y-1 text-[11px] text-muted-foreground">
-                              <span>Schedule</span>
-                              <input
-                                value={jobDraft.schedule}
-                                onChange={(event) => setJobDraft({ ...jobDraft, schedule: event.target.value })}
-                                className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground"
-                              />
-                            </label>
-                            <label className="space-y-1 text-[11px] text-muted-foreground">
-                              <span>Timeout (seconds)</span>
-                              <input
-                                type="number"
-                                value={jobDraft.timeout || 600}
-                                onChange={(event) =>
-                                  setJobDraft({
-                                    ...jobDraft,
-                                    timeout: parseInt(event.target.value || "600", 10),
-                                  })
-                                }
-                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                              />
-                            </label>
-                            <label className="space-y-1 text-[11px] text-muted-foreground">
-                              <span>Prompt</span>
-                              <textarea
-                                value={jobDraft.prompt}
-                                onChange={(event) => setJobDraft({ ...jobDraft, prompt: event.target.value })}
-                                className="min-h-[220px] w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                              />
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="flex h-full min-h-[280px] items-center justify-center text-[12px] text-muted-foreground">
-                            Select a job to edit its settings, or create a new one.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
                 ) : (
                   <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1544,11 +1746,7 @@ export function AgentsWorkspace({
                 )}
               </div>
             </ScrollArea>
-            {settingsPersona ? (
-              <div className="sticky bottom-0 shrink-0 bg-transparent px-5 pt-10 pb-4">
-                {renderComposerPanel(settingsAgentSlug)}
-              </div>
-            ) : null}
+            )}
           </div>
         ) : (
           <div className="flex h-full flex-col">

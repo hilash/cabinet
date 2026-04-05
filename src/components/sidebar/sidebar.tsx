@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useSyncExternalStore,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   PanelLeftClose,
   PanelLeft,
@@ -16,6 +23,7 @@ import {
   Code,
   BarChart3,
   Briefcase,
+  Clock3,
   DollarSign,
   Wrench,
   Palette,
@@ -35,16 +43,16 @@ import { NewPageDialog } from "./new-page-dialog";
 import { useAppStore } from "@/stores/app-store";
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    setMounted(true);
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  return { isMobile, mounted };
+  const isMobile = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("resize", onChange);
+      return () => window.removeEventListener("resize", onChange);
+    },
+    () => window.innerWidth < 768,
+    () => false
+  );
+
+  return isMobile;
 }
 
 interface AgentSummary {
@@ -123,7 +131,7 @@ function NavButton({
 }
 
 export function Sidebar() {
-  const { isMobile, mounted } = useIsMobile();
+  const isMobile = useIsMobile();
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const setCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const section = useAppStore((s) => s.section);
@@ -131,8 +139,20 @@ export function Sidebar() {
 
   const [agentsExpanded, setAgentsExpanded] = useState(true);
   const [agents, setAgents] = useState<AgentSummary[]>([]);
-  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
+    const storedWidth = window.localStorage.getItem("cabinet-sidebar-width");
+    const parsedWidth = storedWidth ? Number(storedWidth) : NaN;
+    return Number.isFinite(parsedWidth)
+      ? clamp(parsedWidth, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH)
+      : SIDEBAR_DEFAULT_WIDTH;
+  });
   const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("cabinet-sidebar-width", String(sidebarWidth));
+  }, [sidebarWidth]);
 
   useEffect(() => {
     function handlePointerMove(event: PointerEvent) {
@@ -157,12 +177,6 @@ export function Sidebar() {
     };
   }, []);
 
-  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
-    dragStateRef.current = { startX: event.clientX, startWidth: sidebarWidth };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }
-
   const loadAgents = useCallback(async () => {
     try {
       const res = await fetch("/api/agents/personas");
@@ -184,20 +198,29 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
-    void loadAgents();
+    const initialLoad = window.setTimeout(() => {
+      void loadAgents();
+    }, 0);
     const interval = window.setInterval(() => {
       void loadAgents();
     }, 5000);
     window.addEventListener("focus", loadAgents);
     return () => {
+      window.clearTimeout(initialLoad);
       window.clearInterval(interval);
       window.removeEventListener("focus", loadAgents);
     };
   }, [loadAgents]);
 
   useEffect(() => {
-    if (mounted && isMobile) setCollapsed(true);
-  }, [mounted, isMobile, setCollapsed]);
+    if (isMobile) setCollapsed(true);
+  }, [isMobile, setCollapsed]);
+
+  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
+    dragStateRef.current = { startX: event.clientX, startWidth: sidebarWidth };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
 
   const desktopClass = collapsed ? "w-0 overflow-hidden" : "shrink-0";
   const mobileClass = cn(
@@ -207,7 +230,7 @@ export function Sidebar() {
 
   return (
     <>
-      {mounted && isMobile && !collapsed && (
+      {isMobile && !collapsed && (
         <div
           className="fixed inset-0 bg-black/50 z-30"
           onClick={() => setCollapsed(true)}
@@ -218,7 +241,7 @@ export function Sidebar() {
         suppressHydrationWarning
         className={cn(
           "flex flex-col bg-sidebar transition-all duration-200 h-screen overflow-hidden",
-          mounted && isMobile ? mobileClass : desktopClass
+          isMobile ? mobileClass : desktopClass
         )}
         style={!isMobile && !collapsed ? { width: sidebarWidth } : undefined}
       >
@@ -246,6 +269,12 @@ export function Sidebar() {
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
             Team
           </p>
+          <NavButton
+            icon={Clock3}
+            label="Jobs"
+            active={section.type === "jobs"}
+            onClick={() => setSection({ type: "jobs" })}
+          />
           {/* Agents header with expand/collapse */}
           <button
             onClick={() => {
@@ -354,9 +383,9 @@ export function Sidebar() {
           aria-orientation="vertical"
           aria-label="Resize sidebar"
           onPointerDown={startResize}
-          className="relative h-screen w-3 shrink-0 cursor-col-resize bg-transparent"
+          className="relative -ml-px h-screen w-3 shrink-0 cursor-col-resize bg-transparent"
         >
-          <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+          <div className="absolute inset-y-0 left-0 w-px bg-border" />
         </div>
       )}
       {collapsed && (
