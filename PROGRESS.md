@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-05] Published host port `3001` in Compose for agent PTY WebSockets when using `http://localhost:3000` directly. Docs: default startup is `npm run dev:all` / npm commands; Docker Compose is an optional alternative. Web-terminal errors list npm first, then Compose.
+
 [2026-04-03] Rebuilt the agents experience around durable filesystem-backed conversations. Added a shared conversation store (`data/.agents/.conversations/*`), moved manual sessions/jobs/heartbeats onto the daemon PTY runtime, added conversations APIs, and replaced the old agent list/detail split with a three-pane agents workspace focused on live and replayable Claude sessions. Also added `scripts/launch-chrome-debug.sh` plus `npm run debug:chrome` for CDP-based Chrome debugging on port 9222.
 
 [2026-04-03] Major agent system refactor — removed "Plays" concept entirely: deleted play-manager.ts, trigger-engine.ts, api/plays/ routes, playbook-catalog.tsx, webhook/[slug] and triggers API routes. Unified all Claude invocations to use PTY via the cabinet daemon (heartbeat.ts runHeartbeat, daemon executeJob). Cleaned up all play references from 15+ components/types/API routes. Build passes clean with no play routes.

@@ -89,6 +89,8 @@ npm run build        # Production build
 npm run lint         # ESLint
 ```
 
+**Docker Compose** (optional): runs Next.js and the cabinet daemon in containers — `docker compose up --build` (app on :3000, daemon on :3001; optional Caddy on :80).
+
 ## Frontend Debugging
 
 Use `npm run debug:chrome` when you need a debuggable browser session. It launches Chrome or Chromium with `--remote-debugging-port=9222`, opens Cabinet at `http://localhost:3000` by default, and prints the DevTools endpoints:
