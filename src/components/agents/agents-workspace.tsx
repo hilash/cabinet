@@ -232,6 +232,7 @@ export function AgentsWorkspace({
   const [savingSettings, setSavingSettings] = useState(false);
   const [creatingAgent, setCreatingAgent] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState(false);
+  const [generatingInstructions, setGeneratingInstructions] = useState(false);
   const [newAgentDraft, setNewAgentDraft] = useState<NewAgentDraft>(DEFAULT_NEW_AGENT);
   const treeNodes = useTreeStore((state) => state.nodes);
   const selectPage = useTreeStore((state) => state.selectPage);
@@ -617,6 +618,48 @@ export function AgentsWorkspace({
       setSelectedConversationId(data.run.id as string);
       setMode("conversation");
       await refreshConversations();
+    }
+  }
+
+  async function generateInstructions() {
+    if (!newAgentDraft.name.trim() || !newAgentDraft.role.trim()) return;
+    setGeneratingInstructions(true);
+    try {
+      const prompt = `Generate system prompt instructions for a Cabinet AI agent. Output ONLY the instructions body — no YAML frontmatter, no preamble, no explanation.
+
+Agent details:
+- Name: ${newAgentDraft.name.trim()}
+- Role: ${newAgentDraft.role.trim()}
+- Department: ${newAgentDraft.department || "general"}
+- Type: ${newAgentDraft.type || "specialist"}
+
+Use this exact structure:
+
+# {Name} Agent
+
+You are the {Name}. Your role is to:
+
+1. **{Responsibility 1}** — one-line description
+2. **{Responsibility 2}** — one-line description
+3. **{Responsibility 3}** — one-line description
+4. **{Responsibility 4}** — one-line description
+
+## Working Style
+- Short, opinionated bullet (3-5 bullets)
+
+Derive 4 responsibilities and 3-5 working-style bullets directly from the name and role. Be specific and actionable. Output nothing outside the structure above.`;
+
+      const response = await fetch("/api/agents/headless", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await response.json();
+      if (data.ok && data.output) {
+        setNewAgentDraft((current) => ({ ...current, body: data.output }));
+      }
+    } finally {
+      setGeneratingInstructions(false);
     }
   }
 
@@ -1118,8 +1161,28 @@ export function AgentsWorkspace({
                             ))}
                           </div>
                         </div>
-                        <label className="col-span-2 space-y-1 text-[11px] text-muted-foreground">
-                          <span>Instructions</span>
+                        <div className="col-span-2 space-y-1 text-[11px] text-muted-foreground">
+                          <div className="flex items-center justify-between">
+                            <span>Instructions</span>
+                            <button
+                              type="button"
+                              onClick={generateInstructions}
+                              disabled={generatingInstructions || !newAgentDraft.name.trim() || !newAgentDraft.role.trim()}
+                              className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                            >
+                              {generatingInstructions ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  Generating…
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="h-3 w-3" />
+                                  Auto-generate
+                                </>
+                              )}
+                            </button>
+                          </div>
                           <textarea
                             value={newAgentDraft.body}
                             onChange={(event) =>
@@ -1128,7 +1191,7 @@ export function AgentsWorkspace({
                             className="min-h-[220px] w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
                             placeholder="Define how this agent should work inside Cabinet and the KB."
                           />
-                        </label>
+                        </div>
                       </div>
                       <div className="mt-4 flex items-center justify-between">
                         <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
