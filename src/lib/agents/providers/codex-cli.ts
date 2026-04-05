@@ -31,17 +31,10 @@ export const codexCliProvider: AgentProvider = {
     };
   },
 
-  buildSessionInvocation(prompt: string | undefined, workdir: string) {
-    if (!prompt?.trim()) {
-      return {
-        command: this.command || "codex",
-        args: [],
-      };
-    }
-
+  buildSessionInvocation(prompt: string | undefined, _workdir: string) {
     return {
       command: this.command || "codex",
-      args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
+      args: prompt?.trim() ? [prompt.trim()] : [],
     };
   },
 
