@@ -266,54 +266,67 @@ export function AgentsWorkspace({
   const cliProviders = providers.filter((provider) => provider.type === "cli" && provider.enabled);
 
   async function refreshProviders() {
-    const response = await fetch("/api/agents/providers");
-    if (!response.ok) return;
-    const data = await response.json();
-    setProviders((data.providers || []) as ProviderInfo[]);
-    setDefaultProvider(data.defaultProvider || "claude-code");
+    try {
+      const response = await fetch("/api/agents/providers");
+      if (!response.ok) return;
+      const data = await response.json();
+      setProviders((data.providers || []) as ProviderInfo[]);
+      setDefaultProvider(data.defaultProvider || "claude-code");
+    } catch {
+      // Ignore transient startup/network failures.
+    }
   }
 
   async function refreshAgents() {
-    const response = await fetch("/api/agents/personas");
-    if (!response.ok) return;
-    const data = await response.json();
-    const personas = (data.personas || []) as AgentSummary[];
-    const generalRunning =
-      conversations.filter(
-        (conversation) =>
-          conversation.agentSlug === "general" && conversation.status === "running"
-      ).length || 0;
+    try {
+      const response = await fetch("/api/agents/personas");
+      if (!response.ok) return;
+      const data = await response.json();
+      const personas = (data.personas || []) as AgentSummary[];
+      const generalRunning =
+        conversations.filter(
+          (conversation) =>
+            conversation.agentSlug === "general" && conversation.status === "running"
+        ).length || 0;
 
-    const sorted = [
-      { ...GENERAL_AGENT, runningCount: generalRunning },
-      ...personas.sort((a, b) => {
-        if (a.slug === "editor") return -1;
-        if (b.slug === "editor") return 1;
-        return a.name.localeCompare(b.name);
-      }),
-    ];
-    setAgents(sorted);
+      const sorted = [
+        { ...GENERAL_AGENT, runningCount: generalRunning },
+        ...personas.sort((a, b) => {
+          if (a.slug === "editor") return -1;
+          if (b.slug === "editor") return 1;
+          return a.name.localeCompare(b.name);
+        }),
+      ];
+      setAgents(sorted);
+    } catch {
+      // Ignore transient startup/network failures.
+    }
   }
 
   async function refreshConversations() {
     if (!hasLoadedConversations) {
       setConversationsLoading(true);
     }
-    const params = new URLSearchParams();
-    if (activeAgentSlug) params.set("agent", activeAgentSlug);
-    const trigger = triggerFromFilter(triggerFilter);
-    const status = statusFromFilter(statusFilter);
-    if (trigger) params.set("trigger", trigger);
-    if (status) params.set("status", status);
-    params.set("limit", "200");
+    try {
+      const params = new URLSearchParams();
+      if (activeAgentSlug) params.set("agent", activeAgentSlug);
+      const trigger = triggerFromFilter(triggerFilter);
+      const status = statusFromFilter(statusFilter);
+      if (trigger) params.set("trigger", trigger);
+      if (status) params.set("status", status);
+      params.set("limit", "200");
 
-    const response = await fetch(`/api/agents/conversations?${params.toString()}`);
-    if (response.ok) {
-      const data = await response.json();
-      setConversations((data.conversations || []) as ConversationMeta[]);
+      const response = await fetch(`/api/agents/conversations?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setConversations((data.conversations || []) as ConversationMeta[]);
+      }
+    } catch {
+      // Ignore transient startup/network failures.
+    } finally {
+      setConversationsLoading(false);
+      setHasLoadedConversations(true);
     }
-    setConversationsLoading(false);
-    setHasLoadedConversations(true);
   }
 
   async function refreshSettings(agentSlug: string) {

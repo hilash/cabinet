@@ -11,6 +11,7 @@ import {
 } from "@/lib/storage/fs-operations";
 import { startJobConversation } from "@/lib/agents/conversation-runner";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import { resolveEnabledProviderId } from "@/lib/agents/provider-settings";
 
 const JOBS_DIR = path.join(DATA_DIR, ".jobs");
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
@@ -26,11 +27,14 @@ async function loadLegacyJobs(): Promise<JobConfig[]> {
 
   for (const entry of entries) {
     if (entry.name.endsWith(".yaml") && !entry.isDirectory) {
-      try {
-        const raw = await readFileContent(path.join(JOBS_DIR, entry.name));
-        const config = yaml.load(raw) as JobConfig;
-        if (config && config.id) jobs.push(config);
-      } catch { /* skip */ }
+        try {
+          const raw = await readFileContent(path.join(JOBS_DIR, entry.name));
+          const config = yaml.load(raw) as JobConfig;
+          if (config && config.id) {
+            config.provider = resolveEnabledProviderId(config.provider);
+            jobs.push(config);
+          }
+        } catch { /* skip */ }
     }
   }
   return jobs;
@@ -53,6 +57,7 @@ async function loadAgentJobs(): Promise<JobConfig[]> {
           const raw = await readFileContent(path.join(agentJobsDir, jf.name));
           const config = yaml.load(raw) as JobConfig;
           if (config && config.id) {
+            config.provider = resolveEnabledProviderId(config.provider);
             config.agentSlug = entry.name;
             jobs.push(config);
           }
@@ -87,6 +92,7 @@ export async function loadAgentJobsBySlug(agentSlug: string): Promise<JobConfig[
       const raw = await readFileContent(path.join(agentJobsDir, entry.name));
       const config = yaml.load(raw) as JobConfig;
       if (config && config.id) {
+        config.provider = resolveEnabledProviderId(config.provider);
         config.agentSlug = agentSlug;
         jobs.push(config);
       }
@@ -100,6 +106,7 @@ export async function saveAgentJob(agentSlug: string, job: JobConfig): Promise<v
   const agentJobsDir = path.join(AGENTS_DIR, agentSlug, "jobs");
   await ensureDirectory(agentJobsDir);
   job.agentSlug = agentSlug;
+  job.provider = resolveEnabledProviderId(job.provider);
   const filePath = path.join(agentJobsDir, `${job.id}.yaml`);
   const raw = yaml.dump(job, { lineWidth: -1, noRefs: true });
   await writeFileContent(filePath, raw);
@@ -121,6 +128,7 @@ export async function getJob(id: string): Promise<JobConfig | null> {
 
 export async function saveJob(job: JobConfig): Promise<void> {
   await ensureDirectory(JOBS_DIR);
+  job.provider = resolveEnabledProviderId(job.provider);
   const filePath = path.join(JOBS_DIR, `${job.id}.yaml`);
   const raw = yaml.dump(job, { lineWidth: -1, noRefs: true });
   await writeFileContent(filePath, raw);

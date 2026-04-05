@@ -1,13 +1,12 @@
-import fs from "fs";
-import { execSync, spawn } from "child_process";
+import { spawn } from "child_process";
 import type { AgentProvider, CliProviderInvocation } from "./provider-interface";
 import { providerRegistry } from "./provider-registry";
-import { getConfiguredDefaultProviderId, isProviderEnabled } from "./provider-settings";
-
-const RUNTIME_PATH = [
-  `${process.env.HOME || ""}/.local/bin`,
-  process.env.PATH || "",
-].filter(Boolean).join(":");
+import { resolveCliCommand, RUNTIME_PATH } from "./provider-cli";
+import {
+  getConfiguredDefaultProviderId,
+  readProviderSettingsSync,
+  resolveEnabledProviderId,
+} from "./provider-settings";
 
 export interface ProviderLaunchSpec extends CliProviderInvocation {
   providerId: string;
@@ -16,60 +15,18 @@ export interface ProviderLaunchSpec extends CliProviderInvocation {
 }
 
 function resolveProviderOrThrow(providerId?: string): AgentProvider {
-  const defaultProviderId = getConfiguredDefaultProviderId();
-  const provider = providerId
-    ? providerRegistry.get(providerId)
-    : providerRegistry.get(defaultProviderId);
-
-  if (!provider) {
-    throw new Error(
-      providerId
-        ? `Unknown provider: ${providerId}`
-        : "No default provider is configured"
-    );
+  const settings = readProviderSettingsSync();
+  const resolvedProviderId = resolveEnabledProviderId(providerId, settings);
+  const resolvedProvider = providerRegistry.get(resolvedProviderId);
+  if (resolvedProvider) {
+    return resolvedProvider;
   }
 
-  if (!isProviderEnabled(provider.id)) {
-    throw new Error(`Provider ${provider.id} is disabled in settings`);
-  }
-
-  return provider;
-}
-
-function resolveCliCommand(provider: AgentProvider): string {
-  const candidates = [
-    ...(provider.commandCandidates || []),
-    provider.command,
-  ].filter((candidate): candidate is string => !!candidate);
-
-  for (const candidate of candidates) {
-    if (candidate.includes("/") && fs.existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  for (const candidate of candidates) {
-    if (candidate.includes("/")) continue;
-    try {
-      const resolved = execSync(`command -v ${candidate}`, {
-        encoding: "utf8",
-        env: { ...process.env, PATH: RUNTIME_PATH },
-        stdio: ["ignore", "pipe", "ignore"],
-      }).trim();
-
-      if (resolved) {
-        return resolved;
-      }
-    } catch {
-      // Ignore and keep trying.
-    }
-  }
-
-  if (!provider.command) {
-    throw new Error(`Provider ${provider.id} does not define a command`);
-  }
-
-  return provider.command;
+  throw new Error(
+    providerId
+      ? `No enabled provider is available for requested provider: ${providerId}`
+      : "No enabled provider is configured"
+  );
 }
 
 function buildLaunchSpec(

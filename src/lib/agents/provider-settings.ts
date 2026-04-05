@@ -76,3 +76,35 @@ export function isProviderEnabled(providerId: string, settings?: ProviderSetting
 export function getConfiguredDefaultProviderId(settings?: ProviderSettings): string {
   return (settings || readProviderSettingsSync()).defaultProvider;
 }
+
+export function resolveEnabledProviderId(
+  providerId?: string,
+  settings?: ProviderSettings
+): string {
+  const resolvedSettings = settings || readProviderSettingsSync();
+  if (
+    providerId &&
+    providerRegistry.get(providerId) &&
+    isProviderEnabled(providerId, resolvedSettings)
+  ) {
+    return providerId;
+  }
+
+  const defaultProviderId = getConfiguredDefaultProviderId(resolvedSettings);
+  if (
+    defaultProviderId &&
+    providerRegistry.get(defaultProviderId) &&
+    isProviderEnabled(defaultProviderId, resolvedSettings)
+  ) {
+    return defaultProviderId;
+  }
+
+  const firstEnabledProvider = providerRegistry.listAll().find((provider) =>
+    isProviderEnabled(provider.id, resolvedSettings)
+  );
+  if (firstEnabledProvider) {
+    return firstEnabledProvider.id;
+  }
+
+  return defaultProviderId || providerRegistry.defaultProvider;
+}
