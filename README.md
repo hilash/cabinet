@@ -1,12 +1,38 @@
-![Cabinet demo](https://runcabinet.com/demo.gif)
+<p align="center">
+  <img src="https://runcabinet.com/demo.gif" alt="Cabinet demo" width="900">
+</p>
 
-# Cabinet
+<h1 align="center">🗄️ Cabinet</h1>
 
-**Your knowledge base. Your AI team.**
+<p align="center">
+  <strong>Your knowledge base. Your AI team.</strong><br />
+  <sub>🗂️ Files on disk &nbsp;•&nbsp; 📁 AI workspaces &nbsp;•&nbsp; 🧠 Agents with memory</sub>
+</p>
 
-The AI-first startup OS where everything lives as markdown files on disk. No database. No vendor lock-in. Self-hosted. Your data never leaves your machine.
+<p align="center">
+  The AI-first startup OS where everything lives as markdown files on disk. No database. No vendor lock-in. Self-hosted. Your data never leaves your machine.
+</p>
 
-[runcabinet.com](https://runcabinet.com) | [hi@runcabinet.com](mailto:hi@runcabinet.com) | [Star on GitHub](https://github.com/hilash/cabinet)
+<p align="center">
+  Built by Hila, former Engineering Manager at Apple — now building Cabinet in public, with the open-source community.
+</p>
+
+<p align="center">
+  <a href="https://runcabinet.com">runcabinet.com</a>&nbsp; • &nbsp;
+  <a href="mailto:hi@runcabinet.com">hi@runcabinet.com</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/hilash/cabinet/stargazers">
+    <img src="https://img.shields.io/github/stars/hilash/cabinet?style=for-the-badge&logo=github&logoColor=white&label=Star%20the%20vision%20%F0%9F%98%8D%F0%9F%8C%9F&labelColor=4b4b4b&color=f5b301" alt="Star Cabinet on GitHub">
+  </a>&nbsp;
+  <a href="https://discord.gg/rxd8BYnN">
+    <img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=4b4b4b" alt="Join the Discord">
+  </a>&nbsp;
+  <a href="https://runcabinet.com/waitlist">
+    <img src="https://img.shields.io/badge/%F0%9F%97%84%EF%B8%8F%20Cabinet-Cloud%20Waitlist-55c938?style=for-the-badge&labelColor=4b4b4b" alt="Cabinet Cloud Waitlist">
+  </a>
+</p>
 
 ---
 
@@ -33,6 +59,17 @@ One knowledge base. AI agents that remember everything. Scheduled jobs that comp
 > If it feels like enterprise workflow software, it's wrong. If it feels like watching a team work, it's right.
 
 ---
+
+## Philosophy
+
+Cabinet is built around a few principles that we think matter deeply for the future of AI + data tools:
+
+- **Yours** — Your data stays yours: local, visible, and portable. It’s not trapped inside a particular AI provider’s system with no clean way to get it out. You stay in control of your information.
+- **Git everything** — Memory should have history. You should be able to inspect changes, revert mistakes, audit how knowledge evolves, and treat your AI system like the important infrastructure it is.
+- **BYOAI** — Bring your own AI. Cabinet should work with Claude, Codex, OpenCode, local models, and whatever comes next, without forcing your knowledge into a single provider’s ecosystem.
+- **KISS** — Keep it simple, stupid. AI tools should be understandable, inspectable, and hackable. We prefer plain files, clear behavior, and systems that developers can actually reason about.
+- **Security** — We care deeply about security. If AI is going to work with your documents, research, plans, and internal context, the system should minimize surprise, reduce unnecessary exposure, and make trust a design requirement rather than an afterthought.
+- **Self-hosted** — If AI is going to hold your context, plans, research, and operating memory, it should run in an environment you control.
 
 ## Everything you need. Nothing you don't.
 
@@ -157,6 +194,26 @@ npx create-cabinet my-startup
 ```
 
 [Get Started](https://runcabinet.com) | [Star on GitHub](https://github.com/hilash/cabinet)
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for breaking changes, or follow the full release history on the [documentation site](https://runcabinet.com).
+
+## Community
+
+Questions, ideas, feedback, screenshots, wild experiments — bring them to the [Discord](https://discord.gg/rxd8BYnN). That’s where the Cabinet community hangs out and where a lot of the product direction gets shaped in real time.
+
+---
+
+## Contributing
+
+Cabinet is moving fast right now. We’d love thoughtful contributors who want to help shape it early.
+
+If you’re thinking about opening a PR, please start by joining the [Discord](https://discord.gg/rxd8BYnN) and talking with Hila before coding. Hila is Cabinet’s builder, and that early sync helps us keep the roadmap coherent while the product is still evolving rapidly.
+
+Once the direction is aligned, open your PR on [GitHub](https://github.com/hilash/cabinet). The goal is not gatekeeping — it’s making sure your energy goes into work that has a clear path to landing and shipping.
 
 ---
 
