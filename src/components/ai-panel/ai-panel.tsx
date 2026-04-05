@@ -20,6 +20,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import type { TreeNode } from "@/types";
+import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
 
 interface FlatPage {
   path: string;
@@ -47,8 +48,8 @@ interface PastSession {
   pagePath: string;
   instruction: string;
   timestamp: string;
-  duration: number;
-  status: "completed" | "failed";
+  duration?: number;
+  status: "completed" | "failed" | "cancelled";
   summary: string;
 }
 
@@ -67,11 +68,9 @@ export function AIPanel() {
   const [mentionedPages, setMentionedPages] = useState<string[]>([]);
   const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
   const [expandedPast, setExpandedPast] = useState<Set<string>>(new Set());
+  const [pastSessionDetails, setPastSessionDetails] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Track which sessions have been persisted to avoid double-save
-  const savedSessionsRef = useRef<Set<string>>(new Set());
 
   // @ mention state
   const [showMentions, setShowMentions] = useState(false);
@@ -80,9 +79,53 @@ export function AIPanel() {
   const [allPages, setAllPages] = useState<FlatPage[]>([]);
   const [mentionStartPos, setMentionStartPos] = useState(0);
 
+  const loadPastSessions = useCallback(async () => {
+    if (!currentPath || !isOpen) return;
+    try {
+      const res = await fetch(
+        `/api/agents/conversations?agent=editor&pagePath=${encodeURIComponent(currentPath)}&limit=20`
+      );
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const conversations = (data.conversations || []) as ConversationMeta[];
+      const nextSessions = conversations
+        .filter((conversation) => conversation.status !== "running")
+        .map((conversation) => {
+          const duration = conversation.completedAt
+            ? Math.max(
+                0,
+                Math.round(
+                  (new Date(conversation.completedAt).getTime() -
+                    new Date(conversation.startedAt).getTime()) /
+                    1000
+                )
+              )
+            : undefined;
+
+          return {
+            id: conversation.id,
+            pagePath: currentPath,
+            instruction: conversation.title,
+            timestamp: conversation.startedAt,
+            duration,
+            status:
+              conversation.status === "failed"
+                ? "failed"
+                : conversation.status === "cancelled"
+                  ? "cancelled"
+                  : "completed",
+            summary: conversation.summary || "",
+          } satisfies PastSession;
+        });
+
+      setPastSessions(nextSessions);
+    } catch {}
+  }, [currentPath, isOpen]);
+
   // Sessions for the current page
   const currentPageSessions = editorSessions.filter(
-    (s) => s.pagePath === currentPath
+    (s) => s.pagePath === currentPath && s.status === "running"
   );
   // Sessions for OTHER pages (shown as a summary)
   const otherPageRunningSessions = editorSessions.filter(
@@ -146,20 +189,8 @@ export function AIPanel() {
 
   // Load past sessions when page changes
   useEffect(() => {
-    if (!currentPath || !isOpen) return;
-    const loadPast = async () => {
-      try {
-        const res = await fetch(
-          `/api/agents/editor-sessions?page=${encodeURIComponent(currentPath)}&limit=20`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setPastSessions(data);
-        }
-      } catch {}
-    };
-    loadPast();
-  }, [currentPath, isOpen]);
+    void loadPastSessions();
+  }, [loadPastSessions]);
 
   const filteredPages = allPages.filter(
     (p) =>
@@ -282,65 +313,21 @@ export function AIPanel() {
     }, 100);
   };
 
-  const persistSession = useCallback(
-    async (sessionId: string) => {
-      if (savedSessionsRef.current.has(sessionId)) return;
-      savedSessionsRef.current.add(sessionId);
-
-      const session = useAIPanelStore
-        .getState()
-        .editorSessions.find((s) => s.sessionId === sessionId);
-      if (!session) return;
-
-      // Fetch captured output from terminal server
-      let summary = "";
-      try {
-        const res = await fetch(
-          `/api/daemon/session/${sessionId}/output`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          summary = data.output || "";
-        }
-      } catch {}
-
-      const duration = Math.round((Date.now() - session.timestamp) / 1000);
-
-      try {
-        await fetch("/api/agents/editor-sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: sessionId,
-            pagePath: session.pagePath,
-            instruction: session.userMessage,
-            timestamp: new Date(session.timestamp).toISOString(),
-            duration,
-            status: "completed",
-            summary: summary.slice(0, 500),
-            output: summary, // full captured output
-          }),
-        });
-      } catch {}
-    },
-    []
-  );
-
   const handleSessionEnd = useCallback(
     async (sessionId: string) => {
-      markSessionCompleted(sessionId);
-      await persistSession(sessionId);
-
-      // Reload the current page if we're still on it
       const session = useAIPanelStore
         .getState()
         .editorSessions.find((s) => s.sessionId === sessionId);
+      markSessionCompleted(sessionId);
+      await loadPastSessions();
+
+      // Reload the current page if we're still on it
       const currentPagePath = useEditorStore.getState().currentPath;
       if (session && currentPagePath === session.pagePath) {
         setTimeout(() => loadPage(session.pagePath), 500);
       }
     },
-    [loadPage, markSessionCompleted, persistSession]
+    [loadPage, loadPastSessions, markSessionCompleted]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -373,13 +360,28 @@ export function AIPanel() {
     }
   };
 
-  const togglePastExpanded = (id: string) => {
+  const togglePastExpanded = async (id: string) => {
+    const wasExpanded = expandedPast.has(id);
     setExpandedPast((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+
+    if (wasExpanded || pastSessionDetails[id]) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/agents/conversations/${id}`);
+      if (!res.ok) return;
+      const detail = (await res.json()) as ConversationDetail;
+      setPastSessionDetails((prev) => ({
+        ...prev,
+        [id]: detail.transcript || detail.meta.summary || "",
+      }));
+    } catch {}
   };
 
   const formatTime = (ts: string | number) => {
@@ -535,13 +537,15 @@ export function AIPanel() {
                   {expandedPast.has(session.id) && (
                     <div className="border-t border-[#ffffff08] bg-[#0a0a0a]">
                       <pre className="text-[11px] text-muted-foreground p-3 whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto font-mono leading-relaxed">
-                        {session.summary || "(No output captured)"}
+                        {pastSessionDetails[session.id] || session.summary || "(No output captured)"}
                       </pre>
                       <div className="px-3 py-1.5 border-t border-[#ffffff08] flex items-center gap-3 text-[10px] text-muted-foreground/50">
-                        <span>
-                          <Clock className="h-2.5 w-2.5 inline mr-1" />
-                          {session.duration}s
-                        </span>
+                        {session.duration !== undefined && (
+                          <span>
+                            <Clock className="h-2.5 w-2.5 inline mr-1" />
+                            {session.duration}s
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
@@ -566,7 +570,6 @@ export function AIPanel() {
                 </div>
                 <button
                   onClick={() => {
-                    persistSession(session.sessionId);
                     removeSession(session.sessionId);
                   }}
                   className="text-muted-foreground/40 hover:text-destructive shrink-0 p-1"

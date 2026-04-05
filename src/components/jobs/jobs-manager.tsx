@@ -1,394 +1,941 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
-  Clock,
-  Plus,
-  Trash2,
-  RefreshCw,
-  Zap,
-  CheckCircle,
-  XCircle,
-  Pencil,
-  ChevronDown,
-  ChevronRight,
-  Play,
+  Bot,
+  CheckCircle2,
+  Clock3,
+  Loader2,
   Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  Settings2,
+  Trash2,
+  XCircle,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { WebTerminal } from "@/components/terminal/web-terminal";
 import { cronToHuman } from "@/lib/agents/cron-utils";
+import { useTreeStore } from "@/stores/tree-store";
+import { useAppStore } from "@/stores/app-store";
+import { cn } from "@/lib/utils";
+import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
+import type { JobConfig } from "@/types/jobs";
+import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
 
-interface JobConfig {
-  id: string;
+type StatusFilter = "all" | "running" | "failed";
+type MainPanelMode = "settings" | "conversation";
+
+interface AgentSummary {
   name: string;
-  enabled: boolean;
-  schedule: string;
-  prompt: string;
-  timeout?: number;
-  agentSlug: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface AgentWithJobs {
   slug: string;
-  name: string;
   emoji: string;
-  jobs: JobConfig[];
+  active: boolean;
+  runningCount?: number;
+  heartbeat?: string;
+  role?: string;
+  body?: string;
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
+interface PersonaResponse {
+  persona: AgentSummary;
+}
+
+const TRIGGER_LABELS: Record<ConversationMeta["trigger"], string> = {
+  manual: "Manual",
+  job: "Job",
+  heartbeat: "Heartbeat",
+};
+
+const TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
+  manual: "bg-blue-500/10 text-blue-500",
+  job: "bg-amber-500/10 text-amber-500",
+  heartbeat: "bg-emerald-500/10 text-emerald-500",
+};
+
+function statusFromFilter(filter: StatusFilter): ConversationMeta["status"] | undefined {
+  if (filter === "all") return undefined;
+  return filter;
+}
+
+function formatRelative(iso: string): string {
+  const delta = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(delta / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function replacePastedTextNotice(output: string, displayPrompt?: string): string {
+  if (!displayPrompt) return output;
+  return output.replace(/\[Pasted text #\d+(?: \+\d+ lines)?\]/g, displayPrompt);
+}
+
+function isScheduledRun(conversation: ConversationMeta): boolean {
+  return conversation.trigger === "job" || conversation.trigger === "heartbeat";
+}
+
+function blankJobDraft(agentSlug: string): JobConfig {
+  const now = new Date().toISOString();
+  return {
+    id: "",
+    name: "",
+    enabled: true,
+    schedule: "0 9 * * 1-5",
+    provider: "claude-code",
+    agentSlug,
+    prompt: "",
+    timeout: 600,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "rounded-full px-2.5 py-1 text-[11px] transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function JobsManager() {
-  const [agents, setAgents] = useState<AgentWithJobs[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createAgentSlug, setCreateAgentSlug] = useState<string>("");
-  const [editJob, setEditJob] = useState<JobConfig | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", schedule: "0 9 * * *", prompt: "", timeout: 600 });
-  const [running, setRunning] = useState<string | null>(null);
+  const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [selectedAgentSlug, setSelectedAgentSlug] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<AgentSummary | null>(null);
+  const [jobs, setJobs] = useState<JobConfig[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [jobDraft, setJobDraft] = useState<JobConfig | null>(null);
+  const [heartbeatDraft, setHeartbeatDraft] = useState("");
+  const [libraryTemplates, setLibraryTemplates] = useState<JobLibraryTemplate[]>([]);
+  const [conversations, setConversations] = useState<ConversationMeta[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [mode, setMode] = useState<MainPanelMode>("settings");
+  const [loadingAgents, setLoadingAgents] = useState(true);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [savingJob, setSavingJob] = useState(false);
+  const [savingHeartbeat, setSavingHeartbeat] = useState(false);
+  const [runningHeartbeat, setRunningHeartbeat] = useState(false);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [runningJobId, setRunningJobId] = useState<string | null>(null);
+  const selectPage = useTreeStore((state) => state.selectPage);
+  const setSection = useAppStore((state) => state.setSection);
 
-  const refresh = useCallback(async () => {
+  async function refreshAgents() {
+    setLoadingAgents(true);
     try {
-      const res = await fetch("/api/agents/personas");
-      if (!res.ok) return;
-      const { personas } = await res.json();
-
-      const withJobs = await Promise.all(
-        (personas as { slug: string; name: string; emoji: string }[]).map(async (p) => {
-          const jRes = await fetch(`/api/agents/${p.slug}/jobs`);
-          const jobs = jRes.ok ? (await jRes.json()).jobs || [] : [];
-          return { slug: p.slug, name: p.name, emoji: p.emoji || "🤖", jobs };
-        })
-      );
-      setAgents(withJobs);
-      // Auto-expand agents that have jobs
-      setExpanded((prev) => {
-        const next = new Set(prev);
-        withJobs.filter((a) => a.jobs.length > 0).forEach((a) => next.add(a.slug));
-        return next;
-      });
-    } catch {
-      // ignore
+      const response = await fetch("/api/agents/personas");
+      if (!response.ok) return;
+      const data = await response.json();
+      setAgents((data.personas || []) as AgentSummary[]);
     } finally {
-      setLoading(false);
+      setLoadingAgents(false);
     }
+  }
+
+  async function refreshSelectedAgent(agentSlug: string | null) {
+    if (!agentSlug) {
+      setSelectedAgent(null);
+      setJobs([]);
+      setHeartbeatDraft("");
+      setSelectedJobId(null);
+      setJobDraft(null);
+      return;
+    }
+
+    const [personaResponse, jobsResponse] = await Promise.all([
+      fetch(`/api/agents/personas/${agentSlug}`),
+      fetch(`/api/agents/${agentSlug}/jobs`),
+    ]);
+
+    if (personaResponse.ok) {
+      const data = (await personaResponse.json()) as PersonaResponse;
+      setSelectedAgent(data.persona);
+      setHeartbeatDraft(data.persona.heartbeat || "");
+    }
+
+    if (jobsResponse.ok) {
+      const data = await jobsResponse.json();
+      setJobs((data.jobs || []) as JobConfig[]);
+    } else {
+      setJobs([]);
+    }
+  }
+
+  async function refreshConversations() {
+    setLoadingConversations(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedAgentSlug) params.set("agent", selectedAgentSlug);
+      const status = statusFromFilter(statusFilter);
+      if (status) params.set("status", status);
+      params.set("limit", "200");
+
+      const response = await fetch(`/api/agents/conversations?${params.toString()}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setConversations(
+        ((data.conversations || []) as ConversationMeta[]).filter(isScheduledRun)
+      );
+    } finally {
+      setLoadingConversations(false);
+    }
+  }
+
+  async function loadConversationDetail(conversationId: string | null) {
+    if (!conversationId) {
+      setSelectedConversation(null);
+      return;
+    }
+    const response = await fetch(`/api/agents/conversations/${conversationId}`);
+    if (!response.ok) return;
+    setSelectedConversation((await response.json()) as ConversationDetail);
+  }
+
+  async function refreshLibrary() {
+    const response = await fetch("/api/jobs/library");
+    if (!response.ok) return;
+    const data = await response.json();
+    setLibraryTemplates((data.templates || []) as JobLibraryTemplate[]);
+  }
+
+  useEffect(() => {
+    void refreshAgents();
+    void refreshLibrary();
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    void refreshSelectedAgent(selectedAgentSlug);
+    setMode("settings");
+    setSelectedConversationId(null);
+    setSelectedConversation(null);
+  }, [selectedAgentSlug]);
 
-  const toggleExpand = (slug: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(slug) ? next.delete(slug) : next.add(slug);
-      return next;
-    });
-  };
+  useEffect(() => {
+    void refreshConversations();
+  }, [selectedAgentSlug, statusFilter]);
 
-  const openCreate = (slug: string) => {
-    setCreateAgentSlug(slug);
-    setForm({ name: "", schedule: "0 9 * * *", prompt: "", timeout: 600 });
-    setCreateOpen(true);
-  };
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void refreshAgents();
+      void refreshConversations();
+    }, 4000);
+    return () => window.clearInterval(interval);
+  }, [selectedAgentSlug, statusFilter]);
 
-  const handleCreate = async () => {
-    if (!form.name || !form.prompt) return;
-    await fetch(`/api/agents/${createAgentSlug}/jobs`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setCreateOpen(false);
-    refresh();
-  };
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    void loadConversationDetail(selectedConversationId);
+  }, [selectedConversationId]);
 
-  const openEdit = (job: JobConfig) => {
-    setEditJob(job);
-    setForm({ name: job.name, schedule: job.schedule, prompt: job.prompt, timeout: job.timeout || 600 });
-    setEditOpen(true);
-  };
+  useEffect(() => {
+    if (!selectedJobId) {
+      setJobDraft(null);
+      return;
+    }
 
-  const handleSaveEdit = async () => {
-    if (!editJob) return;
-    await fetch(`/api/agents/${editJob.agentSlug}/jobs/${editJob.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setEditOpen(false);
-    setEditJob(null);
-    refresh();
-  };
+    if (selectedJobId === "__new__") {
+      if (selectedAgentSlug) {
+        setJobDraft(blankJobDraft(selectedAgentSlug));
+      }
+      return;
+    }
 
-  const handleDelete = async (job: JobConfig) => {
-    if (!confirm(`Delete job "${job.name}"?`)) return;
-    await fetch(`/api/agents/${job.agentSlug}/jobs/${job.id}`, { method: "DELETE" });
-    refresh();
-  };
+    const existingJob = jobs.find((job) => job.id === selectedJobId);
+    if (existingJob) {
+      setJobDraft({ ...existingJob });
+    }
+  }, [jobs, selectedAgentSlug, selectedJobId]);
 
-  const handleToggle = async (job: JobConfig) => {
-    await fetch(`/api/agents/${job.agentSlug}/jobs/${job.id}`, {
+  const selectedConversationMeta = conversations.find(
+    (conversation) => conversation.id === selectedConversationId
+  );
+
+  async function saveHeartbeat() {
+    if (!selectedAgentSlug) return;
+    setSavingHeartbeat(true);
+    try {
+      await fetch(`/api/agents/personas/${selectedAgentSlug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ heartbeat: heartbeatDraft }),
+      });
+      await refreshAgents();
+      await refreshSelectedAgent(selectedAgentSlug);
+    } finally {
+      setSavingHeartbeat(false);
+    }
+  }
+
+  async function runHeartbeatNow() {
+    if (!selectedAgentSlug) return;
+    setRunningHeartbeat(true);
+    try {
+      const response = await fetch(`/api/agents/personas/${selectedAgentSlug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run" }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.sessionId) {
+        setSelectedConversationId(data.sessionId as string);
+        setMode("conversation");
+        await refreshConversations();
+      }
+    } finally {
+      setRunningHeartbeat(false);
+    }
+  }
+
+  async function saveJob() {
+    if (!selectedAgentSlug || !jobDraft) return;
+    const isNew = selectedJobId === "__new__" || !selectedJobId;
+    const endpoint = isNew
+      ? `/api/agents/${selectedAgentSlug}/jobs`
+      : `/api/agents/${selectedAgentSlug}/jobs/${selectedJobId}`;
+
+    const method = isNew ? "POST" : "PUT";
+    setSavingJob(true);
+    try {
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...jobDraft,
+          id: jobDraft.id || undefined,
+        }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const nextJob = (data.job || jobDraft) as JobConfig;
+      await refreshSelectedAgent(selectedAgentSlug);
+      setSelectedJobId(nextJob.id);
+    } finally {
+      setSavingJob(false);
+    }
+  }
+
+  async function deleteJob(jobId: string) {
+    if (!selectedAgentSlug) return;
+    setDeletingJobId(jobId);
+    try {
+      await fetch(`/api/agents/${selectedAgentSlug}/jobs/${jobId}`, { method: "DELETE" });
+      if (selectedJobId === jobId) {
+        setSelectedJobId(null);
+        setJobDraft(null);
+      }
+      await refreshSelectedAgent(selectedAgentSlug);
+    } finally {
+      setDeletingJobId(null);
+    }
+  }
+
+  async function toggleJob(job: JobConfig) {
+    if (!selectedAgentSlug) return;
+    await fetch(`/api/agents/${selectedAgentSlug}/jobs/${job.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "toggle" }),
     });
-    refresh();
-  };
+    await refreshSelectedAgent(selectedAgentSlug);
+    await refreshConversations();
+  }
 
-  const handleRunNow = async (job: JobConfig) => {
-    setRunning(job.id);
-    await fetch(`/api/agents/${job.agentSlug}/jobs/${job.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "run" }),
+  async function runJob(jobId: string) {
+    if (!selectedAgentSlug) return;
+    setRunningJobId(jobId);
+    try {
+      const response = await fetch(`/api/agents/${selectedAgentSlug}/jobs/${jobId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run" }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.run?.id) {
+        setSelectedConversationId(data.run.id as string);
+        setMode("conversation");
+        await refreshConversations();
+      }
+    } finally {
+      setRunningJobId(null);
+    }
+  }
+
+  function startBlankJob() {
+    if (!selectedAgentSlug) return;
+    setSelectedJobId("__new__");
+    setJobDraft(blankJobDraft(selectedAgentSlug));
+  }
+
+  function useLibraryTemplate(template: JobLibraryTemplate) {
+    if (!selectedAgentSlug) return;
+    setSelectedJobId("__new__");
+    setJobDraft({
+      ...blankJobDraft(selectedAgentSlug),
+      id: template.id,
+      name: template.name,
+      schedule: template.schedule,
+      prompt: template.prompt,
+      timeout: template.timeout || 600,
     });
-    setRunning(null);
-    refresh();
-  };
-
-  const totalJobs = agents.reduce((sum, a) => sum + a.jobs.length, 0);
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-        Loading...
-      </div>
-    );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-primary" />
-          <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Jobs</h2>
-          <span className="text-[11px] text-muted-foreground">{totalJobs} total</span>
+    <div className="flex h-full overflow-hidden">
+      <div className="flex w-[230px] min-w-[230px] flex-col border-r border-border">
+        <div className="border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Jobs</h2>
+              <p className="text-[11px] text-muted-foreground">
+                Configure recurring work by agent
+              </p>
+            </div>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+              void refreshAgents();
+              void refreshConversations();
+            }}>
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={refresh}>
-          <RefreshCw className="h-3.5 w-3.5" />
-        </Button>
+
+        <ScrollArea className="flex-1">
+          <div className="p-2">
+            <button
+              onClick={() => setSelectedAgentSlug(null)}
+              className={cn(
+                "mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px] transition-colors",
+                selectedAgentSlug === null
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+              )}
+            >
+              <Settings2 className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">All agents</span>
+            </button>
+
+            {loadingAgents ? (
+              <div className="px-3 py-6 text-[12px] text-muted-foreground">Loading agents...</div>
+            ) : (
+              agents.map((agent) => (
+                <button
+                  key={agent.slug}
+                  onClick={() => setSelectedAgentSlug(agent.slug)}
+                  className={cn(
+                    "mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px] transition-colors",
+                    selectedAgentSlug === agent.slug
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+                  )}
+                >
+                  <span className="text-[14px]">{agent.emoji || "🤖"}</span>
+                  <span className="truncate">{agent.name}</span>
+                  <span
+                    className={cn(
+                      "ml-auto h-1.5 w-1.5 rounded-full shrink-0",
+                      (agent.runningCount || 0) > 0 ? "bg-green-500" : "bg-muted-foreground/30"
+                    )}
+                  />
+                </button>
+              ))
+            )}
+          </div>
+        </ScrollArea>
       </div>
 
-      {/* Agent + Jobs list */}
-      <div className="flex-1 overflow-y-auto">
-        {agents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
-            <Zap className="h-8 w-8 opacity-30" />
-            <p className="text-[13px]">No agents found</p>
+      <div className="flex w-[320px] min-w-[320px] flex-col border-r border-border">
+        <div className="border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-[14px] font-semibold">
+                {selectedAgent ? `Scheduled runs for ${selectedAgent.name}` : "Scheduled runs"}
+              </h3>
+              <p className="text-[11px] text-muted-foreground">
+                {selectedAgent
+                  ? "Heartbeat and job runs for this agent"
+                  : "Heartbeat and job runs across all agents"}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(["all", "running", "failed"] as StatusFilter[]).map((filter) => (
+              <FilterChip
+                key={filter}
+                active={statusFilter === filter}
+                onClick={() => setStatusFilter(filter)}
+              >
+                {filter === "all"
+                  ? "Any status"
+                  : filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </FilterChip>
+            ))}
+          </div>
+        </div>
+
+        <ScrollArea className="flex-1">
+          {loadingConversations ? (
+            <div className="px-4 py-6 text-[12px] text-muted-foreground">Loading conversations...</div>
+          ) : conversations.length === 0 ? (
+            <div className="px-4 py-6 text-[12px] text-muted-foreground">No scheduled runs yet.</div>
+          ) : (
+            <div className="space-y-2 p-3">
+              {conversations.map((conversation) => (
+                <button
+                  key={conversation.id}
+                  onClick={() => {
+                    setSelectedConversationId(conversation.id);
+                    setMode("conversation");
+                  }}
+                  className={cn(
+                    "w-full rounded-xl border px-3 py-3 text-left transition-colors",
+                    selectedConversationId === conversation.id
+                      ? "border-foreground/15 bg-accent/70"
+                      : "border-border bg-background hover:bg-accent/40"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 text-[14px]">
+                      {agents.find((agent) => agent.slug === conversation.agentSlug)?.emoji || "🤖"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12px] font-medium">{conversation.title}</div>
+                      <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span>{agents.find((agent) => agent.slug === conversation.agentSlug)?.name || conversation.agentSlug}</span>
+                        <span>{formatRelative(conversation.startedAt)}</span>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px]",
+                        TRIGGER_STYLES[conversation.trigger]
+                      )}
+                    >
+                      {TRIGGER_LABELS[conversation.trigger]}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {mode === "conversation" && selectedConversationMeta ? (
+          <div className="flex h-full flex-col">
+            <div className="border-b border-border px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-[15px] font-semibold">{selectedConversationMeta.title}</h3>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {selectedConversationMeta.agentSlug} · {TRIGGER_LABELS[selectedConversationMeta.trigger]} · {selectedConversationMeta.status}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => {
+                      setMode("settings");
+                      setSelectedConversationId(null);
+                    }}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                    Configure
+                  </Button>
+                  {selectedConversation?.artifacts?.map((artifact) => (
+                    <button
+                      key={artifact.path}
+                      onClick={() => {
+                        selectPage(artifact.path);
+                        setSection({ type: "page" });
+                      }}
+                      className="rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                    >
+                      {artifact.label || artifact.path}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              {selectedConversationMeta.status === "running" ? (
+                <WebTerminal
+                  sessionId={selectedConversationMeta.id}
+                  displayPrompt={selectedConversationMeta.title}
+                  reconnect
+                  onClose={() => {
+                    void refreshConversations();
+                  }}
+                />
+              ) : selectedConversation ? (
+                <ScrollArea className="h-full bg-[#0a0a0a]">
+                  <pre className="min-h-full whitespace-pre-wrap p-5 font-mono text-[12px] leading-relaxed text-neutral-200">
+                    {replacePastedTextNotice(
+                      selectedConversation.transcript || "No transcript captured.",
+                      selectedConversationMeta.title
+                    )}
+                  </pre>
+                </ScrollArea>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Loading conversation...
+                </div>
+              )}
+            </div>
           </div>
         ) : (
-          <div className="divide-y divide-border">
-            {agents.map((agent) => (
-              <div key={agent.slug}>
-                {/* Agent row */}
-                <button
-                  onClick={() => toggleExpand(agent.slug)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-accent/30 transition-colors text-left"
-                >
-                  {expanded.has(agent.slug) ? (
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  ) : (
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  )}
-                  <span className="text-base">{agent.emoji}</span>
-                  <span className="text-[13px] font-medium flex-1">{agent.name}</span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {agent.jobs.length} {agent.jobs.length === 1 ? "job" : "jobs"}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openCreate(agent.slug); }}
-                    className="ml-1 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-                    title="Add job"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </button>
+          <div className="flex h-full flex-col">
+            <div className="border-b border-border px-5 py-4">
+              {selectedAgent ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{selectedAgent.emoji || "🤖"}</span>
+                  <div>
+                    <h3 className="text-[15px] font-semibold">{selectedAgent.name} jobs</h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Configure heartbeat, recurring jobs, and starter templates
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-[15px] font-semibold">Select an agent</h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    Pick an agent on the left to configure heartbeat and jobs, or browse recent runs in the middle.
+                  </p>
+                </div>
+              )}
+            </div>
 
-                {/* Jobs for this agent */}
-                {expanded.has(agent.slug) && (
-                  <div className="bg-muted/20">
-                    {agent.jobs.length === 0 ? (
-                      <div className="px-10 py-3 text-[12px] text-muted-foreground/60">
-                        No jobs yet —{" "}
-                        <button
-                          onClick={() => openCreate(agent.slug)}
-                          className="underline hover:text-foreground"
+            <ScrollArea className="flex-1">
+              <div className="space-y-6 p-5">
+                {selectedAgent ? (
+                  <>
+                    <div className="rounded-2xl border border-border bg-background p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-[13px] font-semibold">Heartbeat</h4>
+                          <p className="text-[11px] text-muted-foreground">
+                            Heartbeat is the agent&apos;s built-in recurring job.
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => void runHeartbeatNow()}
+                          disabled={runningHeartbeat}
                         >
-                          add one
-                        </button>
+                          {runningHeartbeat ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Zap className="h-3.5 w-3.5" />
+                          )}
+                          Run now
+                        </Button>
                       </div>
-                    ) : (
-                      agent.jobs.map((job) => (
-                        <div
-                          key={job.id}
-                          className="flex items-start gap-3 px-10 py-2.5 border-t border-border/50"
+                      <div className="mt-4 flex gap-3">
+                        <input
+                          value={heartbeatDraft}
+                          onChange={(event) => setHeartbeatDraft(event.target.value)}
+                          className="h-10 flex-1 rounded-lg border border-border bg-background px-3 text-[13px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                          placeholder="0 */4 * * *"
+                        />
+                        <Button
+                          size="sm"
+                          className="h-10 px-4"
+                          onClick={() => void saveHeartbeat()}
+                          disabled={savingHeartbeat}
                         >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className={cn(
-                                "w-1.5 h-1.5 rounded-full shrink-0",
-                                job.enabled ? "bg-green-500" : "bg-muted-foreground/30"
-                              )} />
-                              <span className="text-[13px] font-medium truncate">{job.name}</span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
-                              <span className="text-[11px] text-muted-foreground">
-                                {cronToHuman(job.schedule)}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground/60 truncate mt-0.5">
-                              {job.prompt.slice(0, 80)}{job.prompt.length > 80 ? "…" : ""}
+                          {savingHeartbeat ? "Saving..." : "Save"}
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        {heartbeatDraft ? cronToHuman(heartbeatDraft) : "No heartbeat configured."}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                      <div className="rounded-2xl border border-border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <h4 className="text-[13px] font-semibold">Jobs</h4>
+                            <p className="text-[11px] text-muted-foreground">
+                              Per-agent recurring prompts
                             </p>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => handleRunNow(job)}
-                              disabled={running === job.id}
-                              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-primary"
-                              title="Run now"
-                            >
-                              <Zap className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={() => handleToggle(job)}
-                              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-                              title={job.enabled ? "Pause" : "Enable"}
-                            >
-                              {job.enabled ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                            </button>
-                            <button
-                              onClick={() => openEdit(job)}
-                              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-                              title="Edit"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(job)}
-                              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-destructive"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1 text-xs"
+                            onClick={startBlankJob}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            New job
+                          </Button>
                         </div>
-                      ))
-                    )}
+
+                        <div className="mt-4 space-y-2">
+                          {jobs.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-border px-3 py-6 text-[12px] text-muted-foreground">
+                              No jobs yet. Start from scratch or use a library template.
+                            </div>
+                          ) : (
+                            jobs.map((job) => (
+                              <div
+                                key={job.id}
+                                className={cn(
+                                  "rounded-xl border px-3 py-3 transition-colors",
+                                  selectedJobId === job.id
+                                    ? "border-foreground/15 bg-accent/40"
+                                    : "border-border bg-background"
+                                )}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <button
+                                    onClick={() => setSelectedJobId(job.id)}
+                                    className="min-w-0 flex-1 text-left"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={cn(
+                                          "h-1.5 w-1.5 rounded-full",
+                                          job.enabled ? "bg-green-500" : "bg-muted-foreground/30"
+                                        )}
+                                      />
+                                      <span className="truncate text-[12px] font-medium">{job.name}</span>
+                                    </div>
+                                    <p className="mt-1 text-[10px] text-muted-foreground">
+                                      {cronToHuman(job.schedule)}
+                                    </p>
+                                  </button>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => void runJob(job.id)}
+                                      disabled={runningJobId === job.id}
+                                      className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-primary"
+                                      title="Run now"
+                                    >
+                                      {runningJobId === job.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Zap className="h-3.5 w-3.5" />
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => void toggleJob(job)}
+                                      className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                      title={job.enabled ? "Pause" : "Enable"}
+                                    >
+                                      {job.enabled ? (
+                                        <Pause className="h-3.5 w-3.5" />
+                                      ) : (
+                                        <Play className="h-3.5 w-3.5" />
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => void deleteJob(job.id)}
+                                      disabled={deletingJobId === job.id}
+                                      className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <h4 className="text-[13px] font-semibold">
+                              {selectedJobId === "__new__" ? "New job" : selectedJobId ? "Job editor" : "Starter library"}
+                            </h4>
+                            <p className="text-[11px] text-muted-foreground">
+                              {selectedJobId
+                                ? "Edit the selected job for this agent."
+                                : "Pick a starter job to prefill a new recurring workflow."}
+                            </p>
+                          </div>
+                          {selectedJobId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1 text-xs"
+                              onClick={() => {
+                                setSelectedJobId(null);
+                                setJobDraft(null);
+                              }}
+                            >
+                              Done
+                            </Button>
+                          )}
+                        </div>
+
+                        {jobDraft ? (
+                          <div className="mt-4 space-y-4">
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Job name</label>
+                              <input
+                                value={jobDraft.name}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, name: event.target.value } : current
+                                  )
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                                placeholder="Weekly strategy digest"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Job id</label>
+                              <input
+                                value={jobDraft.id}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, id: event.target.value } : current
+                                  )
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                placeholder="weekly-strategy-digest"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Schedule</label>
+                              <input
+                                value={jobDraft.schedule}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, schedule: event.target.value } : current
+                                  )
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                placeholder="0 9 * * 1"
+                              />
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                {jobDraft.schedule ? cronToHuman(jobDraft.schedule) : "No schedule set."}
+                              </p>
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Prompt</label>
+                              <textarea
+                                value={jobDraft.prompt}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, prompt: event.target.value } : current
+                                  )
+                                }
+                                rows={10}
+                                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                                placeholder="What should this job do?"
+                              />
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Button
+                                size="sm"
+                                className="h-9 px-4"
+                                onClick={() => void saveJob()}
+                                disabled={
+                                  savingJob ||
+                                  !jobDraft.name.trim() ||
+                                  !jobDraft.id.trim() ||
+                                  !jobDraft.prompt.trim()
+                                }
+                              >
+                                {savingJob ? "Saving..." : "Save job"}
+                              </Button>
+                              <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                                <input
+                                  type="checkbox"
+                                  checked={jobDraft.enabled}
+                                  onChange={(event) =>
+                                    setJobDraft((current) =>
+                                      current ? { ...current, enabled: event.target.checked } : current
+                                    )
+                                  }
+                                />
+                                Enabled
+                              </label>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 space-y-3">
+                            {libraryTemplates.map((template) => (
+                              <div
+                                key={template.id}
+                                className="rounded-xl border border-border bg-background px-4 py-3"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="text-[12px] font-medium">{template.name}</div>
+                                    <p className="mt-1 text-[11px] text-muted-foreground">
+                                      {template.description}
+                                    </p>
+                                    <p className="mt-2 text-[10px] text-muted-foreground">
+                                      Suggested schedule: {cronToHuman(template.schedule)}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 shrink-0 text-xs"
+                                    onClick={() => useLibraryTemplate(template)}
+                                  >
+                                    Use
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
+                    <Bot className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                    <h4 className="mt-3 text-[14px] font-semibold">Select an agent to configure jobs</h4>
+                    <p className="mt-2 text-[12px] text-muted-foreground">
+                      The middle column stays focused on runs and history, while this main panel becomes the job and heartbeat control center for the selected agent.
+                    </p>
                   </div>
                 )}
               </div>
-            ))}
+            </ScrollArea>
           </div>
         )}
       </div>
-
-      {/* Create Job Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Job</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <label className="text-[11px] text-muted-foreground uppercase tracking-wide">Name</label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Daily report"
-                className="mt-1 h-8 text-[13px]"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground uppercase tracking-wide">Schedule (cron)</label>
-              <Input
-                value={form.schedule}
-                onChange={(e) => setForm((f) => ({ ...f, schedule: e.target.value }))}
-                placeholder="0 9 * * *"
-                className="mt-1 h-8 text-[13px] font-mono"
-              />
-              <p className="text-[10px] text-muted-foreground mt-0.5">{cronToHuman(form.schedule)}</p>
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground uppercase tracking-wide">Prompt</label>
-              <textarea
-                value={form.prompt}
-                onChange={(e) => setForm((f) => ({ ...f, prompt: e.target.value }))}
-                placeholder="What should Claude do each run?"
-                rows={4}
-                className="mt-1 w-full px-3 py-2 text-[13px] rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleCreate} disabled={!form.name || !form.prompt}>
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Job Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Job</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <label className="text-[11px] text-muted-foreground uppercase tracking-wide">Name</label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="mt-1 h-8 text-[13px]"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground uppercase tracking-wide">Schedule (cron)</label>
-              <Input
-                value={form.schedule}
-                onChange={(e) => setForm((f) => ({ ...f, schedule: e.target.value }))}
-                className="mt-1 h-8 text-[13px] font-mono"
-              />
-              <p className="text-[10px] text-muted-foreground mt-0.5">{cronToHuman(form.schedule)}</p>
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground uppercase tracking-wide">Prompt</label>
-              <textarea
-                value={form.prompt}
-                onChange={(e) => setForm((f) => ({ ...f, prompt: e.target.value }))}
-                rows={4}
-                className="mt-1 w-full px-3 py-2 text-[13px] rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { readMemory, writeMemory } from "@/lib/agents/persona-manager";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const agentSlug = searchParams.get("agent") || undefined;
+  const pagePath = searchParams.get("pagePath") || undefined;
   const trigger = searchParams.get("trigger") as
     | "manual"
     | "job"
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
 
   const conversations = await listConversationMetas({
     agentSlug: agentSlug && agentSlug !== "all" ? agentSlug : undefined,
+    pagePath: pagePath || undefined,
     trigger: trigger || undefined,
     status: status || undefined,
     limit,

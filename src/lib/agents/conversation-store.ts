@@ -33,6 +33,7 @@ interface ListConversationFilters {
   agentSlug?: string;
   trigger?: ConversationTrigger;
   status?: ConversationStatus;
+  pagePath?: string;
   limit?: number;
 }
 
@@ -340,6 +341,7 @@ export async function listConversationMetas(
     if (filters.agentSlug && meta.agentSlug !== filters.agentSlug) return false;
     if (filters.trigger && meta.trigger !== filters.trigger) return false;
     if (filters.status && meta.status !== filters.status) return false;
+    if (filters.pagePath && !meta.mentionedPaths.includes(filters.pagePath)) return false;
     return true;
   });
 
