@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   Bot,
   CheckCircle2,
@@ -147,6 +147,46 @@ function flattenTree(nodes: TreeNode[]): { path: string; title: string }[] {
   return pages;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function useHorizontalResize(initialWidth: number, minWidth: number, maxWidth: number) {
+  const [width, setWidth] = useState(initialWidth);
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  useEffect(() => {
+    function handlePointerMove(event: PointerEvent) {
+      if (!dragStateRef.current) return;
+      const nextWidth =
+        dragStateRef.current.startWidth + (event.clientX - dragStateRef.current.startX);
+      setWidth(clamp(nextWidth, minWidth, maxWidth));
+    }
+
+    function handlePointerUp() {
+      dragStateRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [maxWidth, minWidth]);
+
+  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
+    dragStateRef.current = { startX: event.clientX, startWidth: width };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  return { width, startResize };
+}
+
 function formatRelative(iso: string): string {
   const delta = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(delta / 60000);
@@ -231,6 +271,8 @@ export function AgentsWorkspace({
   const [creatingAgent, setCreatingAgent] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState(false);
   const [newAgentDraft, setNewAgentDraft] = useState<NewAgentDraft>(DEFAULT_NEW_AGENT);
+  const conversationsPanel = useHorizontalResize(340, 260, 520);
+  const jobsPanel = useHorizontalResize(280, 220, 420);
   const treeNodes = useTreeStore((state) => state.nodes);
   const selectPage = useTreeStore((state) => state.selectPage);
   const setSection = useAppStore((state) => state.setSection);
@@ -779,7 +821,10 @@ export function AgentsWorkspace({
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-[340px] min-w-[340px] border-r border-border bg-background">
+      <div
+        className="shrink-0 border-r border-border bg-background"
+        style={{ width: conversationsPanel.width }}
+      >
         <div className="border-b border-border px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -896,6 +941,16 @@ export function AgentsWorkspace({
             )}
           </div>
         </ScrollArea>
+      </div>
+
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize conversations panel"
+        onPointerDown={conversationsPanel.startResize}
+        className="relative w-3 shrink-0 cursor-col-resize bg-transparent"
+      >
+        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
       </div>
 
       <div className="flex-1 overflow-hidden">
@@ -1333,8 +1388,11 @@ export function AgentsWorkspace({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-4">
-                      <div className="rounded-xl border border-border">
+                    <div className="flex min-h-[420px] gap-3">
+                      <div
+                        className="shrink-0 rounded-xl border border-border"
+                        style={{ width: jobsPanel.width }}
+                      >
                         <div className="flex items-center justify-between border-b border-border px-4 py-3">
                           <div>
                             <h4 className="text-[13px] font-semibold">Jobs</h4>
@@ -1381,7 +1439,17 @@ export function AgentsWorkspace({
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-border p-4">
+                      <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="Resize jobs panel"
+                        onPointerDown={jobsPanel.startResize}
+                        className="relative w-3 shrink-0 cursor-col-resize bg-transparent"
+                      >
+                        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+                      </div>
+
+                      <div className="min-w-0 flex-1 rounded-xl border border-border p-4">
                         {jobDraft ? (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">

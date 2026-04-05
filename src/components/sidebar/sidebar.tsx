@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import {
   PanelLeftClose,
   PanelLeft,
@@ -87,6 +87,14 @@ function getAgentIcon(slug: string): LucideIcon {
   return AGENT_ICONS[slug] || Bot;
 }
 
+const SIDEBAR_MIN_WIDTH = 220;
+const SIDEBAR_MAX_WIDTH = 420;
+const SIDEBAR_DEFAULT_WIDTH = 280;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function NavButton({
   icon: Icon,
   label,
@@ -123,6 +131,37 @@ export function Sidebar() {
 
   const [agentsExpanded, setAgentsExpanded] = useState(true);
   const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  useEffect(() => {
+    function handlePointerMove(event: PointerEvent) {
+      if (!dragStateRef.current) return;
+      const nextWidth =
+        dragStateRef.current.startWidth + (event.clientX - dragStateRef.current.startX);
+      setSidebarWidth(clamp(nextWidth, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH));
+    }
+
+    function handlePointerUp() {
+      dragStateRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, []);
+
+  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
+    dragStateRef.current = { startX: event.clientX, startWidth: sidebarWidth };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
 
   const loadAgents = useCallback(async () => {
     try {
@@ -160,7 +199,7 @@ export function Sidebar() {
     if (mounted && isMobile) setCollapsed(true);
   }, [mounted, isMobile, setCollapsed]);
 
-  const desktopClass = collapsed ? "w-0 overflow-hidden" : "w-[280px] min-w-[280px]";
+  const desktopClass = collapsed ? "w-0 overflow-hidden" : "shrink-0";
   const mobileClass = cn(
     "fixed left-0 top-0 bottom-0 z-40",
     collapsed ? "w-0 overflow-hidden" : "w-[280px]"
@@ -181,6 +220,7 @@ export function Sidebar() {
           "flex flex-col border-r border-border bg-sidebar transition-all duration-200 h-screen overflow-hidden",
           mounted && isMobile ? mobileClass : desktopClass
         )}
+        style={!isMobile && !collapsed ? { width: sidebarWidth } : undefined}
       >
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
@@ -308,6 +348,17 @@ export function Sidebar() {
           </Button>
         </div>
       </aside>
+      {!isMobile && !collapsed && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          onPointerDown={startResize}
+          className="relative h-screen w-3 shrink-0 cursor-col-resize bg-transparent"
+        >
+          <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+        </div>
+      )}
       {collapsed && (
         <Button
           variant="ghost"
