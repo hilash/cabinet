@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import {
   Bot,
   CheckCircle2,
-  FileText,
   Loader2,
   Pause,
   Play,
@@ -21,8 +20,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
+import { cronToHuman } from "@/lib/agents/cron-utils";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
 import type { TreeNode } from "@/types";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
 import type { JobConfig } from "@/types/jobs";
@@ -236,6 +237,22 @@ function TriggerChip({
   );
 }
 
+function blankJobDraft(agentSlug: string): JobConfig {
+  const now = new Date().toISOString();
+  return {
+    id: "",
+    name: "",
+    enabled: true,
+    schedule: "0 9 * * 1-5",
+    provider: "claude-code",
+    agentSlug,
+    prompt: "",
+    timeout: 600,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function AgentsWorkspace({
   selectedAgentSlug,
   selectedScope = "all",
@@ -274,6 +291,12 @@ export function AgentsWorkspace({
   const [settingsBodyHtml, setSettingsBodyHtml] = useState("");
   const [settingsBodyMode, setSettingsBodyMode] = useState<"write" | "preview">("preview");
   const [settingsEditorOpen, setSettingsEditorOpen] = useState(false);
+  const [newJobDialogOpen, setNewJobDialogOpen] = useState(false);
+  const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
+  const [libraryTemplates, setLibraryTemplates] = useState<JobLibraryTemplate[]>([]);
+  const [savingJob, setSavingJob] = useState(false);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const settingsLoadedRef = useRef(false);
   const lastSavedSettingsRef = useRef<string | null>(null);
   const conversationsPanel = useHorizontalResize(340, 260, 520);
@@ -336,13 +359,29 @@ export function AgentsWorkspace({
     setHasLoadedConversations(true);
   }
 
-  async function refreshSettings(agentSlug: string) {
+  async function refreshLibrary() {
+    const response = await fetch("/api/jobs/library");
+    if (!response.ok) return;
+    const data = await response.json();
+    setLibraryTemplates((data.templates || []) as JobLibraryTemplate[]);
+  }
+
+  async function refreshSettings(
+    agentSlug: string,
+    options?: { resetJobEditor?: boolean }
+  ) {
+    const resetJobEditor = options?.resetJobEditor ?? true;
+
     if (agentSlug === "general") {
       setSettingsPersona(GENERAL_AGENT);
       setSettingsBody("");
       setSettingsJobs([]);
-      setSelectedJobId(null);
-      setJobDraft(null);
+      if (resetJobEditor) {
+        setSelectedJobId(null);
+        setJobDraft(null);
+        setNewJobDialogOpen(false);
+        setLibraryDialogOpen(false);
+      }
       settingsLoadedRef.current = true;
       lastSavedSettingsRef.current = JSON.stringify({
         role: GENERAL_AGENT.role || "",
@@ -381,8 +420,12 @@ export function AgentsWorkspace({
     } else {
       setSettingsJobs([]);
     }
-    setSelectedJobId(null);
-    setJobDraft(null);
+    if (resetJobEditor) {
+      setSelectedJobId(null);
+      setJobDraft(null);
+      setNewJobDialogOpen(false);
+      setLibraryDialogOpen(false);
+    }
   }
 
   async function refreshSelectedConversation(conversationId: string) {
@@ -395,6 +438,10 @@ export function AgentsWorkspace({
   useEffect(() => {
     void refreshConversations();
   }, [activeAgentSlug, triggerFilter, statusFilter]);
+
+  useEffect(() => {
+    void refreshLibrary();
+  }, []);
 
   useEffect(() => {
     void refreshAgents();
@@ -430,9 +477,32 @@ export function AgentsWorkspace({
   useEffect(() => {
     if (mode === "settings" && settingsAgentSlug) {
       settingsLoadedRef.current = false;
-      void refreshSettings(settingsAgentSlug);
+      void refreshSettings(settingsAgentSlug, { resetJobEditor: true });
     }
   }, [mode, settingsAgentSlug]);
+
+  useEffect(() => {
+    if (!settingsAgentSlug) {
+      setJobDraft(null);
+      return;
+    }
+
+    if (!selectedJobId) {
+      setJobDraft(null);
+      return;
+    }
+
+    if (selectedJobId === "__new__") return;
+
+    const existingJob = settingsJobs.find((job) => job.id === selectedJobId);
+    if (existingJob) {
+      setJobDraft({ ...existingJob });
+      return;
+    }
+
+    setSelectedJobId(null);
+    setJobDraft(null);
+  }, [settingsAgentSlug, settingsJobs, selectedJobId]);
 
   useEffect(() => {
     if (mode !== "settings" || !settingsAgentSlug || settingsAgentSlug === "general") {
@@ -602,7 +672,7 @@ export function AgentsWorkspace({
       body: JSON.stringify({ action: "toggle" }),
     });
     await refreshAgents();
-    await refreshSettings(settingsAgentSlug);
+    await refreshSettings(settingsAgentSlug, { resetJobEditor: false });
   }
 
   async function runHeartbeatNow() {
@@ -625,80 +695,118 @@ export function AgentsWorkspace({
   }
 
   function startNewJobDraft() {
+    if (!settingsAgentSlug) return;
     setSelectedJobId("__new__");
-    setJobDraft({
-      id: "",
-      name: "",
-      enabled: true,
-      schedule: "0 9 * * 1-5",
-      provider: "claude-code",
-      agentSlug: settingsAgentSlug || "",
-      prompt: "",
-      timeout: 600,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    setJobDraft(blankJobDraft(settingsAgentSlug));
+    setNewJobDialogOpen(true);
   }
 
   function openJob(jobId: string) {
-    const job = settingsJobs.find((entry) => entry.id === jobId);
-    if (!job) return;
     setSelectedJobId(jobId);
-    setJobDraft({ ...job });
+  }
+
+  function applyLibraryTemplate(template: JobLibraryTemplate) {
+    if (!settingsAgentSlug) return;
+    setSelectedJobId("__new__");
+    setJobDraft({
+      ...blankJobDraft(settingsAgentSlug),
+      id: template.id,
+      name: template.name,
+      schedule: template.schedule,
+      prompt: template.prompt,
+      timeout: template.timeout || 600,
+    });
+    setLibraryDialogOpen(false);
+    setNewJobDialogOpen(true);
+  }
+
+  function closeNewJobDialog() {
+    setNewJobDialogOpen(false);
+    if (selectedJobId === "__new__") {
+      setSelectedJobId(null);
+      setJobDraft(null);
+    }
   }
 
   async function saveJob() {
     if (!settingsAgentSlug || !jobDraft) return;
-    const isNew = selectedJobId === "__new__";
+    const isNew = selectedJobId === "__new__" || !selectedJobId;
     const endpoint = isNew
       ? `/api/agents/${settingsAgentSlug}/jobs`
       : `/api/agents/${settingsAgentSlug}/jobs/${selectedJobId}`;
     const method = isNew ? "POST" : "PUT";
-    const body = isNew
-      ? jobDraft
-      : {
-          name: jobDraft.name,
-          schedule: jobDraft.schedule,
-          prompt: jobDraft.prompt,
-          timeout: jobDraft.timeout,
-          enabled: jobDraft.enabled,
-        };
-
-    const response = await fetch(endpoint, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) return;
-    await refreshSettings(settingsAgentSlug);
+    setSavingJob(true);
+    try {
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...jobDraft,
+          id: jobDraft.id || undefined,
+        }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const nextJob = (data.job || jobDraft) as JobConfig;
+      await refreshSettings(settingsAgentSlug, { resetJobEditor: false });
+      setSelectedJobId(nextJob.id);
+      if (isNew) {
+        setNewJobDialogOpen(false);
+      }
+    } finally {
+      setSavingJob(false);
+    }
   }
 
   async function deleteJob(jobId: string) {
     if (!settingsAgentSlug) return;
-    await fetch(`/api/agents/${settingsAgentSlug}/jobs/${jobId}`, {
-      method: "DELETE",
+    setDeletingJobId(jobId);
+    try {
+      await fetch(`/api/agents/${settingsAgentSlug}/jobs/${jobId}`, {
+        method: "DELETE",
+      });
+      if (selectedJobId === jobId) {
+        setSelectedJobId(null);
+        setJobDraft(null);
+      }
+      await refreshSettings(settingsAgentSlug, { resetJobEditor: false });
+    } finally {
+      setDeletingJobId(null);
+    }
+  }
+
+  async function toggleJob(job: JobConfig) {
+    if (!settingsAgentSlug) return;
+    await fetch(`/api/agents/${settingsAgentSlug}/jobs/${job.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle" }),
     });
-    setSelectedJobId(null);
-    setJobDraft(null);
-    await refreshSettings(settingsAgentSlug);
+    await refreshSettings(settingsAgentSlug, { resetJobEditor: false });
+    await refreshConversations();
   }
 
   async function runJob(jobId: string) {
     if (!settingsAgentSlug) return;
-    const response = await fetch(`/api/agents/${settingsAgentSlug}/jobs/${jobId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "run" }),
-    });
-    if (!response.ok) return;
-    const data = await response.json();
-    if (data.run?.id) {
-      setActiveAgentSlug(settingsAgentSlug);
-      setSection({ type: "agent", slug: settingsAgentSlug });
-      setSettingsTarget(null);
-      setSelectedConversationId(data.run.id as string);
-      setMode("conversation");
-      await refreshConversations();
+    setRunningJobId(jobId);
+    try {
+      const response = await fetch(`/api/agents/${settingsAgentSlug}/jobs/${jobId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run" }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.run?.id) {
+        setActiveAgentSlug(settingsAgentSlug);
+        setSection({ type: "agent", slug: settingsAgentSlug });
+        setSettingsTarget(null);
+        setSelectedConversationId(data.run.id as string);
+        setMode("conversation");
+        await refreshConversations();
+      }
+    } finally {
+      setRunningJobId(null);
     }
   }
 
@@ -1346,56 +1454,281 @@ export function AgentsWorkspace({
                   </DialogContent>
                 </Dialog>
 
+                <Dialog open={newJobDialogOpen} onOpenChange={(open) => {
+                  if (!open) {
+                    closeNewJobDialog();
+                    return;
+                  }
+                  setNewJobDialogOpen(true);
+                }}>
+                  <DialogContent className="sm:max-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle>New Job</DialogTitle>
+                    </DialogHeader>
+                    {jobDraft ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[11px] font-medium text-muted-foreground">Job name</label>
+                          <input
+                            value={jobDraft.name}
+                            onChange={(event) =>
+                              setJobDraft((current) =>
+                                current ? { ...current, name: event.target.value } : current
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                            placeholder="Weekly strategy digest"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-medium text-muted-foreground">Job id</label>
+                          <input
+                            value={jobDraft.id}
+                            onChange={(event) =>
+                              setJobDraft((current) =>
+                                current ? { ...current, id: event.target.value } : current
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                            placeholder="weekly-strategy-digest"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-medium text-muted-foreground">Schedule</label>
+                          <input
+                            value={jobDraft.schedule}
+                            onChange={(event) =>
+                              setJobDraft((current) =>
+                                current ? { ...current, schedule: event.target.value } : current
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                            placeholder="0 9 * * 1"
+                          />
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {jobDraft.schedule ? cronToHuman(jobDraft.schedule) : "No schedule set."}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-medium text-muted-foreground">Timeout (seconds)</label>
+                          <input
+                            type="number"
+                            value={jobDraft.timeout || 600}
+                            onChange={(event) =>
+                              setJobDraft((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      timeout: parseInt(event.target.value || "600", 10),
+                                    }
+                                  : current
+                              )
+                            }
+                            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-medium text-muted-foreground">Prompt</label>
+                          <textarea
+                            value={jobDraft.prompt}
+                            onChange={(event) =>
+                              setJobDraft((current) =>
+                                current ? { ...current, prompt: event.target.value } : current
+                              )
+                            }
+                            rows={12}
+                            className="mt-1 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[13px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring"
+                            placeholder="What should this job do?"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={jobDraft.enabled}
+                            onChange={(event) =>
+                              setJobDraft((current) =>
+                                current ? { ...current, enabled: event.target.checked } : current
+                              )
+                            }
+                          />
+                          Enabled
+                        </label>
+                        <div className="flex justify-end gap-2 border-t border-border pt-3">
+                          <Button variant="outline" size="sm" className="h-9 px-4" onClick={closeNewJobDialog}>
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-9 px-4"
+                            onClick={() => void saveJob()}
+                            disabled={
+                              savingJob ||
+                              !jobDraft.name.trim() ||
+                              !jobDraft.id.trim() ||
+                              !jobDraft.prompt.trim()
+                            }
+                          >
+                            {savingJob ? "Saving..." : "Create job"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={libraryDialogOpen} onOpenChange={setLibraryDialogOpen}>
+                  <DialogContent className="sm:max-w-4xl">
+                    <DialogHeader>
+                      <DialogTitle>Starter Library</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[70vh]">
+                      <div className="grid gap-3 pr-2 md:grid-cols-2">
+                        {libraryTemplates.map((template) => (
+                          <div
+                            key={template.id}
+                            className="rounded-xl border border-border bg-background px-4 py-4"
+                          >
+                            <div className="flex h-full flex-col">
+                              <div className="min-w-0">
+                                <div className="text-[13px] font-medium">{template.name}</div>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                  {template.description}
+                                </p>
+                                <p className="mt-3 text-[10px] text-muted-foreground">
+                                  Suggested schedule: {cronToHuman(template.schedule)}
+                                </p>
+                              </div>
+                              <div className="mt-4 flex justify-end">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs"
+                                  onClick={() => applyLibraryTemplate(template)}
+                                >
+                                  Use template
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+
                 <div className="min-h-0 basis-1/2">
                   <div className="flex h-full min-h-0">
                     <div
-                      className="shrink-0 overflow-hidden rounded-l-xl rounded-r-none border border-r-0 border-border"
+                      className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-l-xl rounded-r-none border border-r-0 border-border"
                       style={{ width: jobsPanel.width }}
                     >
                       <div className="flex items-center justify-between border-b border-border px-4 py-3">
                         <div>
-                          <h4 className="text-[13px] font-semibold">Jobs</h4>
-                          <p className="text-[11px] text-muted-foreground">Heartbeat stays above, recurring jobs live here</p>
+                          <h4
+                            className="text-[13px] font-semibold"
+                            title="Per-agent recurring prompts"
+                          >
+                            Jobs
+                          </h4>
                         </div>
-                        <Button size="sm" className="h-8 gap-1 text-xs" onClick={startNewJobDraft}>
-                          <Plus className="h-3.5 w-3.5" />
-                          Add job
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1 text-xs"
+                            onClick={() => setLibraryDialogOpen(true)}
+                          >
+                            Starter library
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1 text-xs"
+                            onClick={startNewJobDraft}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            New job
+                          </Button>
+                        </div>
                       </div>
-                      <div className="space-y-1 p-2">
-                        {settingsJobs.length === 0 ? (
-                          <div className="px-2 py-6 text-[12px] text-muted-foreground">No jobs yet.</div>
-                        ) : (
-                          settingsJobs.map((job) => (
-                            <button
-                              key={job.id}
-                              onClick={() => openJob(job.id)}
-                              className={cn(
-                                "w-full rounded-lg border px-3 py-3 text-left transition-colors",
-                                selectedJobId === job.id
-                                  ? "border-primary/30 bg-primary/5"
-                                  : "border-border hover:bg-accent/40"
-                              )}
-                            >
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                <span className="truncate text-[12px] font-medium">{job.name}</span>
-                                <span
-                                  className={cn(
-                                    "ml-auto rounded-full px-1.5 py-0.5 text-[10px]",
-                                    job.enabled
-                                      ? "bg-emerald-500/10 text-emerald-500"
-                                      : "bg-muted text-muted-foreground"
-                                  )}
-                                >
-                                  {job.enabled ? "On" : "Off"}
-                                </span>
+                      <ScrollArea className="min-h-0 flex-1">
+                        <div className="space-y-2 p-3">
+                          {settingsJobs.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-border px-3 py-6 text-[12px] text-muted-foreground">
+                              No jobs yet. Start from scratch or use a library template.
+                            </div>
+                          ) : (
+                            settingsJobs.map((job) => (
+                              <div
+                                key={job.id}
+                                className={cn(
+                                  "rounded-xl border px-3 py-3 transition-colors",
+                                  selectedJobId === job.id
+                                    ? "border-foreground/15 bg-accent/40"
+                                    : "border-border bg-background"
+                                )}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <button
+                                    onClick={() => openJob(job.id)}
+                                    className="min-w-0 flex-1 text-left"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={cn(
+                                          "h-1.5 w-1.5 rounded-full",
+                                          job.enabled ? "bg-green-500" : "bg-muted-foreground/30"
+                                        )}
+                                      />
+                                      <span className="truncate text-[12px] font-medium">{job.name}</span>
+                                    </div>
+                                    <p className="mt-1 text-[10px] text-muted-foreground">
+                                      {cronToHuman(job.schedule)}
+                                    </p>
+                                  </button>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => void runJob(job.id)}
+                                      disabled={runningJobId === job.id}
+                                      className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-primary"
+                                      title="Run now"
+                                    >
+                                      {runningJobId === job.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Zap className="h-3.5 w-3.5" />
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => void toggleJob(job)}
+                                      className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                      title={job.enabled ? "Pause" : "Enable"}
+                                    >
+                                      {job.enabled ? (
+                                        <Pause className="h-3.5 w-3.5" />
+                                      ) : (
+                                        <Play className="h-3.5 w-3.5" />
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => void deleteJob(job.id)}
+                                      disabled={deletingJobId === job.id}
+                                      className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
+                                      title="Delete"
+                                    >
+                                      {deletingJobId === job.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
-                              <p className="mt-1 truncate text-[11px] text-muted-foreground">{job.schedule}</p>
-                            </button>
-                          ))
-                        )}
-                      </div>
+                            ))
+                          )}
+                        </div>
+                      </ScrollArea>
                     </div>
 
                     <div
@@ -1408,88 +1741,190 @@ export function AgentsWorkspace({
                       <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
                     </div>
 
-                    <div className="min-w-0 flex-1 rounded-r-xl rounded-l-none border border-l-0 border-border p-4">
-                      {jobDraft ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-r-xl rounded-l-none border border-l-0 border-border">
+                      {jobDraft && selectedJobId !== "__new__" ? (
+                        <ScrollArea className="min-h-0 flex-1">
+                          <div className="space-y-4 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <h4 className="text-[13px] font-semibold">
+                                  {selectedJobId === "__new__" ? "New job" : "Job editor"}
+                                </h4>
+                                <p className="text-[11px] text-muted-foreground">
+                                  Edit the selected job for this agent.
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 gap-1 text-xs"
+                                  onClick={() => {
+                                    setSelectedJobId(null);
+                                    setJobDraft(null);
+                                  }}
+                                >
+                                  Done
+                                </Button>
+                                {selectedJobId && selectedJobId !== "__new__" ? (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 gap-1 text-xs"
+                                      onClick={() => void runJob(selectedJobId)}
+                                      disabled={runningJobId === selectedJobId}
+                                    >
+                                      {runningJobId === selectedJobId ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Play className="h-3.5 w-3.5" />
+                                      )}
+                                      Run
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 gap-1 text-xs text-destructive"
+                                      onClick={() => void deleteJob(selectedJobId)}
+                                      disabled={deletingJobId === selectedJobId}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      Delete
+                                    </Button>
+                                  </>
+                                ) : null}
+                              </div>
+                            </div>
                             <div>
-                              <h4 className="text-[13px] font-semibold">
-                                {selectedJobId === "__new__" ? "New job" : "Job settings"}
-                              </h4>
-                              <p className="text-[11px] text-muted-foreground">
-                                Prompts relevant to the agent that run on a schedule
+                              <label className="text-[11px] font-medium text-muted-foreground">Job name</label>
+                              <input
+                                value={jobDraft.name}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, name: event.target.value } : current
+                                  )
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                                placeholder="Weekly strategy digest"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Job id</label>
+                              <input
+                                value={jobDraft.id}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, id: event.target.value } : current
+                                  )
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                                placeholder="weekly-strategy-digest"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Schedule</label>
+                              <input
+                                value={jobDraft.schedule}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, schedule: event.target.value } : current
+                                  )
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                                placeholder="0 9 * * 1"
+                              />
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                {jobDraft.schedule ? cronToHuman(jobDraft.schedule) : "No schedule set."}
                               </p>
                             </div>
-                            <div className="flex gap-2">
-                              {selectedJobId && selectedJobId !== "__new__" ? (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 gap-1 text-xs"
-                                    onClick={() => runJob(selectedJobId)}
-                                  >
-                                    <Play className="h-3.5 w-3.5" />
-                                    Run
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 gap-1 text-xs text-destructive"
-                                    onClick={() => deleteJob(selectedJobId)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    Delete
-                                  </Button>
-                                </>
-                              ) : null}
-                              <Button size="sm" className="h-8 text-xs" onClick={saveJob}>
-                                Save job
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Timeout (seconds)</label>
+                              <input
+                                type="number"
+                                value={jobDraft.timeout || 600}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current
+                                      ? {
+                                          ...current,
+                                          timeout: parseInt(event.target.value || "600", 10),
+                                        }
+                                      : current
+                                  )
+                                }
+                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-muted-foreground">Prompt</label>
+                              <textarea
+                                value={jobDraft.prompt}
+                                onChange={(event) =>
+                                  setJobDraft((current) =>
+                                    current ? { ...current, prompt: event.target.value } : current
+                                  )
+                                }
+                                rows={10}
+                                className="mt-1 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[13px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring"
+                                placeholder="What should this job do?"
+                              />
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Button
+                                size="sm"
+                                className="h-9 px-4"
+                                onClick={() => void saveJob()}
+                                disabled={
+                                  savingJob ||
+                                  !jobDraft.name.trim() ||
+                                  !jobDraft.id.trim() ||
+                                  !jobDraft.prompt.trim()
+                                }
+                              >
+                                {savingJob ? "Saving..." : "Save job"}
+                              </Button>
+                              <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                                <input
+                                  type="checkbox"
+                                  checked={jobDraft.enabled}
+                                  onChange={(event) =>
+                                    setJobDraft((current) =>
+                                      current ? { ...current, enabled: event.target.checked } : current
+                                    )
+                                  }
+                                />
+                                Enabled
+                              </label>
+                            </div>
+                          </div>
+                        </ScrollArea>
+                      ) : (
+                        <div className="flex h-full min-h-[280px] items-center justify-center">
+                          <div className="max-w-sm space-y-3 px-6 text-center">
+                            <h4 className="text-[13px] font-semibold">Select a job to edit</h4>
+                            <p className="text-[12px] text-muted-foreground">
+                              Existing jobs open here. Create a new job or browse the starter library in a popup.
+                            </p>
+                            <div className="flex justify-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={() => setLibraryDialogOpen(true)}
+                              >
+                                Starter library
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-8 gap-1 text-xs"
+                                onClick={startNewJobDraft}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                New job
                               </Button>
                             </div>
                           </div>
-                          <label className="space-y-1 text-[11px] text-muted-foreground">
-                            <span>Name</span>
-                            <input
-                              value={jobDraft.name}
-                              onChange={(event) => setJobDraft({ ...jobDraft, name: event.target.value })}
-                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                            />
-                          </label>
-                          <label className="space-y-1 text-[11px] text-muted-foreground">
-                            <span>Schedule</span>
-                            <input
-                              value={jobDraft.schedule}
-                              onChange={(event) => setJobDraft({ ...jobDraft, schedule: event.target.value })}
-                              className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground"
-                            />
-                          </label>
-                          <label className="space-y-1 text-[11px] text-muted-foreground">
-                            <span>Timeout (seconds)</span>
-                            <input
-                              type="number"
-                              value={jobDraft.timeout || 600}
-                              onChange={(event) =>
-                                setJobDraft({
-                                  ...jobDraft,
-                                  timeout: parseInt(event.target.value || "600", 10),
-                                })
-                              }
-                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                            />
-                          </label>
-                          <label className="space-y-1 text-[11px] text-muted-foreground">
-                            <span>Prompt</span>
-                            <textarea
-                              value={jobDraft.prompt}
-                              onChange={(event) => setJobDraft({ ...jobDraft, prompt: event.target.value })}
-                              className="min-h-[220px] w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                            />
-                          </label>
-                        </div>
-                      ) : (
-                        <div className="flex h-full min-h-[280px] items-center justify-center text-[12px] text-muted-foreground">
-                          Select a job to edit its settings, or create a new one.
                         </div>
                       )}
                     </div>

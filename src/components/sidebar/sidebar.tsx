@@ -23,7 +23,6 @@ import {
   Code,
   BarChart3,
   Briefcase,
-  Clock3,
   DollarSign,
   Wrench,
   Palette,
@@ -101,33 +100,6 @@ const SIDEBAR_DEFAULT_WIDTH = 280;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
-}
-
-function NavButton({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: typeof Users;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-[12px] transition-colors",
-        active
-          ? "bg-accent text-foreground font-medium"
-          : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-      )}
-    >
-      <Icon className="h-3.5 w-3.5 shrink-0" />
-      {label}
-    </button>
-  );
 }
 
 export function Sidebar() {
@@ -269,12 +241,6 @@ export function Sidebar() {
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
             Team
           </p>
-          <NavButton
-            icon={Clock3}
-            label="Jobs"
-            active={section.type === "jobs"}
-            onClick={() => setSection({ type: "jobs" })}
-          />
           {/* Agents header with expand/collapse */}
           <button
             onClick={() => {

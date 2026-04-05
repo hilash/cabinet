@@ -483,7 +483,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
             variant="ghost"
             size="sm"
             className="h-7 text-[12px] gap-1.5 hidden sm:flex"
-            onClick={() => setSection({ type: "jobs" })}
+            onClick={() => setSection({ type: "agents" })}
           >
             <BookOpen className="h-3 w-3" />
             <span className="hidden md:inline">Jobs</span>
@@ -508,7 +508,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
           window.dispatchEvent(new CustomEvent("cabinet:switch-slack-channel", { detail: "alerts" }));
         }}
         onGoalClick={() => setShowGoalSummary(!showGoalSummary)}
-        onPlaybookClick={() => setSection({ type: "jobs" })}
+        onPlaybookClick={() => setSection({ type: "agents" })}
         onAgentClick={handleAgentClick}
       />
 

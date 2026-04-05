@@ -8,7 +8,6 @@ import { WebsiteViewer } from "@/components/editor/website-viewer";
 import { PdfViewer } from "@/components/editor/pdf-viewer";
 import { CsvViewer } from "@/components/editor/csv-viewer";
 import { AgentsWorkspace } from "@/components/agents/agents-workspace";
-import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
 import { AIPanel } from "@/components/ai-panel/ai-panel";
@@ -106,7 +105,6 @@ export function AppShell() {
   const renderContent = () => {
     // System sections (non-page views)
     if (section.type === "settings") return <SettingsPage />;
-    if (section.type === "jobs") return <JobsManager />;
     if (section.type === "agents") {
       return <AgentsWorkspace selectedScope="all" selectedAgentSlug={null} />;
     }
