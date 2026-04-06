@@ -40,6 +40,7 @@ test("Codex provider builds the expected launch arguments", () => {
   assert.ok(oneShot);
   assert.deepEqual(oneShot.args, [
     "exec",
+    "--ephemeral",
     "--skip-git-repo-check",
     "--dangerously-bypass-approvals-and-sandbox",
     "Say OK",
@@ -49,6 +50,7 @@ test("Codex provider builds the expected launch arguments", () => {
   assert.ok(session);
   assert.deepEqual(session.args, [
     "exec",
+    "--ephemeral",
     "--skip-git-repo-check",
     "--dangerously-bypass-approvals-and-sandbox",
     "Say OK",
@@ -57,7 +59,7 @@ test("Codex provider builds the expected launch arguments", () => {
 
   const interactiveSession = codexCliProvider.buildSessionInvocation?.(undefined, process.cwd());
   assert.ok(interactiveSession);
-  assert.deepEqual(interactiveSession.args, []);
+  assert.deepEqual(interactiveSession.args, ["--ephemeral"]);
   assert.equal(interactiveSession.initialPrompt, undefined);
 });
 

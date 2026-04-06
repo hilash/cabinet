@@ -18,6 +18,7 @@ export const codexCliProvider: AgentProvider = {
   buildArgs(prompt: string, _workdir: string): string[] {
     return [
       "exec",
+      "--ephemeral",
       "--skip-git-repo-check",
       "--dangerously-bypass-approvals-and-sandbox",
       prompt,
@@ -41,7 +42,7 @@ export const codexCliProvider: AgentProvider = {
 
     return {
       command: this.command || "codex",
-      args: [],
+      args: ["--ephemeral"],
     };
   },
 
