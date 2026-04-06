@@ -1,9 +1,6 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
   ArrowRight,
@@ -14,6 +11,7 @@ import {
   Rocket,
   Sparkles,
   Star,
+  Zap,
 } from "lucide-react";
 
 interface OnboardingAnswers {
@@ -60,6 +58,22 @@ const COMMUNITY_START_STEP = 4;
 const COMMUNITY_END_STEP = 6;
 const STEP_COUNT = 7;
 
+/* ─── Colors from runcabinet.com ─── */
+const WEB = {
+  bg: "#FAF6F1",
+  bgWarm: "#F3EDE4",
+  bgCard: "#FFFFFF",
+  text: "#3B2F2F",
+  textSecondary: "#6B5B4F",
+  textTertiary: "#A89888",
+  accent: "#8B5E3C",
+  accentWarm: "#7A4F30",
+  accentBg: "#F5E6D3",
+  border: "#E8DDD0",
+  borderLight: "#F0E8DD",
+  borderDark: "#D4C4B0",
+} as const;
+
 function DiscordIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -81,14 +95,21 @@ function CommunityCardTile({ card }: { card: CommunityCard }) {
   const content = (
     <>
       <div
-        className={`flex size-10 items-center justify-center rounded-xl border ${card.iconClassName}`}
+        className="flex size-10 items-center justify-center rounded-xl border"
+        style={{
+          borderColor: WEB.borderLight,
+          background: WEB.accentBg,
+          color: WEB.accent,
+        }}
       >
         {card.icon}
       </div>
 
       <div className="mt-4 flex flex-col gap-1">
-        <p className="text-sm font-semibold">{card.title}</p>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className="text-sm font-semibold" style={{ color: WEB.text }}>
+          {card.title}
+        </p>
+        <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
           {card.description}
         </p>
       </div>
@@ -97,7 +118,13 @@ function CommunityCardTile({ card }: { card: CommunityCard }) {
 
   if (!card.href) {
     return (
-      <div className="rounded-xl border border-border bg-background/85 p-4">
+      <div
+        className="rounded-xl p-4"
+        style={{
+          border: `1px solid ${WEB.border}`,
+          background: WEB.bgCard,
+        }}
+      >
         {content}
       </div>
     );
@@ -108,10 +135,17 @@ function CommunityCardTile({ card }: { card: CommunityCard }) {
       href={card.href}
       target="_blank"
       rel="noopener noreferrer"
-      className="group rounded-xl border border-border bg-background/90 p-4 transition-all hover:-translate-y-0.5 hover:border-foreground/15 hover:bg-background"
+      className="group rounded-xl p-4 transition-all hover:-translate-y-0.5"
+      style={{
+        border: `1px solid ${WEB.border}`,
+        background: WEB.bgCard,
+      }}
     >
       {content}
-      <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-foreground">
+      <div
+        className="mt-4 inline-flex items-center gap-1 text-sm font-medium"
+        style={{ color: WEB.accent }}
+      >
         <span>{card.cta}</span>
         <ArrowUpRight className="size-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
       </div>
@@ -143,13 +177,18 @@ function suggestTeam(answers: OnboardingAnswers): SuggestedAgent[] {
     agents.push({ slug: "qa", name: "QA Agent", emoji: "\u{1F9EA}", role: "Review, proofread, fact-check content", checked: false });
   }
 
-  // If no specific agents matched, add content marketer as a reasonable default
   if (agents.length === 2) {
     agents.push({ slug: "content-marketer", name: "Content Marketer", emoji: "\u{1F4E3}", role: "Blog, social media, newsletters", checked: true });
   }
 
   return agents;
 }
+
+/* ─── Dot-grid background (from runcabinet.com) ─── */
+const dotGridStyle: React.CSSProperties = {
+  backgroundImage: `radial-gradient(circle, ${WEB.borderDark} 0.5px, transparent 0.5px)`,
+  backgroundSize: "32px 32px",
+};
 
 export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(0);
@@ -250,7 +289,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           cta: "Join the chat",
           href: DISCORD_SUPPORT_URL,
           icon: <DiscordIcon className="size-4" />,
-          iconClassName: "border-[#5865F2]/20 bg-[#5865F2]/10 text-[#5865F2]",
+          iconClassName: "",
         },
         {
           title: "Why people stay",
@@ -258,7 +297,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             "Early features, fast answers, behind-the-scenes progress, and the occasional delightful chaos of building in public.",
           cta: "",
           icon: <Sparkles className="size-4" />,
-          iconClassName: "border-primary/15 bg-primary/10 text-primary",
+          iconClassName: "",
         },
       ],
     },
@@ -277,7 +316,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           cta: "Register for Cabinet Cloud",
           href: CABINET_CLOUD_URL,
           icon: <Cloud className="size-4" />,
-          iconClassName: "border-primary/15 bg-primary/10 text-primary",
+          iconClassName: "",
         },
         {
           title: "Why people want it",
@@ -285,7 +324,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             "Less setup, easier sharing, faster onboarding for teams, and a much lower chance of explaining terminal tabs before lunch.",
           cta: "",
           icon: <Rocket className="size-4" />,
-          iconClassName: "border-border bg-background text-foreground",
+          iconClassName: "",
         },
       ],
     },
@@ -298,18 +337,38 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const launchDisabled = launching || selectedAgentCount === 0;
   const starsLabel = `${formatGithubStars(githubStars)} GitHub stars`;
 
+  /* ─── Shared inline styles (website tokens) ─── */
+  const inputStyle: React.CSSProperties = {
+    background: WEB.bgCard,
+    border: `1px solid ${WEB.border}`,
+    color: WEB.text,
+    borderRadius: 12,
+    height: 44,
+    fontSize: 15,
+    padding: "0 14px",
+    outline: "none",
+    width: "100%",
+    fontFamily: "inherit",
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-6 py-10">
+    <div className="min-h-screen" style={{ background: WEB.bg, color: WEB.text }}>
+      <div
+        className="mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-6 py-10"
+        style={dotGridStyle}
+      >
         <div className="w-full">
           {/* Progress indicator */}
           <div className="mb-10 flex items-center justify-center gap-2">
             {Array.from({ length: STEP_COUNT }, (_, i) => i).map((i) => (
               <div
                 key={i}
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  i <= step ? "bg-primary w-10" : "bg-muted w-6"
-                }`}
+                className="rounded-full transition-all duration-300"
+                style={{
+                  height: 8,
+                  width: i <= step ? 40 : 24,
+                  background: i <= step ? WEB.accent : WEB.borderLight,
+                }}
               />
             ))}
           </div>
@@ -317,25 +376,49 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           {/* Step 0: Welcome */}
           {step === 0 && (
             <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
-              <div className="text-center space-y-3">
-                <h1 className="text-3xl font-bold tracking-tight">
-                  Welcome to Cabinet
+              <div className="text-center space-y-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/cabinet-icon.png"
+                  alt=""
+                  className="mx-auto h-20 w-20 rounded-2xl drop-shadow-lg"
+                />
+                <h1
+                  className="text-4xl tracking-tight italic"
+                  style={{ fontFamily: "var(--font-logo), Georgia, serif", color: WEB.text }}
+                >
+                  cabinet
                 </h1>
-                <p className="text-muted-foreground text-lg leading-relaxed">
+                <p
+                  className="text-lg leading-relaxed"
+                  style={{ color: WEB.textSecondary }}
+                >
                   Let&apos;s set up your AI team. I&apos;ll ask a few questions
                   to get the right agents working for you.
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2">
-                <span className="rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground">
+                <span
+                  className="rounded-full px-3 py-1 text-xs font-mono uppercase tracking-widest"
+                  style={{
+                    border: `1px solid ${WEB.border}`,
+                    background: WEB.bgCard,
+                    color: WEB.accent,
+                  }}
+                >
+                  <Zap className="inline w-3 h-3 mr-1 -mt-0.5" />
                   Build your starter team in minutes
                 </span>
               </div>
               <div className="flex justify-center pt-2">
-                <Button onClick={() => setStep(1)} className="h-10 px-6">
+                <button
+                  onClick={() => setStep(1)}
+                  className="inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5"
+                  style={{ background: WEB.accent }}
+                >
                   Let&apos;s go
-                  <ArrowRight data-icon="inline-end" />
-                </Button>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           )}
@@ -344,70 +427,84 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           {step === 1 && (
             <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
-                <h1 className="text-2xl font-bold tracking-tight">
+                <h1
+                  className="text-2xl tracking-tight italic"
+                  style={{ fontFamily: "var(--font-logo), Georgia, serif" }}
+                >
                   Tell me about your project
                 </h1>
               </div>
 
-              <div className="space-y-5">
+              <div
+                className="rounded-2xl p-6 space-y-5"
+                style={{
+                  background: WEB.bgCard,
+                  border: `1px solid ${WEB.border}`,
+                  boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
+                }}
+              >
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
+                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
                     What&apos;s your company or project name?
                   </label>
-                  <Input
+                  <input
                     value={answers.companyName}
                     onChange={(e) =>
                       setAnswers({ ...answers, companyName: e.target.value })
                     }
                     placeholder="Acme Corp"
-                    className="h-11 text-base"
+                    style={inputStyle}
                     autoFocus
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">What do you do?</label>
-                  <Input
+                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
+                    What do you do?
+                  </label>
+                  <input
                     value={answers.description}
                     onChange={(e) =>
                       setAnswers({ ...answers, description: e.target.value })
                     }
                     placeholder="We make a podcast about AI startups"
-                    className="h-11 text-base"
+                    style={inputStyle}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
+                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
                     What are your top 3 goals right now?
                   </label>
-                  <Input
+                  <input
                     value={answers.goals}
                     onChange={(e) =>
                       setAnswers({ ...answers, goals: e.target.value })
                     }
                     placeholder="Grow newsletter to 1k subs, launch blog, get first 10 customers"
-                    className="h-11 text-base"
+                    style={inputStyle}
                   />
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <Button
-                  variant="ghost"
+                <button
                   onClick={() => setStep(0)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                  style={{ color: WEB.textSecondary }}
                 >
-                  <ArrowLeft data-icon="inline-start" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   Back
-                </Button>
-                <Button
+                </button>
+                <button
                   onClick={() => setStep(2)}
                   disabled={!answers.companyName.trim()}
-                  className="h-10 px-5"
+                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+                  style={{ background: WEB.accent }}
                 >
                   Next
-                  <ArrowRight data-icon="inline-end" />
-                </Button>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           )}
@@ -416,14 +513,24 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           {step === 2 && (
             <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
-                <h1 className="text-2xl font-bold tracking-tight">
+                <h1
+                  className="text-2xl tracking-tight italic"
+                  style={{ fontFamily: "var(--font-logo), Georgia, serif" }}
+                >
                   Almost there
                 </h1>
               </div>
 
-              <div className="space-y-5">
+              <div
+                className="rounded-2xl p-6 space-y-5"
+                style={{
+                  background: WEB.bgCard,
+                  border: `1px solid ${WEB.border}`,
+                  boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
+                }}
+              >
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
+                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
                     How big is your team?
                   </label>
                   <div className="flex gap-2">
@@ -433,11 +540,12 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         onClick={() =>
                           setAnswers({ ...answers, teamSize: size })
                         }
-                        className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${
-                          answers.teamSize === size
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground"
-                        }`}
+                        className="flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all"
+                        style={{
+                          border: `1px solid ${answers.teamSize === size ? WEB.accent : WEB.border}`,
+                          background: answers.teamSize === size ? WEB.accentBg : WEB.bgCard,
+                          color: answers.teamSize === size ? WEB.accent : WEB.textSecondary,
+                        }}
                       >
                         {size}
                       </button>
@@ -446,36 +554,38 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
+                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
                     What&apos;s your most immediate priority?
                   </label>
-                  <Input
+                  <input
                     value={answers.priority}
                     onChange={(e) =>
                       setAnswers({ ...answers, priority: e.target.value })
                     }
                     placeholder="Set up our content engine and start publishing weekly"
-                    className="h-11 text-base"
+                    style={inputStyle}
                     autoFocus
                   />
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <Button
-                  variant="ghost"
+                <button
                   onClick={() => setStep(1)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                  style={{ color: WEB.textSecondary }}
                 >
-                  <ArrowLeft data-icon="inline-start" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   Back
-                </Button>
-                <Button
+                </button>
+                <button
                   onClick={goToTeamSuggestion}
-                  className="h-10 px-5"
+                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5"
+                  style={{ background: WEB.accent }}
                 >
                   Next
-                  <ArrowRight data-icon="inline-end" />
-                </Button>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           )}
@@ -484,10 +594,13 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           {step === 3 && (
             <div className="flex flex-col gap-8 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
-                <h1 className="text-2xl font-bold tracking-tight">
+                <h1
+                  className="text-2xl tracking-tight italic"
+                  style={{ fontFamily: "var(--font-logo), Georgia, serif" }}
+                >
                   Your starter team
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
                   Based on your goals, here&apos;s who I recommend. Check the
                   agents you want &mdash; you can always add more from the library
                   later.
@@ -499,27 +612,29 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <button
                     key={agent.slug}
                     onClick={() => toggleAgent(agent.slug)}
-                    className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all ${
-                      agent.checked
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/30"
-                    }`}
+                    className="flex w-full items-center gap-3 rounded-xl p-4 text-left transition-all"
+                    style={{
+                      border: `1px solid ${agent.checked ? WEB.accent : WEB.border}`,
+                      background: agent.checked ? WEB.accentBg : WEB.bgCard,
+                    }}
                   >
                     <div
-                      className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                        agent.checked
-                          ? "bg-primary border-primary"
-                          : "border-muted-foreground/30"
-                      }`}
+                      className="flex size-5 shrink-0 items-center justify-center rounded"
+                      style={{
+                        border: `1.5px solid ${agent.checked ? WEB.accent : WEB.borderDark}`,
+                        background: agent.checked ? WEB.accent : "transparent",
+                      }}
                     >
                       {agent.checked && (
-                        <Check className="size-3 text-primary-foreground" />
+                        <Check className="size-3 text-white" />
                       )}
                     </div>
                     <span className="text-xl">{agent.emoji}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium">{agent.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[13px] font-medium" style={{ color: WEB.text }}>
+                        {agent.name}
+                      </p>
+                      <p className="text-[11px]" style={{ color: WEB.textSecondary }}>
                         {agent.role}
                       </p>
                     </div>
@@ -528,21 +643,23 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <Button
-                  variant="ghost"
+                <button
                   onClick={() => setStep(2)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                  style={{ color: WEB.textSecondary }}
                 >
-                  <ArrowLeft data-icon="inline-start" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   Back
-                </Button>
-                <Button
+                </button>
+                <button
                   onClick={() => setStep(COMMUNITY_START_STEP)}
                   disabled={launchDisabled}
-                  className="h-10 px-5"
+                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+                  style={{ background: WEB.accent }}
                 >
                   Next
-                  <ArrowRight data-icon="inline-end" />
-                </Button>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           )}
@@ -550,22 +667,39 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           {/* Steps 4-6: Community */}
           {communityStep && (
             <div className="mx-auto flex max-w-2xl flex-col gap-8 animate-in fade-in duration-300">
-              <div className="rounded-2xl border border-border bg-muted/35 p-5 sm:p-6">
+              <div
+                className="rounded-2xl p-5 sm:p-6"
+                style={{
+                  border: `1px solid ${WEB.border}`,
+                  background: WEB.bgCard,
+                  boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
+                }}
+              >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      <Sparkles className="size-3.5 text-primary" />
+                    <div
+                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-mono uppercase tracking-[0.18em]"
+                      style={{
+                        border: `1px solid ${WEB.border}`,
+                        background: WEB.bg,
+                        color: WEB.accent,
+                      }}
+                    >
+                      <Sparkles className="size-3.5" style={{ color: WEB.accent }} />
                       {communityStep.eyebrow}
                     </div>
                     <div className="space-y-2">
-                      <h2 className="text-xl font-semibold tracking-tight">
+                      <h2
+                        className="text-xl tracking-tight italic"
+                        style={{ fontFamily: "var(--font-logo), Georgia, serif", color: WEB.text }}
+                      >
                         {communityStep.title}
                       </h2>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
+                      <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
                         {communityStep.description}
                       </p>
                       {communityStep.aside && (
-                        <p className="text-sm leading-relaxed text-muted-foreground">
+                        <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
                           {communityStep.aside}
                         </p>
                       )}
@@ -575,7 +709,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
                 {communityStep.cards.length > 0 && (
                   <>
-                    <Separator className="my-5" />
+                    <div className="my-5" style={{ borderTop: `1px solid ${WEB.borderLight}` }} />
 
                     <div className="grid gap-3 md:grid-cols-2">
                       {communityStep.cards.map((card) => (
@@ -587,75 +721,84 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
                 {isGitHubCommunityStep && (
                   <div className="pt-6">
-                    <Button
-                      variant="highlight"
-                      render={
-                        <a
-                          href={GITHUB_REPO_URL}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        />
-                      }
-                      className="h-auto w-full rounded-[2rem] px-5 py-5 sm:px-6 sm:py-6"
+                    <a
+                      href={GITHUB_REPO_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-between gap-4 rounded-full px-5 py-5 sm:px-6 sm:py-6 transition-all hover:-translate-y-0.5"
+                      style={{
+                        background: WEB.accentBg,
+                        border: `1px solid ${WEB.border}`,
+                      }}
                     >
-                      <span className="flex w-full items-center justify-between gap-4">
-                        <span className="flex min-w-0 items-center gap-4">
-                          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-background/70 shadow-sm">
-                            <Star className="size-5 fill-current text-amber-500" />
-                          </span>
-                          <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-                            <span className="truncate text-base font-semibold sm:text-lg">
-                              Star Cabinet on GitHub
-                            </span>
-                            <span className="text-sm text-amber-950/70 sm:text-[0.95rem]">
-                              Help more people find the community
-                            </span>
-                          </span>
+                      <span className="flex min-w-0 items-center gap-4">
+                        <span
+                          className="flex size-11 shrink-0 items-center justify-center rounded-full shadow-sm"
+                          style={{ background: WEB.bgCard }}
+                        >
+                          <Star className="size-5 fill-current" style={{ color: WEB.accent }} />
                         </span>
-                        <span className="hidden shrink-0 rounded-full bg-amber-950/10 px-3 py-1 text-sm font-semibold text-amber-950 sm:inline-flex">
-                          {starsLabel}
+                        <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>
+                            Star Cabinet on GitHub
+                          </span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>
+                            Help more people find the community
+                          </span>
                         </span>
                       </span>
-                    </Button>
+                      <span
+                        className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex"
+                        style={{
+                          background: WEB.bgWarm,
+                          color: WEB.accent,
+                        }}
+                      >
+                        {starsLabel}
+                      </span>
+                    </a>
                   </div>
                 )}
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <Button
-                  variant="ghost"
+                <button
                   onClick={() => setStep(step - 1)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                  style={{ color: WEB.textSecondary }}
                 >
-                  <ArrowLeft data-icon="inline-start" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   Back
-                </Button>
+                </button>
                 {step < COMMUNITY_END_STEP ? (
-                  <Button
+                  <button
                     onClick={() => setStep(step + 1)}
                     disabled={launching}
-                    className="h-10 px-5"
+                    className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5"
+                    style={{ background: WEB.accent }}
                   >
                     {communityStep.nextLabel}
-                    <ArrowRight data-icon="inline-end" />
-                  </Button>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
                 ) : (
-                  <Button
+                  <button
                     onClick={launch}
                     disabled={launchDisabled}
-                    className="h-10 px-6"
+                    className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+                    style={{ background: WEB.accent }}
                   >
                     {launching ? (
                       <>
-                        <Loader2 className="animate-spin" data-icon="inline-start" />
+                        <Loader2 className="animate-spin w-4 h-4" />
                         Setting up...
                       </>
                     ) : (
                       <>
-                        <Rocket data-icon="inline-start" />
+                        <Rocket className="w-4 h-4" />
                         Set up team
                       </>
                     )}
-                  </Button>
+                  </button>
                 )}
               </div>
             </div>
