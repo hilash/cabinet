@@ -3,694 +3,691 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weasleys' Wizard Wheezes — Where Magic Meets Mischief</title>
+<title>Weasleys' Wizard Wheezes — Purveyors of Magical Mischief</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   RESET & BASE
+   RESET & CUSTOM PROPERTIES
    ============================================================ */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg-deep: #1A0533;
-  --bg-dark: #0F0320;
-  --orange: #FF6B2B;
-  --orange-bright: #FF8A50;
-  --purple: #8B5CF6;
-  --purple-deep: #6D28D9;
-  --magenta: #EC4899;
-  --gold: #F59E0B;
-  --teal: #0D9488;
-  --teal-dark: #0A1E2C;
-  --white: #FFFFFF;
-  --white-dim: rgba(255,255,255,0.7);
-  --white-faint: rgba(255,255,255,0.15);
-  --shadow-orange: rgba(255,107,43,0.35);
-  --shadow-purple: rgba(139,92,246,0.35);
-  --shadow-magenta: rgba(236,72,153,0.35);
-  --shadow-gold: rgba(245,158,11,0.35);
+  --bg-deep: #1C0F2B;
+  --bg-surface: #2D1640;
+  --bg-surface-alpha: rgba(60, 25, 80, 0.6);
+  --bg-surface-light: rgba(60, 25, 80, 0.35);
+  --text-cream: #FBF3E4;
+  --text-muted: rgba(251, 243, 228, 0.6);
+  --text-dim: rgba(251, 243, 228, 0.4);
+  --gold: #E8A838;
+  --gold-light: #F0C060;
+  --gold-dim: rgba(232, 168, 56, 0.2);
+  --gold-glow: rgba(232, 168, 56, 0.35);
+  --rose: #C7546C;
+  --rose-dim: rgba(199, 84, 108, 0.3);
+  --teal: #1A6B5F;
+  --teal-dim: rgba(26, 107, 95, 0.3);
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --transition-fast: 0.2s ease;
+  --transition-med: 0.4s ease;
+  --transition-slow: 0.7s ease;
 }
 
-html { scroll-behavior: smooth; font-size: 16px; }
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg-deep);
-  color: var(--white);
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Skip to content */
+/* ============================================================
+   ACCESSIBILITY
+   ============================================================ */
 .skip-link {
   position: absolute;
   top: -100%;
   left: 16px;
-  background: var(--orange);
-  color: var(--white);
-  padding: 8px 16px;
-  border-radius: 0 0 8px 8px;
   z-index: 10000;
+  padding: 12px 24px;
+  background: var(--gold);
+  color: var(--bg-deep);
+  font-family: var(--font-body);
   font-weight: 600;
+  border-radius: var(--radius-sm);
   text-decoration: none;
-  transition: top 0.2s;
 }
-.skip-link:focus { top: 0; }
-
-/* Focus visible */
-:focus-visible {
-  outline: 2px solid var(--orange);
-  outline-offset: 2px;
+.skip-link:focus {
+  top: 16px;
 }
 
-/* Noise texture overlay */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
+*:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
 }
 
-img { max-width: 100%; display: block; }
-a { color: inherit; text-decoration: none; }
-button { font-family: inherit; cursor: pointer; border: none; background: none; }
-ul { list-style: none; }
-
-/* Scroll reveal base */
-.reveal {
-  opacity: 0;
-  transform: translateY(40px);
-  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .marquee-track { animation: none !important; }
+  .hero-particles { display: none !important; }
+  .reveal { opacity: 1 !important; transform: none !important; }
 }
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-.reveal-delay-1 { transition-delay: 0.1s; }
-.reveal-delay-2 { transition-delay: 0.2s; }
-.reveal-delay-3 { transition-delay: 0.3s; }
-.reveal-delay-4 { transition-delay: 0.4s; }
 
 /* ============================================================
-   NAVIGATION
+   BASE
    ============================================================ */
-.nav {
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-deep);
+  color: var(--text-cream);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ============================================================
+   TYPOGRAPHY UTILITIES
+   ============================================================ */
+.font-display { font-family: var(--font-display); }
+.text-gold { color: var(--gold); }
+.text-muted { color: var(--text-muted); }
+
+/* ============================================================
+   HEADER / NAV
+   ============================================================ */
+.site-header {
   position: fixed;
   top: 0; left: 0; right: 0;
-  z-index: 1000;
-  padding: 16px 40px;
+  z-index: 100;
+  padding: var(--space-md) var(--space-xl);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: background 0.3s, backdrop-filter 0.3s, box-shadow 0.3s;
+  transition: background var(--transition-med), backdrop-filter var(--transition-med);
 }
-.nav.scrolled {
-  background: rgba(26, 5, 51, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 1px 0 var(--white-faint);
+.site-header.scrolled {
+  background: rgba(28, 15, 43, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--gold-dim);
 }
 
-.nav-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 800;
-  font-size: 1.1rem;
+.header-brand {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--gold);
 }
-.nav-logo-mark {
-  background: linear-gradient(135deg, var(--orange), var(--magenta));
-  color: var(--white);
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
-.nav-logo-text { display: flex; flex-direction: column; line-height: 1.1; }
-.nav-logo-text span:first-child { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--white-dim); font-weight: 500; }
-.nav-logo-text span:last-child { font-size: 1rem; }
 
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-}
-.nav-links a {
-  font-size: 0.9rem;
+.header-nav { display: flex; gap: var(--space-lg); align-items: center; }
+.header-nav a {
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--white-dim);
-  transition: color 0.2s;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
   position: relative;
 }
-.nav-links a::after {
+.header-nav a:hover,
+.header-nav a:focus-visible { color: var(--gold); }
+.header-nav a::after {
   content: '';
   position: absolute;
-  bottom: -4px; left: 0;
-  width: 0; height: 2px;
-  background: var(--orange);
-  transition: width 0.3s;
+  bottom: -4px; left: 0; right: 0;
+  height: 1px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transition: transform var(--transition-fast);
 }
-.nav-links a:hover { color: var(--white); }
-.nav-links a:hover::after { width: 100%; }
-
-.cart-btn {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--white-faint);
-  padding: 8px 16px;
-  border-radius: 99px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--white);
-  transition: background 0.2s;
-}
-.cart-btn:hover { background: rgba(255,255,255,0.2); }
-.cart-btn svg { width: 18px; height: 18px; }
-.cart-badge {
-  background: var(--orange);
-  color: var(--white);
-  font-size: 0.65rem;
-  font-weight: 700;
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  top: -4px; right: -4px;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.cart-badge.bounce {
-  animation: cartBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-@keyframes cartBounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.4); }
-}
+.header-nav a:hover::after { transform: scaleX(1); }
 
 /* Mobile hamburger */
 .hamburger {
   display: none;
   flex-direction: column;
   gap: 5px;
-  padding: 4px;
-  z-index: 1002;
+  padding: 8px;
+  z-index: 200;
 }
 .hamburger span {
   display: block;
-  width: 24px; height: 2px;
-  background: var(--white);
-  border-radius: 2px;
-  transition: transform 0.3s, opacity 0.3s;
+  width: 24px;
+  height: 2px;
+  background: var(--text-cream);
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
 }
-.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
 .hamburger.open span:nth-child(2) { opacity: 0; }
-.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
 
-/* Mobile overlay */
-.mobile-menu {
+.mobile-nav-overlay {
+  display: none;
   position: fixed;
   inset: 0;
-  background: rgba(15, 3, 32, 0.97);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  z-index: 1001;
-  display: flex;
+  z-index: 150;
+  background: rgba(28, 15, 43, 0.97);
+  backdrop-filter: blur(24px);
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 32px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s;
+  gap: var(--space-xl);
 }
-.mobile-menu.open { opacity: 1; pointer-events: auto; }
-.mobile-menu a {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--white);
-  transition: color 0.2s;
+.mobile-nav-overlay.open { display: flex; }
+.mobile-nav-overlay a {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--text-cream);
+  transition: color var(--transition-fast);
 }
-.mobile-menu a:hover { color: var(--orange); }
+.mobile-nav-overlay a:hover { color: var(--gold); }
+
+@media (max-width: 768px) {
+  .header-nav { display: none; }
+  .hamburger { display: flex; }
+}
 
 /* ============================================================
    HERO
    ============================================================ */
 .hero {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
-  padding: 120px 40px 80px;
-  position: relative;
+  justify-content: center;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 50%, rgba(139, 92, 246, 0.2), transparent),
-    radial-gradient(ellipse 60% 50% at 80% 30%, rgba(255, 107, 43, 0.15), transparent),
-    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(15, 3, 32, 0.9), transparent),
-    var(--bg-deep);
 }
 
-.hero-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 60px;
-  align-items: center;
-}
-
-.hero-text { position: relative; z-index: 2; }
-
-.hero-eyebrow {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--orange);
-  margin-bottom: 20px;
-}
-
-.hero-headline {
-  font-size: clamp(2.8rem, 5.5vw, 5rem);
-  font-weight: 900;
-  line-height: 1.05;
-  margin-bottom: 24px;
-}
-.hero-headline .light { font-weight: 300; }
-.hero-headline .orange { color: var(--orange); }
-
-.hero-body {
-  font-size: 1.15rem;
-  line-height: 1.6;
-  color: var(--white-dim);
-  max-width: 520px;
-  margin-bottom: 32px;
-}
-
-.hero-ctas {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 40px;
-}
-
-.btn-primary {
-  background: var(--orange);
-  color: var(--white);
-  padding: 14px 32px;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 700;
-  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px var(--shadow-orange);
-  background: var(--orange-bright);
-}
-
-.btn-outline {
-  background: transparent;
-  color: var(--white);
-  padding: 14px 32px;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  border: 2px solid var(--white-faint);
-  transition: transform 0.2s, border-color 0.2s, background 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.btn-outline:hover {
-  transform: translateY(-2px);
-  border-color: var(--white-dim);
-  background: var(--white-faint);
-}
-
-.hero-trust {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-.hero-trust-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--white-dim);
-  font-weight: 500;
-}
-.hero-trust-icon {
-  font-size: 1rem;
-}
-
-/* Hero image */
-.hero-visual { position: relative; z-index: 2; }
-.hero-image-frame {
-  position: relative;
-  transform: rotate(3deg);
-  border-radius: 20px;
-  overflow: hidden;
-  border: 4px solid var(--purple);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px var(--white-faint);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.hero-image-frame:hover { transform: rotate(0deg) scale(1.02); }
-.hero-image-frame img {
-  width: 100%;
-  aspect-ratio: 4/5;
-  object-fit: cover;
-}
-.hero-badge {
+.hero-bg {
   position: absolute;
-  padding: 8px 16px;
-  border-radius: 99px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, rgba(232,168,56,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at center bottom, rgba(28,15,43,0.3) 0%, transparent 60%),
+    linear-gradient(to bottom, rgba(28,15,43,0.35) 0%, rgba(28,15,43,0.15) 30%, rgba(28,15,43,0.15) 60%, rgba(28,15,43,0.85) 100%),
+    linear-gradient(to right, rgba(28,15,43,0.5) 0%, transparent 20%, transparent 80%, rgba(28,15,43,0.5) 100%);
+}
+
+.hero-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: var(--space-xl);
+  max-width: 720px;
+}
+
+.hero-prelude {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  color: var(--gold);
+  margin-bottom: var(--space-lg);
+  opacity: 0;
+  animation: heroFadeUp 0.8s ease 0.2s forwards;
 }
-.hero-badge-new {
-  top: 16px; right: -8px;
-  background: var(--magenta);
-  color: var(--white);
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.1;
+  color: var(--text-cream);
+  text-shadow: 0 0 60px rgba(232,168,56,0.25), 0 2px 4px rgba(0,0,0,0.3);
+  margin-bottom: var(--space-lg);
+  opacity: 0;
+  animation: heroFadeUp 0.8s ease 0.5s forwards;
 }
-.hero-badge-est {
-  bottom: 24px; left: -12px;
+
+.hero-tagline {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  font-weight: 400;
+  font-style: italic;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2xl);
+  opacity: 0;
+  animation: heroFadeUp 0.8s ease 0.8s forwards;
+}
+
+.hero-divider {
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold), transparent);
+  border: none;
+  margin: 0 auto var(--space-2xl);
+  opacity: 0;
+  animation: heroFadeUp 0.8s ease 1s forwards;
+}
+
+.hero-cta {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding: 14px 40px;
+  border: 1.5px solid var(--gold);
+  border-radius: 100px;
+  background: transparent;
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+  opacity: 0;
+  animation: heroFadeUp 0.8s ease 1.2s forwards;
+}
+.hero-cta:hover,
+.hero-cta:focus-visible {
   background: var(--gold);
-  color: #1a1a1a;
+  color: var(--bg-deep);
+  box-shadow: 0 0 30px rgba(232,168,56,0.3);
+}
+
+@keyframes heroFadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ============================================================
    MARQUEE
    ============================================================ */
-.marquee-section {
-  background: var(--orange);
-  padding: 16px 0;
-  transform: rotate(-2deg) scale(1.04);
-  margin: -20px 0;
-  position: relative;
-  z-index: 5;
+.marquee {
+  background: linear-gradient(to right, var(--bg-surface), rgba(45,22,64,0.8), var(--bg-surface));
+  border-top: 1px solid var(--gold-dim);
+  border-bottom: 1px solid var(--gold-dim);
+  padding: var(--space-md) 0;
   overflow: hidden;
+  position: relative;
 }
+
 .marquee-track {
   display: flex;
+  gap: var(--space-2xl);
+  white-space: nowrap;
+  animation: marqueeScroll 35s linear infinite;
   width: max-content;
-  animation: marqueeScroll 30s linear infinite;
 }
-.marquee-track:hover { animation-play-state: paused; }
-.marquee-content {
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+.marquee-item {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 0;
-  white-space: nowrap;
-  font-size: 1rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--white);
-  padding-right: 0;
+  gap: var(--space-md);
 }
-.marquee-content span {
-  padding: 0 24px;
-}
-.marquee-dot {
-  display: inline-block;
-  font-size: 0.7rem;
+.marquee-item .sep {
+  color: var(--gold);
+  font-style: normal;
 }
 
 @keyframes marqueeScroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 /* ============================================================
-   PRODUCTS
+   SECTIONS — SHARED
    ============================================================ */
-.products-section {
-  padding: 120px 40px;
-  position: relative;
-  background:
-    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(139, 92, 246, 0.12), transparent),
-    radial-gradient(ellipse 50% 50% at 20% 80%, rgba(255, 107, 43, 0.08), transparent),
-    var(--bg-deep);
+.section {
+  padding: var(--space-4xl) var(--space-xl);
 }
 
 .section-header {
   text-align: center;
-  margin-bottom: 64px;
+  margin-bottom: var(--space-3xl);
 }
-.section-label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--orange);
-  margin-bottom: 16px;
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 600;
+  margin-bottom: var(--space-md);
 }
-.section-title {
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
-  margin-bottom: 12px;
-}
-.section-subtitle {
-  font-size: 1.1rem;
-  color: var(--white-dim);
-  font-weight: 400;
-}
-.section-line {
+.section-header .divider {
   width: 60px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--orange), var(--magenta));
-  margin: 20px auto 0;
-  border-radius: 3px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold), transparent);
+  border: none;
+  margin: 0 auto;
 }
 
-.products-grid {
+/* Scroll reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   COLLECTION — BENTO GRID
+   ============================================================ */
+.collection { background: var(--bg-deep); }
+
+.bento-grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  grid-template-rows: 1fr 1fr 0.85fr;
+  gap: var(--space-md);
+}
+
+.bento-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid rgba(232,168,56,0.08);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  min-height: 200px;
+}
+.bento-card:hover {
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 40px rgba(232,168,56,0.1);
+}
+
+.bento-card--moonbeam { grid-row: 1 / 3; grid-column: 1; }
+.bento-card--patronus { grid-row: 1; grid-column: 2; }
+.bento-card--canary { grid-row: 2; grid-column: 2; }
+.bento-card--swamp { grid-row: 3; grid-column: 1 / 3; min-height: 240px; }
+
+.bento-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-slow), filter var(--transition-fast);
+  filter: brightness(0.75);
+}
+.bento-card:hover img {
+  transform: scale(1.04);
+  filter: brightness(0.9);
+}
+
+.bento-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(28,15,43,0.92) 0%, rgba(28,15,43,0.4) 40%, transparent 70%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--space-lg);
+  transition: padding var(--transition-fast);
+}
+.bento-card:hover .bento-card-overlay {
+  padding-bottom: var(--space-xl);
+}
+
+.bento-pill {
+  display: inline-block;
+  width: fit-content;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-bottom: var(--space-sm);
+}
+.bento-pill--sweet { background: var(--rose-dim); color: var(--rose); }
+.bento-pill--prank { background: var(--teal-dim); color: #3DD4B8; }
+.bento-pill--classic { background: var(--gold-dim); color: var(--gold); }
+
+.bento-card-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.bento-card--moonbeam .bento-card-title { font-size: 1.8rem; }
+.bento-card--swamp .bento-card-title { font-size: 1.5rem; }
+
+.bento-card-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.bento-card-price {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+/* ============================================================
+   PRODUCT DETAIL OVERLAY
+   ============================================================ */
+.product-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 7, 22, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: var(--space-xl);
+}
+.product-overlay.open { display: flex; }
+
+.product-detail {
+  background: linear-gradient(135deg, var(--bg-surface), var(--bg-deep));
+  border: 1px solid var(--gold-dim);
+  border-radius: var(--radius-lg);
+  max-width: 560px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 60px rgba(232,168,56,0.06);
+}
+
+.product-detail-img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+}
+
+.product-detail-body {
+  padding: var(--space-xl) var(--space-lg) var(--space-lg);
+}
+.product-detail-body h3 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+.product-detail-body .price {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--gold);
+  margin-bottom: var(--space-md);
+}
+.product-detail-body p {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: var(--space-lg);
+}
+
+.product-detail-close {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(28,15,43,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: var(--text-cream);
+  transition: background var(--transition-fast);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.product-detail-close:hover { background: rgba(28,15,43,0.95); }
+
+.btn-add-cart {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: var(--gold);
+  color: var(--bg-deep);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+.btn-add-cart:hover {
+  background: var(--gold-light);
+  box-shadow: 0 0 24px rgba(232,168,56,0.3);
+}
+
+/* ============================================================
+   ABOUT / STORY
+   ============================================================ */
+.about { background: var(--bg-deep); }
+
+.about-grid {
   max-width: 1100px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  gap: var(--space-3xl);
+  align-items: center;
 }
 
-.product-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--white-faint);
-  border-radius: 20px;
-  overflow: hidden;
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s;
+.about-image-wrap {
   position: relative;
-}
-.product-card[data-accent="orange"]:hover { box-shadow: 0 20px 60px var(--shadow-orange); transform: translateY(-8px); }
-.product-card[data-accent="purple"]:hover { box-shadow: 0 20px 60px var(--shadow-purple); transform: translateY(-8px); }
-.product-card[data-accent="magenta"]:hover { box-shadow: 0 20px 60px var(--shadow-magenta); transform: translateY(-8px); }
-.product-card[data-accent="gold"]:hover { box-shadow: 0 20px 60px var(--shadow-gold); transform: translateY(-8px); }
-
-.product-image-wrap {
-  position: relative;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  aspect-ratio: 4/3;
+  border: 2px solid var(--gold-dim);
+  box-shadow: 0 0 40px rgba(232,168,56,0.06);
 }
-.product-image-wrap img {
+.about-image-wrap img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.product-card:hover .product-image-wrap img { transform: scale(1.08); }
-
-.product-info {
-  padding: 24px;
-}
-.product-pill {
-  display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  padding: 4px 12px;
-  border-radius: 99px;
-  margin-bottom: 12px;
-}
-.product-card[data-accent="orange"] .product-pill { background: rgba(255,107,43,0.15); color: var(--orange); }
-.product-card[data-accent="purple"] .product-pill { background: rgba(139,92,246,0.15); color: var(--purple); }
-.product-card[data-accent="magenta"] .product-pill { background: rgba(236,72,153,0.15); color: var(--magenta); }
-.product-card[data-accent="gold"] .product-pill { background: rgba(245,158,11,0.15); color: var(--gold); }
-
-.product-name {
-  font-size: 1.3rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-.product-desc {
-  font-size: 0.9rem;
-  color: var(--white-dim);
-  line-height: 1.5;
-  margin-bottom: 20px;
-}
-.product-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.product-price {
-  font-size: 1.5rem;
-  font-weight: 800;
-}
-.product-price .currency {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--white-dim);
-  margin-left: 4px;
+  display: block;
 }
 
-.add-to-cart-btn {
-  padding: 10px 22px;
-  border-radius: 10px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--white);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.add-to-cart-btn:hover { transform: translateY(-2px); }
-.product-card[data-accent="orange"] .add-to-cart-btn { background: var(--orange); }
-.product-card[data-accent="orange"] .add-to-cart-btn:hover { box-shadow: 0 6px 20px var(--shadow-orange); }
-.product-card[data-accent="purple"] .add-to-cart-btn { background: var(--purple); }
-.product-card[data-accent="purple"] .add-to-cart-btn:hover { box-shadow: 0 6px 20px var(--shadow-purple); }
-.product-card[data-accent="magenta"] .add-to-cart-btn { background: var(--magenta); }
-.product-card[data-accent="magenta"] .add-to-cart-btn:hover { box-shadow: 0 6px 20px var(--shadow-magenta); }
-.product-card[data-accent="gold"] .add-to-cart-btn { background: var(--gold); color: #1a1a1a; }
-.product-card[data-accent="gold"] .add-to-cart-btn:hover { box-shadow: 0 6px 20px var(--shadow-gold); }
-
-.add-to-cart-btn.added {
-  animation: addedPulse 0.4s ease;
-}
-@keyframes addedPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(0.92); }
+.about-text h3 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 600;
+  font-style: italic;
+  margin-bottom: var(--space-lg);
+  line-height: 1.25;
 }
 
-/* ============================================================
-   ABOUT
-   ============================================================ */
-.about-section {
-  padding: 120px 40px;
-  position: relative;
-  background:
-    linear-gradient(170deg, var(--bg-deep) 0%, #0A1C2B 50%, #0D2A2A 100%);
-  clip-path: polygon(0 40px, 100% 0, 100% calc(100% - 40px), 0 100%);
-  margin: -40px 0;
-  z-index: 3;
-}
-.about-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 80px;
-  align-items: center;
-  padding: 40px 0;
-}
-.about-image-frame {
-  border-radius: 24px;
-  overflow: hidden;
-  border: 3px solid rgba(13, 148, 136, 0.3);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-  transform: rotate(-2deg);
-  transition: transform 0.4s;
-}
-.about-image-frame:hover { transform: rotate(0deg); }
-.about-image-frame img {
-  width: 100%;
-  aspect-ratio: 4/3;
-  object-fit: cover;
-}
-
-.about-text h2 {
-  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
-  font-weight: 800;
-  margin-bottom: 20px;
-  line-height: 1.15;
-}
-.about-text h2 .orange { color: var(--orange); }
 .about-text p {
-  font-size: 1.05rem;
-  line-height: 1.7;
-  color: var(--white-dim);
-  margin-bottom: 36px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.8;
+  margin-bottom: var(--space-md);
 }
 
-.about-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.stats-row {
+  display: flex;
+  gap: var(--space-xl);
+  margin-top: var(--space-2xl);
+  flex-wrap: wrap;
 }
-.about-stat {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid var(--white-faint);
-  border-radius: 16px;
-  padding: 20px;
+.stat {
   text-align: center;
-  transition: transform 0.2s, background 0.2s;
+  min-width: 80px;
 }
-.about-stat:hover { transform: translateY(-4px); background: rgba(255,255,255,0.08); }
-.about-stat-number {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: var(--teal);
-  margin-bottom: 4px;
+.stat-number {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1.1;
 }
-.about-stat-label {
-  font-size: 0.8rem;
-  color: var(--white-dim);
+.stat-label {
+  font-size: 0.75rem;
   font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .about-grid { grid-template-columns: 1fr; gap: var(--space-xl); }
+  .stats-row { justify-content: center; }
 }
 
 /* ============================================================
    TESTIMONIALS
    ============================================================ */
-.testimonials-section {
-  padding: 120px 40px;
-  position: relative;
-  background:
-    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.3), transparent),
-    radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.2), transparent),
-    radial-gradient(1px 1px at 60% 20%, rgba(255,255,255,0.25), transparent),
-    radial-gradient(1px 1px at 80% 60%, rgba(255,255,255,0.15), transparent),
-    radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.2), transparent),
-    radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,0.3), transparent),
-    radial-gradient(1px 1px at 50% 50%, rgba(255,255,255,0.2), transparent),
-    radial-gradient(1px 1px at 30% 90%, rgba(255,255,255,0.15), transparent),
-    radial-gradient(1px 1px at 70% 40%, rgba(255,255,255,0.25), transparent),
-    radial-gradient(1px 1px at 15% 55%, rgba(255,255,255,0.18), transparent),
-    radial-gradient(1px 1px at 85% 85%, rgba(255,255,255,0.22), transparent),
-    radial-gradient(1px 1px at 45% 15%, rgba(255,255,255,0.2), transparent),
-    var(--bg-dark);
-  background-size:
-    200px 200px, 300px 250px, 250px 300px, 180px 220px,
-    350px 280px, 270px 310px, 320px 190px, 290px 340px,
-    210px 260px, 240px 230px, 280px 300px, 330px 270px,
-    100% 100%;
+.testimonials {
+  background: linear-gradient(180deg, var(--bg-deep) 0%, rgba(45,22,64,0.25) 50%, var(--bg-deep) 100%);
 }
 
 .testimonials-grid {
@@ -698,729 +695,726 @@ ul { list-style: none; }
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
+  gap: var(--space-lg);
 }
 
 .testimonial-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--white-faint);
-  border-radius: 20px;
-  padding: 32px;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.3s;
+  background: var(--bg-surface-alpha);
+  border: 1px solid rgba(232,168,56,0.1);
+  border-top: 3px solid var(--gold-dim);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl) var(--space-lg);
+  transition: border-top-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-.testimonial-card:hover { transform: translateY(-4px); }
-.testimonial-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 4px;
-  border-radius: 20px 20px 0 0;
+.testimonial-card:hover {
+  border-top-color: var(--gold);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
-.testimonial-card[data-color="orange"]::before { background: var(--orange); }
-.testimonial-card[data-color="purple"]::before { background: var(--purple); }
-.testimonial-card[data-color="magenta"]::before { background: var(--magenta); }
 
-.testimonial-quote {
-  font-size: 1rem;
+.testimonial-quote-mark {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  line-height: 1;
+  color: var(--gold);
+  margin-bottom: var(--space-sm);
+}
+
+.testimonial-text {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
   font-style: italic;
   line-height: 1.7;
-  color: var(--white-dim);
-  margin-bottom: 24px;
-}
-.testimonial-quote::before {
-  content: '\201C';
-  font-size: 3rem;
-  font-style: normal;
-  line-height: 0;
-  position: relative;
-  top: 16px;
-  margin-right: 4px;
-  color: var(--white-faint);
-  font-weight: 800;
+  color: var(--text-cream);
+  margin-bottom: var(--space-lg);
 }
 
 .testimonial-author {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-cream);
 }
-.testimonial-avatar {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 1rem;
-  color: var(--white);
-  flex-shrink: 0;
+.testimonial-role {
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
-.testimonial-card[data-color="orange"] .testimonial-avatar { background: var(--orange); }
-.testimonial-card[data-color="purple"] .testimonial-avatar { background: var(--purple); }
-.testimonial-card[data-color="magenta"] .testimonial-avatar { background: var(--magenta); }
 
-.testimonial-name {
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-.testimonial-title {
-  font-size: 0.8rem;
-  color: var(--white-dim);
+@media (max-width: 768px) {
+  .testimonials-grid { grid-template-columns: 1fr; }
 }
 
 /* ============================================================
    VISIT / CTA
    ============================================================ */
-.visit-section {
-  padding: 120px 40px;
-  text-align: center;
+.visit {
   position: relative;
-  background: linear-gradient(135deg, var(--orange) 0%, var(--magenta) 40%, var(--purple-deep) 100%);
+  padding: var(--space-4xl) var(--space-xl);
+  overflow: hidden;
+}
+.visit-bg {
+  position: absolute;
+  inset: 0;
+}
+.visit-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.visit-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, var(--bg-deep) 0%, rgba(28,15,43,0.75) 30%, rgba(28,15,43,0.75) 70%, var(--bg-deep) 100%),
+    radial-gradient(ellipse at center, rgba(232,168,56,0.08) 0%, transparent 60%);
 }
 
-.visit-inner {
-  max-width: 700px;
+.visit-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 600px;
   margin: 0 auto;
 }
-.visit-section h2 {
-  font-size: clamp(2.5rem, 5vw, 4rem);
-  font-weight: 900;
-  margin-bottom: 20px;
-}
-.visit-address {
-  font-size: 1.15rem;
-  color: rgba(255,255,255,0.85);
-  margin-bottom: 12px;
-}
-.visit-hours {
-  font-size: 0.95rem;
-  color: rgba(255,255,255,0.7);
-  margin-bottom: 40px;
-}
-.visit-cta-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--white);
-  color: var(--bg-deep);
-  padding: 16px 36px;
-  border-radius: 14px;
-  font-size: 1.05rem;
+
+.visit-content h2 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.5vw, 3rem);
   font-weight: 700;
-  transition: transform 0.2s, box-shadow 0.2s;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
-.visit-cta-primary:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+
+.visit-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-2xl);
+  font-size: 0.95rem;
+  color: var(--text-muted);
 }
-.visit-secondary {
-  display: block;
+.visit-info strong {
+  color: var(--text-cream);
+  font-weight: 600;
+}
+
+.visit-hours {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  margin: 0 auto;
   font-size: 0.9rem;
-  color: rgba(255,255,255,0.7);
-  font-weight: 500;
-  transition: color 0.2s;
+  color: var(--text-muted);
 }
-.visit-secondary:hover { color: var(--white); }
+.visit-hours span { display: flex; justify-content: space-between; gap: var(--space-2xl); }
+.visit-hours .day { color: var(--text-cream); font-weight: 500; }
+
+.visit-note {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--gold);
+  margin-top: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.btn-visit {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bg-deep);
+  padding: 14px 48px;
+  background: var(--gold);
+  border-radius: 100px;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+.btn-visit:hover {
+  background: var(--gold-light);
+  box-shadow: 0 0 30px rgba(232,168,56,0.3);
+}
 
 /* ============================================================
    FOOTER
    ============================================================ */
 .site-footer {
-  background: var(--bg-dark);
-  padding: 64px 40px 32px;
-  border-top: 1px solid var(--white-faint);
+  text-align: center;
+  padding: var(--space-3xl) var(--space-xl) var(--space-2xl);
+  border-top: 1px solid var(--gold-dim);
 }
-.footer-grid {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 48px;
-  margin-bottom: 48px;
-}
-.footer-brand h3 {
-  font-size: 1.2rem;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-.footer-brand p {
-  color: var(--white-dim);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  max-width: 320px;
-}
-.footer-col h4 {
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--white-dim);
-  margin-bottom: 16px;
-}
-.footer-col ul { display: flex; flex-direction: column; gap: 10px; }
-.footer-col a {
-  font-size: 0.9rem;
-  color: var(--white-dim);
-  transition: color 0.2s;
-}
-.footer-col a:hover { color: var(--orange); }
 
-.footer-bottom {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding-top: 24px;
-  border-top: 1px solid var(--white-faint);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+.footer-wordmark {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--gold);
+  margin-bottom: var(--space-md);
 }
-.footer-copy {
-  font-size: 0.8rem;
-  color: var(--white-dim);
-}
-.footer-tagline {
-  font-size: 0.8rem;
-  color: var(--white-dim);
+
+.footer-slogan {
+  font-family: var(--font-display);
   font-style: italic;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-lg);
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+}
+.footer-links a {
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  transition: color var(--transition-fast);
+}
+.footer-links a:hover { color: var(--gold); }
+
+.footer-copy {
+  font-size: 0.75rem;
+  color: var(--text-dim);
 }
 
 /* ============================================================
-   CART DRAWER
+   CART — FLOATING BUTTON + SLIDE PANEL
    ============================================================ */
-.cart-overlay {
+.cart-fab {
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  z-index: 2000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s;
-}
-.cart-overlay.open { opacity: 1; pointer-events: auto; }
-
-.cart-drawer {
-  position: fixed;
-  top: 0; right: 0;
-  width: 420px;
-  max-width: 90vw;
-  height: 100vh;
-  background: #1E1034;
-  z-index: 2001;
-  transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  display: flex;
-  flex-direction: column;
-  box-shadow: -8px 0 40px rgba(0,0,0,0.3);
-}
-.cart-drawer.open { transform: translateX(0); }
-
-.cart-header {
-  padding: 24px;
-  border-bottom: 1px solid var(--white-faint);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.cart-header h3 {
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-.cart-close {
-  width: 36px; height: 36px;
+  bottom: var(--space-xl);
+  right: var(--space-xl);
+  z-index: 90;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--white-faint);
+  background: var(--gold);
+  color: var(--bg-deep);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--white);
-  font-size: 1.2rem;
-  transition: background 0.2s;
+  box-shadow: 0 4px 24px rgba(232,168,56,0.3), 0 0 40px rgba(232,168,56,0.1);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-.cart-close:hover { background: rgba(255,255,255,0.2); }
+.cart-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 32px rgba(232,168,56,0.4);
+}
+.cart-fab svg { width: 22px; height: 22px; }
 
-.cart-items {
+.cart-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  background: var(--rose);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+.cart-badge.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.cart-badge.bounce {
+  animation: badgeBounce 0.4s ease;
+}
+
+@keyframes badgeBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+
+/* Cart panel */
+.cart-panel-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(14,7,22,0.6);
+  backdrop-filter: blur(6px);
+}
+.cart-panel-overlay.open { display: block; }
+
+.cart-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 410;
+  width: 400px;
+  max-width: 90vw;
+  background: linear-gradient(180deg, #1f1233, var(--bg-deep));
+  border-left: 1px solid var(--gold-dim);
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+.cart-panel.open { transform: translateX(0); }
+
+.cart-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--gold-dim);
+}
+.cart-panel-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.cart-panel-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background var(--transition-fast);
+  font-size: 1rem;
+}
+.cart-panel-close:hover { background: rgba(255,255,255,0.08); }
+
+.cart-panel-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: var(--space-lg);
 }
+
 .cart-empty {
   text-align: center;
-  padding: 60px 20px;
-  color: var(--white-dim);
+  padding: var(--space-3xl) var(--space-lg);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-style: italic;
   font-size: 0.95rem;
-  line-height: 1.6;
-}
-.cart-empty-icon {
-  font-size: 3rem;
-  margin-bottom: 16px;
-  opacity: 0.4;
 }
 
 .cart-item {
   display: flex;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--white-faint);
   align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 .cart-item-info { flex: 1; }
 .cart-item-name {
   font-weight: 600;
-  font-size: 0.95rem;
-  margin-bottom: 4px;
+  font-size: 0.9rem;
+  margin-bottom: 2px;
 }
 .cart-item-price {
-  font-size: 0.85rem;
-  color: var(--white-dim);
+  font-size: 0.8rem;
+  color: var(--gold);
 }
-.cart-item-qty {
+.cart-item-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-sm);
 }
-.cart-item-qty button {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  background: var(--white-faint);
-  color: var(--white);
-  font-size: 1rem;
-  font-weight: 600;
+.cart-item-controls button {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.12);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  font-size: 0.85rem;
+  transition: border-color var(--transition-fast);
 }
-.cart-item-qty button:hover { background: rgba(255,255,255,0.2); }
-.cart-item-qty span { font-weight: 600; min-width: 20px; text-align: center; }
+.cart-item-controls button:hover { border-color: var(--gold); }
+.cart-item-qty {
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
 .cart-item-remove {
-  color: var(--white-dim);
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: color 0.2s;
-  background: none;
-  border: none;
-  font-family: inherit;
-  padding: 4px 0;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  margin-left: var(--space-sm);
+  transition: color var(--transition-fast);
 }
-.cart-item-remove:hover { color: var(--magenta); }
+.cart-item-remove:hover { color: var(--rose); }
 
-.cart-footer {
-  padding: 24px;
-  border-top: 1px solid var(--white-faint);
+.cart-panel-footer {
+  padding: var(--space-lg);
+  border-top: 1px solid var(--gold-dim);
 }
 .cart-total {
   display: flex;
   justify-content: space-between;
-  font-size: 1.1rem;
-  font-weight: 700;
-  margin-bottom: 20px;
+  align-items: center;
+  margin-bottom: var(--space-md);
 }
-.cart-checkout {
+.cart-total-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.cart-total-amount {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.btn-checkout {
+  display: block;
   width: 100%;
   padding: 14px;
-  border-radius: 12px;
-  background: var(--orange);
-  color: var(--white);
-  font-size: 1rem;
+  background: var(--gold);
+  color: var(--bg-deep);
   font-weight: 700;
-  transition: background 0.2s, transform 0.2s;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
 }
-.cart-checkout:hover { background: var(--orange-bright); transform: translateY(-1px); }
+.btn-checkout:hover {
+  background: var(--gold-light);
+  box-shadow: 0 0 24px rgba(232,168,56,0.3);
+}
 
 /* ============================================================
-   REDUCED MOTION
+   RESPONSIVE — BENTO + GENERAL
    ============================================================ */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+@media (max-width: 900px) {
+  .bento-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
   }
-  html { scroll-behavior: auto; }
-  .reveal { opacity: 1; transform: none; }
-  .marquee-track { animation: none; }
+  .bento-card--moonbeam { grid-row: auto; grid-column: 1 / 3; min-height: 300px; }
+  .bento-card--patronus { grid-row: auto; grid-column: 1; }
+  .bento-card--canary { grid-row: auto; grid-column: 2; }
+  .bento-card--swamp { grid-row: auto; grid-column: 1 / 3; }
 }
 
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
-@media (max-width: 1024px) {
-  .hero-inner { grid-template-columns: 1fr; gap: 40px; }
-  .hero-visual { order: -1; max-width: 400px; margin: 0 auto; }
-  .hero-image-frame { transform: rotate(2deg); }
-  .hero { padding: 100px 24px 60px; min-height: auto; }
-  .about-inner { grid-template-columns: 1fr; gap: 40px; }
-  .about-image-frame { max-width: 500px; margin: 0 auto; }
-  .testimonials-grid { grid-template-columns: 1fr; max-width: 500px; }
-  .footer-grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 768px) {
-  .nav { padding: 12px 20px; }
-  .nav-links { display: none; }
-  .hamburger { display: flex; }
-  .hero { padding: 80px 20px 40px; }
-  .hero-headline { font-size: 2.2rem; }
-  .hero-body { font-size: 1rem; }
-  .hero-ctas { flex-direction: column; }
-  .hero-ctas a { text-align: center; justify-content: center; }
-  .hero-trust { flex-direction: column; gap: 8px; }
-  .products-section { padding: 80px 20px; }
-  .products-grid { grid-template-columns: 1fr; }
-  .about-section { padding: 80px 20px; clip-path: polygon(0 20px, 100% 0, 100% calc(100% - 20px), 0 100%); }
-  .about-stats { grid-template-columns: 1fr 1fr; }
-  .testimonials-section { padding: 80px 20px; }
-  .visit-section { padding: 80px 20px; }
-  .site-footer { padding: 40px 20px 24px; }
-  .footer-bottom { flex-direction: column; text-align: center; }
-}
-
-@media (max-width: 480px) {
-  .hero-headline { font-size: 1.8rem; }
-  .about-stats { grid-template-columns: 1fr; }
+@media (max-width: 600px) {
+  .section { padding: var(--space-3xl) var(--space-md); }
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+  .bento-card--moonbeam,
+  .bento-card--patronus,
+  .bento-card--canary,
+  .bento-card--swamp {
+    grid-column: 1;
+    min-height: 240px;
+  }
+  .stats-row { gap: var(--space-lg); }
 }
 </style>
 </head>
 <body>
 
+<!-- Skip Link -->
 <a href="#main" class="skip-link">Skip to content</a>
 
 <!-- ============================================================
-     NAVIGATION
+     HEADER
      ============================================================ -->
-<nav class="nav" role="navigation" aria-label="Main navigation">
-  <a href="#" class="nav-logo" aria-label="Weasleys' Wizard Wheezes home">
-    <span class="nav-logo-mark">WWW</span>
-    <span class="nav-logo-text">
-      <span>Est. 1996</span>
-      <span>Weasleys' Wizard Wheezes</span>
-    </span>
-  </a>
-
-  <div class="nav-links">
-    <a href="#products">Shop</a>
-    <a href="#about">About</a>
-    <a href="#reviews">Reviews</a>
+<header class="site-header" role="banner">
+  <a href="#" class="header-brand" aria-label="Weasleys' Wizard Wheezes — Home">W.W.W.</a>
+  <nav class="header-nav" aria-label="Main navigation">
+    <a href="#collection">Collection</a>
+    <a href="#story">Our Story</a>
+    <a href="#testimonials">Reviews</a>
     <a href="#visit">Visit</a>
-    <button class="cart-btn" aria-label="Open shopping cart" id="cartToggle">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-      Cart
-      <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
-    </button>
-  </div>
-
-  <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu" aria-expanded="false">
+  </nav>
+  <button class="hamburger" aria-label="Open menu" aria-expanded="false" onclick="toggleMobileNav()">
     <span></span><span></span><span></span>
   </button>
-</nav>
+</header>
 
-<!-- Mobile Menu -->
-<div class="mobile-menu" id="mobileMenu" role="dialog" aria-label="Mobile navigation">
-  <a href="#products" class="mobile-menu-link">Shop</a>
-  <a href="#about" class="mobile-menu-link">About</a>
-  <a href="#reviews" class="mobile-menu-link">Reviews</a>
-  <a href="#visit" class="mobile-menu-link">Visit</a>
-  <button class="cart-btn" style="font-size:1.2rem; padding: 12px 28px;" aria-label="Open shopping cart" onclick="openCart(); closeMobileMenu();">
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-    Cart
-  </button>
+<!-- Mobile Nav Overlay -->
+<div class="mobile-nav-overlay" id="mobileNav" role="dialog" aria-label="Navigation menu">
+  <a href="#collection" onclick="closeMobileNav()">Collection</a>
+  <a href="#story" onclick="closeMobileNav()">Our Story</a>
+  <a href="#testimonials" onclick="closeMobileNav()">Reviews</a>
+  <a href="#visit" onclick="closeMobileNav()">Visit</a>
 </div>
 
 <!-- ============================================================
      HERO
      ============================================================ -->
-<section class="hero" id="main">
-  <div class="hero-inner">
-    <div class="hero-text">
-      <p class="hero-eyebrow reveal">EST. 1996 &mdash; DIAGON ALLEY</p>
-      <h1 class="hero-headline reveal reveal-delay-1">
-        Where <span class="orange">Magic</span><br>Meets <span class="light">Mischief</span>
-      </h1>
-      <p class="hero-body reveal reveal-delay-2">
-        Enchanted sweets, legendary pranks, and the most fun you'll have without a wand.
-      </p>
-      <div class="hero-ctas reveal reveal-delay-3">
-        <a href="#products" class="btn-primary">Shop the Collection
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        </a>
-        <a href="#visit" class="btn-outline">Visit Our Shop</a>
-      </div>
-      <div class="hero-trust reveal reveal-delay-4">
-        <div class="hero-trust-item"><span class="hero-trust-icon" aria-hidden="true">&#x1F6E1;</span> Ministry Approved</div>
-        <div class="hero-trust-item"><span class="hero-trust-icon" aria-hidden="true">&#x1F989;</span> Owl Delivery</div>
-        <div class="hero-trust-item"><span class="hero-trust-icon" aria-hidden="true">&#x2B50;</span> 2,340+ Happy Wizards</div>
-      </div>
-    </div>
-
-    <div class="hero-visual reveal">
-      <div class="hero-image-frame">
-        <img src="/api/assets/cabinet-example/shop-hero.webp" alt="The vibrant storefront of Weasleys' Wizard Wheezes on Diagon Alley, bursting with color and magical products" loading="eager">
-        <span class="hero-badge hero-badge-new">NEW</span>
-        <span class="hero-badge hero-badge-est">Since 1996</span>
-      </div>
-    </div>
+<section class="hero" aria-label="Welcome">
+  <div class="hero-bg" style="background-image: url('/api/assets/cabinet-example/shop-hero.webp')"></div>
+  <canvas class="hero-particles" id="particles" aria-hidden="true"></canvas>
+  <div class="hero-content">
+    <p class="hero-prelude">93 Diagon Alley &middot; Est. 1996</p>
+    <h1 class="hero-title">Weasleys' Wizard Wheezes</h1>
+    <p class="hero-tagline">Purveyors of Magical Mischief &amp; Enchanted Confections</p>
+    <hr class="hero-divider">
+    <a href="#collection" class="hero-cta" role="button">Enter the Shop &darr;</a>
   </div>
 </section>
 
 <!-- ============================================================
      MARQUEE
      ============================================================ -->
-<div class="marquee-section" aria-hidden="true">
+<div class="marquee" aria-hidden="true">
   <div class="marquee-track" id="marqueeTrack">
-    <div class="marquee-content">
-      <span>MOONBEAM MELTDROPS</span><span class="marquee-dot">&#x2726;</span>
-      <span>PATRONUS POP ROCKS</span><span class="marquee-dot">&#x2726;</span>
-      <span>CANARY CREAM SUPREMES</span><span class="marquee-dot">&#x2726;</span>
-      <span>PORTABLE SWAMP TAFFY</span><span class="marquee-dot">&#x2726;</span>
-      <span>HOWLER FUDGE</span><span class="marquee-dot">&#x2726;</span>
-      <span>PYGMY PUFF GUMMIES</span><span class="marquee-dot">&#x2726;</span>
-    </div>
-    <div class="marquee-content">
-      <span>MOONBEAM MELTDROPS</span><span class="marquee-dot">&#x2726;</span>
-      <span>PATRONUS POP ROCKS</span><span class="marquee-dot">&#x2726;</span>
-      <span>CANARY CREAM SUPREMES</span><span class="marquee-dot">&#x2726;</span>
-      <span>PORTABLE SWAMP TAFFY</span><span class="marquee-dot">&#x2726;</span>
-      <span>HOWLER FUDGE</span><span class="marquee-dot">&#x2726;</span>
-      <span>PYGMY PUFF GUMMIES</span><span class="marquee-dot">&#x2726;</span>
-    </div>
+    <span class="marquee-item">Moonbeam Meltdrops <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Patronus Pop Rocks <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Canary Cream Supremes <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Portable Swamp Taffy <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Pygmy Puff Bon-Bons <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Skiving Snackboxes <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Decoy Detonators <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Fever Fudge <span class="sep">&#10038;</span></span>
+    <!-- Duplicate for seamless loop -->
+    <span class="marquee-item">Moonbeam Meltdrops <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Patronus Pop Rocks <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Canary Cream Supremes <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Portable Swamp Taffy <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Pygmy Puff Bon-Bons <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Skiving Snackboxes <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Decoy Detonators <span class="sep">&#10038;</span></span>
+    <span class="marquee-item">Fever Fudge <span class="sep">&#10038;</span></span>
   </div>
 </div>
 
 <!-- ============================================================
-     PRODUCTS
+     MAIN CONTENT
      ============================================================ -->
-<section class="products-section" id="products">
+<main id="main">
+
+<!-- COLLECTION -->
+<section class="section collection" id="collection">
   <div class="section-header reveal">
-    <p class="section-label">The Collection</p>
-    <h2 class="section-title">Featured Confections</h2>
-    <p class="section-subtitle">Hand-crafted with genuine magical ingredients</p>
-    <div class="section-line"></div>
+    <h2>Our Enchanted Collection</h2>
+    <hr class="divider">
   </div>
 
-  <div class="products-grid">
-    <!-- Moonbeam Meltdrops -->
-    <article class="product-card reveal" data-accent="orange">
-      <div class="product-image-wrap">
-        <img src="/api/assets/cabinet-example/product/candy-catalog/moonbeam-meltdrops/moonbeam-hero.webp" alt="Moonbeam Meltdrops: luminous candy drops that shimmer with captured moonlight" loading="lazy">
-      </div>
-      <div class="product-info">
-        <span class="product-pill">Luminous</span>
-        <h3 class="product-name">Moonbeam Meltdrops</h3>
-        <p class="product-desc">Luminous drops that make your tongue glow like starlight</p>
-        <div class="product-footer">
-          <span class="product-price">5<span class="currency">Galleons</span></span>
-          <button class="add-to-cart-btn" data-product="Moonbeam Meltdrops" data-price="5" aria-label="Add Moonbeam Meltdrops to cart">Add to Cart</button>
-        </div>
+  <div class="bento-grid reveal">
+    <!-- Moonbeam Meltdrops — large -->
+    <article class="bento-card bento-card--moonbeam" tabindex="0" role="button"
+      aria-label="View Moonbeam Meltdrops"
+      data-product="moonbeam"
+      onclick="openProduct('moonbeam')" onkeydown="if(event.key==='Enter')openProduct('moonbeam')">
+      <img src="/api/assets/cabinet-example/product/candy-catalog/moonbeam-meltdrops/moonbeam-hero.webp"
+        alt="Shimmering silver sweets that glow like moonlight" loading="lazy">
+      <div class="bento-card-overlay">
+        <span class="bento-pill bento-pill--sweet">Sweet</span>
+        <h3 class="bento-card-title">Moonbeam Meltdrops</h3>
+        <p class="bento-card-desc">Dissolve on your tongue in a burst of silver light</p>
+        <span class="bento-card-price">3 Galleons</span>
       </div>
     </article>
 
     <!-- Patronus Pop Rocks -->
-    <article class="product-card reveal reveal-delay-1" data-accent="purple">
-      <div class="product-image-wrap">
-        <img src="/api/assets/cabinet-example/product/candy-catalog/patronus-pop-rocks/patronus-hero.webp" alt="Patronus Pop Rocks: sparkling blue crystals that conjure miniature spirit animals" loading="lazy">
-      </div>
-      <div class="product-info">
-        <span class="product-pill">Enchanted</span>
-        <h3 class="product-name">Patronus Pop Rocks</h3>
-        <p class="product-desc">Blue crystals that conjure a tiny ghostly animal</p>
-        <div class="product-footer">
-          <span class="product-price">3<span class="currency">Galleons</span></span>
-          <button class="add-to-cart-btn" data-product="Patronus Pop Rocks" data-price="3" aria-label="Add Patronus Pop Rocks to cart">Add to Cart</button>
-        </div>
+    <article class="bento-card bento-card--patronus" tabindex="0" role="button"
+      aria-label="View Patronus Pop Rocks"
+      data-product="patronus"
+      onclick="openProduct('patronus')" onkeydown="if(event.key==='Enter')openProduct('patronus')">
+      <img src="/api/assets/cabinet-example/product/candy-catalog/patronus-pop-rocks/patronus-hero.webp"
+        alt="Blue crackling candy that forms tiny spirit animals" loading="lazy">
+      <div class="bento-card-overlay">
+        <span class="bento-pill bento-pill--sweet">Sweet</span>
+        <h3 class="bento-card-title">Patronus Pop Rocks</h3>
+        <p class="bento-card-desc">Each pop summons a tiny spirit guardian</p>
+        <span class="bento-card-price">4 Galleons</span>
       </div>
     </article>
 
     <!-- Canary Cream Supremes -->
-    <article class="product-card reveal reveal-delay-2" data-accent="magenta">
-      <div class="product-image-wrap">
-        <img src="/api/assets/cabinet-example/product/candy-catalog/canary-cream-supremes/canary-hero.webp" alt="Canary Cream Supremes: golden pastries that temporarily transform you into a canary" loading="lazy">
-      </div>
-      <div class="product-info">
-        <span class="product-pill">Classic</span>
-        <h3 class="product-name">Canary Cream Supremes</h3>
-        <p class="product-desc">One bite. Full canary. 30 seconds of flight.</p>
-        <div class="product-footer">
-          <span class="product-price">2<span class="currency">Galleons</span></span>
-          <button class="add-to-cart-btn" data-product="Canary Cream Supremes" data-price="2" aria-label="Add Canary Cream Supremes to cart">Add to Cart</button>
-        </div>
+    <article class="bento-card bento-card--canary" tabindex="0" role="button"
+      aria-label="View Canary Cream Supremes"
+      data-product="canary"
+      onclick="openProduct('canary')" onkeydown="if(event.key==='Enter')openProduct('canary')">
+      <img src="/api/assets/cabinet-example/product/candy-catalog/canary-cream-supremes/canary-hero.webp"
+        alt="Golden cream pastries that transform the eater into a canary" loading="lazy">
+      <div class="bento-card-overlay">
+        <span class="bento-pill bento-pill--prank">Prank</span>
+        <h3 class="bento-card-title">Canary Cream Supremes</h3>
+        <p class="bento-card-desc">The classic feathered transformation</p>
+        <span class="bento-card-price">2 Galleons</span>
       </div>
     </article>
 
-    <!-- Portable Swamp Taffy -->
-    <article class="product-card reveal reveal-delay-3" data-accent="gold">
-      <div class="product-image-wrap">
-        <img src="/api/assets/cabinet-example/product/candy-catalog/portable-swamp-taffy/swamp-hero.webp" alt="Portable Swamp Taffy: green taffy that creates a miniature swamp when unwrapped" loading="lazy">
-      </div>
-      <div class="product-info">
-        <span class="product-pill">Legendary</span>
-        <h3 class="product-name">Portable Swamp Taffy</h3>
-        <p class="product-desc">Creates a miniature swamp. Nearly controlled.</p>
-        <div class="product-footer">
-          <span class="product-price">7<span class="currency">Galleons</span></span>
-          <button class="add-to-cart-btn" data-product="Portable Swamp Taffy" data-price="7" aria-label="Add Portable Swamp Taffy to cart">Add to Cart</button>
-        </div>
+    <!-- Portable Swamp Taffy — wide -->
+    <article class="bento-card bento-card--swamp" tabindex="0" role="button"
+      aria-label="View Portable Swamp Taffy"
+      data-product="swamp"
+      onclick="openProduct('swamp')" onkeydown="if(event.key==='Enter')openProduct('swamp')">
+      <img src="/api/assets/cabinet-example/product/candy-catalog/portable-swamp-taffy/swamp-hero.webp"
+        alt="Green and brown taffy that conjures a miniature swamp" loading="lazy">
+      <div class="bento-card-overlay">
+        <span class="bento-pill bento-pill--classic">Classic</span>
+        <h3 class="bento-card-title">Portable Swamp Taffy</h3>
+        <p class="bento-card-desc">Honoring Fred &amp; George's legendary Hogwarts departure</p>
+        <span class="bento-card-price">5 Galleons</span>
       </div>
     </article>
   </div>
 </section>
 
-<!-- ============================================================
-     ABOUT
-     ============================================================ -->
-<section class="about-section" id="about">
-  <div class="about-inner">
-    <div class="about-image-frame reveal">
-      <img src="/api/assets/cabinet-example/operations/operations-hero.webp" alt="Behind the scenes at Weasleys' Wizard Wheezes: the bustling workshop where magical products are crafted" loading="lazy">
-    </div>
-    <div class="about-text">
-      <h2 class="reveal">Born from Hogwarts,<br>Built for <span class="orange">Mischief</span></h2>
-      <p class="reveal reveal-delay-1">
-        What started as a trunk full of trick sweets in a Hogwarts dormitory became the most talked-about shop on Diagon Alley. Fred and George Weasley turned their genius for mischief into a magical empire &mdash; proving that laughter is the most powerful magic of all.
-      </p>
-      <div class="about-stats reveal reveal-delay-2">
-        <div class="about-stat">
-          <div class="about-stat-number">30+</div>
-          <div class="about-stat-label">Products</div>
-        </div>
-        <div class="about-stat">
-          <div class="about-stat-number">2,340+</div>
-          <div class="about-stat-label">Customers</div>
-        </div>
-        <div class="about-stat">
-          <div class="about-stat-number">1996</div>
-          <div class="about-stat-label">Established</div>
-        </div>
-        <div class="about-stat">
-          <div class="about-stat-number">93</div>
-          <div class="about-stat-label">Diagon Alley</div>
-        </div>
-      </div>
+<!-- PRODUCT DETAIL OVERLAY -->
+<div class="product-overlay" id="productOverlay" role="dialog" aria-label="Product details" aria-modal="true">
+  <div class="product-detail">
+    <button class="product-detail-close" aria-label="Close product details" onclick="closeProduct()">&times;</button>
+    <img class="product-detail-img" id="productImg" src="" alt="">
+    <div class="product-detail-body">
+      <h3 id="productTitle"></h3>
+      <div class="price" id="productPrice"></div>
+      <p id="productDesc"></p>
+      <button class="btn-add-cart" id="productAddBtn" onclick="addToCartFromOverlay()">Add to Basket</button>
     </div>
   </div>
-</section>
+</div>
 
-<!-- ============================================================
-     TESTIMONIALS
-     ============================================================ -->
-<section class="testimonials-section" id="reviews">
+<!-- ABOUT / STORY -->
+<section class="section about" id="story">
   <div class="section-header reveal">
-    <p class="section-label">Testimonials</p>
-    <h2 class="section-title">What Wizards Are Saying</h2>
-    <p class="section-subtitle">Real reviews from real magical folk</p>
-    <div class="section-line"></div>
+    <h2>The Story</h2>
+    <hr class="divider">
+  </div>
+
+  <div class="about-grid">
+    <div class="about-image-wrap reveal">
+      <img src="/api/assets/cabinet-example/team/team-hero.webp"
+        alt="Fred and George Weasley in their shop, surrounded by colorful enchanted products" loading="lazy">
+    </div>
+    <div class="about-text reveal">
+      <h3>Born from Hogwarts.<br>Built for Mischief.</h3>
+      <p>What started as enchanted sweets smuggled through dormitory corridors became the most beloved joke shop in the wizarding world. Fred and George Weasley turned their talent for troublemaking into an art form, leaving Hogwarts in a blaze of fireworks and founding Weasleys' Wizard Wheezes at 93 Diagon Alley.</p>
+      <p>Every product in our collection is hand-crafted, rigorously tested (often on unsuspecting siblings), and guaranteed to deliver wonder, laughter, or a spectacular transformation. We believe magic should be joyful, surprising, and just a little bit dangerous.</p>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-number">30+</div>
+          <div class="stat-label">Products</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">2,340+</div>
+          <div class="stat-label">Happy Wizards</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">Est. 1996</div>
+          <div class="stat-label">Founded</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">1</div>
+          <div class="stat-label">Diagon Alley</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="section testimonials" id="testimonials">
+  <div class="section-header reveal">
+    <h2>What They're Saying</h2>
+    <hr class="divider">
   </div>
 
   <div class="testimonials-grid">
-    <div class="testimonial-card reveal" data-color="orange">
-      <p class="testimonial-quote">The Patronus Pop Rocks are extraordinary. I ate an entire bag and my dormitory was filled with tiny silver hares for an hour. Absolutely worth the detention.</p>
-      <div class="testimonial-author">
-        <div class="testimonial-avatar" aria-hidden="true">L</div>
-        <div>
-          <div class="testimonial-name">Luna Lovegood</div>
-          <div class="testimonial-title">Magizoologist & Loyal Customer</div>
-        </div>
-      </div>
+    <div class="testimonial-card reveal">
+      <div class="testimonial-quote-mark">&ldquo;</div>
+      <p class="testimonial-text">The Patronus Pop Rocks made me feel warm inside, like a happy memory you can taste. I keep a tin in my pocket at all times. The Nargles haven't bothered me since.</p>
+      <div class="testimonial-author">Luna Lovegood</div>
+      <div class="testimonial-role">Naturalist &amp; Quibbler Correspondent</div>
     </div>
-
-    <div class="testimonial-card reveal reveal-delay-1" data-color="purple">
-      <p class="testimonial-quote">I gave Canary Creams to my entire Herbology class. Professor Sprout wasn't pleased, but watching fifteen canaries try to pot Mandrakes was the highlight of my year.</p>
-      <div class="testimonial-author">
-        <div class="testimonial-avatar" aria-hidden="true">N</div>
-        <div>
-          <div class="testimonial-name">Neville Longbottom</div>
-          <div class="testimonial-title">Herbology Professor, Hogwarts</div>
-        </div>
-      </div>
+    <div class="testimonial-card reveal">
+      <div class="testimonial-quote-mark">&ldquo;</div>
+      <p class="testimonial-text">I gave my gran a box of Canary Creams for her birthday. She chased me around the garden as a canary for ten minutes. Best gift I've ever given her, she says.</p>
+      <div class="testimonial-author">Neville Longbottom</div>
+      <div class="testimonial-role">Herbology Professor, Hogwarts</div>
     </div>
-
-    <div class="testimonial-card reveal reveal-delay-2" data-color="magenta">
-      <p class="testimonial-quote">As the official commentator of all things brilliant, I can confirm: Weasleys' Wizard Wheezes is the single greatest contribution to wizarding society since the Marauder's Map.</p>
-      <div class="testimonial-author">
-        <div class="testimonial-avatar" aria-hidden="true">L</div>
-        <div>
-          <div class="testimonial-name">Lee Jordan</div>
-          <div class="testimonial-title">Radio Host & Original Investor</div>
-        </div>
-      </div>
+    <div class="testimonial-card reveal">
+      <div class="testimonial-quote-mark">&ldquo;</div>
+      <p class="testimonial-text">I've commentated Quidditch matches, hosted a pirate radio show, and faced down Death Eaters. Nothing compares to the chaos of a well-deployed Portable Swamp Taffy.</p>
+      <div class="testimonial-author">Lee Jordan</div>
+      <div class="testimonial-role">Broadcaster &amp; Mischief Consultant</div>
     </div>
   </div>
 </section>
 
-<!-- ============================================================
-     VISIT / CTA
-     ============================================================ -->
-<section class="visit-section" id="visit">
-  <div class="visit-inner reveal">
-    <h2>Come Find Us</h2>
-    <p class="visit-address">93 Diagon Alley, London &mdash; Behind the Leaky Cauldron</p>
-    <p class="visit-hours">Open daily: 9am &ndash; 9pm &bull; Sundays: 10am &ndash; 6pm</p>
-    <a href="#" class="visit-cta-primary">
-      Get Directions (Floo or Apparition)
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-    </a>
-    <a href="#" class="visit-secondary">Or send us an owl</a>
+<!-- VISIT -->
+<section class="visit" id="visit">
+  <div class="visit-bg">
+    <img src="/api/assets/cabinet-example/operations/operations-hero.webp"
+      alt="The warm, glowing exterior of Weasleys' Wizard Wheezes on Diagon Alley" loading="lazy">
+  </div>
+  <div class="visit-content reveal">
+    <h2>93 Diagon Alley</h2>
+    <div class="visit-info">
+      <p>Step through our doors and into a world where every shelf holds a surprise, every sweet tells a story, and the ceiling occasionally rains confetti.</p>
+      <div class="visit-hours">
+        <span><span class="day">Monday &ndash; Saturday</span> <span>9:00 AM &ndash; 8:00 PM</span></span>
+        <span><span class="day">Sunday</span> <span>10:00 AM &ndash; 6:00 PM</span></span>
+        <span><span class="day">Hogwarts Holidays</span> <span>Extended Hours</span></span>
+      </div>
+    </div>
+    <p class="visit-note">Owl orders welcome &mdash; delivery via our express Screech Owl fleet.</p>
+    <a href="#" class="btn-visit" role="button">Send an Owl</a>
   </div>
 </section>
+
+</main>
 
 <!-- ============================================================
      FOOTER
      ============================================================ -->
-<footer class="site-footer">
-  <div class="footer-grid">
-    <div class="footer-brand">
-      <h3>Weasleys' Wizard Wheezes</h3>
-      <p>Purveyors of magical mischief since 1996. Making the wizarding world a funnier (and slightly more dangerous) place, one sweet at a time.</p>
-    </div>
-    <div class="footer-col">
-      <h4>Quick Links</h4>
-      <ul>
-        <li><a href="#products">Shop</a></li>
-        <li><a href="#about">Our Story</a></li>
-        <li><a href="#reviews">Reviews</a></li>
-        <li><a href="#visit">Visit Us</a></li>
-      </ul>
-    </div>
-    <div class="footer-col">
-      <h4>Contact</h4>
-      <ul>
-        <li><a href="#">owl@weasleys.wiz</a></li>
-        <li><a href="#">Floo: WEASLEY-WHEEZES</a></li>
-        <li><a href="#">93 Diagon Alley</a></li>
-      </ul>
-    </div>
+<footer class="site-footer" role="contentinfo">
+  <div class="footer-wordmark">Weasleys' Wizard Wheezes</div>
+  <p class="footer-slogan">&ldquo;Why worry about You-Know-Who? Worry about U-No-Poo!&rdquo;</p>
+  <div class="footer-links">
+    <a href="#collection">Collection</a>
+    <a href="#story">Our Story</a>
+    <a href="#testimonials">Reviews</a>
+    <a href="#visit">Visit Us</a>
   </div>
-  <div class="footer-bottom">
-    <p class="footer-copy">&copy; 1996&ndash;2026 Weasleys' Wizard Wheezes Ltd.</p>
-    <p class="footer-tagline">"Why worry about You-Know-Who? Worry about U-No-Poo!"</p>
-  </div>
+  <p class="footer-copy">&copy; 1996&ndash;2026 Weasleys' Wizard Wheezes Ltd. All mischief managed.</p>
 </footer>
 
 <!-- ============================================================
-     CART DRAWER
+     CART FAB
      ============================================================ -->
-<div class="cart-overlay" id="cartOverlay" aria-hidden="true"></div>
-<aside class="cart-drawer" id="cartDrawer" role="dialog" aria-label="Shopping cart" aria-hidden="true">
-  <div class="cart-header">
+<button class="cart-fab" aria-label="Open shopping basket" onclick="toggleCart()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+    <line x1="3" y1="6" x2="21" y2="6"/>
+    <path d="M16 10a4 4 0 01-8 0"/>
+  </svg>
+  <span class="cart-badge" id="cartBadge" aria-live="polite">0</span>
+</button>
+
+<!-- CART PANEL -->
+<div class="cart-panel-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+<aside class="cart-panel" id="cartPanel" role="dialog" aria-label="Shopping basket" aria-modal="true">
+  <div class="cart-panel-header">
     <h3>Your Basket</h3>
-    <button class="cart-close" id="cartClose" aria-label="Close cart">&times;</button>
+    <button class="cart-panel-close" aria-label="Close basket" onclick="toggleCart()">&times;</button>
   </div>
-  <div class="cart-items" id="cartItems">
-    <div class="cart-empty" id="cartEmpty">
-      <div class="cart-empty-icon" aria-hidden="true">&#x1F9F9;</div>
-      <p>Your basket awaits.<br>The sweets won't buy themselves.</p>
-    </div>
+  <div class="cart-panel-body" id="cartBody">
+    <div class="cart-empty">Your basket is empty.<br>The sweets await.</div>
   </div>
-  <div class="cart-footer" id="cartFooter" style="display:none;">
+  <div class="cart-panel-footer" id="cartFooter" style="display:none;">
     <div class="cart-total">
-      <span>Total</span>
-      <span id="cartTotal">0 Galleons</span>
+      <span class="cart-total-label">Total</span>
+      <span class="cart-total-amount" id="cartTotal">0 Galleons</span>
     </div>
-    <button class="cart-checkout">Checkout</button>
+    <button class="btn-checkout">Checkout</button>
   </div>
 </aside>
 
@@ -1428,210 +1422,295 @@ ul { list-style: none; }
      SCRIPTS
      ============================================================ -->
 <script>
+/* -------------------------------------------------------
+   PRODUCT DATA
+   ------------------------------------------------------- */
+const products = {
+  moonbeam: {
+    title: 'Moonbeam Meltdrops',
+    price: 3,
+    priceLabel: '3 Galleons',
+    img: '/api/assets/cabinet-example/product/candy-catalog/moonbeam-meltdrops/moonbeam-hero.webp',
+    alt: 'Moonbeam Meltdrops — shimmering silver sweets',
+    desc: 'Our signature confection. Each Moonbeam Meltdrop is infused with concentrated moonlight, harvested on cloudless nights from our rooftop observatory. Place one on your tongue and feel it dissolve into a cascade of silver sparkles that taste of cool winter evenings, stargazing, and just a hint of vanilla. A calming warmth radiates from your chest outward. Effects last approximately fifteen blissful minutes.'
+  },
+  patronus: {
+    title: 'Patronus Pop Rocks',
+    price: 4,
+    priceLabel: '4 Galleons',
+    img: '/api/assets/cabinet-example/product/candy-catalog/patronus-pop-rocks/patronus-hero.webp',
+    alt: 'Patronus Pop Rocks — crackling blue candy',
+    desc: 'Pour the shimmering crystals onto your tongue and feel them crackle with joyful energy. As they pop, a tiny translucent Patronus — unique to each eater — rises from your lips and dances through the air for a few magical moments. Tastes of your happiest memory. Warning: may cause spontaneous giggling and an overwhelming sense of wellbeing.'
+  },
+  canary: {
+    title: 'Canary Cream Supremes',
+    price: 2,
+    priceLabel: '2 Galleons',
+    img: '/api/assets/cabinet-example/product/candy-catalog/canary-cream-supremes/canary-hero.webp',
+    alt: 'Canary Cream Supremes — golden cream pastries',
+    desc: 'The prank that launched an empire. Bite into what appears to be a perfectly innocent custard cream and — POOF — you\'re a large, indignant canary. The transformation lasts only a few seconds before you molt magnificently back to human form. Upgraded Supreme formula now features golden plumage and a more dignified squawk. A timeless classic.'
+  },
+  swamp: {
+    title: 'Portable Swamp Taffy',
+    price: 5,
+    priceLabel: '5 Galleons',
+    img: '/api/assets/cabinet-example/product/candy-catalog/portable-swamp-taffy/swamp-hero.webp',
+    alt: 'Portable Swamp Taffy — green and brown enchanted taffy',
+    desc: 'A tribute to the legendary corridor swamp that cemented our reputation at Hogwarts. This chewy, mossy-green taffy releases a miniature — but remarkably authentic — swamp when unwrapped and thrown. Complete with fog, lily pads, and the occasional confused frog. Covers approximately one square meter. Dissipates after one hour. Perfect for hallway ambushes, staff meetings, and dramatic exits.'
+  }
+};
+
+/* -------------------------------------------------------
+   PRODUCT OVERLAY
+   ------------------------------------------------------- */
+let currentProduct = null;
+const overlay = document.getElementById('productOverlay');
+
+function openProduct(id) {
+  const p = products[id];
+  if (!p) return;
+  currentProduct = id;
+  document.getElementById('productImg').src = p.img;
+  document.getElementById('productImg').alt = p.alt;
+  document.getElementById('productTitle').textContent = p.title;
+  document.getElementById('productPrice').textContent = p.priceLabel;
+  document.getElementById('productDesc').textContent = p.desc;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Focus the close button
+  document.querySelector('.product-detail-close').focus();
+}
+
+function closeProduct() {
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  currentProduct = null;
+}
+
+overlay.addEventListener('click', function(e) {
+  if (e.target === overlay) closeProduct();
+});
+
+function addToCartFromOverlay() {
+  if (currentProduct) {
+    addToCart(currentProduct);
+    closeProduct();
+  }
+}
+
+/* -------------------------------------------------------
+   CART
+   ------------------------------------------------------- */
+let cart = {};
+const cartPanel = document.getElementById('cartPanel');
+const cartOverlayEl = document.getElementById('cartOverlay');
+const cartBadge = document.getElementById('cartBadge');
+
+function addToCart(id) {
+  cart[id] = (cart[id] || 0) + 1;
+  updateCart();
+  // Badge bounce
+  cartBadge.classList.remove('bounce');
+  void cartBadge.offsetWidth; // trigger reflow
+  cartBadge.classList.add('bounce');
+}
+
+function removeFromCart(id) {
+  delete cart[id];
+  updateCart();
+}
+
+function changeQty(id, delta) {
+  cart[id] = Math.max(0, (cart[id] || 0) + delta);
+  if (cart[id] <= 0) delete cart[id];
+  updateCart();
+}
+
+function updateCart() {
+  const keys = Object.keys(cart);
+  const totalItems = keys.reduce((s, k) => s + cart[k], 0);
+  const totalPrice = keys.reduce((s, k) => s + cart[k] * products[k].price, 0);
+
+  // Badge
+  cartBadge.textContent = totalItems;
+  cartBadge.classList.toggle('visible', totalItems > 0);
+
+  // Body
+  const body = document.getElementById('cartBody');
+  const footer = document.getElementById('cartFooter');
+
+  if (keys.length === 0) {
+    body.innerHTML = '<div class="cart-empty">Your basket is empty.<br>The sweets await.</div>';
+    footer.style.display = 'none';
+    return;
+  }
+
+  footer.style.display = '';
+  document.getElementById('cartTotal').textContent = totalPrice + ' Galleon' + (totalPrice !== 1 ? 's' : '');
+
+  body.innerHTML = keys.map(id => {
+    const p = products[id];
+    return `
+      <div class="cart-item">
+        <div class="cart-item-info">
+          <div class="cart-item-name">${p.title}</div>
+          <div class="cart-item-price">${p.price} G each</div>
+        </div>
+        <div class="cart-item-controls">
+          <button aria-label="Decrease quantity" onclick="changeQty('${id}',-1)">&minus;</button>
+          <span class="cart-item-qty">${cart[id]}</span>
+          <button aria-label="Increase quantity" onclick="changeQty('${id}',1)">+</button>
+        </div>
+        <button class="cart-item-remove" aria-label="Remove ${p.title}" onclick="removeFromCart('${id}')">&times;</button>
+      </div>`;
+  }).join('');
+}
+
+function toggleCart() {
+  const isOpen = cartPanel.classList.toggle('open');
+  cartOverlayEl.classList.toggle('open', isOpen);
+  document.body.style.overflow = isOpen ? 'hidden' : '';
+  if (isOpen) document.querySelector('.cart-panel-close').focus();
+}
+
+/* -------------------------------------------------------
+   MOBILE NAV
+   ------------------------------------------------------- */
+function toggleMobileNav() {
+  const btn = document.querySelector('.hamburger');
+  const nav = document.getElementById('mobileNav');
+  const isOpen = nav.classList.toggle('open');
+  btn.classList.toggle('open', isOpen);
+  btn.setAttribute('aria-expanded', isOpen);
+  document.body.style.overflow = isOpen ? 'hidden' : '';
+}
+function closeMobileNav() {
+  document.getElementById('mobileNav').classList.remove('open');
+  document.querySelector('.hamburger').classList.remove('open');
+  document.querySelector('.hamburger').setAttribute('aria-expanded', 'false');
+  document.body.style.overflow = '';
+}
+
+/* -------------------------------------------------------
+   KEYBOARD — Escape closes modals
+   ------------------------------------------------------- */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (overlay.classList.contains('open')) { closeProduct(); return; }
+    if (cartPanel.classList.contains('open')) { toggleCart(); return; }
+    if (document.getElementById('mobileNav').classList.contains('open')) { closeMobileNav(); return; }
+  }
+});
+
+/* -------------------------------------------------------
+   HEADER SCROLL
+   ------------------------------------------------------- */
+const header = document.querySelector('.site-header');
+let ticking = false;
+window.addEventListener('scroll', function() {
+  if (!ticking) {
+    requestAnimationFrame(function() {
+      header.classList.toggle('scrolled', window.scrollY > 60);
+      ticking = false;
+    });
+    ticking = true;
+  }
+});
+
+/* -------------------------------------------------------
+   SCROLL REVEALS — IntersectionObserver
+   ------------------------------------------------------- */
+const revealEls = document.querySelectorAll('.reveal');
+if ('IntersectionObserver' in window) {
+  const revealObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        revealObs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  revealEls.forEach(function(el) { revealObs.observe(el); });
+} else {
+  revealEls.forEach(function(el) { el.classList.add('visible'); });
+}
+
+/* -------------------------------------------------------
+   HERO PARTICLES — Gold firefly dots
+   ------------------------------------------------------- */
 (function() {
-  'use strict';
+  const canvas = document.getElementById('particles');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let width, height, particles = [], raf;
+  const COUNT = 18;
 
-  // ---- NAV SCROLL ----
-  const nav = document.querySelector('.nav');
-  let lastScroll = 0;
-  function onScroll() {
-    const y = window.scrollY;
-    nav.classList.toggle('scrolled', y > 40);
-    lastScroll = y;
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    width = canvas.width = rect.width;
+    height = canvas.height = rect.height;
   }
-  window.addEventListener('scroll', onScroll, { passive: true });
 
-  // ---- HAMBURGER / MOBILE MENU ----
-  const hamburger = document.getElementById('hamburgerBtn');
-  const mobileMenu = document.getElementById('mobileMenu');
-
-  function closeMobileMenu() {
-    hamburger.classList.remove('open');
-    hamburger.setAttribute('aria-expanded', 'false');
-    mobileMenu.classList.remove('open');
-    document.body.style.overflow = '';
-  }
-  window.closeMobileMenu = closeMobileMenu;
-
-  hamburger.addEventListener('click', () => {
-    const isOpen = hamburger.classList.toggle('open');
-    hamburger.setAttribute('aria-expanded', String(isOpen));
-    mobileMenu.classList.toggle('open', isOpen);
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-  });
-
-  mobileMenu.querySelectorAll('.mobile-menu-link').forEach(link => {
-    link.addEventListener('click', closeMobileMenu);
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      closeMobileMenu();
-      closeCart();
-    }
-  });
-
-  // ---- CART STATE ----
-  let cart = [];
-  const badge = document.getElementById('cartBadge');
-  const cartOverlay = document.getElementById('cartOverlay');
-  const cartDrawer = document.getElementById('cartDrawer');
-  const cartItems = document.getElementById('cartItems');
-  const cartEmpty = document.getElementById('cartEmpty');
-  const cartFooter = document.getElementById('cartFooter');
-  const cartTotal = document.getElementById('cartTotal');
-
-  function updateCartUI() {
-    const count = cart.reduce((s, i) => s + i.qty, 0);
-    badge.textContent = count;
-    badge.style.display = count > 0 ? 'flex' : 'none';
-
-    if (cart.length === 0) {
-      cartEmpty.style.display = 'block';
-      cartFooter.style.display = 'none';
-      // Clear any item elements
-      cartItems.querySelectorAll('.cart-item').forEach(el => el.remove());
-    } else {
-      cartEmpty.style.display = 'none';
-      cartFooter.style.display = 'block';
-
-      // Re-render items
-      cartItems.querySelectorAll('.cart-item').forEach(el => el.remove());
-      cart.forEach((item, idx) => {
-        const el = document.createElement('div');
-        el.className = 'cart-item';
-        el.innerHTML = `
-          <div class="cart-item-info">
-            <div class="cart-item-name">${item.name}</div>
-            <div class="cart-item-price">${item.price} Galleons each</div>
-            <button class="cart-item-remove" data-idx="${idx}" aria-label="Remove ${item.name}">Remove</button>
-          </div>
-          <div class="cart-item-qty">
-            <button data-action="dec" data-idx="${idx}" aria-label="Decrease quantity">−</button>
-            <span>${item.qty}</span>
-            <button data-action="inc" data-idx="${idx}" aria-label="Increase quantity">+</button>
-          </div>
-        `;
-        cartItems.appendChild(el);
+  function init() {
+    resize();
+    particles = [];
+    for (let i = 0; i < COUNT; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: Math.random() * 2 + 1,
+        vy: -(Math.random() * 0.3 + 0.1),
+        vx: (Math.random() - 0.5) * 0.15,
+        alpha: Math.random() * 0.5 + 0.2,
+        pulse: Math.random() * Math.PI * 2,
+        pulseSpeed: Math.random() * 0.01 + 0.005
       });
-
-      const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
-      cartTotal.textContent = total + ' Galleons';
     }
   }
 
-  function addToCart(name, price) {
-    const existing = cart.find(i => i.name === name);
-    if (existing) {
-      existing.qty++;
+  function draw() {
+    ctx.clearRect(0, 0, width, height);
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.pulse += p.pulseSpeed;
+      const a = p.alpha * (0.6 + 0.4 * Math.sin(p.pulse));
+
+      // Wrap
+      if (p.y < -10) { p.y = height + 10; p.x = Math.random() * width; }
+      if (p.x < -10) p.x = width + 10;
+      if (p.x > width + 10) p.x = -10;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232, 168, 56, ${a})`;
+      ctx.fill();
+
+      // Glow
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232, 168, 56, ${a * 0.15})`;
+      ctx.fill();
+    }
+    raf = requestAnimationFrame(draw);
+  }
+
+  // Respect reduced motion
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (!mq.matches) {
+    init();
+    draw();
+    window.addEventListener('resize', function() { resize(); });
+  }
+  mq.addEventListener('change', function(e) {
+    if (e.matches) {
+      cancelAnimationFrame(raf);
+      ctx.clearRect(0, 0, width, height);
     } else {
-      cart.push({ name, price, qty: 1 });
-    }
-    updateCartUI();
-    // Bounce badge
-    badge.classList.remove('bounce');
-    void badge.offsetWidth;
-    badge.classList.add('bounce');
-  }
-
-  // Cart item interactions (delegation)
-  cartItems.addEventListener('click', (e) => {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    const idx = parseInt(btn.dataset.idx);
-    if (btn.classList.contains('cart-item-remove')) {
-      cart.splice(idx, 1);
-    } else if (btn.dataset.action === 'inc') {
-      cart[idx].qty++;
-    } else if (btn.dataset.action === 'dec') {
-      cart[idx].qty--;
-      if (cart[idx].qty <= 0) cart.splice(idx, 1);
-    }
-    updateCartUI();
-  });
-
-  // Add to cart buttons
-  document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const name = btn.dataset.product;
-      const price = parseInt(btn.dataset.price);
-      addToCart(name, price);
-      btn.classList.add('added');
-      const orig = btn.textContent;
-      btn.textContent = 'Added!';
-      setTimeout(() => {
-        btn.classList.remove('added');
-        btn.textContent = orig;
-      }, 800);
-    });
-  });
-
-  // Cart open/close
-  function openCart() {
-    cartOverlay.classList.add('open');
-    cartDrawer.classList.add('open');
-    cartDrawer.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    // Focus the close button
-    document.getElementById('cartClose').focus();
-  }
-  window.openCart = openCart;
-
-  function closeCart() {
-    cartOverlay.classList.remove('open');
-    cartDrawer.classList.remove('open');
-    cartDrawer.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  }
-  window.closeCart = closeCart;
-
-  document.getElementById('cartToggle').addEventListener('click', openCart);
-  document.getElementById('cartClose').addEventListener('click', closeCart);
-  cartOverlay.addEventListener('click', closeCart);
-
-  // Trap focus in cart drawer when open
-  cartDrawer.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') {
-      const focusable = cartDrawer.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-      } else {
-        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
-      }
+      init();
+      draw();
     }
   });
-
-  // ---- SCROLL REVEAL (IntersectionObserver) ----
-  const revealEls = document.querySelectorAll('.reveal');
-  if ('IntersectionObserver' in window) {
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-          obs.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-    revealEls.forEach(el => obs.observe(el));
-  } else {
-    // Fallback: show everything
-    revealEls.forEach(el => el.classList.add('visible'));
-  }
-
-  // ---- SMOOTH SCROLL FOR ANCHOR LINKS ----
-  document.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', (e) => {
-      const target = document.querySelector(a.getAttribute('href'));
-      if (target) {
-        e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-  });
-
 })();
 </script>
 </body>
