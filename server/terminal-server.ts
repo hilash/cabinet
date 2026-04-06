@@ -196,7 +196,7 @@ console.log(`Working directory: ${DATA_DIR}`);
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url || "", `http://localhost:${PORT}`);
   const sessionId = url.searchParams.get("id") || `session-${Date.now()}`;
-  const prompt = url.searchParams.get("prompt");
+  const prompt = url.searchParams.get("prompt")?.trim() || undefined;
 
   // Check if this is a reconnection to an existing session
   const existing = sessions.get(sessionId);
@@ -250,7 +250,9 @@ wss.on("connection", (ws, req) => {
   let args: string[];
 
   shell = CLAUDE_PATH;
-  args = ["--dangerously-skip-permissions"];
+  args = prompt
+    ? ["--dangerously-skip-permissions", prompt]
+    : ["--dangerously-skip-permissions"];
 
   let term: pty.IPty;
   try {
@@ -286,7 +288,7 @@ wss.on("connection", (ws, req) => {
     output: [],
     exited: false,
     exitCode: null,
-    initialPrompt: prompt?.trim() || undefined,
+    initialPrompt: undefined,
     initialPromptSent: false,
   };
 

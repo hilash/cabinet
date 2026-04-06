@@ -390,9 +390,12 @@ function createDetachedSession(input: {
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
 }): PtySession {
+  const prompt = input.args ? undefined : input.prompt?.trim() || undefined;
   const args = input.args
     ? input.args
-    : ["--dangerously-skip-permissions"];
+    : prompt
+      ? ["--dangerously-skip-permissions", prompt]
+      : ["--dangerously-skip-permissions"];
 
   const term = pty.spawn(CLAUDE_PATH, args, {
     name: "xterm-256color",
@@ -417,7 +420,7 @@ function createDetachedSession(input: {
     output: [],
     exited: false,
     exitCode: null,
-    initialPrompt: input.args ? undefined : input.prompt?.trim() || undefined,
+    initialPrompt: undefined,
     initialPromptSent: false,
     promptSubmittedOutputLength: 0,
     autoExitRequested: false,

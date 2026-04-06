@@ -265,18 +265,43 @@ function stripAnsiText(str: string): string {
     .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "");
 }
 
-export function formatConversationTranscriptForDisplay(transcript: string): string {
+function normalizeDisplayLine(line: string): string {
+  return line
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildPromptEchoLineSet(prompt?: string): Set<string> {
+  if (!prompt) return new Set<string>();
+
+  return new Set(
+    stripAnsiText(prompt)
+      .replace(/\r+/g, "\n")
+      .split("\n")
+      .map((line) => normalizeDisplayLine(line))
+      .filter((line) => line.length >= 4)
+  );
+}
+
+export function formatConversationTranscriptForDisplay(
+  transcript: string,
+  prompt?: string
+): string {
   const cleaned = stripAnsiText(transcript)
     .replace(/\u00A0/g, " ")
     .replace(/\r+/g, "\n");
+  const promptEchoLines = buildPromptEchoLineSet(prompt);
   const normalized = cleaned
     .replace(/[─-]{8,}/g, "\n")
     .replace(/\s*(SUMMARY:|CONTEXT:|ARTIFACT:)\s*/g, "\n$1")
     .replace(/❯\s*(?=(?:SUMMARY|CONTEXT|ARTIFACT):)/g, "\n");
 
   function isTerminalNoise(trimmed: string): boolean {
+    const normalizedLine = normalizeDisplayLine(trimmed);
     return (
       !trimmed ||
+      promptEchoLines.has(normalizedLine) ||
       /^[─-]{8,}$/.test(trimmed) ||
       /^[❯>]\s*$/.test(trimmed) ||
       /^⏵⏵/.test(trimmed) ||
@@ -471,7 +496,7 @@ export async function readConversationDetail(
   return {
     meta,
     prompt,
-    transcript: formatConversationTranscriptForDisplay(transcript),
+    transcript: formatConversationTranscriptForDisplay(transcript, prompt),
     mentions,
     artifacts,
   };
