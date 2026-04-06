@@ -57,6 +57,7 @@ export interface AgentListItem {
   department?: string;
   heartbeat?: string;
   workspace?: string;
+  setupComplete?: boolean;
   body?: string;
   jobCount?: number;
   runningCount?: number;

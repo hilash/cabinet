@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-06] Cleaned up agent detail panel: removed the instructions preview (markdown body) from the main view, keeping only the labeled metadata chips (Role, Department, Type, Heartbeat, Workspace) in a compact flex-wrap layout. Instructions remain fully accessible via the Edit Agent dialog. Added `setupComplete` flag to agent personas — when an agent is opened in the panel for the first time (flag is false), the Edit Agent dialog auto-opens. Saving settings sets the flag to true so it won't auto-open again.
+
 [2026-04-06] Redesigned "Add agent" flow: button now opens a browser dialog showing library templates + "Start from scratch" option. Selecting a template creates the agent and opens the Edit Agent dialog for customization. Added Save button to Edit Agent dialog. Replaced raw cron inputs with SchedulePicker in both the New Job dialog and Job editor panel.
 
 [2026-04-06] Removed agent system redundancy: consolidated duplicate AgentPersona/HeartbeatRecord types to canonical exports from persona-manager.ts, replaced duplicate CronPicker/cronToHuman/CRON_PRESETS in agent-detail.tsx with shared SchedulePicker and cron-utils imports, unified AgentCard/AgentSummary into AgentListItem type. All cron displays now show human-readable text (cronToHuman/cronToShortLabel) and all cron edit inputs use SchedulePicker with preset buttons.
