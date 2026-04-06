@@ -43,6 +43,10 @@ interface ParsedCabinetBlock {
   artifactPaths: string[];
 }
 
+const PLACEHOLDER_SUMMARY = "one short summary line";
+const PLACEHOLDER_CONTEXT = "optional lightweight memory/context summary";
+const PLACEHOLDER_ARTIFACT_HINT = "relative/path/to/file for every KB file you created or updated";
+
 function formatTimestampSegment(date: Date): string {
   return date.toISOString().replace(/[:.]/g, "-");
 }
@@ -87,6 +91,8 @@ function makeSummaryFromOutput(output: string): string | undefined {
 function normalizeArtifactPath(rawPath: string): string | null {
   const trimmed = rawPath.trim();
   if (!trimmed) return null;
+  if (trimmed === PLACEHOLDER_ARTIFACT_HINT) return null;
+  if (trimmed.includes("for every KB file")) return null;
 
   if (trimmed.startsWith("/data/")) {
     return trimmed.replace(/^\/data\//, "");
@@ -101,8 +107,28 @@ function normalizeArtifactPath(rawPath: string): string | null {
   return normalized;
 }
 
-export function parseCabinetBlock(output: string): ParsedCabinetBlock {
-  const match = output.match(/```cabinet\s*([\s\S]*?)```/i);
+function sanitizeCabinetFieldValue(value: string): string {
+  return value
+    .replace(/\s*❯\s*$/g, "")
+    .replace(/\s*[─-]{8,}\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isPlaceholderCabinetValue(value?: string): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized === PLACEHOLDER_SUMMARY ||
+    normalized === PLACEHOLDER_CONTEXT ||
+    normalized === PLACEHOLDER_ARTIFACT_HINT
+  );
+}
+
+export function parseCabinetBlock(output: string, prompt?: string): ParsedCabinetBlock {
+  const cleaned = cleanConversationOutputForParsing(output, prompt);
+  const matches = Array.from(cleaned.matchAll(/```cabinet\s*([\s\S]*?)```/gi));
+  const match = matches.at(-1);
   const artifactPaths: string[] = [];
   let summary = "";
   let contextSummary = "";
@@ -115,11 +141,11 @@ export function parseCabinetBlock(output: string): ParsedCabinetBlock {
 
     for (const line of lines) {
       if (line.startsWith("SUMMARY:")) {
-        summary = line.slice("SUMMARY:".length).trim();
+        summary = sanitizeCabinetFieldValue(line.slice("SUMMARY:".length));
         continue;
       }
       if (line.startsWith("CONTEXT:")) {
-        contextSummary = line.slice("CONTEXT:".length).trim();
+        contextSummary = sanitizeCabinetFieldValue(line.slice("CONTEXT:".length));
         continue;
       }
       if (line.startsWith("ARTIFACT:")) {
@@ -131,14 +157,17 @@ export function parseCabinetBlock(output: string): ParsedCabinetBlock {
     }
 
     return {
-      summary: summary || undefined,
-      contextSummary: contextSummary || undefined,
+      summary: summary && !isPlaceholderCabinetValue(summary) ? summary : undefined,
+      contextSummary:
+        contextSummary && !isPlaceholderCabinetValue(contextSummary)
+          ? contextSummary
+          : undefined,
       artifactPaths,
     };
   }
 
   const fieldMatches = Array.from(
-    output.matchAll(/(?:^|\n)\s*(SUMMARY|CONTEXT|ARTIFACT):\s*(.*)$/gm)
+    cleaned.matchAll(/(?:^|\n)\s*(SUMMARY|CONTEXT|ARTIFACT):\s*(.*)$/gm)
   );
   if (fieldMatches.length === 0) {
     return { artifactPaths: [] };
@@ -151,7 +180,7 @@ export function parseCabinetBlock(output: string): ParsedCabinetBlock {
     if ((entry.index ?? 0) < relevantStart) continue;
 
     const field = entry[1];
-    const value = entry[2]?.trim() || "";
+    const value = sanitizeCabinetFieldValue(entry[2] || "");
     if (field === "SUMMARY") {
       summary = value;
       continue;
@@ -169,8 +198,11 @@ export function parseCabinetBlock(output: string): ParsedCabinetBlock {
   }
 
   return {
-    summary: summary || undefined,
-    contextSummary: contextSummary || undefined,
+    summary: summary && !isPlaceholderCabinetValue(summary) ? summary : undefined,
+    contextSummary:
+      contextSummary && !isPlaceholderCabinetValue(contextSummary)
+        ? contextSummary
+        : undefined,
     artifactPaths,
   };
 }
@@ -284,13 +316,51 @@ function buildPromptEchoLineSet(prompt?: string): Set<string> {
   );
 }
 
+function stripPromptEchoFromTranscript(transcript: string, prompt?: string): string {
+  const promptEchoLines = buildPromptEchoLineSet(prompt);
+  if (promptEchoLines.size === 0) return transcript;
+
+  return transcript
+    .split("\n")
+    .filter((line) => {
+      const normalized = normalizeDisplayLine(line);
+      return !normalized || !promptEchoLines.has(normalized);
+    })
+    .join("\n");
+}
+
+function isPromptEchoLine(line: string, promptEchoLines: Set<string>): boolean {
+  const normalized = normalizeDisplayLine(line);
+  if (!normalized) return false;
+  if (promptEchoLines.has(normalized)) return true;
+
+  let fragmentMatches = 0;
+  for (const fragment of promptEchoLines) {
+    if (fragment.length < 12) continue;
+    if (normalized.includes(fragment)) {
+      fragmentMatches += 1;
+      if (fragmentMatches >= 2) return true;
+    }
+  }
+
+  return false;
+}
+
+function cleanConversationOutputForParsing(output: string, prompt?: string): string {
+  return stripPromptEchoFromTranscript(
+    stripAnsiText(output)
+      .replace(/\u00A0/g, " ")
+      .replace(/\r+/g, "\n")
+      .replace(/\s*(SUMMARY:|CONTEXT:|ARTIFACT:)\s*/g, "\n$1"),
+    prompt
+  );
+}
+
 export function formatConversationTranscriptForDisplay(
   transcript: string,
   prompt?: string
 ): string {
-  const cleaned = stripAnsiText(transcript)
-    .replace(/\u00A0/g, " ")
-    .replace(/\r+/g, "\n");
+  const cleaned = cleanConversationOutputForParsing(transcript, prompt);
   const promptEchoLines = buildPromptEchoLineSet(prompt);
   const normalized = cleaned
     .replace(/[─-]{8,}/g, "\n")
@@ -301,7 +371,10 @@ export function formatConversationTranscriptForDisplay(
     const normalizedLine = normalizeDisplayLine(trimmed);
     return (
       !trimmed ||
-      promptEchoLines.has(normalizedLine) ||
+      isPromptEchoLine(trimmed, promptEchoLines) ||
+      normalizedLine === PLACEHOLDER_SUMMARY ||
+      normalizedLine === PLACEHOLDER_CONTEXT ||
+      normalizedLine === PLACEHOLDER_ARTIFACT_HINT ||
       /^[─-]{8,}$/.test(trimmed) ||
       /^[❯>]\s*$/.test(trimmed) ||
       /^⏵⏵/.test(trimmed) ||
@@ -309,7 +382,9 @@ export function formatConversationTranscriptForDisplay(
       /\/effort\b/.test(trimmed) ||
       /^\d+\s+MCP server failed\b/.test(trimmed) ||
       /^[✢✳✶✻✽·]\s*$/.test(trimmed) ||
+      /^[0-9]+(?:;[0-9]+){2,}m/.test(trimmed) ||
       /(?:^|[\s·])(?:Orbiting|Sublimating)…?(?:\s+\(thinking\))?$/.test(trimmed) ||
+      /(?:Sketching|Brewing|Thinking|Manifesting|Twisting|Lollygagging|Contemplating|Vibing|Sautéed)/i.test(trimmed) ||
       /\(thinking\)/.test(trimmed) ||
       trimmed.includes("ClaudeCodev") ||
       trimmed.includes("Sonnet4.6") ||
@@ -344,16 +419,20 @@ export function formatConversationTranscriptForDisplay(
 
   const summaryIndex = filtered.findLastIndex((line) => line.trim().startsWith("SUMMARY:"));
   if (summaryIndex !== -1) {
-    let start = summaryIndex;
-    for (let index = summaryIndex - 1; index >= 0; index -= 1) {
-      const trimmed = filtered[index].trim();
-      if (!trimmed) {
-        if (start < summaryIndex) break;
-        continue;
+    let start = filtered
+      .slice(0, summaryIndex + 1)
+      .findLastIndex((line) => line.trim().startsWith("⏺"));
+
+    if (start === -1) {
+      start = summaryIndex;
+      for (let index = summaryIndex - 1; index >= 0; index -= 1) {
+        const trimmed = filtered[index].trim();
+        if (!trimmed) {
+          if (start < summaryIndex) break;
+          continue;
+        }
+        start = index;
       }
-      if (isTerminalNoise(trimmed)) continue;
-      start = index;
-      break;
     }
 
     let end = filtered.length;
@@ -361,8 +440,10 @@ export function formatConversationTranscriptForDisplay(
       const trimmed = filtered[index].trim();
       if (!trimmed) continue;
       if (/^(?:CONTEXT|ARTIFACT):/.test(trimmed)) continue;
-      end = index;
-      break;
+      if (isTerminalNoise(trimmed)) {
+        end = index;
+        break;
+      }
     }
 
     return filtered.slice(start, end).join("\n").trim();
@@ -383,18 +464,36 @@ function transcriptShowsCompletedRun(transcript: string): boolean {
 async function maybeResolveCompletedConversation(
   meta: ConversationMeta | null
 ): Promise<ConversationMeta | null> {
-  if (!meta || meta.status !== "running") return meta;
+  if (!meta) return meta;
 
   const transcript = await readConversationTranscript(meta.id);
-  if (!transcriptShowsCompletedRun(transcript)) {
+  if (meta.status === "running" && !transcriptShowsCompletedRun(transcript)) {
+    return meta;
+  }
+
+  const prompt = (await fileExists(promptPathFs(meta.id)))
+    ? await readFileContent(promptPathFs(meta.id))
+    : "";
+  const parsed = parseCabinetBlock(transcript, prompt);
+  const needsRepair =
+    meta.status === "running" ||
+    isPlaceholderCabinetValue(meta.summary) ||
+    isPlaceholderCabinetValue(meta.contextSummary) ||
+    meta.artifactPaths.some((artifactPath) => isPlaceholderCabinetValue(artifactPath)) ||
+    (!!parsed.summary && parsed.summary !== meta.summary) ||
+    (!!parsed.contextSummary && parsed.contextSummary !== meta.contextSummary) ||
+    (parsed.artifactPaths.length > 0 &&
+      parsed.artifactPaths.join("|") !== meta.artifactPaths.join("|"));
+
+  if (!needsRepair) {
     return meta;
   }
 
   return (
     await finalizeConversation(meta.id, {
-      status: "completed",
-      exitCode: 0,
-      output: stripAnsiText(transcript),
+      status: meta.status === "running" ? "completed" : meta.status,
+      exitCode: meta.status === "running" ? 0 : meta.exitCode,
+      output: transcript,
     })
   ) || meta;
 }
@@ -431,15 +530,23 @@ export async function finalizeConversation(
   const meta = await readConversationMeta(id);
   if (!meta) return null;
 
-  const output = input.output ?? (await readConversationTranscript(id));
-  const cleanedOutput = stripAnsiText(output).replace(/\r/g, "\n");
-  const parsed = parseCabinetBlock(cleanedOutput);
+  const hasPrompt = await fileExists(promptPathFs(id));
+  const [output, prompt] = await Promise.all([
+    input.output ? Promise.resolve(input.output) : readConversationTranscript(id),
+    hasPrompt ? readFileContent(promptPathFs(id)) : Promise.resolve(""),
+  ]);
+  const cleanedOutput = cleanConversationOutputForParsing(output, prompt);
+  const parsed = parseCabinetBlock(cleanedOutput, prompt);
   const artifacts = parsed.artifactPaths.map((artifactPath) => ({
     path: artifactPath,
   }));
 
+  const previousStatus = meta.status;
   meta.status = input.status;
-  meta.completedAt = new Date().toISOString();
+  meta.completedAt =
+    meta.completedAt && previousStatus === input.status
+      ? meta.completedAt
+      : new Date().toISOString();
   meta.exitCode = input.exitCode ?? null;
   meta.summary = parsed.summary || makeSummaryFromOutput(cleanedOutput);
   meta.contextSummary = parsed.contextSummary;
