@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
-
-const DATA_DIR = path.join(process.cwd(), "data");
+import { DATA_DIR } from "@/lib/storage/path-utils";
 
 export async function POST(req: NextRequest) {
   try {

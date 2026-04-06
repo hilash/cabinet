@@ -94,5 +94,3 @@ CREATE TABLE IF NOT EXISTS schema_version (
   version INTEGER PRIMARY KEY,
   applied_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
-
-INSERT INTO schema_version (version) VALUES (1);

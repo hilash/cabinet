@@ -24,3 +24,5 @@ export interface PageData {
 }
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+export * from "./update";
