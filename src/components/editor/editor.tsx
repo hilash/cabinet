@@ -8,8 +8,10 @@ import { EditorToolbar } from "./editor-toolbar";
 import { SlashCommands } from "./slash-commands";
 import { useEditorStore } from "@/stores/editor-store";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
+import { useTreeStore } from "@/stores/tree-store";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
+import type { TreeNode } from "@/types";
 
 async function uploadFile(pagePath: string, file: File): Promise<string | null> {
   const formData = new FormData();
@@ -25,6 +27,80 @@ async function uploadFile(pagePath: string, file: File): Promise<string | null> 
   } catch {
     return null;
   }
+}
+
+function flattenTree(nodes: TreeNode[]): { path: string; name: string }[] {
+  const result: { path: string; name: string }[] = [];
+  for (const node of nodes) {
+    result.push({ path: node.path, name: node.name });
+    if (node.children) result.push(...flattenTree(node.children));
+  }
+  return result;
+}
+
+function findPageBySlug(slug: string, currentPath: string | null, nodes: TreeNode[]): string | null {
+  const allPages = flattenTree(nodes);
+  // The slug matches the last segment of the path
+  const matches = allPages.filter((p) => p.name === slug || p.path.endsWith("/" + slug));
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0].path;
+
+  // Prefer sibling pages (same parent directory as current page)
+  if (currentPath) {
+    const parentDir = currentPath.includes("/")
+      ? currentPath.substring(0, currentPath.lastIndexOf("/"))
+      : "";
+    const sibling = matches.find(
+      (m) => m.path === (parentDir ? parentDir + "/" + slug : slug)
+    );
+    if (sibling) return sibling.path;
+  }
+  return matches[0].path;
+}
+
+function navigateToPage(
+  targetPath: string,
+  selectPage: (path: string) => void,
+  expandPath: (path: string) => void
+) {
+  const parts = targetPath.split("/");
+  for (let i = 1; i < parts.length; i++) {
+    expandPath(parts.slice(0, i).join("/"));
+  }
+  selectPage(targetPath);
+  useEditorStore.getState().loadPage(targetPath);
+}
+
+function resolveInternalLink(
+  href: string,
+  currentPath: string | null,
+  nodes: TreeNode[]
+): string | null {
+  const allPages = flattenTree(nodes);
+
+  // Clean up the href: strip .md extension, leading ./ or /
+  let linkPath = href
+    .replace(/\.md$/, "")
+    .replace(/^\.\//, "")
+    .replace(/^\//, "");
+
+  // 1. Try as absolute path (exact match in tree)
+  const exactMatch = allPages.find((p) => p.path === linkPath);
+  if (exactMatch) return exactMatch.path;
+
+  // 2. Try relative to current page's directory
+  if (currentPath) {
+    const parentDir = currentPath.includes("/")
+      ? currentPath.substring(0, currentPath.lastIndexOf("/"))
+      : "";
+    const relativePath = parentDir ? parentDir + "/" + linkPath : linkPath;
+    const relMatch = allPages.find((p) => p.path === relativePath);
+    if (relMatch) return relMatch.path;
+  }
+
+  // 3. Try matching by last segment (slug-style lookup)
+  const slug = linkPath.includes("/") ? linkPath.split("/").pop()! : linkPath;
+  return findPageBySlug(slug, currentPath, nodes);
 }
 
 export function KBEditor() {
@@ -69,6 +145,46 @@ export function KBEditor() {
         class:
           "focus:outline-none min-h-[calc(100vh-12rem)] px-4 sm:px-8 py-6 max-w-3xl mx-auto",
       },
+      handleClick: (_view, _pos, event) => {
+          const target = event.target as HTMLElement;
+          const link = target.closest("a") as HTMLAnchorElement | null;
+          if (!link) return false;
+
+          const href = link.getAttribute("href");
+          if (!href) return false;
+
+          // Wiki-links: #page:slug
+          if (href.startsWith("#page:")) {
+            event.preventDefault();
+            event.stopPropagation();
+            const slug = href.replace("#page:", "");
+            const { nodes, selectPage, expandPath } = useTreeStore.getState();
+            const activePath = useEditorStore.getState().currentPath;
+            const targetPath = findPageBySlug(slug, activePath, nodes);
+            if (targetPath) {
+              navigateToPage(targetPath, selectPage, expandPath);
+            }
+            return true;
+          }
+
+          // Internal links: relative paths to .md files or other KB pages
+          // Skip external URLs and API asset links (PDFs, images)
+          if (/^https?:\/\//.test(href) || href.startsWith("/api/")) return false;
+          if (href.startsWith("mailto:") || href.startsWith("tel:")) return false;
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          const { nodes, selectPage, expandPath } = useTreeStore.getState();
+          const activePath = useEditorStore.getState().currentPath;
+
+          // Resolve the link target to a KB page path
+          const targetPath = resolveInternalLink(href, activePath, nodes);
+          if (targetPath) {
+            navigateToPage(targetPath, selectPage, expandPath);
+          }
+          return true;
+        },
       handlePaste: (_view, event) => {
         const files = event.clipboardData?.files;
         if (!files || files.length === 0) return false;
