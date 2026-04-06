@@ -6,7 +6,8 @@ interface WebTerminalProps {
   sessionId?: string;
   prompt?: string;
   displayPrompt?: string;
-  reconnect?: boolean;  // If true, connect without sending prompt (session already exists on server)
+  reconnect?: boolean; // If true, connect without sending prompt (session already exists on server)
+  themeSurface?: "terminal" | "page";
   onClose: () => void;
 }
 
@@ -19,9 +20,11 @@ function readRootVar(name: string, fallback: string) {
   return value || fallback;
 }
 
-function getTerminalTheme() {
-  const background = readRootVar("--terminal-bg", "#0a0a0a");
-  const foreground = readRootVar("--terminal-fg", "#e5e5e5");
+function getTerminalTheme(themeSurface: "terminal" | "page" = "terminal") {
+  const backgroundVar = themeSurface === "page" ? "--background" : "--terminal-bg";
+  const foregroundVar = themeSurface === "page" ? "--foreground" : "--terminal-fg";
+  const background = readRootVar(backgroundVar, "#0a0a0a");
+  const foreground = readRootVar(foregroundVar, "#e5e5e5");
 
   return {
     background,
@@ -59,6 +62,7 @@ export function WebTerminal({
   prompt,
   displayPrompt,
   reconnect,
+  themeSurface = "terminal",
   onClose,
 }: WebTerminalProps) {
   const termRef = useRef<HTMLDivElement>(null);
@@ -98,7 +102,7 @@ export function WebTerminal({
           "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
         lineHeight: 1.2,
         letterSpacing: 0,
-        theme: getTerminalTheme(),
+        theme: getTerminalTheme(themeSurface),
         scrollback: 10000,
         allowProposedApi: true,
         convertEol: false,
@@ -124,7 +128,7 @@ export function WebTerminal({
       if (termRef.current) {
         const applyTheme = () => {
           if (!terminal) return;
-          const nextTheme = getTerminalTheme();
+          const nextTheme = getTerminalTheme(themeSurface);
           terminal.options.theme = nextTheme;
           termRef.current?.style.setProperty("background-color", nextTheme.background);
           termRef.current?.style.setProperty("color", nextTheme.foreground);
@@ -272,14 +276,17 @@ export function WebTerminal({
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sessionId, prompt, displayPrompt, reconnect]);
+  }, [sessionId, prompt, displayPrompt, reconnect, themeSurface]);
+
+  const surfaceBackground = themeSurface === "page" ? "var(--background)" : "var(--terminal-bg)";
+  const surfaceForeground = themeSurface === "page" ? "var(--foreground)" : "var(--terminal-fg)";
 
   return (
     <div
       className="relative h-full w-full overflow-hidden"
       style={{
-        backgroundColor: "var(--terminal-bg)",
-        color: "var(--terminal-fg)",
+        backgroundColor: surfaceBackground,
+        color: surfaceForeground,
       }}
     >
       {error && (

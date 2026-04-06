@@ -208,7 +208,7 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
               {otherRunningSessions.map((session) => (
                 <div
                   key={session.sessionId}
-                  className="flex items-center gap-2 px-3 py-2 border border-[#ffffff08] rounded-lg text-[12px]"
+                  className="flex items-center gap-2 rounded-lg border border-border/70 bg-background/60 px-3 py-2 text-[12px]"
                 >
                   <Loader2 className="h-3 w-3 text-primary animate-spin shrink-0" />
                   <span className="truncate flex-1 text-muted-foreground">
@@ -236,7 +236,7 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
               {history.map((hb) => (
                 <div
                   key={hb.timestamp}
-                  className="border border-[#ffffff08] rounded-lg overflow-hidden"
+                  className="overflow-hidden rounded-lg border border-border/70 bg-background/40"
                 >
                   <button
                     onClick={() => toggleExpanded(hb.timestamp)}
@@ -260,11 +260,11 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
                     </span>
                   </button>
                   {expandedPast.has(hb.timestamp) && (
-                    <div className="border-t border-[#ffffff08] bg-[#0a0a0a]">
-                      <pre className="text-[11px] text-muted-foreground p-3 whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto font-mono leading-relaxed">
+                    <div className="border-t border-border/70 bg-background">
+                      <pre className="max-h-[300px] overflow-y-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-foreground/85">
                         {hb.summary || "(No output captured)"}
                       </pre>
-                      <div className="px-3 py-1.5 border-t border-[#ffffff08] flex items-center gap-3 text-[10px] text-muted-foreground/50">
+                      <div className="flex items-center gap-3 border-t border-border/70 px-3 py-1.5 text-[10px] text-muted-foreground/60">
                         <Clock className="h-2.5 w-2.5 inline mr-0.5" />
                         {formatDuration(hb.duration)}
                       </div>
@@ -304,10 +304,11 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="rounded-lg overflow-hidden border border-[#ffffff10] flex-1 min-h-[200px]">
+              <div className="flex-1 min-h-[200px] overflow-hidden rounded-lg border border-border/70 bg-background">
                 <WebTerminal
                   sessionId={session.sessionId}
                   reconnect={session.reconnect ?? true}
+                  themeSurface="page"
                   onClose={() => handleSessionEnd(session.sessionId)}
                 />
               </div>
@@ -325,6 +326,7 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
           <WebTerminal
             sessionId={session.sessionId}
             reconnect={true}
+            themeSurface="page"
             onClose={() => markAgentSessionCompleted(session.sessionId)}
           />
         </div>
