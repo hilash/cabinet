@@ -32,14 +32,33 @@ import {
   PenTool,
   UserCheck,
   Scale,
+  FolderOpen,
+  Loader2,
+  MoreHorizontal,
+  RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Separator } from "@/components/ui/separator";
 import { TreeView } from "./tree-view";
 import { NewPageDialog } from "./new-page-dialog";
 import { useAppStore } from "@/stores/app-store";
+import { useTreeStore } from "@/stores/tree-store";
 
 function useIsMobile() {
   const isMobile = useSyncExternalStore(
@@ -108,9 +127,12 @@ export function Sidebar() {
   const setCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
+  const loadTree = useTreeStore((s) => s.loadTree);
+  const treeLoading = useTreeStore((s) => s.loading);
 
   const [agentsExpanded, setAgentsExpanded] = useState(true);
   const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [openingDataDir, setOpeningDataDir] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
     const storedWidth = window.localStorage.getItem("cabinet-sidebar-width");
@@ -192,6 +214,29 @@ export function Sidebar() {
     dragStateRef.current = { startX: event.clientX, startWidth: sidebarWidth };
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+  }
+
+  async function openKnowledgeBaseDir() {
+    if (openingDataDir) return;
+
+    setOpeningDataDir(true);
+    try {
+      const res = await fetch("/api/system/open-data-dir", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to open Knowledge Base folder.");
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to open Knowledge Base folder.";
+      alert(message);
+    } finally {
+      setOpeningDataDir(false);
+    }
+  }
+
+  function refreshKnowledgeBase() {
+    void loadTree();
   }
 
   const desktopClass = collapsed ? "w-0 overflow-hidden" : "shrink-0";
@@ -319,11 +364,77 @@ export function Sidebar() {
         <Separator />
 
         {/* Knowledge Base */}
-        <div className="px-3 pt-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-            Knowledge Base
-          </p>
-        </div>
+        <ContextMenu>
+          <ContextMenuTrigger className="block px-3 pt-2 pb-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto w-full justify-between gap-2 px-2 py-1"
+                  />
+                }
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Knowledge Base
+                </span>
+                {openingDataDir ? (
+                  <Loader2
+                    data-icon="inline-end"
+                    className="animate-spin text-muted-foreground"
+                  />
+                ) : treeLoading ? (
+                  <RefreshCw
+                    data-icon="inline-end"
+                    className="animate-spin text-muted-foreground"
+                  />
+                ) : (
+                  <MoreHorizontal
+                    data-icon="inline-end"
+                    className="text-muted-foreground"
+                  />
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-auto min-w-40">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={openKnowledgeBaseDir}
+                    disabled={openingDataDir}
+                  >
+                    <FolderOpen />
+                    Open in Finder
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={refreshKnowledgeBase}
+                    disabled={treeLoading}
+                  >
+                    <RefreshCw className={cn(treeLoading && "animate-spin")} />
+                    Refresh
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuGroup>
+              <ContextMenuItem
+                onClick={openKnowledgeBaseDir}
+                disabled={openingDataDir}
+              >
+                <FolderOpen />
+                Open in Finder
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={refreshKnowledgeBase}
+                disabled={treeLoading}
+              >
+                <RefreshCw className={cn(treeLoading && "animate-spin")} />
+                Refresh
+              </ContextMenuItem>
+            </ContextMenuGroup>
+          </ContextMenuContent>
+        </ContextMenu>
         <TreeView />
 
         <div className="p-2 flex items-center gap-1">

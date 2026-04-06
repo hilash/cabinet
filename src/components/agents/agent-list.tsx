@@ -12,18 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
-
-interface AgentCard {
-  name: string;
-  slug: string;
-  emoji: string;
-  type: "lead" | "specialist" | "support";
-  department: string;
-  role: string;
-  active: boolean;
-  jobCount: number;
-  status: "active" | "running" | "idle";
-}
+import type { AgentListItem } from "@/types/agents";
 
 interface LibraryTemplate {
   slug: string;
@@ -39,7 +28,7 @@ function AgentCardItem({
   agent,
   onClick,
 }: {
-  agent: AgentCard;
+  agent: AgentListItem;
   onClick: () => void;
 }) {
   return (
@@ -189,7 +178,7 @@ function LibraryDialog({
 }
 
 export function AgentList() {
-  const [agents, setAgents] = useState<AgentCard[]>([]);
+  const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLibrary, setShowLibrary] = useState(false);
   const setSection = useAppStore((s) => s.setSection);

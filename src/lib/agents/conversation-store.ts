@@ -88,6 +88,20 @@ function makeSummaryFromOutput(output: string): string | undefined {
   return lines[0]?.slice(0, 300);
 }
 
+export function extractConversationRequest(prompt: string): string {
+  const normalized = prompt.replace(/\r+/g, "\n");
+  const markers = ["User request:\n", "Job instructions:\n"];
+
+  for (const marker of markers) {
+    const index = normalized.lastIndexOf(marker);
+    if (index !== -1) {
+      return normalized.slice(index + marker.length).trim();
+    }
+  }
+
+  return normalized.trim();
+}
+
 function normalizeArtifactPath(rawPath: string): string | null {
   const trimmed = rawPath.trim();
   if (!trimmed) return null;
@@ -607,6 +621,7 @@ export async function readConversationDetail(
   return {
     meta,
     prompt,
+    request: extractConversationRequest(prompt),
     transcript: formatConversationTranscriptForDisplay(transcript, prompt),
     mentions,
     artifacts,

@@ -33,6 +33,7 @@ export interface ConversationMeta {
 export interface ConversationDetail {
   meta: ConversationMeta;
   prompt: string;
+  request: string;
   transcript: string;
   mentions: string[];
   artifacts: ConversationArtifact[];

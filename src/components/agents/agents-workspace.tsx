@@ -17,41 +17,42 @@ import {
   Trash2,
   XCircle,
   Zap,
+  Library,
+  Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
-import { cronToHuman } from "@/lib/agents/cron-utils";
+import { ConversationResultView } from "@/components/agents/conversation-result-view";
+import { cronToHuman, cronToShortLabel } from "@/lib/agents/cron-utils";
+import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
 import type { TreeNode } from "@/types";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
 import type { JobConfig } from "@/types/jobs";
+import type { AgentListItem } from "@/types/agents";
 
 type TriggerFilter = "all" | "manual" | "job" | "heartbeat";
 type StatusFilter = "all" | "running" | "completed" | "failed";
 type MainPanelMode = "composer" | "conversation" | "settings";
 type SettingsTarget = "directory" | "__new__" | string | null;
 
-interface AgentSummary {
-  name: string;
-  slug: string;
-  emoji: string;
-  role: string;
-  active: boolean;
-  heartbeat?: string;
-  runningCount?: number;
-  department?: string;
-  type?: string;
-  workspace?: string;
-  body?: string;
+interface PersonaResponse {
+  persona: AgentListItem;
 }
 
-interface PersonaResponse {
-  persona: AgentSummary;
+interface AgentTemplate {
+  slug: string;
+  name: string;
+  emoji: string;
+  type: string;
+  department: string;
+  role: string;
+  description: string;
 }
 
 interface NewAgentDraft {
@@ -67,7 +68,7 @@ interface NewAgentDraft {
   active: boolean;
 }
 
-const GENERAL_AGENT: AgentSummary = {
+const GENERAL_AGENT: AgentListItem = {
   name: "General",
   slug: "general",
   emoji: "🤖",
@@ -91,11 +92,6 @@ const TASK_CARD_TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
   job: "bg-emerald-500/12 text-emerald-400 ring-1 ring-emerald-500/20",
   heartbeat: "bg-pink-500/12 text-pink-400 ring-1 ring-pink-500/20",
 };
-
-function replacePastedTextNotice(output: string, displayPrompt?: string): string {
-  if (!displayPrompt) return output;
-  return output.replace(/\[Pasted\s*text\s*#\d+(?:\s*\+\s*\d+\s*lines)?\]/gi, displayPrompt);
-}
 
 const AGENT_EMOJI_OPTIONS = [
   "🤖",
@@ -288,7 +284,7 @@ export function AgentsWorkspace({
   selectedAgentSlug?: string | null;
   selectedScope?: "all" | "agent";
 }) {
-  const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
@@ -299,7 +295,7 @@ export function AgentsWorkspace({
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget>(null);
-  const [settingsPersona, setSettingsPersona] = useState<AgentSummary | null>(null);
+  const [settingsPersona, setSettingsPersona] = useState<AgentListItem | null>(null);
   const [settingsBody, setSettingsBody] = useState("");
   const [settingsJobs, setSettingsJobs] = useState<JobConfig[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -324,6 +320,9 @@ export function AgentsWorkspace({
   const [conversationDetailsOpen, setConversationDetailsOpen] = useState(false);
   const [detailsCopied, setDetailsCopied] = useState(false);
   const [libraryTemplates, setLibraryTemplates] = useState<JobLibraryTemplate[]>([]);
+  const [addAgentDialogOpen, setAddAgentDialogOpen] = useState(false);
+  const [agentTemplates, setAgentTemplates] = useState<AgentTemplate[]>([]);
+  const [addingAgentSlug, setAddingAgentSlug] = useState<string | null>(null);
   const [savingJob, setSavingJob] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
@@ -351,7 +350,7 @@ export function AgentsWorkspace({
     const response = await fetch("/api/agents/personas");
     if (!response.ok) return;
     const data = await response.json();
-    const personas = (data.personas || []) as AgentSummary[];
+    const personas = (data.personas || []) as AgentListItem[];
     const generalRunning =
       conversations.filter(
         (conversation) =>
@@ -633,6 +632,49 @@ export function AgentsWorkspace({
     setSelectedJobId(null);
     setJobDraft(null);
     setNewAgentDraft(DEFAULT_NEW_AGENT);
+  }
+
+  async function openAddAgentDialog() {
+    setAddAgentDialogOpen(true);
+    if (agentTemplates.length === 0) {
+      try {
+        const res = await fetch("/api/agents/library");
+        if (res.ok) {
+          const data = await res.json();
+          setAgentTemplates(data.templates || []);
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  async function addAgentFromTemplate(template: AgentTemplate) {
+    setAddingAgentSlug(template.slug);
+    try {
+      const res = await fetch(`/api/agents/library/${template.slug}/add`, { method: "POST" });
+      if (!res.ok) {
+        if (res.status === 409) {
+          // Agent already exists — just open its settings
+          setAddAgentDialogOpen(false);
+          await refreshAgents();
+          openAgentSettings(template.slug);
+          setSettingsEditorOpen(true);
+          return;
+        }
+        return;
+      }
+      setAddAgentDialogOpen(false);
+      await refreshAgents();
+      openAgentSettings(template.slug);
+      await refreshSettings(template.slug);
+      setSettingsEditorOpen(true);
+    } catch { /* ignore */ } finally {
+      setAddingAgentSlug(null);
+    }
+  }
+
+  function startNewAgentFromScratch() {
+    setAddAgentDialogOpen(false);
+    startNewAgentDraft();
   }
 
   function handleComposerInput(value: string, cursorPosition: number) {
@@ -1131,7 +1173,7 @@ export function AgentsWorkspace({
           </div>
         </div>
         <ScrollArea className="h-[calc(100vh-115px)]">
-          <div className="space-y-1 p-2">
+          <div>
             {conversationsLoading && conversations.length > 0 ? (
               <div className="flex items-center gap-2 px-3 py-6 text-[12px] text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1146,6 +1188,8 @@ export function AgentsWorkspace({
             ) : (
               conversations.map((conversation) => {
                 const agent = agents.find((entry) => entry.slug === conversation.agentSlug);
+                const isSelected = selectedConversationId === conversation.id;
+
                 return (
                   <button
                     key={conversation.id}
@@ -1154,42 +1198,45 @@ export function AgentsWorkspace({
                       setMode("conversation");
                     }}
                     className={cn(
-                      "w-full rounded-xl border px-3 py-2.5 text-left transition-colors",
-                      selectedConversationId === conversation.id
-                        ? "border-primary/30 bg-primary/5"
-                        : "border-border hover:bg-accent/40"
+                      "relative flex w-full items-start gap-2 border-b border-border/70 px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      isSelected ? "bg-primary/5" : "hover:bg-accent/35"
                     )}
                   >
-                    <div className="flex items-start gap-2">
-                      <div className="mt-0.5 shrink-0">
-                        {conversation.status === "running" ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                        ) : conversation.status === "failed" ? (
-                          <XCircle className="h-3.5 w-3.5 text-destructive" />
-                        ) : (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                        )}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary transition-opacity",
+                        isSelected ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <div className="mt-0.5 shrink-0">
+                      {conversation.status === "running" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      ) : conversation.status === "failed" ? (
+                        <XCircle className="h-3.5 w-3.5 text-destructive" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-[11.5px] font-medium leading-[1.35] text-foreground">
+                          {conversation.title}
+                        </p>
+                        <span
+                          aria-label={TRIGGER_LABELS[conversation.trigger]}
+                          title={TRIGGER_LABELS[conversation.trigger]}
+                          className={cn(
+                            "inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full",
+                            TASK_CARD_TRIGGER_STYLES[conversation.trigger]
+                          )}
+                        >
+                          <TriggerIcon trigger={conversation.trigger} className="h-2.75 w-2.75" />
+                        </span>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-[11.5px] font-medium text-foreground">
-                            {conversation.title}
-                          </p>
-                          <span
-                            aria-label={TRIGGER_LABELS[conversation.trigger]}
-                            title={TRIGGER_LABELS[conversation.trigger]}
-                            className={cn(
-                              "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
-                              TASK_CARD_TRIGGER_STYLES[conversation.trigger]
-                            )}
-                          >
-                            <TriggerIcon trigger={conversation.trigger} className="h-2.75 w-2.75" />
-                          </span>
-                        </div>
-                        <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-                          <p className="truncate">{agent?.name || conversation.agentSlug}</p>
-                          <span className="shrink-0">{formatRelative(conversation.startedAt)}</span>
-                        </div>
+                      <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                        <p className="truncate">{agent?.name || conversation.agentSlug}</p>
+                        <span className="shrink-0">{formatRelative(conversation.startedAt)}</span>
                       </div>
                     </div>
                   </button>
@@ -1294,20 +1341,13 @@ export function AgentsWorkspace({
                   }}
                 />
               ) : selectedConversation ? (
-                <ScrollArea
-                  className="h-full"
-                  style={{
-                    backgroundColor: "var(--background)",
-                    color: "var(--foreground)",
+                <ConversationResultView
+                  detail={selectedConversation}
+                  onOpenArtifact={(artifactPath) => {
+                    selectPage(artifactPath);
+                    setSection({ type: "page" });
                   }}
-                >
-                  <pre className="min-h-full whitespace-pre-wrap p-5 font-mono text-[12px] leading-relaxed">
-                    {replacePastedTextNotice(
-                      selectedConversation.transcript || "No transcript captured.",
-                      selectedConversationMeta.title
-                    )}
-                  </pre>
-                </ScrollArea>
+                />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                   Loading conversation...
@@ -1317,6 +1357,75 @@ export function AgentsWorkspace({
           </div>
         ) : mode === "settings" ? (
           <div className="flex h-full flex-col">
+            <Dialog open={addAgentDialogOpen} onOpenChange={setAddAgentDialogOpen}>
+              <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                  <div className="flex items-center gap-2">
+                    <Library className="h-4 w-4" />
+                    <DialogTitle>Agent Library</DialogTitle>
+                  </div>
+                </DialogHeader>
+                <ScrollArea className="max-h-[70vh]">
+                  <div className="space-y-6 pr-2">
+                    <div>
+                      <button
+                        type="button"
+                        onClick={startNewAgentFromScratch}
+                        className="flex w-full items-center gap-3 rounded-lg border-2 border-dashed border-border bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/5"
+                      >
+                        <span className="text-lg">
+                          <Plus className="h-5 w-5 text-muted-foreground" />
+                        </span>
+                        <div>
+                          <h4 className="text-[13px] font-medium">Start your own agent</h4>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">Create a custom agent from scratch</p>
+                        </div>
+                      </button>
+                    </div>
+                    {Object.entries(
+                      agentTemplates.reduce<Record<string, AgentTemplate[]>>((acc, t) => {
+                        const dept = t.department || "general";
+                        if (!acc[dept]) acc[dept] = [];
+                        acc[dept].push(t);
+                        return acc;
+                      }, {})
+                    ).map(([dept, items]) => (
+                      <div key={dept}>
+                        <h3 className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider mb-3">
+                          {dept}
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          {items.map((t) => (
+                            <div
+                              key={t.slug}
+                              className="bg-card border border-border rounded-lg p-3"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <span className="text-lg">{t.emoji}</span>
+                                  <h4 className="text-[13px] font-medium mt-1">{t.name}</h4>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">{t.role}</p>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs gap-1"
+                                  onClick={() => addAgentFromTemplate(t)}
+                                  disabled={addingAgentSlug === t.slug}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  {addingAgentSlug === t.slug ? "Adding..." : "Add"}
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
             {settingsTarget === "directory" || !settingsTarget || settingsTarget === "__new__" ? (
               <div className="border-b border-border px-5 py-4">
                 <div className="flex items-start justify-between gap-3">
@@ -1337,7 +1446,7 @@ export function AgentsWorkspace({
                   )}
                   {(settingsTarget === "directory" || !settingsTarget) ? (
                     <div className="flex gap-2">
-                      <Button size="sm" className="h-8 gap-1 text-xs" onClick={startNewAgentDraft}>
+                      <Button size="sm" className="h-8 gap-1 text-xs" onClick={openAddAgentDialog}>
                         <Plus className="h-3.5 w-3.5" />
                         Add agent
                       </Button>
@@ -1404,8 +1513,8 @@ export function AgentsWorkspace({
                           </div>
                         </div>
                         <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                          <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-3">
-                            {settingsPersona.heartbeat || "Not set"}
+                          <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-3">
+                            {settingsPersona.heartbeat ? cronToHuman(settingsPersona.heartbeat) : "Not set"}
                           </div>
                         </div>
                       </div>
@@ -1506,16 +1615,15 @@ export function AgentsWorkspace({
                               className="w-full rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
                             />
                           </label>
-                          <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                          <div className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                             <span>Heartbeat</span>
-                            <input
-                              value={settingsPersona.heartbeat || ""}
-                              onChange={(event) =>
-                                setSettingsPersona({ ...settingsPersona, heartbeat: event.target.value })
+                            <SchedulePicker
+                              value={settingsPersona.heartbeat || "0 */4 * * *"}
+                              onChange={(cron) =>
+                                setSettingsPersona({ ...settingsPersona, heartbeat: cron })
                               }
-                              className="w-full rounded-lg bg-muted/60 px-3 py-2 font-mono text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
                             />
-                          </label>
+                          </div>
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                             <span>Department</span>
                             <input
@@ -1548,7 +1656,7 @@ export function AgentsWorkspace({
                           </label>
                         </div>
                       </div>
-                      <div className="flex justify-end border-t border-border pt-3">
+                      <div className="flex items-center justify-between border-t border-border pt-3">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1558,6 +1666,14 @@ export function AgentsWorkspace({
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                           {deletingAgent ? "Removing..." : "Remove agent"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => setSettingsEditorOpen(false)}
+                        >
+                          <Save className="h-3.5 w-3.5" />
+                          Save
                         </Button>
                       </div>
                     </div>
@@ -1615,19 +1731,16 @@ export function AgentsWorkspace({
                         </div>
                         <div>
                           <label className="text-[11px] font-medium text-muted-foreground">Schedule</label>
-                          <input
-                            value={jobDraft.schedule}
-                            onChange={(event) =>
-                              setJobDraft((current) =>
-                                current ? { ...current, schedule: event.target.value } : current
-                              )
-                            }
-                            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
-                            placeholder="0 9 * * 1"
-                          />
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            {jobDraft.schedule ? cronToHuman(jobDraft.schedule) : "No schedule set."}
-                          </p>
+                          <div className="mt-1">
+                            <SchedulePicker
+                              value={jobDraft.schedule || "0 9 * * 1-5"}
+                              onChange={(cron) =>
+                                setJobDraft((current) =>
+                                  current ? { ...current, schedule: cron } : current
+                                )
+                              }
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="text-[11px] font-medium text-muted-foreground">Timeout (seconds)</label>
@@ -1927,19 +2040,16 @@ export function AgentsWorkspace({
                             </div>
                             <div>
                               <label className="text-[11px] font-medium text-muted-foreground">Schedule</label>
-                              <input
-                                value={jobDraft.schedule}
-                                onChange={(event) =>
-                                  setJobDraft((current) =>
-                                    current ? { ...current, schedule: event.target.value } : current
-                                  )
-                                }
-                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
-                                placeholder="0 9 * * 1"
-                              />
-                              <p className="mt-1 text-[10px] text-muted-foreground">
-                                {jobDraft.schedule ? cronToHuman(jobDraft.schedule) : "No schedule set."}
-                              </p>
+                              <div className="mt-1">
+                                <SchedulePicker
+                                  value={jobDraft.schedule || "0 9 * * 1-5"}
+                                  onChange={(cron) =>
+                                    setJobDraft((current) =>
+                                      current ? { ...current, schedule: cron } : current
+                                    )
+                                  }
+                                />
+                              </div>
                             </div>
                             <div>
                               <label className="text-[11px] font-medium text-muted-foreground">Timeout (seconds)</label>
@@ -2073,7 +2183,7 @@ export function AgentsWorkspace({
                               </span>
                               {agent.heartbeat ? (
                                 <span className="rounded-full bg-muted px-2 py-1">
-                                  {agent.slug === "general" ? "Manual only" : agent.heartbeat}
+                                  {agent.slug === "general" ? "Manual only" : cronToShortLabel(agent.heartbeat)}
                                 </span>
                               ) : null}
                             </div>
@@ -2151,19 +2261,18 @@ export function AgentsWorkspace({
                             placeholder="Product writing agent"
                           />
                         </label>
-                        <label className="space-y-1 text-[11px] text-muted-foreground">
+                        <div className="space-y-1 text-[11px] text-muted-foreground">
                           <span>Heartbeat</span>
-                          <input
-                            value={newAgentDraft.heartbeat}
-                            onChange={(event) =>
+                          <SchedulePicker
+                            value={newAgentDraft.heartbeat || "0 */4 * * *"}
+                            onChange={(cron) =>
                               setNewAgentDraft({
                                 ...newAgentDraft,
-                                heartbeat: event.target.value,
+                                heartbeat: cron,
                               })
                             }
-                            className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground"
                           />
-                        </label>
+                        </div>
                         <label className="space-y-1 text-[11px] text-muted-foreground">
                           <span>Department</span>
                           <input
@@ -2299,7 +2408,7 @@ export function AgentsWorkspace({
                 <Button
                   size="sm"
                   className="h-8 gap-1 text-xs"
-                  onClick={startNewAgentDraft}
+                  onClick={openAddAgentDialog}
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add agent

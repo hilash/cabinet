@@ -3,8 +3,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Bot,
-  CheckCircle2,
-  Clock3,
   Loader2,
   Pause,
   Play,
@@ -12,12 +10,12 @@ import {
   RefreshCw,
   Settings2,
   Trash2,
-  XCircle,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
+import { ConversationResultView } from "@/components/agents/conversation-result-view";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
@@ -69,11 +67,6 @@ function formatRelative(iso: string): string {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
-}
-
-function replacePastedTextNotice(output: string, displayPrompt?: string): string {
-  if (!displayPrompt) return output;
-  return output.replace(/\[Pasted text #\d+(?: \+\d+ lines)?\]/g, displayPrompt);
 }
 
 function isScheduledRun(conversation: ConversationMeta): boolean {
@@ -392,7 +385,7 @@ export function JobsManager() {
     setJobDraft(blankJobDraft(selectedAgentSlug));
   }
 
-  function useLibraryTemplate(template: JobLibraryTemplate) {
+  function applyLibraryTemplate(template: JobLibraryTemplate) {
     if (!selectedAgentSlug) return;
     setSelectedJobId("__new__");
     setJobDraft({
@@ -504,43 +497,53 @@ export function JobsManager() {
           ) : conversations.length === 0 ? (
             <div className="px-4 py-6 text-[12px] text-muted-foreground">No scheduled runs yet.</div>
           ) : (
-            <div className="space-y-2 p-3">
-              {conversations.map((conversation) => (
-                <button
-                  key={conversation.id}
-                  onClick={() => {
-                    setSelectedConversationId(conversation.id);
-                    setMode("conversation");
-                  }}
-                  className={cn(
-                    "w-full rounded-xl border px-3 py-3 text-left transition-colors",
-                    selectedConversationId === conversation.id
-                      ? "border-foreground/15 bg-accent/70"
-                      : "border-border bg-background hover:bg-accent/40"
-                  )}
-                >
-                  <div className="flex items-start gap-2">
+            <div>
+              {conversations.map((conversation) => {
+                const isSelected = selectedConversationId === conversation.id;
+                const agent = agents.find((entry) => entry.slug === conversation.agentSlug);
+
+                return (
+                  <button
+                    key={conversation.id}
+                    onClick={() => {
+                      setSelectedConversationId(conversation.id);
+                      setMode("conversation");
+                    }}
+                    className={cn(
+                      "relative flex w-full items-start gap-2 border-b border-border/70 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      isSelected ? "bg-accent/65" : "hover:bg-accent/35"
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-foreground/60 transition-opacity",
+                        isSelected ? "opacity-100" : "opacity-0"
+                      )}
+                    />
                     <span className="mt-0.5 text-[14px]">
-                      {agents.find((agent) => agent.slug === conversation.agentSlug)?.emoji || "🤖"}
+                      {agent?.emoji || "🤖"}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[12px] font-medium">{conversation.title}</div>
-                      <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
-                        <span>{agents.find((agent) => agent.slug === conversation.agentSlug)?.name || conversation.agentSlug}</span>
-                        <span>{formatRelative(conversation.startedAt)}</span>
+                      <div className="truncate text-[11.5px] font-medium leading-[1.35]">
+                        {conversation.title}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className="truncate">{agent?.name || conversation.agentSlug}</span>
+                        <span className="shrink-0">{formatRelative(conversation.startedAt)}</span>
                       </div>
                     </div>
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px]",
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px]",
                         TRIGGER_STYLES[conversation.trigger]
                       )}
                     >
                       {TRIGGER_LABELS[conversation.trigger]}
                     </span>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </ScrollArea>
@@ -597,20 +600,13 @@ export function JobsManager() {
                   }}
                 />
               ) : selectedConversation ? (
-                <ScrollArea
-                  className="h-full"
-                  style={{
-                    backgroundColor: "var(--background)",
-                    color: "var(--foreground)",
+                <ConversationResultView
+                  detail={selectedConversation}
+                  onOpenArtifact={(artifactPath) => {
+                    selectPage(artifactPath);
+                    setSection({ type: "page" });
                   }}
-                >
-                  <pre className="min-h-full whitespace-pre-wrap p-5 font-mono text-[12px] leading-relaxed">
-                    {replacePastedTextNotice(
-                      selectedConversation.transcript || "No transcript captured.",
-                      selectedConversationMeta.title
-                    )}
-                  </pre>
-                </ScrollArea>
+                />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                   Loading conversation...
@@ -917,7 +913,7 @@ export function JobsManager() {
                                     variant="outline"
                                     size="sm"
                                     className="h-8 shrink-0 text-xs"
-                                    onClick={() => useLibraryTemplate(template)}
+                                    onClick={() => applyLibraryTemplate(template)}
                                   >
                                     Use
                                   </Button>
