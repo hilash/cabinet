@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import {
   Bot,
   CheckCircle2,
+  Clock3,
+  HeartPulse,
   Loader2,
   Pause,
   Play,
@@ -235,6 +237,20 @@ function TriggerChip({
       {children}
     </button>
   );
+}
+
+function TriggerIcon({
+  trigger,
+  className,
+}: {
+  trigger: "job" | "heartbeat";
+  className?: string;
+}) {
+  if (trigger === "job") {
+    return <Clock3 className={cn("h-3 w-3", className)} />;
+  }
+
+  return <HeartPulse className={cn("h-3 w-3", className)} />;
 }
 
 function blankJobDraft(agentSlug: string): JobConfig {
@@ -1039,7 +1055,21 @@ export function AgentsWorkspace({
                 active={triggerFilter === filter}
                 onClick={() => setTriggerFilter(filter)}
               >
-                {filter === "all" ? "All" : filter === "job" ? "Jobs" : filter === "heartbeat" ? "Heartbeat" : "Manual"}
+                {filter === "all" ? (
+                  "All"
+                ) : filter === "job" ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <TriggerIcon trigger="job" />
+                    Jobs
+                  </span>
+                ) : filter === "heartbeat" ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <TriggerIcon trigger="heartbeat" />
+                    Heartbeat
+                  </span>
+                ) : (
+                  "Manual"
+                )}
               </TriggerChip>
             ))}
           </div>
@@ -1079,7 +1109,7 @@ export function AgentsWorkspace({
                       setMode("conversation");
                     }}
                     className={cn(
-                      "w-full rounded-xl border px-3 py-3 text-left transition-colors",
+                      "w-full rounded-xl border px-3 py-2.5 text-left transition-colors",
                       selectedConversationId === conversation.id
                         ? "border-primary/30 bg-primary/5"
                         : "border-border hover:bg-accent/40"
@@ -1088,35 +1118,34 @@ export function AgentsWorkspace({
                     <div className="flex items-start gap-2">
                       <div className="mt-0.5 shrink-0">
                         {conversation.status === "running" ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                         ) : conversation.status === "failed" ? (
-                          <XCircle className="h-4 w-4 text-destructive" />
+                          <XCircle className="h-3.5 w-3.5 text-destructive" />
                         ) : (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate text-[12px] font-medium text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-[11.5px] font-medium text-foreground">
                             {conversation.title}
                           </p>
                           <span
                             className={cn(
-                              "rounded-full px-1.5 py-0.5 text-[10px]",
+                              "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px]",
                               TRIGGER_STYLES[conversation.trigger]
                             )}
                           >
+                            {conversation.trigger === "job" || conversation.trigger === "heartbeat" ? (
+                              <TriggerIcon trigger={conversation.trigger} className="h-2.5 w-2.5" />
+                            ) : null}
                             {TRIGGER_LABELS[conversation.trigger]}
                           </span>
                         </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {agent?.name || conversation.agentSlug} · {formatRelative(conversation.startedAt)}
-                        </p>
-                        {conversation.summary ? (
-                          <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground/80">
-                            {conversation.summary}
-                          </p>
-                        ) : null}
+                        <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
+                          <p className="truncate">{agent?.name || conversation.agentSlug}</p>
+                          <span className="shrink-0">{formatRelative(conversation.startedAt)}</span>
+                        </div>
                       </div>
                     </div>
                   </button>
@@ -1681,6 +1710,10 @@ export function AgentsWorkspace({
                                         )}
                                       />
                                       <span className="truncate text-[12px] font-medium">{job.name}</span>
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-500">
+                                        <TriggerIcon trigger="job" className="h-2.5 w-2.5" />
+                                        Job
+                                      </span>
                                     </div>
                                     <p className="mt-1 text-[10px] text-muted-foreground">
                                       {cronToHuman(job.schedule)}
