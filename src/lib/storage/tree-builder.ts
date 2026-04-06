@@ -1,3 +1,4 @@
+import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
 import type { TreeNode } from "@/types";
@@ -16,7 +17,24 @@ async function readFrontmatter(
   }
 }
 
-async function buildTreeRecursive(dirPath: string): Promise<TreeNode[]> {
+async function buildTreeRecursive(
+  dirPath: string,
+  ancestorRealPaths = new Set<string>()
+): Promise<TreeNode[]> {
+  let realDirPath = dirPath;
+  try {
+    realDirPath = await fs.realpath(dirPath);
+  } catch {
+    // Fall back to the incoming path if realpath fails.
+  }
+
+  if (ancestorRealPaths.has(realDirPath)) {
+    return [];
+  }
+
+  const nextAncestorRealPaths = new Set(ancestorRealPaths);
+  nextAncestorRealPaths.add(realDirPath);
+
   const entries = await listDirectory(dirPath);
   const nodes: TreeNode[] = [];
 
@@ -53,7 +71,7 @@ async function buildTreeRecursive(dirPath: string): Promise<TreeNode[]> {
       }
 
       const fm = hasIndexMd ? await readFrontmatter(indexMd) : {};
-      const children = await buildTreeRecursive(fullPath);
+      const children = await buildTreeRecursive(fullPath, nextAncestorRealPaths);
 
       nodes.push({
         name: entry.name,

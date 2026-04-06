@@ -33,6 +33,7 @@ import {
   UserCheck,
   Scale,
   FolderOpen,
+  GitBranch,
   Loader2,
   MoreHorizontal,
   RefreshCw,
@@ -57,6 +58,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TreeView } from "./tree-view";
 import { NewPageDialog } from "./new-page-dialog";
+import { LinkRepoDialog } from "./link-repo-dialog";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 
@@ -132,6 +134,7 @@ export function Sidebar() {
 
   const [agentsExpanded, setAgentsExpanded] = useState(true);
   const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [linkRepoOpen, setLinkRepoOpen] = useState(false);
   const [openingDataDir, setOpeningDataDir] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
@@ -405,6 +408,10 @@ export function Sidebar() {
                     <FolderOpen />
                     Open in Finder
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLinkRepoOpen(true)}>
+                    <GitBranch />
+                    Add Symlink
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={refreshKnowledgeBase}
                     disabled={treeLoading}
@@ -425,6 +432,10 @@ export function Sidebar() {
                 <FolderOpen />
                 Open in Finder
               </ContextMenuItem>
+              <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
+                <GitBranch />
+                Add Symlink
+              </ContextMenuItem>
               <ContextMenuItem
                 onClick={refreshKnowledgeBase}
                 disabled={treeLoading}
@@ -436,6 +447,7 @@ export function Sidebar() {
           </ContextMenuContent>
         </ContextMenu>
         <TreeView />
+        <LinkRepoDialog open={linkRepoOpen} onOpenChange={setLinkRepoOpen} />
 
         <div className="p-2 flex items-center gap-1">
           <div className="flex-1">

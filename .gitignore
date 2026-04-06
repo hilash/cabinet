@@ -41,32 +41,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# user data (created at runtime)
-data/.agents/.config/
-data/.agents/.history/
-data/.agents/.memory/
-data/.agents/.messages/
-data/.agents/.slack/
-data/.agents/.config.json
-data/.agents/ceo/
-data/.agents/editor/
-data/.agents/content-marketer/
-data/.agents/*/
-!data/.agents/.library/
-data/.chat/
-data/.missions/
-data/.playbooks/
-data/.cabinet.db
-data/.cabinet.db-shm
-data/.cabinet.db-wal
-
-# user KB content (ship only getting-started template)
-data/marketing/
-data/operations/
-data/product/
-data/research/
-data/people/
-data/presentations/
+# data: keep only the shipped template + guidance tracked
+data/**
+!data/
+!data/getting-started/
+!data/getting-started/**
+!data/CLAUDE.md
 
 # claude code
 .claude/

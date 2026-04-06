@@ -1,7 +1,7 @@
 ---
 title: Getting Started
 created: '2026-03-21T00:00:00.000Z'
-modified: '2026-03-31T14:14:24.126Z'
+modified: '2026-04-06T12:09:31.061Z'
 tags:
   - guide
   - onboarding
@@ -71,4 +71,4 @@ We have 2 parts:
 
 ---
 
-Last Updated: 2026-03-30
+Last Updated: 2026-04-06

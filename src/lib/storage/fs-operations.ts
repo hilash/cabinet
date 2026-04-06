@@ -1,4 +1,5 @@
 import fs from "fs/promises";
+import path from "path";
 import { DATA_DIR } from "./path-utils";
 
 export async function readFileContent(absPath: string): Promise<string> {
@@ -20,7 +21,22 @@ export async function listDirectory(
   absPath: string
 ): Promise<{ name: string; isDirectory: boolean }[]> {
   const entries = await fs.readdir(absPath, { withFileTypes: true });
-  return entries.map((e) => ({ name: e.name, isDirectory: e.isDirectory() }));
+  return Promise.all(
+    entries.map(async (entry) => {
+      let isDirectory = entry.isDirectory();
+
+      if (!isDirectory && entry.isSymbolicLink()) {
+        try {
+          const stat = await fs.stat(path.join(absPath, entry.name));
+          isDirectory = stat.isDirectory();
+        } catch {
+          isDirectory = false;
+        }
+      }
+
+      return { name: entry.name, isDirectory };
+    })
+  );
 }
 
 export async function ensureDirectory(absPath: string): Promise<void> {
