@@ -455,14 +455,14 @@ export function Sidebar() {
         </div>
       </aside>
       {!isMobile && !collapsed && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          onPointerDown={startResize}
-          className="relative -ml-px h-screen w-3 shrink-0 cursor-col-resize bg-transparent"
-        >
-          <div className="absolute inset-y-0 left-0 w-px bg-border" />
+        <div className="relative -ml-px h-screen w-px shrink-0 bg-border">
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            onPointerDown={startResize}
+            className="absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
+          />
         </div>
       )}
       {collapsed && (

@@ -1247,14 +1247,14 @@ export function AgentsWorkspace({
         </ScrollArea>
       </div>
 
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize conversations panel"
-        onPointerDown={conversationsPanel.startResize}
-        className="relative w-3 shrink-0 cursor-col-resize bg-transparent"
-      >
-        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+      <div className="relative z-10 w-px shrink-0 bg-border">
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize conversations panel"
+          onPointerDown={conversationsPanel.startResize}
+          className="absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
+        />
       </div>
 
       <div className="flex-1 overflow-hidden">
@@ -1958,14 +1958,14 @@ export function AgentsWorkspace({
                       </ScrollArea>
                     </div>
 
-                    <div
-                      role="separator"
-                      aria-orientation="vertical"
-                      aria-label="Resize jobs panel"
-                      onPointerDown={jobsPanel.startResize}
-                      className="relative w-3 shrink-0 cursor-col-resize bg-transparent"
-                    >
-                      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+                    <div className="relative z-10 w-px shrink-0 bg-border">
+                      <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="Resize jobs panel"
+                        onPointerDown={jobsPanel.startResize}
+                        className="absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
+                      />
                     </div>
 
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-r-xl rounded-l-none border border-l-0 border-border">
