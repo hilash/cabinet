@@ -329,6 +329,7 @@ export function AgentsWorkspace({
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const settingsLoadedRef = useRef(false);
   const lastSavedSettingsRef = useRef<string | null>(null);
+  const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const conversationsPanel = useHorizontalResize(340, 260, 520);
   const jobsPanel = useHorizontalResize(280, 220, 420);
   const treeNodes = useTreeStore((state) => state.nodes);
@@ -468,6 +469,13 @@ export function AgentsWorkspace({
   useEffect(() => {
     void refreshConversations();
   }, [activeAgentSlug, triggerFilter, statusFilter]);
+
+  useEffect(() => {
+    const el = composerTextareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [composerInput]);
 
   useEffect(() => {
     void refreshLibrary();
@@ -943,17 +951,8 @@ export function AgentsWorkspace({
     const panelAgent = agents.find((agent) => agent.slug === agentSlug) || null;
 
     return (
-      <div className="relative z-20 flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h4 className="text-[13px] font-semibold">Chat</h4>
-            <p className="text-[11px] text-muted-foreground">
-              Ask {panelAgent?.name || agentSlug} to work on something.
-            </p>
-          </div>
-          <p className="text-[11px] text-muted-foreground">Cmd/Ctrl + Enter to send</p>
-        </div>
-        <div className="relative flex min-h-0 flex-1 flex-col pt-1">
+      <div className="relative z-20 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="relative flex flex-col">
           <textarea
             value={composerInput}
             onChange={(event) =>
@@ -987,11 +986,13 @@ export function AgentsWorkspace({
                 void submitConversation(agentSlug);
               }
             }}
-            placeholder={`Ask ${panelAgent?.name || agentSlug} to work on something...`}
-            className="pointer-events-auto min-h-0 w-full flex-1 resize-none rounded-lg border border-border/60 bg-background px-3 py-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/70 focus:border-ring/50"
+            ref={composerTextareaRef}
+            placeholder={`Ask ${panelAgent?.name || agentSlug} to work on something. Type @ to attach a page as context.`}
+            style={{ minHeight: "80px", maxHeight: "260px" }}
+            className="pointer-events-auto w-full resize-none overflow-y-auto bg-transparent px-4 pt-4 pb-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60"
           />
           {mentionedPaths.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 px-4 pb-2">
               {mentionedPaths.map((path) => (
                 <button
                   key={path}
@@ -1026,14 +1027,19 @@ export function AgentsWorkspace({
               ))}
             </div>
           ) : null}
-          <div className="mt-3 flex items-center justify-end">
+          <div className="flex items-center justify-end gap-2 px-4 pb-3">
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘</kbd>
+              <span>+</span>
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">↵</kbd>
+            </div>
             <Button
               className="h-8 gap-2 text-xs"
               onClick={() => void submitConversation(agentSlug)}
               disabled={submitting}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Start conversation
+              Start
             </Button>
           </div>
         </div>
@@ -1730,7 +1736,7 @@ export function AgentsWorkspace({
                   </DialogContent>
                 </Dialog>
 
-                <div className="min-h-0 basis-1/2 overflow-hidden">
+                <div className="min-h-0 flex-1 overflow-hidden">
                   <div className="flex h-full min-h-0">
                     <div
                       className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-l-xl rounded-r-none border border-r-0 border-border"
@@ -2028,7 +2034,7 @@ export function AgentsWorkspace({
                   </div>
                 </div>
 
-                <div className="min-h-0 basis-[20%]">
+                <div className="shrink-0">
                   {settingsAgentSlug ? renderSettingsComposerPanel(settingsAgentSlug) : null}
                 </div>
               </div>

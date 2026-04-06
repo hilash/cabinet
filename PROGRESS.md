@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-06] Agent chat composer textarea now auto-grows with content (min 80px, max 260px) and the jobs section above it shrinks to give it room.
+
 [2026-04-06] The agents conversation terminal now inherits the active Cabinet theme instead of forcing a black console. Added shared terminal color tokens in `globals.css`, updated `WebTerminal` to read and live-refresh xterm colors from the root theme vars, and restyled completed conversation transcripts to use the same themed terminal surface.
 
 [2026-04-06] Extended terminal theming across the rest of the app: bottom terminal tabs, AI panel sessions, jobs conversations, and agent session panels now use theme-driven surfaces for both live terminals and ended transcripts.
