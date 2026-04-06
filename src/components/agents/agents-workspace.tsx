@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Copy,
   Clock3,
+  Crown,
   HeartPulse,
   Loader2,
   Pause,
@@ -32,7 +33,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
-import { cronToHuman, cronToShortLabel } from "@/lib/agents/cron-utils";
+import { cronToHuman } from "@/lib/agents/cron-utils";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
@@ -134,6 +135,78 @@ function slugify(value: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function startCase(value: string | undefined, fallback = "Not set"): string {
+  if (!value) return fallback;
+  const words = value
+    .trim()
+    .split(/[\s_-]+/)
+    .filter(Boolean);
+  if (words.length === 0) return fallback;
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function rankAgentType(type?: string): number {
+  if (type === "lead") return 0;
+  if (type === "specialist") return 1;
+  if (type === "support") return 2;
+  return 3;
+}
+
+function sortOrgAgents(a: AgentListItem, b: AgentListItem): number {
+  const typeRank = rankAgentType(a.type) - rankAgentType(b.type);
+  if (typeRank !== 0) return typeRank;
+  if ((b.runningCount || 0) !== (a.runningCount || 0)) {
+    return (b.runningCount || 0) - (a.runningCount || 0);
+  }
+  if ((b.active ? 1 : 0) !== (a.active ? 1 : 0)) {
+    return (b.active ? 1 : 0) - (a.active ? 1 : 0);
+  }
+  return a.name.localeCompare(b.name);
+}
+
+function findChiefAgent(agents: AgentListItem[]): AgentListItem | null {
+  const bySlug = agents.find((agent) => agent.slug.toLowerCase() === "ceo");
+  if (bySlug) return bySlug;
+
+  const byName = agents.find((agent) => agent.name.trim().toLowerCase() === "ceo");
+  if (byName) return byName;
+
+  const byRole = agents.find((agent) =>
+    agent.role.toLowerCase().includes("chief executive")
+  );
+  if (byRole) return byRole;
+
+  return agents.find((agent) => agent.type === "lead") || null;
+}
+
+function isAgentWorking(agent: Pick<AgentListItem, "active" | "runningCount">): boolean {
+  return !!agent.active || (agent.runningCount || 0) > 0;
+}
+
+function ActivityBeacon({
+  active,
+  title = "Working",
+}: {
+  active: boolean;
+  title?: string;
+}) {
+  if (!active) return null;
+
+  return (
+    <span
+      title={title}
+      aria-label={title}
+      className="relative inline-flex h-3.5 w-3.5 shrink-0"
+    >
+      <span className="absolute -inset-1 rounded-full border border-emerald-400/25 animate-ping [animation-duration:2.4s]" />
+      <span className="absolute inset-0 rounded-full border border-emerald-400/40" />
+      <span className="absolute inset-[3px] rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]" />
+    </span>
+  );
 }
 
 function flattenTree(nodes: TreeNode[]): { path: string; title: string }[] {
@@ -1154,6 +1227,221 @@ export function AgentsWorkspace({
   const canSaveSettings = !!settingsEditorDraft && (
     settingsDirty || settingsEditorDraft.setupComplete !== true
   );
+  const chiefAgent = findChiefAgent(agents);
+  const orgRoot = chiefAgent || {
+    name: "CEO",
+    slug: "__ceo_fallback__",
+    emoji: "👑",
+    role: "Executive lead not configured yet",
+    department: "executive",
+    type: "lead",
+    active: false,
+    runningCount: 0,
+  };
+  const orgAgents = agents
+    .filter((agent) => agent.slug !== orgRoot.slug)
+    .sort(sortOrgAgents);
+  const groupedOrgAgents = Object.entries(
+    orgAgents.reduce<Record<string, AgentListItem[]>>((acc, agent) => {
+      const department = agent.department || "general";
+      if (!acc[department]) {
+        acc[department] = [];
+      }
+      acc[department].push(agent);
+      return acc;
+    }, {})
+  )
+    .sort(([left], [right]) => {
+      if (left === "general") return 1;
+      if (right === "general") return -1;
+      return startCase(left).localeCompare(startCase(right));
+    })
+    .map(([department, departmentAgents]) => ({
+      department,
+      label: startCase(department, "General"),
+      agents: departmentAgents.sort(sortOrgAgents),
+    }));
+  const orgAgentCount = orgAgents.length + (chiefAgent ? 1 : 0);
+  const activeOrgCount =
+    orgAgents.filter((agent) => agent.active || (agent.runningCount || 0) > 0).length +
+    (orgRoot.active || (orgRoot.runningCount || 0) > 0 ? 1 : 0);
+
+  function renderOrgChartHeader() {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <h3 className="text-[15px] font-semibold">Your Team Org Chart</h3>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5">
+              <span className="text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Agents
+              </span>
+              <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[9px] font-semibold text-background">
+                {orgAgentCount}
+              </span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5">
+              <span className="text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Departments
+              </span>
+              <span className="rounded-full bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold text-foreground">
+                {groupedOrgAgents.length}
+              </span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5">
+              <span className="text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Active
+              </span>
+              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-semibold text-primary-foreground">
+                {activeOrgCount}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" className="h-8 gap-1 text-xs" onClick={openAddAgentDialog}>
+            <Plus className="h-3.5 w-3.5" />
+            Add agent
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderOrganizationChart() {
+    return (
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="rounded-[30px] bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border)/0.55)_1px,transparent_0)] [background-size:22px_22px] p-4 sm:p-5">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  if (chiefAgent) {
+                    openAgentWorkspace(chiefAgent.slug);
+                  }
+                }}
+                disabled={!chiefAgent}
+                className={cn(
+                  "group relative w-full max-w-lg overflow-hidden rounded-[26px] px-4 py-4 text-left transition",
+                  chiefAgent
+                    ? "bg-card hover:-translate-y-0.5"
+                    : "bg-card"
+                )}
+              >
+                <div className="absolute right-3 top-3 flex items-center gap-2">
+                  <ActivityBeacon active={isAgentWorking(orgRoot)} />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/12 text-primary">
+                    <Crown className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-[26px]">
+                    {orgRoot.emoji || "👑"}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-primary/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-primary">
+                      <Crown className="h-3 w-3" />
+                      CEO
+                    </div>
+                    <h5 className="mt-2 text-[20px] font-semibold tracking-[-0.03em] text-foreground">
+                      {orgRoot.name}
+                    </h5>
+                    <p className="mt-0.5 text-[13px] text-foreground/85">
+                      {orgRoot.role || "Chief Executive Officer"}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <span className="inline-flex items-center rounded-full bg-primary/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+                    {startCase(orgRoot.type, "Lead")}
+                  </span>
+                </div>
+              </button>
+
+              <div className="mt-3 hidden h-12 w-full max-w-4xl md:block">
+                <div className="mx-auto h-7 w-px bg-border" />
+                <div className="mx-auto h-px w-[82%] bg-border" />
+              </div>
+            </div>
+
+            {groupedOrgAgents.length > 0 ? (
+              <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                {groupedOrgAgents.map((group) => {
+                  const leadCount = group.agents.filter((agent) => agent.type === "lead").length;
+
+                  return (
+                    <div key={group.department} className="relative pt-3">
+                      <div className="absolute left-1/2 top-0 hidden h-3 w-px -translate-x-1/2 bg-border md:block" />
+                      <section className="relative h-full rounded-[26px] bg-muted/45 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h5 className="text-[16px] font-semibold tracking-[-0.03em] text-foreground">
+                              {group.label}
+                            </h5>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              {group.agents.length} {group.agents.length === 1 ? "agent" : "agents"}
+                            </p>
+                          </div>
+                          {leadCount > 0 ? (
+                            <div className="rounded-full bg-primary/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-primary">
+                              {`${leadCount} lead`}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 space-y-2.5">
+                          {group.agents.map((agent) => (
+                            <button
+                              key={agent.slug}
+                              type="button"
+                              onClick={() => openAgentWorkspace(agent.slug)}
+                              className="group w-full rounded-2xl bg-background/95 p-3 text-left transition hover:-translate-y-0.5 hover:bg-card"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-muted text-[22px]">
+                                  {agent.emoji || "🤖"}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="truncate text-[13px] font-semibold text-foreground">
+                                          {agent.name}
+                                        </p>
+                                        <ActivityBeacon active={isAgentWorking(agent)} />
+                                      </div>
+                                      <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-muted-foreground">
+                                        {agent.role || "Role not set"}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-3">
+                                    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                      {startCase(agent.type, "Specialist")}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-[26px] bg-card p-6 text-center text-[13px] text-muted-foreground">
+                Add more agents to start populating departments under the CEO.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function renderSettingsComposerPanel(agentSlug: string) {
     const panelAgent = agents.find((agent) => agent.slug === agentSlug) || null;
@@ -1423,9 +1711,9 @@ export function AgentsWorkspace({
         />
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {mode === "conversation" && selectedConversationMeta ? (
-          <div className="flex h-full flex-col">
+          <div className="flex h-full min-h-0 flex-col">
             <Dialog open={conversationDetailsOpen} onOpenChange={setConversationDetailsOpen}>
               <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
@@ -1522,7 +1810,7 @@ export function AgentsWorkspace({
             </div>
           </div>
         ) : mode === "settings" ? (
-          <div className="flex h-full flex-col">
+          <div className="flex h-full min-h-0 flex-col">
             <Dialog open={addAgentDialogOpen} onOpenChange={setAddAgentDialogOpen}>
               <DialogContent className="sm:max-w-4xl">
                 <DialogHeader className="gap-3">
@@ -1800,20 +2088,7 @@ export function AgentsWorkspace({
 
             {settingsTarget === "directory" || !settingsTarget ? (
               <div className="border-b border-border px-5 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-[15px] font-semibold">Agent settings</h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Big-picture management for your team. Add agents, remove agents, or open detailed settings.
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="h-8 gap-1 text-xs" onClick={openAddAgentDialog}>
-                      <Plus className="h-3.5 w-3.5" />
-                      Add agent
-                    </Button>
-                  </div>
-                </div>
+                {renderOrgChartHeader()}
               </div>
             ) : null}
             {settingsPersona ? (
@@ -2538,67 +2813,10 @@ export function AgentsWorkspace({
                 </div>
               </div>
             ) : (
-            <ScrollArea className="h-full">
+            <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-6 p-5">
                 {settingsTarget === "directory" || !settingsTarget ? (
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {agents.map((agent) => (
-                      <div
-                        key={agent.slug}
-                        className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className="text-2xl">{agent.emoji}</span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="truncate text-[14px] font-semibold">{agent.name}</h4>
-                              <span
-                                className={cn(
-                                  "rounded-full px-1.5 py-0.5 text-[10px]",
-                                  agent.active
-                                    ? "bg-emerald-500/10 text-emerald-600"
-                                    : "bg-muted text-muted-foreground"
-                                )}
-                              >
-                                {agent.active ? "Active" : "Paused"}
-                              </span>
-                            </div>
-                            <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">
-                              {agent.role}
-                            </p>
-                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                              <span className="rounded-full bg-muted px-2 py-1">
-                                {agent.runningCount || 0} running
-                              </span>
-                              {agent.heartbeat ? (
-                                <span className="rounded-full bg-muted px-2 py-1">
-                                  {agent.slug === "general" ? "Manual only" : cronToShortLabel(agent.heartbeat)}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 flex-1 text-xs"
-                            onClick={() => openAgentWorkspace(agent.slug)}
-                          >
-                            Open
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="h-8 flex-1 gap-1 text-xs"
-                            onClick={() => openAgentSettings(agent.slug)}
-                          >
-                            <Settings className="h-3.5 w-3.5" />
-                            Settings
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  renderOrganizationChart()
                 ) : settingsAgentSlug === "general" ? (
                   <div className="max-w-3xl space-y-4">
                     <div className="rounded-xl border border-border bg-card p-4 text-[13px] text-muted-foreground">
@@ -2624,30 +2842,12 @@ export function AgentsWorkspace({
             )}
           </div>
         ) : (
-          <div className="flex h-full flex-col">
+          <div className="flex h-full min-h-0 flex-col">
             <div className="border-b border-border px-5 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-[15px] font-semibold">Agent settings</h3>
-                  <p className="text-[11px] text-muted-foreground">
-                    Pick an agent on the left to open its settings and start a conversation from the same panel.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  className="h-8 gap-1 text-xs"
-                  onClick={openAddAgentDialog}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add agent
-                </Button>
-              </div>
+              {renderOrgChartHeader()}
             </div>
-            <div className="flex flex-1 items-center justify-center px-8 py-10">
-              <div className="max-w-xl text-center">
-                <Bot className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
-                <p className="text-[14px] font-medium">Pick an agent from the left rail</p>
-              </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-8 py-10">
+              {renderOrganizationChart()}
             </div>
           </div>
         )}

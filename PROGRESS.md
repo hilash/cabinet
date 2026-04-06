@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-06] Added AI Provider check step to onboarding wizard (new step 4, between team selection and community steps). Checks if Claude Code CLI is installed and authenticated via /api/agents/providers, shows numbered setup instructions (subscription, install, login) if not found, and lists Gemini CLI, Codex CLI, Anthropic API, OpenAI API, and Google AI API as "Coming soon" providers. Users can skip if not ready.
+
 [2026-04-06] Replaced onboarding welcome step with the exact runcabinet.com hero: dictionary definition card (dict-card with 3 definitions, phonetic, origin footer), gradient "Your knowledge base. Your AI team." tagline, and "free project / open source / self-hosted" badge. All typography matches website: Instrument Serif italic numbers, JetBrains Mono labels, Source Serif body.
 
 [2026-04-06] Rewrote onboarding wizard to match runcabinet.com visual identity: warm cream background (#FAF6F1), brown text (#3B2F2F), accent brown (#8B5E3C), dot-grid background, dict-card style form cards, Instrument Serif italic headings, rounded-full accent buttons, cabinet icon on welcome step. All hardcoded to website tokens so onboarding always looks identical regardless of active theme.

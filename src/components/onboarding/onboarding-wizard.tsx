@@ -5,12 +5,16 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  CheckCircle2,
   Cloud,
   Check,
+  ExternalLink,
   Loader2,
   Rocket,
   Sparkles,
   Star,
+  Terminal,
+  XCircle,
   Zap,
 } from "lucide-react";
 
@@ -54,9 +58,9 @@ const GITHUB_STATS_URL = "/api/github/repo";
 const GITHUB_STARS_FALLBACK = 393;
 const CABINET_CLOUD_URL = "https://runcabinet.com/waitlist";
 const TEAM_SIZES = ["Just me", "2-5", "5-20", "20+"];
-const COMMUNITY_START_STEP = 4;
-const COMMUNITY_END_STEP = 6;
-const STEP_COUNT = 7;
+const COMMUNITY_START_STEP = 5;
+const COMMUNITY_END_STEP = 7;
+const STEP_COUNT = 8;
 
 /* ─── Colors from runcabinet.com ─── */
 const WEB = {
@@ -202,6 +206,13 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[]>([]);
   const [launching, setLaunching] = useState(false);
   const [githubStars, setGithubStars] = useState(GITHUB_STARS_FALLBACK);
+  const [providerStatus, setProviderStatus] = useState<{
+    checking: boolean;
+    available: boolean;
+    authenticated: boolean;
+    version?: string;
+    error?: string;
+  }>({ checking: true, available: false, authenticated: false });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -226,6 +237,47 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     void fetchGitHubStats();
     return () => controller.abort();
   }, []);
+
+  const checkProvider = useCallback(async () => {
+    setProviderStatus((s) => ({ ...s, checking: true }));
+    try {
+      const res = await fetch("/api/agents/providers");
+      if (!res.ok) throw new Error("Failed to check providers");
+      const data = await res.json();
+      const claude = data.providers?.find(
+        (p: { id: string }) => p.id === "claude-code"
+      );
+      if (claude) {
+        setProviderStatus({
+          checking: false,
+          available: claude.available,
+          authenticated: claude.authenticated,
+          version: claude.version,
+          error: claude.error,
+        });
+      } else {
+        setProviderStatus({
+          checking: false,
+          available: false,
+          authenticated: false,
+          error: "Claude Code provider not found",
+        });
+      }
+    } catch {
+      setProviderStatus({
+        checking: false,
+        available: false,
+        authenticated: false,
+        error: "Could not check provider status",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (step === 4) {
+      void checkProvider();
+    }
+  }, [step, checkProvider]);
 
   const goToTeamSuggestion = () => {
     setSuggestedAgents(suggestTeam(answers));
@@ -713,7 +765,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   Back
                 </button>
                 <button
-                  onClick={() => setStep(COMMUNITY_START_STEP)}
+                  onClick={() => setStep(4)}
                   disabled={launchDisabled}
                   className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
                   style={{ background: WEB.accent }}
@@ -725,7 +777,217 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
 
-          {/* Steps 4-6: Community */}
+          {/* Step 4: AI Provider Check */}
+          {step === 4 && (
+            <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
+              <div className="text-center space-y-2">
+                <h1 className="font-logo text-2xl tracking-tight italic">
+                  Agent Provider
+                </h1>
+                <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
+                  Cabinet uses AI agent providers to power your team.
+                  Let&apos;s make sure yours is set up.
+                </p>
+              </div>
+
+              {/* Claude Code CLI — primary provider */}
+              <div
+                className="rounded-2xl p-6 space-y-4"
+                style={{
+                  background: WEB.bgCard,
+                  border: `1px solid ${providerStatus.available && providerStatus.authenticated ? WEB.accent : WEB.border}`,
+                  boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex size-10 items-center justify-center rounded-xl"
+                    style={{ background: WEB.accentBg, color: WEB.accent }}
+                  >
+                    <Terminal className="size-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: WEB.text }}>
+                      Claude Code CLI
+                    </p>
+                    <p className="text-xs" style={{ color: WEB.textSecondary }}>
+                      Recommended &middot; Runs agents via terminal
+                    </p>
+                  </div>
+                  {providerStatus.checking ? (
+                    <Loader2 className="size-5 animate-spin" style={{ color: WEB.textTertiary }} />
+                  ) : providerStatus.available && providerStatus.authenticated ? (
+                    <CheckCircle2 className="size-5" style={{ color: "#16a34a" }} />
+                  ) : (
+                    <XCircle className="size-5" style={{ color: "#dc2626" }} />
+                  )}
+                </div>
+
+                {!providerStatus.checking && providerStatus.available && providerStatus.authenticated && (
+                  <div
+                    className="rounded-xl px-4 py-3 text-sm"
+                    style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d" }}
+                  >
+                    Claude Code is installed and ready.
+                    {providerStatus.version && (
+                      <span style={{ color: "#16a34a" }}> ({providerStatus.version})</span>
+                    )}
+                  </div>
+                )}
+
+                {!providerStatus.checking && !providerStatus.available && (
+                  <div className="space-y-3">
+                    <div
+                      className="rounded-xl px-4 py-3 text-sm"
+                      style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}
+                    >
+                      Claude Code CLI not found. Follow these steps to get started:
+                    </div>
+
+                    <div
+                      className="rounded-xl p-4 space-y-3"
+                      style={{ background: WEB.bgWarm, border: `1px solid ${WEB.borderLight}` }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                          style={{ background: WEB.accent, color: "white" }}
+                        >
+                          1
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: WEB.text }}>
+                            Get a Claude subscription
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: WEB.textSecondary }}>
+                            You need a Claude Max or Team plan to use Claude Code.
+                          </p>
+                          <a
+                            href="https://claude.ai/settings/billing"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium mt-1"
+                            style={{ color: WEB.accent }}
+                          >
+                            Open Claude billing
+                            <ExternalLink className="size-3" />
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                          style={{ background: WEB.accent, color: "white" }}
+                        >
+                          2
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: WEB.text }}>
+                            Install Claude Code
+                          </p>
+                          <p className="text-xs mt-0.5 font-mono" style={{ color: WEB.textSecondary }}>
+                            npm install -g @anthropic-ai/claude-code
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                          style={{ background: WEB.accent, color: "white" }}
+                        >
+                          3
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: WEB.text }}>
+                            Log in
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: WEB.textSecondary }}>
+                            Run <span className="font-mono">claude</span> in your terminal and follow the login prompts.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={checkProvider}
+                      className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5"
+                      style={{ background: WEB.accentBg, border: `1px solid ${WEB.border}`, color: WEB.accent }}
+                    >
+                      <Loader2 className="size-3.5" />
+                      Re-check
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Coming soon providers */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider" style={{ color: WEB.textTertiary }}>
+                  Coming soon
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    { name: "Gemini CLI", type: "CLI", icon: "terminal" },
+                    { name: "Codex CLI", type: "CLI", icon: "terminal" },
+                    { name: "Anthropic API", type: "API", icon: "api" },
+                    { name: "OpenAI API", type: "API", icon: "api" },
+                    { name: "Google AI API", type: "API", icon: "api" },
+                  ].map((p) => (
+                    <div
+                      key={p.name}
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 opacity-50"
+                      style={{
+                        background: WEB.bgCard,
+                        border: `1px solid ${WEB.borderLight}`,
+                      }}
+                    >
+                      <div
+                        className="flex size-8 items-center justify-center rounded-lg"
+                        style={{ background: WEB.bgWarm, color: WEB.textTertiary }}
+                      >
+                        {p.icon === "terminal" ? (
+                          <Terminal className="size-4" />
+                        ) : (
+                          <Zap className="size-4" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium" style={{ color: WEB.textSecondary }}>
+                          {p.name}
+                        </p>
+                        <p className="text-[11px]" style={{ color: WEB.textTertiary }}>
+                          {p.type} agent
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={() => setStep(3)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                  style={{ color: WEB.textSecondary }}
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Back
+                </button>
+                <button
+                  onClick={() => setStep(COMMUNITY_START_STEP)}
+                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5"
+                  style={{ background: WEB.accent }}
+                >
+                  {providerStatus.available ? "Next" : "Skip for now"}
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Steps 5-7: Community */}
           {communityStep && (
             <div className="relative mx-auto flex max-w-2xl flex-col gap-8 animate-in fade-in duration-300">
               {/* Floating emoji backdrop per community step */}
