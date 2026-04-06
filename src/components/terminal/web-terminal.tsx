@@ -275,10 +275,6 @@ export function WebTerminal({
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sessionId, prompt, displayPrompt, reconnect, themeSurface]);
-
-  const surfaceBackground = themeSurface === "page" ? "var(--background)" : "var(--terminal-bg)";
-  const surfaceForeground = themeSurface === "page" ? "var(--foreground)" : "var(--terminal-fg)";
   }, [sessionId, prompt, displayPrompt, providerId, reconnect, themeSurface]);
 
   const surfaceBackground = themeSurface === "page" ? "var(--background)" : "var(--terminal-bg)";
