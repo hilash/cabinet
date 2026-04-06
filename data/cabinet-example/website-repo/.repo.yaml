@@ -1,0 +1,5 @@
+name: Weasleys Wizard Wheezes Storefront
+local: /Users/mybiblepath/Development/cabinet/data/cabinet-example/website-repo/source
+source: local
+branch: main
+description: Sample storefront repo for Fred and George Weasley.
