@@ -1,14 +1,13 @@
 ---
 title: Weasleys' Wizard Wheezes
 created: '2026-04-06T00:00:00.000Z'
-modified: '2026-04-06T19:34:27.938Z'
+modified: '2026-04-06T22:04:34.561Z'
 tags:
   - home
   - hub
   - wizard-wheezes
 order: 1
 ---
-
 ![Weasleys' Wizard Wheezes shop front](./shop-hero.webp)
 
 # Weasleys' Wizard Wheezes

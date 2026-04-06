@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -78,13 +78,14 @@ const WEB = {
   borderDark: "#D4C4B0",
 } as const;
 
-function DiscordIcon({ className }: { className?: string }) {
+function DiscordIcon({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="currentColor"
       aria-hidden="true"
       className={className}
+      style={style}
     >
       <path d="M20.32 4.37a16.4 16.4 0 0 0-4.1-1.28.06.06 0 0 0-.07.03c-.18.32-.38.73-.52 1.06a15.16 15.16 0 0 0-4.56 0c-.15-.34-.35-.74-.53-1.06a.06.06 0 0 0-.07-.03c-1.43.24-2.8.68-4.1 1.28a.05.05 0 0 0-.02.02C3.77 8.17 3.12 11.87 3.44 15.53a.06.06 0 0 0 .02.04 16.52 16.52 0 0 0 5.03 2.54.06.06 0 0 0 .07-.02c.39-.54.74-1.12 1.04-1.73a.06.06 0 0 0-.03-.08 10.73 10.73 0 0 1-1.6-.77.06.06 0 0 1-.01-.1l.32-.24a.06.06 0 0 1 .06-.01c3.35 1.53 6.98 1.53 10.29 0a.06.06 0 0 1 .06 0c.1.08.21.16.32.24a.06.06 0 0 1-.01.1c-.51.3-1.05.56-1.6.77a.06.06 0 0 0-.03.08c.3.61.65 1.19 1.04 1.73a.06.06 0 0 0 .07.02 16.42 16.42 0 0 0 5.03-2.54.06.06 0 0 0 .02-.04c.38-4.23-.64-7.9-2.89-11.14a.04.04 0 0 0-.02-.02ZM9.68 13.3c-.98 0-1.78-.9-1.78-2s.79-2 1.78-2c.99 0 1.79.9 1.78 2 0 1.1-.8 2-1.78 2Zm4.64 0c-.98 0-1.78-.9-1.78-2s.79-2 1.78-2c.99 0 1.79.9 1.78 2 0 1.1-.79 2-1.78 2Z" />
     </svg>
@@ -540,10 +541,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           {step === 1 && (
             <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
-                <h1
-                  className="text-2xl tracking-tight italic"
-                  className="font-logo"
-                >
+                <h1 className="font-logo text-2xl tracking-tight italic">
                   Tell me about your project
                 </h1>
               </div>
@@ -626,10 +624,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           {step === 2 && (
             <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
-                <h1
-                  className="text-2xl tracking-tight italic"
-                  className="font-logo"
-                >
+                <h1 className="font-logo text-2xl tracking-tight italic">
                   Almost there
                 </h1>
               </div>
@@ -707,10 +702,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           {step === 3 && (
             <div className="flex flex-col gap-8 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
-                <h1
-                  className="text-2xl tracking-tight italic"
-                  className="font-logo"
-                >
+                <h1 className="font-logo text-2xl tracking-tight italic">
                   Your starter team
                 </h1>
                 <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>

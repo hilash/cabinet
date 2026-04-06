@@ -69,6 +69,10 @@ function navigateToPage(
   }
   selectPage(targetPath);
   useEditorStore.getState().loadPage(targetPath);
+  // Scroll editor container to top
+  setTimeout(() => {
+    document.querySelector(".flex-1.overflow-y-auto")?.scrollTo(0, 0);
+  }, 0);
 }
 
 function resolveInternalLink(
