@@ -1,7 +1,7 @@
 ---
 title: Getting Started
 created: '2026-03-21T00:00:00.000Z'
-modified: '2026-04-06T19:40:16.548Z'
+modified: '2026-04-06T20:42:18.618Z'
 tags:
   - guide
   - onboarding
@@ -19,10 +19,6 @@ We have 2 parts:
     
 -   World Class AI agents - you can time jobs, heartbeats. you have catalog of B2B and B2C plays and recommendation and well safe plays out of the box
     
-
-## What's Here
-
-<table class="border-collapse w-full" style="min-width: 50px;"><colgroup><col style="min-width: 25px;"><col style="min-width: 25px;"></colgroup><tbody><tr><th colspan="1" rowspan="1"><p>Section</p></th><th colspan="1" rowspan="1"><p>What It Contains</p></th></tr><tr><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:product">Product</a></p></td><td colspan="1" rowspan="1"><p>Product formulation, roadmap, and archive of earlier drafts</p></td></tr><tr><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:market">Market</a></p></td><td colspan="1" rowspan="1"><p>Competitors, market landscape, and target segments</p></td></tr><tr><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:people">People</a></p></td><td colspan="1" rowspan="1"><p>CRM — team, advisors, investors, industry contacts, customers</p></td></tr><tr><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:research">Research</a></p></td><td colspan="1" rowspan="1"><p>GPU hardware specs, technical deep dives, validation work</p></td></tr><tr><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:presentations">Presentations</a></p></td><td colspan="1" rowspan="1"><p>Pitch decks and presentation materials</p></td></tr><tr><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:operations">Operations</a></p></td><td colspan="1" rowspan="1"><p>Fundraising, legal, hiring (as needed)</p></td></tr></tbody></table>
 
 ## Features
 

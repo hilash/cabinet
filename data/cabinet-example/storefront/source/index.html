@@ -4,1714 +4,911 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Weasleys' Wizard Wheezes — Purveyors of Magical Mischief</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
 <style>
-/* ============================================================
-   RESET & CUSTOM PROPERTIES
-   ============================================================ */
+/* ===== CSS RESET & BASE ===== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
 :root {
-  --bg-deep: #1C0F2B;
-  --bg-surface: #2D1640;
-  --bg-surface-alpha: rgba(60, 25, 80, 0.6);
-  --bg-surface-light: rgba(60, 25, 80, 0.35);
-  --text-cream: #FBF3E4;
-  --text-muted: rgba(251, 243, 228, 0.6);
-  --text-dim: rgba(251, 243, 228, 0.4);
-  --gold: #E8A838;
-  --gold-light: #F0C060;
-  --gold-dim: rgba(232, 168, 56, 0.2);
-  --gold-glow: rgba(232, 168, 56, 0.35);
-  --rose: #C7546C;
-  --rose-dim: rgba(199, 84, 108, 0.3);
-  --teal: #1A6B5F;
-  --teal-dim: rgba(26, 107, 95, 0.3);
-  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
-  --space-4xl: 96px;
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --transition-fast: 0.2s ease;
-  --transition-med: 0.4s ease;
-  --transition-slow: 0.7s ease;
+  --gold: #d4a017;
+  --gold-light: #f5d76e;
+  --gold-dark: #b8860b;
+  --crimson: #8b1a1a;
+  --crimson-light: #c0392b;
+  --deep-purple: #1a0a2e;
+  --purple-mid: #2d1b4e;
+  --purple-light: #4a2c6e;
+  --parchment: #f5e6c8;
+  --parchment-dark: #e8d5a8;
+  --ink: #1a1a2e;
+  --text-light: #f0e6d2;
+  --text-muted: #b8a88a;
+  --spark: #ff6b35;
+  --glow-blue: #4fc3f7;
+  --glow-green: #69f0ae;
 }
-
-/* ============================================================
-   ACCESSIBILITY
-   ============================================================ */
-.skip-link {
-  position: absolute;
-  top: -100%;
-  left: 16px;
-  z-index: 10000;
-  padding: 12px 24px;
-  background: var(--gold);
-  color: var(--bg-deep);
-  font-family: var(--font-body);
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-}
-.skip-link:focus {
-  top: 16px;
-}
-
-*:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 3px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-  .marquee-track { animation: none !important; }
-  .hero-particles { display: none !important; }
-  .reveal { opacity: 1 !important; transform: none !important; }
-}
-
-/* ============================================================
-   BASE
-   ============================================================ */
-html {
-  scroll-behavior: smooth;
-  font-size: 16px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
+html { scroll-behavior: smooth; font-size: 16px; }
 body {
-  font-family: var(--font-body);
-  background: var(--bg-deep);
-  color: var(--text-cream);
-  line-height: 1.6;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  background: var(--deep-purple);
+  color: var(--text-light);
   overflow-x: hidden;
+  line-height: 1.7;
+}
+a { color: var(--gold); text-decoration: none; transition: all 0.3s; }
+a:hover { color: var(--gold-light); text-shadow: 0 0 10px rgba(212,160,23,0.5); }
+img { max-width: 100%; height: auto; display: block; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+
+/* ===== MAGICAL PARTICLES ===== */
+.sparkle-field {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0; overflow: hidden;
+}
+.sparkle {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold-light); opacity: 0;
+  animation: sparkle-float 6s ease-in-out infinite;
+}
+@keyframes sparkle-float {
+  0% { opacity: 0; transform: translateY(100vh) scale(0); }
+  20% { opacity: 1; }
+  80% { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(-10vh) scale(1.5); }
 }
 
-img {
-  display: block;
-  max-width: 100%;
-  height: auto;
+/* ===== NAVIGATION ===== */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  background: linear-gradient(180deg, rgba(26,10,46,0.97) 0%, rgba(26,10,46,0.85) 100%);
+  backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212,160,23,0.2);
+  transition: all 0.4s;
 }
+nav.scrolled { box-shadow: 0 4px 30px rgba(0,0,0,0.5); }
+.nav-inner {
+  max-width: 1200px; margin: 0 auto; padding: 0.8rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo {
+  font-family: 'Georgia', serif; font-size: 1.3rem; font-weight: bold;
+  color: var(--gold); letter-spacing: 0.05em;
+  text-shadow: 0 0 20px rgba(212,160,23,0.3);
+}
+.nav-logo span { color: var(--spark); }
+.nav-links { display: flex; gap: 2rem; list-style: none; }
+.nav-links a {
+  color: var(--text-muted); font-size: 0.9rem; letter-spacing: 0.1em;
+  text-transform: uppercase; font-family: 'Trebuchet MS', sans-serif;
+  position: relative; padding-bottom: 2px;
+}
+.nav-links a::after {
+  content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 1px;
+  background: var(--gold); transition: width 0.3s;
+}
+.nav-links a:hover { color: var(--gold); text-shadow: none; }
+.nav-links a:hover::after { width: 100%; }
+.nav-cta {
+  background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+  color: var(--ink) !important; padding: 0.5rem 1.5rem; border-radius: 50px;
+  font-weight: bold; font-size: 0.85rem; letter-spacing: 0.05em;
+  text-transform: uppercase; font-family: 'Trebuchet MS', sans-serif;
+  transition: all 0.3s; border: none; cursor: pointer;
+  text-shadow: none !important;
+}
+.nav-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(212,160,23,0.4);
+  color: var(--ink) !important;
+}
+.mobile-toggle { display: none; background: none; border: none; color: var(--gold); font-size: 1.5rem; cursor: pointer; }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
-  background: none;
-  color: inherit;
-}
-
-a { color: inherit; text-decoration: none; }
-
-/* ============================================================
-   TYPOGRAPHY UTILITIES
-   ============================================================ */
-.font-display { font-family: var(--font-display); }
-.text-gold { color: var(--gold); }
-.text-muted { color: var(--text-muted); }
-
-/* ============================================================
-   HEADER / NAV
-   ============================================================ */
-.site-header {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 100;
-  padding: var(--space-md) var(--space-xl);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  transition: background var(--transition-med), backdrop-filter var(--transition-med);
-}
-.site-header.scrolled {
-  background: rgba(28, 15, 43, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--gold-dim);
-}
-
-.header-brand {
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--gold);
-}
-
-.header-nav { display: flex; gap: var(--space-lg); align-items: center; }
-.header-nav a {
-  font-size: 0.875rem;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  transition: color var(--transition-fast);
-  position: relative;
-}
-.header-nav a:hover,
-.header-nav a:focus-visible { color: var(--gold); }
-.header-nav a::after {
-  content: '';
-  position: absolute;
-  bottom: -4px; left: 0; right: 0;
-  height: 1px;
-  background: var(--gold);
-  transform: scaleX(0);
-  transition: transform var(--transition-fast);
-}
-.header-nav a:hover::after { transform: scaleX(1); }
-
-/* Mobile hamburger */
-.hamburger {
-  display: none;
-  flex-direction: column;
-  gap: 5px;
-  padding: 8px;
-  z-index: 200;
-}
-.hamburger span {
-  display: block;
-  width: 24px;
-  height: 2px;
-  background: var(--text-cream);
-  transition: transform var(--transition-fast), opacity var(--transition-fast);
-}
-.hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
-.hamburger.open span:nth-child(2) { opacity: 0; }
-.hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
-
-.mobile-nav-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 150;
-  background: rgba(28, 15, 43, 0.97);
-  backdrop-filter: blur(24px);
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-xl);
-}
-.mobile-nav-overlay.open { display: flex; }
-.mobile-nav-overlay a {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  color: var(--text-cream);
-  transition: color var(--transition-fast);
-}
-.mobile-nav-overlay a:hover { color: var(--gold); }
-
-@media (max-width: 768px) {
-  .header-nav { display: none; }
-  .hamburger { display: flex; }
-}
-
-/* ============================================================
-   HERO
-   ============================================================ */
+/* ===== HERO ===== */
 .hero {
-  position: relative;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative; min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 }
-
 .hero-bg {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  position: absolute; inset: 0; z-index: 1;
 }
-.hero-bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
+.hero-bg img {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: brightness(0.35) saturate(1.3);
+}
+.hero-overlay {
+  position: absolute; inset: 0; z-index: 2;
   background:
-    radial-gradient(ellipse at center, rgba(232,168,56,0.12) 0%, transparent 55%),
-    radial-gradient(ellipse at center bottom, rgba(28,15,43,0.3) 0%, transparent 60%),
-    linear-gradient(to bottom, rgba(28,15,43,0.35) 0%, rgba(28,15,43,0.15) 30%, rgba(28,15,43,0.15) 60%, rgba(28,15,43,0.85) 100%),
-    linear-gradient(to right, rgba(28,15,43,0.5) 0%, transparent 20%, transparent 80%, rgba(28,15,43,0.5) 100%);
+    radial-gradient(ellipse at center, transparent 30%, rgba(26,10,46,0.7) 70%),
+    linear-gradient(180deg, rgba(26,10,46,0.3) 0%, transparent 30%, transparent 70%, rgba(26,10,46,0.95) 100%);
 }
-
-.hero-particles {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-}
-
 .hero-content {
-  position: relative;
-  z-index: 2;
-  text-align: center;
-  padding: var(--space-xl);
-  max-width: 720px;
+  position: relative; z-index: 3; text-align: center;
+  padding: 2rem; max-width: 800px;
+  animation: hero-enter 1.5s ease-out;
 }
-
-.hero-prelude {
-  font-family: var(--font-body);
-  font-size: 0.8rem;
-  font-weight: 500;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin-bottom: var(--space-lg);
-  opacity: 0;
-  animation: heroFadeUp 0.8s ease 0.2s forwards;
-}
-
-.hero-title {
-  font-family: var(--font-display);
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
-  font-weight: 700;
-  font-style: italic;
-  line-height: 1.1;
-  color: var(--text-cream);
-  text-shadow: 0 0 60px rgba(232,168,56,0.25), 0 2px 4px rgba(0,0,0,0.3);
-  margin-bottom: var(--space-lg);
-  opacity: 0;
-  animation: heroFadeUp 0.8s ease 0.5s forwards;
-}
-
-.hero-tagline {
-  font-family: var(--font-display);
-  font-size: clamp(1rem, 2.2vw, 1.25rem);
-  font-weight: 400;
-  font-style: italic;
-  color: var(--text-muted);
-  margin-bottom: var(--space-2xl);
-  opacity: 0;
-  animation: heroFadeUp 0.8s ease 0.8s forwards;
-}
-
-.hero-divider {
-  width: 80px;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--gold), transparent);
-  border: none;
-  margin: 0 auto var(--space-2xl);
-  opacity: 0;
-  animation: heroFadeUp 0.8s ease 1s forwards;
-}
-
-.hero-cta {
-  display: inline-block;
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gold);
-  padding: 14px 40px;
-  border: 1.5px solid var(--gold);
-  border-radius: 100px;
-  background: transparent;
-  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
-  opacity: 0;
-  animation: heroFadeUp 0.8s ease 1.2s forwards;
-}
-.hero-cta:hover,
-.hero-cta:focus-visible {
-  background: var(--gold);
-  color: var(--bg-deep);
-  box-shadow: 0 0 30px rgba(232,168,56,0.3);
-}
-
-@keyframes heroFadeUp {
-  from { opacity: 0; transform: translateY(20px); }
+@keyframes hero-enter {
+  from { opacity: 0; transform: translateY(40px); }
   to { opacity: 1; transform: translateY(0); }
 }
+.hero-badge {
+  display: inline-block; font-family: 'Trebuchet MS', sans-serif;
+  font-size: 0.75rem; letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--gold); border: 1px solid rgba(212,160,23,0.4);
+  padding: 0.4rem 1.5rem; border-radius: 50px; margin-bottom: 1.5rem;
+  background: rgba(212,160,23,0.08);
+}
+.hero h1 {
+  font-size: clamp(2.5rem, 6vw, 5rem); font-weight: bold;
+  line-height: 1.1; margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 40%, var(--spark) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; filter: drop-shadow(0 2px 10px rgba(212,160,23,0.3));
+}
+.hero-tagline {
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem); color: var(--parchment);
+  font-style: italic; margin-bottom: 2.5rem; opacity: 0.9;
+}
+.hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.9rem 2.2rem; border-radius: 50px; font-weight: bold;
+  font-size: 0.95rem; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: 'Trebuchet MS', sans-serif; transition: all 0.4s;
+  cursor: pointer; border: none; position: relative; overflow: hidden;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--gold-dark), var(--gold), var(--gold-light));
+  color: var(--ink); box-shadow: 0 4px 20px rgba(212,160,23,0.3);
+}
+.btn-primary:hover {
+  transform: translateY(-3px); color: var(--ink);
+  box-shadow: 0 8px 30px rgba(212,160,23,0.5);
+  text-shadow: none;
+}
+.btn-ghost {
+  background: transparent; color: var(--parchment);
+  border: 1.5px solid rgba(245,230,200,0.3);
+}
+.btn-ghost:hover {
+  border-color: var(--gold); color: var(--gold);
+  background: rgba(212,160,23,0.08);
+}
+.scroll-hint {
+  position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+  z-index: 3; animation: bounce 2s ease-in-out infinite;
+  color: var(--gold); opacity: 0.6; font-size: 1.5rem;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(10px); }
+}
 
-/* ============================================================
-   MARQUEE
-   ============================================================ */
-.marquee {
-  background: linear-gradient(to right, var(--bg-surface), rgba(45,22,64,0.8), var(--bg-surface));
-  border-top: 1px solid var(--gold-dim);
-  border-bottom: 1px solid var(--gold-dim);
-  padding: var(--space-md) 0;
-  overflow: hidden;
+/* ===== SECTION STYLING ===== */
+section { position: relative; z-index: 1; padding: 6rem 0; }
+.section-label {
+  font-family: 'Trebuchet MS', sans-serif; font-size: 0.75rem;
+  letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold);
+  margin-bottom: 0.5rem;
+}
+.section-title {
+  font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 1rem;
+  color: var(--parchment);
+}
+.section-subtitle {
+  font-size: 1.1rem; color: var(--text-muted); max-width: 600px;
+  margin-bottom: 3rem;
+}
+.section-subtitle.centered { margin-left: auto; margin-right: auto; text-align: center; }
+.section-divider {
+  width: 60px; height: 2px; margin: 0 auto 3rem;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+/* ===== FEATURED PRODUCTS ===== */
+#products { background: linear-gradient(180deg, var(--deep-purple) 0%, var(--purple-mid) 50%, var(--deep-purple) 100%); }
+.products-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem; margin-top: 2rem;
+}
+.product-card {
+  background: rgba(45,27,78,0.6); border: 1px solid rgba(212,160,23,0.12);
+  border-radius: 16px; overflow: hidden; transition: all 0.5s;
   position: relative;
 }
-
-.marquee-track {
-  display: flex;
-  gap: var(--space-2xl);
-  white-space: nowrap;
-  animation: marqueeScroll 35s linear infinite;
-  width: max-content;
+.product-card:hover {
+  transform: translateY(-8px); border-color: rgba(212,160,23,0.3);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 40px rgba(212,160,23,0.08);
 }
-.marquee:hover .marquee-track {
-  animation-play-state: paused;
+.product-img {
+  position: relative; height: 220px; overflow: hidden;
+}
+.product-img img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.6s;
+}
+.product-card:hover .product-img img { transform: scale(1.08); }
+.product-badge {
+  position: absolute; top: 1rem; left: 1rem; z-index: 2;
+  padding: 0.3rem 0.8rem; border-radius: 50px; font-size: 0.7rem;
+  font-family: 'Trebuchet MS', sans-serif; letter-spacing: 0.1em;
+  text-transform: uppercase; font-weight: bold;
+}
+.badge-new { background: var(--gold); color: var(--ink); }
+.badge-classic { background: rgba(139,26,26,0.9); color: var(--parchment); }
+.badge-experimental { background: rgba(105,240,174,0.2); color: var(--glow-green); border: 1px solid rgba(105,240,174,0.3); }
+.badge-hero { background: linear-gradient(135deg, var(--gold), var(--spark)); color: var(--ink); }
+.product-info { padding: 1.5rem; }
+.product-info h3 {
+  font-size: 1.3rem; color: var(--parchment); margin-bottom: 0.3rem;
+}
+.product-tagline {
+  font-style: italic; color: var(--text-muted); font-size: 0.9rem;
+  margin-bottom: 1rem; line-height: 1.5;
+}
+.product-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 1rem; border-top: 1px solid rgba(212,160,23,0.1);
+}
+.product-price { font-size: 1.2rem; color: var(--gold); font-weight: bold; }
+.product-price small { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; }
+.product-action {
+  padding: 0.4rem 1.2rem; border-radius: 50px;
+  background: rgba(212,160,23,0.1); border: 1px solid rgba(212,160,23,0.3);
+  color: var(--gold); font-size: 0.8rem; cursor: pointer;
+  font-family: 'Trebuchet MS', sans-serif; transition: all 0.3s;
+}
+.product-action:hover {
+  background: var(--gold); color: var(--ink);
 }
 
-.marquee-item {
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  font-style: italic;
-  color: var(--text-muted);
-  display: flex;
+/* ===== ABOUT / STORY ===== */
+#story { background: var(--deep-purple); }
+.story-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
   align-items: center;
-  gap: var(--space-md);
 }
-.marquee-item .sep {
-  color: var(--gold);
-  font-style: normal;
+.story-images {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
 }
-
-@keyframes marqueeScroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+.story-img {
+  border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(212,160,23,0.15);
 }
-
-/* ============================================================
-   SECTIONS — SHARED
-   ============================================================ */
-.section {
-  padding: var(--space-4xl) var(--space-xl);
+.story-img:first-child { grid-column: 1 / -1; }
+.story-img img { width: 100%; height: 100%; object-fit: cover; }
+.story-text p {
+  margin-bottom: 1.2rem; color: var(--parchment); opacity: 0.85;
+  font-size: 1.05rem;
 }
-
-.section-header {
-  text-align: center;
-  margin-bottom: var(--space-3xl);
+.story-text .highlight {
+  color: var(--gold); font-weight: bold; font-style: italic;
 }
-.section-header h2 {
-  font-family: var(--font-display);
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
-  font-weight: 600;
-  margin-bottom: var(--space-md);
+.story-stat-row {
+  display: flex; gap: 2rem; margin-top: 2rem; padding-top: 2rem;
+  border-top: 1px solid rgba(212,160,23,0.15);
 }
-.section-header .divider {
-  width: 60px;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--gold), transparent);
-  border: none;
-  margin: 0 auto;
+.story-stat { text-align: center; }
+.story-stat .num {
+  font-size: 2rem; color: var(--gold); font-weight: bold;
+  display: block; line-height: 1;
+}
+.story-stat .label {
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em;
+  color: var(--text-muted); font-family: 'Trebuchet MS', sans-serif;
+  margin-top: 0.3rem; display: block;
 }
 
-/* Scroll reveal */
-.reveal {
-  opacity: 0;
-  transform: translateY(28px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
+/* ===== GALLERY ===== */
+#gallery {
+  background: linear-gradient(180deg, var(--deep-purple), var(--purple-mid));
+  padding: 6rem 0;
 }
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* ============================================================
-   COLLECTION — BENTO GRID
-   ============================================================ */
-.collection { background: var(--bg-deep); }
-
-.bento-grid {
-  max-width: 1100px;
-  margin: 0 auto;
+.gallery-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  grid-template-rows: 1fr 1fr 0.85fr;
-  gap: var(--space-md);
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: auto auto;
+  gap: 1rem;
 }
+.gallery-item {
+  border-radius: 12px; overflow: hidden; position: relative;
+  border: 1px solid rgba(212,160,23,0.1);
+  transition: all 0.5s;
+}
+.gallery-item:hover {
+  border-color: rgba(212,160,23,0.3);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  transform: scale(1.02);
+}
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-item.tall { grid-row: span 2; }
+.gallery-item.wide { grid-column: span 2; }
+.gallery-caption {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 1.5rem 1rem 1rem;
+  background: linear-gradient(transparent, rgba(26,10,46,0.9));
+  opacity: 0; transition: opacity 0.4s;
+}
+.gallery-item:hover .gallery-caption { opacity: 1; }
+.gallery-caption h4 { color: var(--gold); font-size: 0.95rem; }
+.gallery-caption p { color: var(--text-muted); font-size: 0.8rem; }
 
-.bento-card {
-  position: relative;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  cursor: pointer;
-  border: 1px solid rgba(232,168,56,0.08);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  min-height: 200px;
-}
-.bento-card:hover {
-  border-color: var(--gold-dim);
-  box-shadow: 0 0 40px rgba(232,168,56,0.1);
-}
-
-.bento-card--moonbeam { grid-row: 1 / 3; grid-column: 1; }
-.bento-card--patronus { grid-row: 1; grid-column: 2; }
-.bento-card--canary { grid-row: 2; grid-column: 2; }
-.bento-card--swamp { grid-row: 3; grid-column: 1 / 3; min-height: 240px; }
-
-.bento-card img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform var(--transition-slow), filter var(--transition-fast);
-  filter: brightness(0.75);
-}
-.bento-card:hover img {
-  transform: scale(1.04);
-  filter: brightness(0.9);
-}
-
-.bento-card-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(28,15,43,0.92) 0%, rgba(28,15,43,0.4) 40%, transparent 70%);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: var(--space-lg);
-  transition: padding var(--transition-fast);
-}
-.bento-card:hover .bento-card-overlay {
-  padding-bottom: var(--space-xl);
-}
-
-.bento-pill {
-  display: inline-block;
-  width: fit-content;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 100px;
-  margin-bottom: var(--space-sm);
-}
-.bento-pill--sweet { background: var(--rose-dim); color: var(--rose); }
-.bento-pill--prank { background: var(--teal-dim); color: #3DD4B8; }
-.bento-pill--classic { background: var(--gold-dim); color: var(--gold); }
-
-.bento-card-title {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.bento-card--moonbeam .bento-card-title { font-size: 1.8rem; }
-.bento-card--swamp .bento-card-title { font-size: 1.5rem; }
-
-.bento-card-desc {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-bottom: var(--space-sm);
-}
-
-.bento-card-price {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--gold);
-}
-
-/* ============================================================
-   PRODUCT DETAIL OVERLAY
-   ============================================================ */
-.product-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 500;
-  align-items: center;
-  justify-content: center;
-  background: rgba(14, 7, 22, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: var(--space-xl);
-}
-.product-overlay.open { display: flex; }
-
-.product-detail {
-  background: linear-gradient(135deg, var(--bg-surface), var(--bg-deep));
-  border: 1px solid var(--gold-dim);
-  border-radius: var(--radius-lg);
-  max-width: 560px;
-  width: 100%;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 60px rgba(232,168,56,0.06);
-}
-
-.product-detail-img {
-  width: 100%;
-  height: 240px;
-  object-fit: cover;
-}
-
-.product-detail-body {
-  padding: var(--space-xl) var(--space-lg) var(--space-lg);
-}
-.product-detail-body h3 {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  font-weight: 600;
-  margin-bottom: var(--space-sm);
-}
-.product-detail-body .price {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  color: var(--gold);
-  margin-bottom: var(--space-md);
-}
-.product-detail-body p {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  line-height: 1.7;
-  margin-bottom: var(--space-lg);
-}
-
-.product-detail-close {
-  position: absolute;
-  top: var(--space-md);
-  right: var(--space-md);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(28,15,43,0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  color: var(--text-cream);
-  transition: background var(--transition-fast);
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.product-detail-close:hover { background: rgba(28,15,43,0.95); }
-
-.btn-add-cart {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  background: var(--gold);
-  color: var(--bg-deep);
-  font-weight: 700;
-  font-size: 0.9rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), box-shadow var(--transition-fast);
-}
-.btn-add-cart:hover {
-  background: var(--gold-light);
-  box-shadow: 0 0 24px rgba(232,168,56,0.3);
-}
-
-/* ============================================================
-   ABOUT / STORY
-   ============================================================ */
-.about { background: var(--bg-deep); }
-
-.about-grid {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3xl);
-  align-items: center;
-}
-
-.about-image-wrap {
-  position: relative;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 2px solid var(--gold-dim);
-  box-shadow: 0 0 40px rgba(232,168,56,0.06);
-}
-.about-image-wrap img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.about-text h3 {
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
-  font-weight: 600;
-  font-style: italic;
-  margin-bottom: var(--space-lg);
-  line-height: 1.25;
-}
-
-.about-text p {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  line-height: 1.8;
-  margin-bottom: var(--space-md);
-}
-
-.stats-row {
-  display: flex;
-  gap: var(--space-xl);
-  margin-top: var(--space-2xl);
-  flex-wrap: wrap;
-}
-.stat {
-  text-align: center;
-  min-width: 80px;
-}
-.stat-number {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--gold);
-  line-height: 1.1;
-}
-.stat-label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-@media (max-width: 768px) {
-  .about-grid { grid-template-columns: 1fr; gap: var(--space-xl); }
-  .stats-row { justify-content: center; }
-}
-
-/* ============================================================
-   TESTIMONIALS
-   ============================================================ */
-.testimonials {
-  background: linear-gradient(180deg, var(--bg-deep) 0%, rgba(45,22,64,0.25) 50%, var(--bg-deep) 100%);
-}
-
+/* ===== TESTIMONIALS ===== */
+#testimonials { background: var(--deep-purple); }
 .testimonials-grid {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-lg);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
 }
-
 .testimonial-card {
-  background: var(--bg-surface-alpha);
-  border: 1px solid rgba(232,168,56,0.1);
-  border-top: 3px solid var(--gold-dim);
-  border-radius: var(--radius-md);
-  padding: var(--space-xl) var(--space-lg);
-  transition: border-top-color var(--transition-fast), box-shadow var(--transition-fast);
+  background: rgba(45,27,78,0.4); border: 1px solid rgba(212,160,23,0.1);
+  border-radius: 16px; padding: 2rem; position: relative;
 }
-.testimonial-card:hover {
-  border-top-color: var(--gold);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-}
-
-.testimonial-quote-mark {
-  font-family: var(--font-display);
-  font-size: 3.5rem;
+.testimonial-card::before {
+  content: '\201C'; position: absolute; top: 0.5rem; left: 1.2rem;
+  font-size: 4rem; color: var(--gold); opacity: 0.15; font-family: Georgia;
   line-height: 1;
-  color: var(--gold);
-  margin-bottom: var(--space-sm);
 }
-
 .testimonial-text {
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-style: italic;
-  line-height: 1.7;
-  color: var(--text-cream);
-  margin-bottom: var(--space-lg);
+  font-style: italic; color: var(--parchment); opacity: 0.85;
+  font-size: 1rem; margin-bottom: 1.5rem; line-height: 1.8;
+  position: relative; z-index: 1;
 }
+.testimonial-author { display: flex; align-items: center; gap: 1rem; }
+.testimonial-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: var(--ink); font-weight: bold;
+}
+.testimonial-name { color: var(--gold); font-weight: bold; font-size: 0.95rem; }
+.testimonial-role { color: var(--text-muted); font-size: 0.8rem; }
+.stars { color: var(--gold); font-size: 0.85rem; margin-top: 0.2rem; }
 
-.testimonial-author {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-cream);
-}
-.testimonial-role {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-@media (max-width: 768px) {
-  .testimonials-grid { grid-template-columns: 1fr; }
-}
-
-/* ============================================================
-   VISIT / CTA
-   ============================================================ */
-.visit {
+/* ===== VISIT / LOCATION ===== */
+#visit {
+  background: linear-gradient(180deg, var(--deep-purple), var(--purple-mid));
   position: relative;
-  padding: var(--space-4xl) var(--space-xl);
-  overflow: hidden;
 }
-.visit-bg {
-  position: absolute;
-  inset: 0;
+.visit-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
+  align-items: center;
 }
-.visit-bg img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.visit-image {
+  border-radius: 16px; overflow: hidden;
+  border: 1px solid rgba(212,160,23,0.15);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
-.visit-bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to bottom, var(--bg-deep) 0%, rgba(28,15,43,0.75) 30%, rgba(28,15,43,0.75) 70%, var(--bg-deep) 100%),
-    radial-gradient(ellipse at center, rgba(232,168,56,0.08) 0%, transparent 60%);
+.visit-details h3 { color: var(--gold); font-size: 1.2rem; margin-bottom: 1rem; }
+.visit-info-item {
+  display: flex; gap: 1rem; margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem; border-bottom: 1px solid rgba(212,160,23,0.08);
 }
-
-.visit-content {
-  position: relative;
-  z-index: 2;
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.visit-content h2 {
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 4.5vw, 3rem);
-  font-weight: 700;
-  margin-bottom: var(--space-lg);
-}
-
-.visit-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  margin-bottom: var(--space-2xl);
-  font-size: 0.95rem;
-  color: var(--text-muted);
-}
-.visit-info strong {
-  color: var(--text-cream);
-  font-weight: 600;
-}
-
-.visit-hours {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-  margin: 0 auto;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-.visit-hours span { display: flex; justify-content: space-between; gap: var(--space-2xl); }
-.visit-hours .day { color: var(--text-cream); font-weight: 500; }
-
-.visit-note {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 0.9rem;
-  color: var(--gold);
-  margin-top: var(--space-lg);
-  margin-bottom: var(--space-xl);
-}
-
-.btn-visit {
-  display: inline-block;
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--bg-deep);
-  padding: 14px 48px;
-  background: var(--gold);
-  border-radius: 100px;
-  transition: background var(--transition-fast), box-shadow var(--transition-fast);
-}
-.btn-visit:hover {
-  background: var(--gold-light);
-  box-shadow: 0 0 30px rgba(232,168,56,0.3);
-}
-
-/* ============================================================
-   FOOTER
-   ============================================================ */
-.site-footer {
-  text-align: center;
-  padding: var(--space-3xl) var(--space-xl) var(--space-2xl);
-  border-top: 1px solid var(--gold-dim);
-}
-
-.footer-wordmark {
-  font-family: var(--font-display);
+.visit-icon {
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  background: rgba(212,160,23,0.08); border: 1px solid rgba(212,160,23,0.15);
+  display: flex; align-items: center; justify-content: center;
   font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--gold);
-  margin-bottom: var(--space-md);
+}
+.visit-info-item strong { color: var(--parchment); display: block; margin-bottom: 0.2rem; }
+.visit-info-item p { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+
+/* ===== NEWSLETTER ===== */
+.newsletter {
+  background: linear-gradient(135deg, var(--crimson) 0%, var(--crimson-light) 50%, var(--gold-dark) 100%);
+  padding: 4rem 0; text-align: center; position: relative; overflow: hidden;
+}
+.newsletter::before {
+  content: ''; position: absolute; inset: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.05)"/></svg>');
+  background-size: 30px 30px; opacity: 0.5;
+}
+.newsletter h2 {
+  font-size: clamp(1.8rem, 3vw, 2.5rem); color: white;
+  margin-bottom: 0.5rem; position: relative;
+}
+.newsletter p {
+  color: rgba(255,255,255,0.8); margin-bottom: 2rem;
+  font-size: 1.1rem; position: relative;
+}
+.newsletter-form {
+  display: flex; gap: 0.8rem; justify-content: center;
+  max-width: 500px; margin: 0 auto; position: relative;
+}
+.newsletter-form input {
+  flex: 1; padding: 0.9rem 1.5rem; border-radius: 50px;
+  border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);
+  color: white; font-size: 1rem; font-family: Georgia, serif;
+  backdrop-filter: blur(10px);
+}
+.newsletter-form input::placeholder { color: rgba(255,255,255,0.5); }
+.newsletter-form input:focus { outline: none; border-color: var(--gold-light); }
+.newsletter-form button {
+  padding: 0.9rem 2rem; border-radius: 50px; border: none;
+  background: var(--ink); color: var(--gold); font-weight: bold;
+  font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
+  font-family: 'Trebuchet MS', sans-serif; text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.newsletter-form button:hover {
+  background: white; color: var(--ink);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
 
-.footer-slogan {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-bottom: var(--space-lg);
+/* ===== FOOTER ===== */
+footer {
+  background: var(--ink); padding: 4rem 0 2rem;
+  border-top: 1px solid rgba(212,160,23,0.1);
+}
+.footer-grid {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 3rem; margin-bottom: 3rem;
+}
+.footer-brand h3 {
+  font-size: 1.4rem; color: var(--gold); margin-bottom: 1rem;
+}
+.footer-brand p { color: var(--text-muted); font-size: 0.95rem; }
+.footer-col h4 {
+  color: var(--parchment); font-size: 0.85rem; text-transform: uppercase;
+  letter-spacing: 0.15em; font-family: 'Trebuchet MS', sans-serif;
+  margin-bottom: 1rem;
+}
+.footer-col ul { list-style: none; }
+.footer-col li { margin-bottom: 0.6rem; }
+.footer-col a { color: var(--text-muted); font-size: 0.9rem; }
+.footer-col a:hover { color: var(--gold); }
+.footer-bottom {
+  border-top: 1px solid rgba(212,160,23,0.08);
+  padding-top: 2rem; text-align: center;
+  color: var(--text-muted); font-size: 0.85rem;
 }
 
-.footer-links {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-lg);
-  margin-bottom: var(--space-lg);
-  flex-wrap: wrap;
+/* ===== ANIMATIONS ===== */
+.fade-in {
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
 }
-.footer-links a {
-  font-size: 0.8rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  transition: color var(--transition-fast);
+.fade-in.visible { opacity: 1; transform: translateY(0); }
+.fade-in-left {
+  opacity: 0; transform: translateX(-40px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
 }
-.footer-links a:hover { color: var(--gold); }
+.fade-in-left.visible { opacity: 1; transform: translateX(0); }
+.fade-in-right {
+  opacity: 0; transform: translateX(40px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+.fade-in-right.visible { opacity: 1; transform: translateX(0); }
 
-.footer-copy {
-  font-size: 0.75rem;
-  color: var(--text-dim);
+/* ===== RESPONSIVE ===== */
+@media (max-width: 968px) {
+  .story-grid, .visit-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+  .gallery-item.tall { grid-row: span 1; }
 }
-
-/* ============================================================
-   CART — FLOATING BUTTON + SLIDE PANEL
-   ============================================================ */
-.cart-fab {
-  position: fixed;
-  bottom: var(--space-xl);
-  right: var(--space-xl);
-  z-index: 90;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--gold);
-  color: var(--bg-deep);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 24px rgba(232,168,56,0.3), 0 0 40px rgba(232,168,56,0.1);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-.cart-fab:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 32px rgba(232,168,56,0.4);
-}
-.cart-fab svg { width: 22px; height: 22px; }
-
-.cart-badge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 20px;
-  height: 20px;
-  background: var(--rose);
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 700;
-  border-radius: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 5px;
-  opacity: 0;
-  transform: scale(0.5);
-  transition: opacity var(--transition-fast), transform var(--transition-fast);
-}
-.cart-badge.visible {
-  opacity: 1;
-  transform: scale(1);
-}
-.cart-badge.bounce {
-  animation: badgeBounce 0.4s ease;
-}
-
-@keyframes badgeBounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.3); }
-}
-
-/* Cart panel */
-.cart-panel-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 400;
-  background: rgba(14,7,22,0.6);
-  backdrop-filter: blur(6px);
-}
-.cart-panel-overlay.open { display: block; }
-
-.cart-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 410;
-  width: 400px;
-  max-width: 90vw;
-  background: linear-gradient(180deg, #1f1233, var(--bg-deep));
-  border-left: 1px solid var(--gold-dim);
-  transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-}
-.cart-panel.open { transform: translateX(0); }
-
-.cart-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-lg);
-  border-bottom: 1px solid var(--gold-dim);
-}
-.cart-panel-header h3 {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-.cart-panel-close {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background var(--transition-fast);
-  font-size: 1rem;
-}
-.cart-panel-close:hover { background: rgba(255,255,255,0.08); }
-
-.cart-panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-lg);
-}
-
-.cart-empty {
-  text-align: center;
-  padding: var(--space-3xl) var(--space-lg);
-  color: var(--text-muted);
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 0.95rem;
-}
-
-.cart-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.cart-item-info { flex: 1; }
-.cart-item-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 2px;
-}
-.cart-item-price {
-  font-size: 0.8rem;
-  color: var(--gold);
-}
-.cart-item-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-.cart-item-controls button {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255,255,255,0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  transition: border-color var(--transition-fast);
-}
-.cart-item-controls button:hover { border-color: var(--gold); }
-.cart-item-qty {
-  font-size: 0.85rem;
-  font-weight: 600;
-  min-width: 20px;
-  text-align: center;
-}
-.cart-item-remove {
-  color: var(--text-dim);
-  font-size: 0.8rem;
-  margin-left: var(--space-sm);
-  transition: color var(--transition-fast);
-}
-.cart-item-remove:hover { color: var(--rose); }
-
-.cart-panel-footer {
-  padding: var(--space-lg);
-  border-top: 1px solid var(--gold-dim);
-}
-.cart-total {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-md);
-}
-.cart-total-label {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-.cart-total-amount {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--gold);
-}
-
-.btn-checkout {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  background: var(--gold);
-  color: var(--bg-deep);
-  font-weight: 700;
-  font-size: 0.9rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), box-shadow var(--transition-fast);
-}
-.btn-checkout:hover {
-  background: var(--gold-light);
-  box-shadow: 0 0 24px rgba(232,168,56,0.3);
-}
-
-/* ============================================================
-   RESPONSIVE — BENTO + GENERAL
-   ============================================================ */
-@media (max-width: 900px) {
-  .bento-grid {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto;
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .mobile-toggle { display: block; }
+  nav.open .nav-links {
+    display: flex; flex-direction: column; position: absolute;
+    top: 100%; left: 0; right: 0; background: rgba(26,10,46,0.98);
+    padding: 1rem 2rem 2rem; gap: 1rem; border-bottom: 1px solid rgba(212,160,23,0.2);
   }
-  .bento-card--moonbeam { grid-row: auto; grid-column: 1 / 3; min-height: 300px; }
-  .bento-card--patronus { grid-row: auto; grid-column: 1; }
-  .bento-card--canary { grid-row: auto; grid-column: 2; }
-  .bento-card--swamp { grid-row: auto; grid-column: 1 / 3; }
-}
-
-@media (max-width: 600px) {
-  .section { padding: var(--space-3xl) var(--space-md); }
-  .bento-grid {
-    grid-template-columns: 1fr;
-  }
-  .bento-card--moonbeam,
-  .bento-card--patronus,
-  .bento-card--canary,
-  .bento-card--swamp {
-    grid-column: 1;
-    min-height: 240px;
-  }
-  .stats-row { gap: var(--space-lg); }
+  .hero h1 { font-size: 2.5rem; }
+  .products-grid { grid-template-columns: 1fr; }
+  .gallery-grid { grid-template-columns: 1fr 1fr; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .story-stat-row { flex-wrap: wrap; justify-content: center; }
+  .newsletter-form { flex-direction: column; }
 }
 </style>
 </head>
 <body>
 
-<!-- Skip Link -->
-<a href="#main" class="skip-link">Skip to content</a>
+<!-- Sparkle Particles -->
+<div class="sparkle-field" id="sparkleField"></div>
 
-<!-- ============================================================
-     HEADER
-     ============================================================ -->
-<header class="site-header" role="banner">
-  <a href="#" class="header-brand" aria-label="Weasleys' Wizard Wheezes — Home">W.W.W.</a>
-  <nav class="header-nav" aria-label="Main navigation">
-    <a href="#collection">Collection</a>
-    <a href="#story">Our Story</a>
-    <a href="#testimonials">Reviews</a>
-    <a href="#visit">Visit</a>
-  </nav>
-  <button class="hamburger" aria-label="Open menu" aria-expanded="false" onclick="toggleMobileNav()">
-    <span></span><span></span><span></span>
-  </button>
-</header>
+<!-- Navigation -->
+<nav id="navbar">
+  <div class="nav-inner">
+    <div class="nav-logo">Weasleys' <span>W</span>izard Wheezes</div>
+    <ul class="nav-links">
+      <li><a href="#products">Products</a></li>
+      <li><a href="#story">Our Story</a></li>
+      <li><a href="#gallery">Gallery</a></li>
+      <li><a href="#testimonials">Reviews</a></li>
+      <li><a href="#visit">Visit Us</a></li>
+    </ul>
+    <a href="#products" class="nav-cta">Shop Now</a>
+    <button class="mobile-toggle" onclick="document.getElementById('navbar').classList.toggle('open')">&#9776;</button>
+  </div>
+</nav>
 
-<!-- Mobile Nav Overlay -->
-<div class="mobile-nav-overlay" id="mobileNav" role="dialog" aria-label="Navigation menu">
-  <a href="#collection" onclick="closeMobileNav()">Collection</a>
-  <a href="#story" onclick="closeMobileNav()">Our Story</a>
-  <a href="#testimonials" onclick="closeMobileNav()">Reviews</a>
-  <a href="#visit" onclick="closeMobileNav()">Visit</a>
-</div>
-
-<!-- ============================================================
-     HERO
-     ============================================================ -->
-<section class="hero" aria-label="Welcome">
-  <div class="hero-bg" style="background-image: url('/api/assets/cabinet-example/shop-hero.webp')"></div>
-  <canvas class="hero-particles" id="particles" aria-hidden="true"></canvas>
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-bg">
+    <img src="../../image.png" alt="Weasleys' Wizard Wheezes storefront on Diagon Alley" />
+  </div>
+  <div class="hero-overlay"></div>
   <div class="hero-content">
-    <p class="hero-prelude">93 Diagon Alley &middot; Est. 1996</p>
-    <h1 class="hero-title">Weasleys' Wizard Wheezes</h1>
-    <p class="hero-tagline">Purveyors of Magical Mischief &amp; Enchanted Confections</p>
-    <hr class="hero-divider">
-    <a href="#collection" class="hero-cta" role="button">Enter the Shop &darr;</a>
+    <div class="hero-badge">Purveyors of Magical Mischief Since 1996</div>
+    <h1>Weasleys' Wizard Wheezes</h1>
+    <p class="hero-tagline">"Why be boring when you could be legendary?"</p>
+    <div class="hero-buttons">
+      <a href="#products" class="btn btn-primary">Explore Products</a>
+      <a href="#story" class="btn btn-ghost">Our Story</a>
+    </div>
+  </div>
+  <div class="scroll-hint">&#8595;</div>
+</section>
+
+<!-- Featured Products -->
+<section id="products">
+  <div class="container">
+    <div style="text-align:center;">
+      <div class="section-label fade-in">The Collection</div>
+      <h2 class="section-title fade-in" style="text-align:center;">Signature Confections</h2>
+      <p class="section-subtitle centered fade-in">Each creation is hand-crafted with Ministry-approved (mostly) enchantments and a generous helping of Weasley ingenuity.</p>
+      <div class="section-divider"></div>
+    </div>
+    <div class="products-grid">
+
+      <!-- Moonbeam Meltdrops -->
+      <div class="product-card fade-in">
+        <div class="product-img">
+          <span class="product-badge badge-hero">Q2 Hero</span>
+          <img src="../../product/candy-catalog/moonbeam-meltdrops/moonbeam-hero.webp" alt="Moonbeam Meltdrops — shimmery silver candy" />
+        </div>
+        <div class="product-info">
+          <h3>Moonbeam Meltdrops</h3>
+          <p class="product-tagline">Dissolves on your tongue and makes it glow with ethereal silver light for 45 enchanting seconds.</p>
+          <div class="product-meta">
+            <span class="product-price">7 <small>Galleons</small></span>
+            <button class="product-action">Add to Cauldron</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Patronus Pop Rocks -->
+      <div class="product-card fade-in">
+        <div class="product-img">
+          <span class="product-badge badge-new">Popular</span>
+          <img src="../../product/candy-catalog/patronus-pop-rocks/patronus-hero.webp" alt="Patronus Pop Rocks — translucent animal spirits" />
+        </div>
+        <div class="product-info">
+          <h3>Patronus Pop Rocks</h3>
+          <p class="product-tagline">Crackle, fizz, and a tiny translucent Patronus forms above your mouth. Different for everyone.</p>
+          <div class="product-meta">
+            <span class="product-price">3 <small>Galleons</small></span>
+            <button class="product-action">Add to Cauldron</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canary Cream Supremes -->
+      <div class="product-card fade-in">
+        <div class="product-img">
+          <span class="product-badge badge-classic">Classic+</span>
+          <img src="../../product/candy-catalog/canary-cream-supremes/canary-hero.webp" alt="Canary Cream Supremes — golden pastries with feathers" />
+        </div>
+        <div class="product-info">
+          <h3>Canary Cream Supremes</h3>
+          <p class="product-tagline">The original canary transformation, now upgraded with 30 seconds of genuine flight. Mostly controlled.</p>
+          <div class="product-meta">
+            <span class="product-price">5 <small>Galleons</small></span>
+            <button class="product-action">Add to Cauldron</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Portable Swamp Taffy -->
+      <div class="product-card fade-in">
+        <div class="product-img">
+          <span class="product-badge badge-experimental">Experimental</span>
+          <img src="../../product/candy-catalog/portable-swamp-taffy/swamp-hero.webp" alt="Portable Swamp Taffy — miniature swamp" />
+        </div>
+        <div class="product-info">
+          <h3>Portable Swamp Taffy</h3>
+          <p class="product-tagline">Creates a miniature swamp in a 1-metre radius. We're still working on the "small" and "decorative" parts.</p>
+          <div class="product-meta">
+            <span class="product-price">TBD</span>
+            <button class="product-action" style="border-color: rgba(105,240,174,0.3); color: var(--glow-green);">Join Waitlist</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </section>
 
-<!-- ============================================================
-     MARQUEE
-     ============================================================ -->
-<div class="marquee" aria-hidden="true">
-  <div class="marquee-track" id="marqueeTrack">
-    <span class="marquee-item">Moonbeam Meltdrops <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Patronus Pop Rocks <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Canary Cream Supremes <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Portable Swamp Taffy <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Pygmy Puff Bon-Bons <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Skiving Snackboxes <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Decoy Detonators <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Fever Fudge <span class="sep">&#10038;</span></span>
-    <!-- Duplicate for seamless loop -->
-    <span class="marquee-item">Moonbeam Meltdrops <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Patronus Pop Rocks <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Canary Cream Supremes <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Portable Swamp Taffy <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Pygmy Puff Bon-Bons <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Skiving Snackboxes <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Decoy Detonators <span class="sep">&#10038;</span></span>
-    <span class="marquee-item">Fever Fudge <span class="sep">&#10038;</span></span>
+<!-- Our Story -->
+<section id="story">
+  <div class="container">
+    <div class="story-grid">
+      <div class="story-images fade-in-left">
+        <div class="story-img">
+          <img src="../../team/team-hero.webp" alt="Fred and George Weasley — Co-Founders" />
+        </div>
+        <div class="story-img">
+          <img src="../../research/research-hero.webp" alt="The Weasley Laboratory" />
+        </div>
+        <div class="story-img">
+          <img src="../../shop-hero.webp" alt="Weasleys' Wizard Wheezes shop window" />
+        </div>
+      </div>
+      <div class="story-text fade-in-right">
+        <div class="section-label">Our Story</div>
+        <h2 class="section-title">From Hogwarts Dorm Room to Diagon Alley</h2>
+        <p>It started with a Canary Cream in a Gryffindor common room and a dream to make the wizarding world laugh. Fred and George Weasley turned 10 Galleons of seed money, a talent for trouble, and an absolute refusal to be ordinary into the most beloved shop on Diagon Alley.</p>
+        <p>Today, Weasleys' Wizard Wheezes is more than a joke shop. It's a <span class="highlight">magical empire</span> — from experimental candy that pushes the boundaries of enchantment to operations that ship wonder across the wizarding world.</p>
+        <p>Every product in our catalog started as a mad idea scribbled on a napkin, tested in our legendary laboratory, and perfected until even the Ministry couldn't argue with the results (usually).</p>
+        <div class="story-stat-row">
+          <div class="story-stat">
+            <span class="num">147+</span>
+            <span class="label">Products</span>
+          </div>
+          <div class="story-stat">
+            <span class="num">30k</span>
+            <span class="label">Monthly Customers</span>
+          </div>
+          <div class="story-stat">
+            <span class="num">93</span>
+            <span class="label">Diagon Alley</span>
+          </div>
+          <div class="story-stat">
+            <span class="num">1996</span>
+            <span class="label">Est.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Gallery -->
+<section id="gallery">
+  <div class="container">
+    <div style="text-align:center;">
+      <div class="section-label fade-in">Behind the Scenes</div>
+      <h2 class="section-title fade-in" style="text-align:center;">The World of Wheezes</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="gallery-grid">
+      <div class="gallery-item wide fade-in">
+        <img src="../../marketing/marketing-hero.webp" alt="Experience the Wonder — marketing campaign" />
+        <div class="gallery-caption">
+          <h4>Marketing Magic</h4>
+          <p>Our campaigns bring the wonder to the masses</p>
+        </div>
+      </div>
+      <div class="gallery-item fade-in">
+        <img src="../../operations/operations-hero.webp" alt="Owl post operations center" />
+        <div class="gallery-caption">
+          <h4>Operations HQ</h4>
+          <p>Where owls meet efficiency</p>
+        </div>
+      </div>
+      <div class="gallery-item fade-in">
+        <img src="../../finance/finance-hero.webp" alt="Galleon counting and financial wizardry" />
+        <div class="gallery-caption">
+          <h4>The Vault</h4>
+          <p>Every Galleon accounted for</p>
+        </div>
+      </div>
+      <div class="gallery-item fade-in">
+        <img src="../../operations/shipping-routes/shipping-hero.webp" alt="Owl shipping routes map" />
+        <div class="gallery-caption">
+          <h4>Shipping Network</h4>
+          <p>Worldwide owl delivery routes</p>
+        </div>
+      </div>
+      <div class="gallery-item fade-in">
+        <img src="../../product/product-hero.webp" alt="The candy catalog shelves" />
+        <div class="gallery-caption">
+          <h4>The Shelves</h4>
+          <p>147 products and counting</p>
+        </div>
+      </div>
+      <div class="gallery-item fade-in">
+        <img src="../../sales/sales-hero.webp" alt="Sales ledger and gold coins" />
+        <div class="gallery-caption">
+          <h4>Sales Floor</h4>
+          <p>Where deals are sealed with a smile</p>
+        </div>
+      </div>
+      <div class="gallery-item fade-in">
+        <img src="../../joke-book/joke-book-hero.webp" alt="The legendary joke book" />
+        <div class="gallery-caption">
+          <h4>The Joke Book</h4>
+          <p>Our comedy gold standard</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section id="testimonials">
+  <div class="container">
+    <div style="text-align:center;">
+      <div class="section-label fade-in">What They Say</div>
+      <h2 class="section-title fade-in" style="text-align:center;">Reviews from the Wizarding World</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card fade-in">
+        <p class="testimonial-text">The Moonbeam Meltdrops made my anniversary dinner unforgettable. My wife's tongue glowing silver by candlelight was the most romantic thing I've ever seen. Buying in bulk.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">N</div>
+          <div>
+            <div class="testimonial-name">Neville Longbottom</div>
+            <div class="testimonial-role">Herbology Professor, Hogwarts</div>
+            <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card fade-in">
+        <p class="testimonial-text">The Patronus Pop Rocks caused three Hufflepuff students to cry happy tears when they saw their Patronus forms for the first time. I've now added them to my recommended supplies list.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">M</div>
+          <div>
+            <div class="testimonial-name">Minerva McGonagall</div>
+            <div class="testimonial-role">Headmistress, Hogwarts</div>
+            <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card fade-in">
+        <p class="testimonial-text">I used the Canary Cream Supreme at a Ministry gala. Flew across the ballroom. The Minister was furious. Best 5 Galleons I ever spent. Would absolutely do it again.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">L</div>
+          <div>
+            <div class="testimonial-name">Luna Lovegood</div>
+            <div class="testimonial-role">Editor, The Quibbler</div>
+            <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Visit Us -->
+<section id="visit">
+  <div class="container">
+    <div class="visit-grid">
+      <div class="visit-image fade-in-left">
+        <img src="../../image.png" alt="Weasleys' Wizard Wheezes storefront" />
+      </div>
+      <div class="visit-details fade-in-right">
+        <div class="section-label">Visit Us</div>
+        <h2 class="section-title">Find Us on Diagon Alley</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">You can't miss us. We're the building with the giant mechanical wizard tipping his hat. If you've walked past a quiet, sensible shopfront, you've gone the wrong way.</p>
+
+        <div class="visit-info-item">
+          <div class="visit-icon">&#127979;</div>
+          <div>
+            <strong>Address</strong>
+            <p>93 Diagon Alley, London<br/>Behind the Leaky Cauldron</p>
+          </div>
+        </div>
+        <div class="visit-info-item">
+          <div class="visit-icon">&#128336;</div>
+          <div>
+            <strong>Hours</strong>
+            <p>Mon-Sat: 9am - 9pm<br/>Sunday: 10am - 6pm<br/>Hogsmeade Weekends: Extended to 11pm</p>
+          </div>
+        </div>
+        <div class="visit-info-item">
+          <div class="visit-icon">&#129417;</div>
+          <div>
+            <strong>Owl Orders</strong>
+            <p>Send your order owl to our Diagon Alley location.<br/>2-5 day delivery. International owls welcome.</p>
+          </div>
+        </div>
+        <div class="visit-info-item" style="border-bottom: none;">
+          <div class="visit-icon">&#9888;&#65039;</div>
+          <div>
+            <strong>Fair Warning</strong>
+            <p>Some products may cause temporary feathers, glowing, or an uncontrollable urge to laugh. This is a feature, not a bug.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Newsletter -->
+<div class="newsletter">
+  <div class="container">
+    <h2>Join the Mischief Makers</h2>
+    <p>Get first access to new products, secret sales, and pranking tips delivered by owl post.</p>
+    <form class="newsletter-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='Owl Dispatched!'; this.querySelector('input').value='';">
+      <input type="email" placeholder="your.owl@wizardmail.com" required />
+      <button type="submit">Subscribe</button>
+    </form>
   </div>
 </div>
 
-<!-- ============================================================
-     MAIN CONTENT
-     ============================================================ -->
-<main id="main">
-
-<!-- COLLECTION -->
-<section class="section collection" id="collection">
-  <div class="section-header reveal">
-    <h2>Our Enchanted Collection</h2>
-    <hr class="divider">
-  </div>
-
-  <div class="bento-grid reveal">
-    <!-- Moonbeam Meltdrops — large -->
-    <article class="bento-card bento-card--moonbeam" tabindex="0" role="button"
-      aria-label="View Moonbeam Meltdrops"
-      data-product="moonbeam"
-      onclick="openProduct('moonbeam')" onkeydown="if(event.key==='Enter')openProduct('moonbeam')">
-      <img src="/api/assets/cabinet-example/product/candy-catalog/moonbeam-meltdrops/moonbeam-hero.webp"
-        alt="Shimmering silver sweets that glow like moonlight" loading="lazy">
-      <div class="bento-card-overlay">
-        <span class="bento-pill bento-pill--sweet">Sweet</span>
-        <h3 class="bento-card-title">Moonbeam Meltdrops</h3>
-        <p class="bento-card-desc">Dissolve on your tongue in a burst of silver light</p>
-        <span class="bento-card-price">3 Galleons</span>
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>Weasleys' Wizard Wheezes</h3>
+        <p>Purveyors of Aids to Magical Mischief-Makers since 1996. Making the wizarding world brighter, louder, and considerably more fun &mdash; one prank at a time.</p>
       </div>
-    </article>
-
-    <!-- Patronus Pop Rocks -->
-    <article class="bento-card bento-card--patronus" tabindex="0" role="button"
-      aria-label="View Patronus Pop Rocks"
-      data-product="patronus"
-      onclick="openProduct('patronus')" onkeydown="if(event.key==='Enter')openProduct('patronus')">
-      <img src="/api/assets/cabinet-example/product/candy-catalog/patronus-pop-rocks/patronus-hero.webp"
-        alt="Blue crackling candy that forms tiny spirit animals" loading="lazy">
-      <div class="bento-card-overlay">
-        <span class="bento-pill bento-pill--sweet">Sweet</span>
-        <h3 class="bento-card-title">Patronus Pop Rocks</h3>
-        <p class="bento-card-desc">Each pop summons a tiny spirit guardian</p>
-        <span class="bento-card-price">4 Galleons</span>
+      <div class="footer-col">
+        <h4>Products</h4>
+        <ul>
+          <li><a href="#products">Moonbeam Meltdrops</a></li>
+          <li><a href="#products">Patronus Pop Rocks</a></li>
+          <li><a href="#products">Canary Cream Supremes</a></li>
+          <li><a href="#products">Full Catalog</a></li>
+        </ul>
       </div>
-    </article>
-
-    <!-- Canary Cream Supremes -->
-    <article class="bento-card bento-card--canary" tabindex="0" role="button"
-      aria-label="View Canary Cream Supremes"
-      data-product="canary"
-      onclick="openProduct('canary')" onkeydown="if(event.key==='Enter')openProduct('canary')">
-      <img src="/api/assets/cabinet-example/product/candy-catalog/canary-cream-supremes/canary-hero.webp"
-        alt="Golden cream pastries that transform the eater into a canary" loading="lazy">
-      <div class="bento-card-overlay">
-        <span class="bento-pill bento-pill--prank">Prank</span>
-        <h3 class="bento-card-title">Canary Cream Supremes</h3>
-        <p class="bento-card-desc">The classic feathered transformation</p>
-        <span class="bento-card-price">2 Galleons</span>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#story">Our Story</a></li>
+          <li><a href="#gallery">Gallery</a></li>
+          <li><a href="#testimonials">Reviews</a></li>
+          <li><a href="#visit">Careers</a></li>
+        </ul>
       </div>
-    </article>
-
-    <!-- Portable Swamp Taffy — wide -->
-    <article class="bento-card bento-card--swamp" tabindex="0" role="button"
-      aria-label="View Portable Swamp Taffy"
-      data-product="swamp"
-      onclick="openProduct('swamp')" onkeydown="if(event.key==='Enter')openProduct('swamp')">
-      <img src="/api/assets/cabinet-example/product/candy-catalog/portable-swamp-taffy/swamp-hero.webp"
-        alt="Green and brown taffy that conjures a miniature swamp" loading="lazy">
-      <div class="bento-card-overlay">
-        <span class="bento-pill bento-pill--classic">Classic</span>
-        <h3 class="bento-card-title">Portable Swamp Taffy</h3>
-        <p class="bento-card-desc">Honoring Fred &amp; George's legendary Hogwarts departure</p>
-        <span class="bento-card-price">5 Galleons</span>
-      </div>
-    </article>
-  </div>
-</section>
-
-<!-- PRODUCT DETAIL OVERLAY -->
-<div class="product-overlay" id="productOverlay" role="dialog" aria-label="Product details" aria-modal="true">
-  <div class="product-detail">
-    <button class="product-detail-close" aria-label="Close product details" onclick="closeProduct()">&times;</button>
-    <img class="product-detail-img" id="productImg" src="" alt="">
-    <div class="product-detail-body">
-      <h3 id="productTitle"></h3>
-      <div class="price" id="productPrice"></div>
-      <p id="productDesc"></p>
-      <button class="btn-add-cart" id="productAddBtn" onclick="addToCartFromOverlay()">Add to Basket</button>
-    </div>
-  </div>
-</div>
-
-<!-- ABOUT / STORY -->
-<section class="section about" id="story">
-  <div class="section-header reveal">
-    <h2>The Story</h2>
-    <hr class="divider">
-  </div>
-
-  <div class="about-grid">
-    <div class="about-image-wrap reveal">
-      <img src="/api/assets/cabinet-example/team/team-hero.webp"
-        alt="Fred and George Weasley in their shop, surrounded by colorful enchanted products" loading="lazy">
-    </div>
-    <div class="about-text reveal">
-      <h3>Born from Hogwarts.<br>Built for Mischief.</h3>
-      <p>What started as enchanted sweets smuggled through dormitory corridors became the most beloved joke shop in the wizarding world. Fred and George Weasley turned their talent for troublemaking into an art form, leaving Hogwarts in a blaze of fireworks and founding Weasleys' Wizard Wheezes at 93 Diagon Alley.</p>
-      <p>Every product in our collection is hand-crafted, rigorously tested (often on unsuspecting siblings), and guaranteed to deliver wonder, laughter, or a spectacular transformation. We believe magic should be joyful, surprising, and just a little bit dangerous.</p>
-
-      <div class="stats-row">
-        <div class="stat">
-          <div class="stat-number">30+</div>
-          <div class="stat-label">Products</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">2,340+</div>
-          <div class="stat-label">Happy Wizards</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">Est. 1996</div>
-          <div class="stat-label">Founded</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">1</div>
-          <div class="stat-label">Diagon Alley</div>
-        </div>
+      <div class="footer-col">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#visit">Visit Us</a></li>
+          <li><a href="#">Owl Support</a></li>
+          <li><a href="#">Returns &amp; Refunds</a></li>
+          <li><a href="#">Ministry Compliance</a></li>
+        </ul>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- TESTIMONIALS -->
-<section class="section testimonials" id="testimonials">
-  <div class="section-header reveal">
-    <h2>What They're Saying</h2>
-    <hr class="divider">
-  </div>
-
-  <div class="testimonials-grid">
-    <div class="testimonial-card reveal">
-      <div class="testimonial-quote-mark">&ldquo;</div>
-      <p class="testimonial-text">The Patronus Pop Rocks made me feel warm inside, like a happy memory you can taste. I keep a tin in my pocket at all times. The Nargles haven't bothered me since.</p>
-      <div class="testimonial-author">Luna Lovegood</div>
-      <div class="testimonial-role">Naturalist &amp; Quibbler Correspondent</div>
-    </div>
-    <div class="testimonial-card reveal">
-      <div class="testimonial-quote-mark">&ldquo;</div>
-      <p class="testimonial-text">I gave my gran a box of Canary Creams for her birthday. She chased me around the garden as a canary for ten minutes. Best gift I've ever given her, she says.</p>
-      <div class="testimonial-author">Neville Longbottom</div>
-      <div class="testimonial-role">Herbology Professor, Hogwarts</div>
-    </div>
-    <div class="testimonial-card reveal">
-      <div class="testimonial-quote-mark">&ldquo;</div>
-      <p class="testimonial-text">I've commentated Quidditch matches, hosted a pirate radio show, and faced down Death Eaters. Nothing compares to the chaos of a well-deployed Portable Swamp Taffy.</p>
-      <div class="testimonial-author">Lee Jordan</div>
-      <div class="testimonial-role">Broadcaster &amp; Mischief Consultant</div>
+    <div class="footer-bottom">
+      <p>&copy; 1996&ndash;2026 Weasleys' Wizard Wheezes Ltd. &bull; 93 Diagon Alley, London &bull; All rights reserved.<br/>
+      <small style="opacity:0.5;">Not responsible for unintended transformations, spontaneous flight, or swamp creation. Use products responsibly. Or don't. We're not your mum.</small></p>
     </div>
   </div>
-</section>
-
-<!-- VISIT -->
-<section class="visit" id="visit">
-  <div class="visit-bg">
-    <img src="/api/assets/cabinet-example/operations/operations-hero.webp"
-      alt="The warm, glowing exterior of Weasleys' Wizard Wheezes on Diagon Alley" loading="lazy">
-  </div>
-  <div class="visit-content reveal">
-    <h2>93 Diagon Alley</h2>
-    <div class="visit-info">
-      <p>Step through our doors and into a world where every shelf holds a surprise, every sweet tells a story, and the ceiling occasionally rains confetti.</p>
-      <div class="visit-hours">
-        <span><span class="day">Monday &ndash; Saturday</span> <span>9:00 AM &ndash; 8:00 PM</span></span>
-        <span><span class="day">Sunday</span> <span>10:00 AM &ndash; 6:00 PM</span></span>
-        <span><span class="day">Hogwarts Holidays</span> <span>Extended Hours</span></span>
-      </div>
-    </div>
-    <p class="visit-note">Owl orders welcome &mdash; delivery via our express Screech Owl fleet.</p>
-    <a href="#" class="btn-visit" role="button">Send an Owl</a>
-  </div>
-</section>
-
-</main>
-
-<!-- ============================================================
-     FOOTER
-     ============================================================ -->
-<footer class="site-footer" role="contentinfo">
-  <div class="footer-wordmark">Weasleys' Wizard Wheezes</div>
-  <p class="footer-slogan">&ldquo;Why worry about You-Know-Who? Worry about U-No-Poo!&rdquo;</p>
-  <div class="footer-links">
-    <a href="#collection">Collection</a>
-    <a href="#story">Our Story</a>
-    <a href="#testimonials">Reviews</a>
-    <a href="#visit">Visit Us</a>
-  </div>
-  <p class="footer-copy">&copy; 1996&ndash;2026 Weasleys' Wizard Wheezes Ltd. All mischief managed.</p>
 </footer>
 
-<!-- ============================================================
-     CART FAB
-     ============================================================ -->
-<button class="cart-fab" aria-label="Open shopping basket" onclick="toggleCart()">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-    <line x1="3" y1="6" x2="21" y2="6"/>
-    <path d="M16 10a4 4 0 01-8 0"/>
-  </svg>
-  <span class="cart-badge" id="cartBadge" aria-live="polite">0</span>
-</button>
-
-<!-- CART PANEL -->
-<div class="cart-panel-overlay" id="cartOverlay" onclick="toggleCart()"></div>
-<aside class="cart-panel" id="cartPanel" role="dialog" aria-label="Shopping basket" aria-modal="true">
-  <div class="cart-panel-header">
-    <h3>Your Basket</h3>
-    <button class="cart-panel-close" aria-label="Close basket" onclick="toggleCart()">&times;</button>
-  </div>
-  <div class="cart-panel-body" id="cartBody">
-    <div class="cart-empty">Your basket is empty.<br>The sweets await.</div>
-  </div>
-  <div class="cart-panel-footer" id="cartFooter" style="display:none;">
-    <div class="cart-total">
-      <span class="cart-total-label">Total</span>
-      <span class="cart-total-amount" id="cartTotal">0 Galleons</span>
-    </div>
-    <button class="btn-checkout">Checkout</button>
-  </div>
-</aside>
-
-<!-- ============================================================
-     SCRIPTS
-     ============================================================ -->
 <script>
-/* -------------------------------------------------------
-   PRODUCT DATA
-   ------------------------------------------------------- */
-const products = {
-  moonbeam: {
-    title: 'Moonbeam Meltdrops',
-    price: 3,
-    priceLabel: '3 Galleons',
-    img: '/api/assets/cabinet-example/product/candy-catalog/moonbeam-meltdrops/moonbeam-hero.webp',
-    alt: 'Moonbeam Meltdrops — shimmering silver sweets',
-    desc: 'Our signature confection. Each Moonbeam Meltdrop is infused with concentrated moonlight, harvested on cloudless nights from our rooftop observatory. Place one on your tongue and feel it dissolve into a cascade of silver sparkles that taste of cool winter evenings, stargazing, and just a hint of vanilla. A calming warmth radiates from your chest outward. Effects last approximately fifteen blissful minutes.'
-  },
-  patronus: {
-    title: 'Patronus Pop Rocks',
-    price: 4,
-    priceLabel: '4 Galleons',
-    img: '/api/assets/cabinet-example/product/candy-catalog/patronus-pop-rocks/patronus-hero.webp',
-    alt: 'Patronus Pop Rocks — crackling blue candy',
-    desc: 'Pour the shimmering crystals onto your tongue and feel them crackle with joyful energy. As they pop, a tiny translucent Patronus — unique to each eater — rises from your lips and dances through the air for a few magical moments. Tastes of your happiest memory. Warning: may cause spontaneous giggling and an overwhelming sense of wellbeing.'
-  },
-  canary: {
-    title: 'Canary Cream Supremes',
-    price: 2,
-    priceLabel: '2 Galleons',
-    img: '/api/assets/cabinet-example/product/candy-catalog/canary-cream-supremes/canary-hero.webp',
-    alt: 'Canary Cream Supremes — golden cream pastries',
-    desc: 'The prank that launched an empire. Bite into what appears to be a perfectly innocent custard cream and — POOF — you\'re a large, indignant canary. The transformation lasts only a few seconds before you molt magnificently back to human form. Upgraded Supreme formula now features golden plumage and a more dignified squawk. A timeless classic.'
-  },
-  swamp: {
-    title: 'Portable Swamp Taffy',
-    price: 5,
-    priceLabel: '5 Galleons',
-    img: '/api/assets/cabinet-example/product/candy-catalog/portable-swamp-taffy/swamp-hero.webp',
-    alt: 'Portable Swamp Taffy — green and brown enchanted taffy',
-    desc: 'A tribute to the legendary corridor swamp that cemented our reputation at Hogwarts. This chewy, mossy-green taffy releases a miniature — but remarkably authentic — swamp when unwrapped and thrown. Complete with fog, lily pads, and the occasional confused frog. Covers approximately one square meter. Dissipates after one hour. Perfect for hallway ambushes, staff meetings, and dramatic exits.'
-  }
-};
-
-/* -------------------------------------------------------
-   PRODUCT OVERLAY
-   ------------------------------------------------------- */
-let currentProduct = null;
-const overlay = document.getElementById('productOverlay');
-
-function openProduct(id) {
-  const p = products[id];
-  if (!p) return;
-  currentProduct = id;
-  document.getElementById('productImg').src = p.img;
-  document.getElementById('productImg').alt = p.alt;
-  document.getElementById('productTitle').textContent = p.title;
-  document.getElementById('productPrice').textContent = p.priceLabel;
-  document.getElementById('productDesc').textContent = p.desc;
-  overlay.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  // Focus the close button
-  document.querySelector('.product-detail-close').focus();
-}
-
-function closeProduct() {
-  overlay.classList.remove('open');
-  document.body.style.overflow = '';
-  currentProduct = null;
-}
-
-overlay.addEventListener('click', function(e) {
-  if (e.target === overlay) closeProduct();
-});
-
-function addToCartFromOverlay() {
-  if (currentProduct) {
-    addToCart(currentProduct);
-    closeProduct();
-  }
-}
-
-/* -------------------------------------------------------
-   CART
-   ------------------------------------------------------- */
-let cart = {};
-const cartPanel = document.getElementById('cartPanel');
-const cartOverlayEl = document.getElementById('cartOverlay');
-const cartBadge = document.getElementById('cartBadge');
-
-function addToCart(id) {
-  cart[id] = (cart[id] || 0) + 1;
-  updateCart();
-  // Badge bounce
-  cartBadge.classList.remove('bounce');
-  void cartBadge.offsetWidth; // trigger reflow
-  cartBadge.classList.add('bounce');
-}
-
-function removeFromCart(id) {
-  delete cart[id];
-  updateCart();
-}
-
-function changeQty(id, delta) {
-  cart[id] = Math.max(0, (cart[id] || 0) + delta);
-  if (cart[id] <= 0) delete cart[id];
-  updateCart();
-}
-
-function updateCart() {
-  const keys = Object.keys(cart);
-  const totalItems = keys.reduce((s, k) => s + cart[k], 0);
-  const totalPrice = keys.reduce((s, k) => s + cart[k] * products[k].price, 0);
-
-  // Badge
-  cartBadge.textContent = totalItems;
-  cartBadge.classList.toggle('visible', totalItems > 0);
-
-  // Body
-  const body = document.getElementById('cartBody');
-  const footer = document.getElementById('cartFooter');
-
-  if (keys.length === 0) {
-    body.innerHTML = '<div class="cart-empty">Your basket is empty.<br>The sweets await.</div>';
-    footer.style.display = 'none';
-    return;
-  }
-
-  footer.style.display = '';
-  document.getElementById('cartTotal').textContent = totalPrice + ' Galleon' + (totalPrice !== 1 ? 's' : '');
-
-  body.innerHTML = keys.map(id => {
-    const p = products[id];
-    return `
-      <div class="cart-item">
-        <div class="cart-item-info">
-          <div class="cart-item-name">${p.title}</div>
-          <div class="cart-item-price">${p.price} G each</div>
-        </div>
-        <div class="cart-item-controls">
-          <button aria-label="Decrease quantity" onclick="changeQty('${id}',-1)">&minus;</button>
-          <span class="cart-item-qty">${cart[id]}</span>
-          <button aria-label="Increase quantity" onclick="changeQty('${id}',1)">+</button>
-        </div>
-        <button class="cart-item-remove" aria-label="Remove ${p.title}" onclick="removeFromCart('${id}')">&times;</button>
-      </div>`;
-  }).join('');
-}
-
-function toggleCart() {
-  const isOpen = cartPanel.classList.toggle('open');
-  cartOverlayEl.classList.toggle('open', isOpen);
-  document.body.style.overflow = isOpen ? 'hidden' : '';
-  if (isOpen) document.querySelector('.cart-panel-close').focus();
-}
-
-/* -------------------------------------------------------
-   MOBILE NAV
-   ------------------------------------------------------- */
-function toggleMobileNav() {
-  const btn = document.querySelector('.hamburger');
-  const nav = document.getElementById('mobileNav');
-  const isOpen = nav.classList.toggle('open');
-  btn.classList.toggle('open', isOpen);
-  btn.setAttribute('aria-expanded', isOpen);
-  document.body.style.overflow = isOpen ? 'hidden' : '';
-}
-function closeMobileNav() {
-  document.getElementById('mobileNav').classList.remove('open');
-  document.querySelector('.hamburger').classList.remove('open');
-  document.querySelector('.hamburger').setAttribute('aria-expanded', 'false');
-  document.body.style.overflow = '';
-}
-
-/* -------------------------------------------------------
-   KEYBOARD — Escape closes modals
-   ------------------------------------------------------- */
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    if (overlay.classList.contains('open')) { closeProduct(); return; }
-    if (cartPanel.classList.contains('open')) { toggleCart(); return; }
-    if (document.getElementById('mobileNav').classList.contains('open')) { closeMobileNav(); return; }
-  }
-});
-
-/* -------------------------------------------------------
-   HEADER SCROLL
-   ------------------------------------------------------- */
-const header = document.querySelector('.site-header');
-let ticking = false;
-window.addEventListener('scroll', function() {
-  if (!ticking) {
-    requestAnimationFrame(function() {
-      header.classList.toggle('scrolled', window.scrollY > 60);
-      ticking = false;
-    });
-    ticking = true;
-  }
-});
-
-/* -------------------------------------------------------
-   SCROLL REVEALS — IntersectionObserver
-   ------------------------------------------------------- */
-const revealEls = document.querySelectorAll('.reveal');
-if ('IntersectionObserver' in window) {
-  const revealObs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(entry) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        revealObs.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-  revealEls.forEach(function(el) { revealObs.observe(el); });
-} else {
-  revealEls.forEach(function(el) { el.classList.add('visible'); });
-}
-
-/* -------------------------------------------------------
-   HERO PARTICLES — Gold firefly dots
-   ------------------------------------------------------- */
+// Sparkle particles
 (function() {
-  const canvas = document.getElementById('particles');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let width, height, particles = [], raf;
-  const COUNT = 18;
-
-  function resize() {
-    const rect = canvas.parentElement.getBoundingClientRect();
-    width = canvas.width = rect.width;
-    height = canvas.height = rect.height;
+  const field = document.getElementById('sparkleField');
+  const count = 40;
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.animationDelay = Math.random() * 6 + 's';
+    s.style.animationDuration = (4 + Math.random() * 4) + 's';
+    const hue = Math.random() > 0.5 ? '45' : '30';
+    s.style.background = `hsl(${hue}, 90%, ${60 + Math.random() * 30}%)`;
+    s.style.width = s.style.height = (2 + Math.random() * 4) + 'px';
+    field.appendChild(s);
   }
+})();
 
-  function init() {
-    resize();
-    particles = [];
-    for (let i = 0; i < COUNT; i++) {
-      particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        r: Math.random() * 2 + 1,
-        vy: -(Math.random() * 0.3 + 0.1),
-        vx: (Math.random() - 0.5) * 0.15,
-        alpha: Math.random() * 0.5 + 0.2,
-        pulse: Math.random() * Math.PI * 2,
-        pulseSpeed: Math.random() * 0.01 + 0.005
-      });
-    }
-  }
+// Navbar scroll effect
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
+});
 
-  function draw() {
-    ctx.clearRect(0, 0, width, height);
-    for (const p of particles) {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.pulse += p.pulseSpeed;
-      const a = p.alpha * (0.6 + 0.4 * Math.sin(p.pulse));
-
-      // Wrap
-      if (p.y < -10) { p.y = height + 10; p.x = Math.random() * width; }
-      if (p.x < -10) p.x = width + 10;
-      if (p.x > width + 10) p.x = -10;
-
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(232, 168, 56, ${a})`;
-      ctx.fill();
-
-      // Glow
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(232, 168, 56, ${a * 0.15})`;
-      ctx.fill();
-    }
-    raf = requestAnimationFrame(draw);
-  }
-
-  // Respect reduced motion
-  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (!mq.matches) {
-    init();
-    draw();
-    window.addEventListener('resize', function() { resize(); });
-  }
-  mq.addEventListener('change', function(e) {
-    if (e.matches) {
-      cancelAnimationFrame(raf);
-      ctx.clearRect(0, 0, width, height);
-    } else {
-      init();
-      draw();
+// Intersection observer for fade-in animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
     }
   });
-})();
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.fade-in, .fade-in-left, .fade-in-right').forEach(el => observer.observe(el));
+
+// Close mobile menu on link click
+document.querySelectorAll('.nav-links a').forEach(a => {
+  a.addEventListener('click', () => document.getElementById('navbar').classList.remove('open'));
+});
 </script>
+
 </body>
 </html>
