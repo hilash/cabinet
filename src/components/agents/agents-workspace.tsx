@@ -32,7 +32,7 @@ import type { ConversationDetail, ConversationMeta } from "@/types/conversations
 import type { JobConfig } from "@/types/jobs";
 
 type TriggerFilter = "all" | "manual" | "job" | "heartbeat";
-type StatusFilter = "all" | "running" | "failed";
+type StatusFilter = "all" | "running" | "completed" | "failed";
 type MainPanelMode = "composer" | "conversation" | "settings";
 type SettingsTarget = "directory" | "__new__" | string | null;
 
@@ -86,10 +86,10 @@ const TRIGGER_LABELS: Record<ConversationMeta["trigger"], string> = {
   heartbeat: "Heartbeat",
 };
 
-const TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
-  manual: "bg-blue-500/10 text-blue-500",
-  job: "bg-amber-500/10 text-amber-500",
-  heartbeat: "bg-emerald-500/10 text-emerald-500",
+const TASK_CARD_TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
+  manual: "bg-sky-500/12 text-sky-400 ring-1 ring-sky-500/20",
+  job: "bg-emerald-500/12 text-emerald-400 ring-1 ring-emerald-500/20",
+  heartbeat: "bg-pink-500/12 text-pink-400 ring-1 ring-pink-500/20",
 };
 
 function replacePastedTextNotice(output: string, displayPrompt?: string): string {
@@ -251,9 +251,13 @@ function TriggerIcon({
   trigger,
   className,
 }: {
-  trigger: "job" | "heartbeat";
+  trigger: ConversationMeta["trigger"];
   className?: string;
 }) {
+  if (trigger === "manual") {
+    return <Bot className={cn("h-3 w-3", className)} />;
+  }
+
   if (trigger === "job") {
     return <Clock3 className={cn("h-3 w-3", className)} />;
   }
@@ -1109,7 +1113,7 @@ export function AgentsWorkspace({
             ))}
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {(["all", "running", "failed"] as StatusFilter[]).map((filter) => (
+            {(["all", "running", "completed", "failed"] as StatusFilter[]).map((filter) => (
               <TriggerChip
                 key={filter}
                 active={statusFilter === filter}
@@ -1161,20 +1165,19 @@ export function AgentsWorkspace({
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center justify-between gap-2">
                           <p className="truncate text-[11.5px] font-medium text-foreground">
                             {conversation.title}
                           </p>
                           <span
+                            aria-label={TRIGGER_LABELS[conversation.trigger]}
+                            title={TRIGGER_LABELS[conversation.trigger]}
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px]",
-                              TRIGGER_STYLES[conversation.trigger]
+                              "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                              TASK_CARD_TRIGGER_STYLES[conversation.trigger]
                             )}
                           >
-                            {conversation.trigger === "job" || conversation.trigger === "heartbeat" ? (
-                              <TriggerIcon trigger={conversation.trigger} className="h-2.5 w-2.5" />
-                            ) : null}
-                            {TRIGGER_LABELS[conversation.trigger]}
+                            <TriggerIcon trigger={conversation.trigger} className="h-2.75 w-2.75" />
                           </span>
                         </div>
                         <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
@@ -2296,9 +2299,6 @@ export function AgentsWorkspace({
               <div className="max-w-xl text-center">
                 <Bot className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
                 <p className="text-[14px] font-medium">Pick an agent from the left rail</p>
-                <p className="mt-2 text-[12px] text-muted-foreground">
-                  The right panel now combines agent settings and the conversation composer in one place.
-                </p>
               </div>
             </div>
           </div>
