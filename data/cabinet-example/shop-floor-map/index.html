@@ -3,1456 +3,1095 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shop Floor Map — 93 Diagon Alley</title>
+<title>The Marauder's Map — Weasleys' Wizard Wheezes</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0f0a1a;
-    --surface: rgba(30, 20, 50, 0.7);
-    --border: rgba(255,255,255,0.06);
-    --text: #e2dff0;
-    --text-muted: #9a8cb8;
-    --text-dim: #7c6f9b;
-    --purple: #c084fc;
-    --candy: #ec4899;
-    --prank: #f97316;
-    --checkout: #10b981;
-    --rdlab: #7c3aed;
-    --display: #06b6d4;
-    --storage: #6366f1;
-    --green: #4ade80;
-    --amber: #facc15;
-    --red: #f87171;
-    --panel-width: 360px;
+    --parchment: #F5ECD7;
+    --parchment-dark: #E8D5B0;
+    --ink: #3B2415;
+    --ink-light: rgba(59,36,21,0.5);
+    --ink-faint: rgba(59,36,21,0.15);
+    --red-ink: #8B1A1A;
+    --green-dot: #2D5016;
+    --amber-dot: #8B6914;
+    --red-dot: #8B1A1A;
   }
 
   body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
+    font-family: 'IM Fell English', Georgia, 'Times New Roman', serif;
+    background: var(--parchment);
+    color: var(--ink);
     overflow-x: hidden;
-  }
-
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
-
-  .app {
-    display: flex;
-    flex-direction: column;
     min-height: 100vh;
   }
 
-  /* ── Header ── */
-  .header {
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-    background: rgba(15, 10, 26, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    flex-shrink: 0;
+  /* Parchment texture via CSS */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(59,36,21,0.008) 2px,
+        rgba(59,36,21,0.008) 4px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 3px,
+        rgba(59,36,21,0.005) 3px,
+        rgba(59,36,21,0.005) 6px
+      ),
+      radial-gradient(ellipse at 20% 50%, rgba(139,107,60,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse at 80% 30%, rgba(139,107,60,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 80%, rgba(139,107,60,0.05) 0%, transparent 50%);
   }
 
-  .header-left h1 {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: #f0e6ff;
-    letter-spacing: -0.03em;
+  /* Vignette border */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    box-shadow:
+      inset 0 0 80px rgba(59,36,21,0.15),
+      inset 0 0 200px rgba(59,36,21,0.08);
   }
 
-  .header-left h1 .accent {
-    background: linear-gradient(135deg, var(--purple), #a855f7);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .header-left .subtitle {
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-top: 2px;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-clock {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-  }
-
-  .store-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 8px;
-    background: rgba(74, 222, 128, 0.08);
-    border: 1px solid rgba(74, 222, 128, 0.2);
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--green);
-  }
-
-  .store-status .pulse-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--green);
-    animation: gentle-pulse 2s ease-in-out infinite;
-  }
-
-  /* ── Zone Selector (breadcrumbs) ── */
-  .zone-selector {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 10px 24px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(15, 10, 26, 0.5);
-    overflow-x: auto;
-    flex-shrink: 0;
-  }
-
-  .zone-selector::-webkit-scrollbar { display: none; }
-
-  .zone-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
-    font-family: inherit;
-  }
-
-  .zone-btn:hover {
-    background: rgba(255,255,255,0.04);
-    color: var(--text);
-  }
-
-  .zone-btn:focus-visible {
-    outline: 2px solid var(--purple);
-    outline-offset: 2px;
-  }
-
-  .zone-btn.active {
-    background: rgba(192, 132, 252, 0.1);
-    border-color: rgba(192, 132, 252, 0.25);
-    color: var(--purple);
-  }
-
-  .zone-btn .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .flow-toggle {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text-dim);
-    font-size: 0.7rem;
-    font-weight: 500;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-
-  .flow-toggle:hover { color: var(--text); background: rgba(255,255,255,0.04); }
-  .flow-toggle:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
-  .flow-toggle.active { border-color: rgba(192, 132, 252, 0.3); color: var(--purple); }
-
-  /* ── Main Content Area ── */
-  .main-content {
-    display: flex;
-    flex: 1;
-    min-height: 0;
+  .container {
     position: relative;
+    z-index: 1;
+    max-width: 100%;
+    padding: 20px 24px;
+    min-height: 100vh;
   }
 
-  .map-area {
-    flex: 1;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 0;
+  /* ======== HEADER ======== */
+  .header {
+    text-align: center;
+    margin-bottom: 16px;
+    cursor: default;
+    user-select: none;
   }
 
-  .floor-wrapper {
+  .header-oath {
+    font-style: italic;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    opacity: 0;
+    animation: fadeInOath 2s ease-out 0.3s forwards;
+    color: var(--ink-light);
+    margin-bottom: 8px;
+  }
+
+  .header-title {
+    font-family: 'IM Fell English SC', Georgia, serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.15em;
+    opacity: 0;
+    animation: fadeInTitle 1.5s ease-out 1.8s forwards;
+    margin-bottom: 2px;
+  }
+
+  .header-subtitle {
+    font-style: italic;
+    font-size: 0.75rem;
+    color: var(--ink-light);
+    opacity: 0;
+    animation: fadeInTitle 1.5s ease-out 2.3s forwards;
+    letter-spacing: 0.06em;
+  }
+
+  .header-line {
+    width: 260px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--ink-light), transparent);
+    margin: 8px auto 0;
+    opacity: 0;
+    animation: fadeInTitle 1.5s ease-out 2.5s forwards;
+  }
+
+  @keyframes fadeInOath {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 0.7; transform: translateY(0); }
+  }
+  @keyframes fadeInTitle {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  /* ======== MAP CONTAINER ======== */
+  .map-wrapper {
     position: relative;
     width: 100%;
-    max-width: 780px;
+    max-width: 820px;
+    margin: 0 auto;
+    border: 1.5px solid var(--ink-faint);
+    border-radius: 4px;
+    box-shadow:
+      0 2px 20px rgba(59,36,21,0.08),
+      inset 0 0 30px rgba(59,36,21,0.04);
+    background: var(--parchment);
+    overflow: visible;
   }
 
-  .floor-svg {
+  .map-svg {
+    display: block;
     width: 100%;
     height: auto;
-    display: block;
-    filter: drop-shadow(0 4px 24px rgba(88, 28, 135, 0.15));
   }
 
-  /* ── SVG Zone Styles ── */
-  .zone-group {
+  /* ======== SVG STYLES ======== */
+  .zone-area {
     cursor: pointer;
+    transition: all 0.25s ease;
     outline: none;
   }
-
-  .zone-group:focus-visible .zone-bg {
-    stroke-width: 3;
-    stroke-opacity: 1;
+  .zone-area:hover .zone-fill,
+  .zone-area:focus .zone-fill {
+    opacity: 0.22;
+  }
+  .zone-area:hover .zone-border,
+  .zone-area:focus .zone-border {
+    stroke-width: 2.2;
+    stroke: var(--ink);
+  }
+  .zone-area:hover .zone-label,
+  .zone-area:focus .zone-label {
+    font-weight: bold;
+  }
+  .zone-area:focus {
+    outline: 2px dashed var(--ink);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
-  .zone-group:focus-visible {
-    filter: brightness(1.2);
-  }
+  .zone-fill { transition: opacity 0.25s ease; }
+  .zone-border { transition: stroke-width 0.25s ease, stroke 0.25s ease; }
+  .zone-label { transition: font-weight 0.2s ease; }
 
-  .zone-bg {
-    transition: all 0.25s ease;
+  .zone-area[aria-pressed="true"] .zone-fill {
+    opacity: 0.28;
   }
-
-  .zone-group:hover .zone-bg,
-  .zone-group.selected .zone-bg {
-    stroke-opacity: 0.9;
+  .zone-area[aria-pressed="true"] .zone-border {
     stroke-width: 2.5;
-    filter: brightness(1.15);
   }
 
-  .zone-group.selected .zone-bg {
-    stroke-width: 2.5;
-    stroke-dasharray: none;
-  }
-
-  .zone-label {
-    font-family: 'Inter', sans-serif;
-    font-weight: 700;
-    fill: #fff;
-    pointer-events: none;
-  }
-
-  .zone-sublabel {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 8px;
-    fill: rgba(255,255,255,0.5);
-    pointer-events: none;
-    letter-spacing: 0.08em;
-  }
-
-  .zone-icon {
-    pointer-events: none;
-    opacity: 0.35;
-  }
-
-  .zone-metric {
-    pointer-events: none;
-  }
-
-  .zone-metric-bg {
-    fill: rgba(0,0,0,0.5);
-    rx: 4;
-  }
-
-  .zone-metric-text {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    fill: rgba(255,255,255,0.8);
-    font-weight: 500;
-  }
-
-  /* Status indicator dots */
-  .status-indicator {
-    pointer-events: none;
-  }
-
-  .status-ring {
-    animation: status-pulse 2.5s ease-in-out infinite;
-  }
-
-  @keyframes status-pulse {
-    0%, 100% { opacity: 0.3; r: 8; }
-    50% { opacity: 0.6; r: 10; }
-  }
-
-  @keyframes gentle-pulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-  }
-
-  /* R&D Lab glow */
-  .rdlab-glow {
-    animation: lab-glow 3s ease-in-out infinite;
-  }
-
-  @keyframes lab-glow {
-    0%, 100% { flood-opacity: 0.15; }
-    50% { flood-opacity: 0.35; }
-  }
-
-  /* Customer flow path */
-  .flow-path {
-    opacity: 0;
-    transition: opacity 0.4s ease;
-  }
-
-  .flow-path.visible {
+  /* ======== FOOTSTEPS ======== */
+  .footstep-pair {
     opacity: 1;
+    transition: opacity 0.3s;
+  }
+  .footstep-left, .footstep-right {
+    fill: var(--ink);
+    opacity: 0.6;
   }
 
-  .flow-dot {
-    animation: flow-move 8s linear infinite;
+  @keyframes walkCycle {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 0.2; }
+  }
+  .footstep-left { animation: walkCycle 0.6s ease-in-out infinite; }
+  .footstep-right { animation: walkCycle 0.6s ease-in-out infinite 0.3s; }
+
+  .footsteps-hidden .footstep-pair { opacity: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .footstep-left, .footstep-right { animation: none !important; opacity: 0.5; }
+    .footstep-pair circle { animation: none !important; }
+    @keyframes moveDot1 { 0%, 100% { offset-distance: 0%; } }
+    @keyframes moveDot2 { 0%, 100% { offset-distance: 25%; } }
+    @keyframes moveDot3 { 0%, 100% { offset-distance: 50%; } }
+    @keyframes moveDot4 { 0%, 100% { offset-distance: 75%; } }
+    @keyframes moveDot5 { 0%, 100% { offset-distance: 15%; } }
+    @keyframes moveDot6 { 0%, 100% { offset-distance: 60%; } }
   }
 
-  .flow-dot-2 {
-    animation: flow-move 8s linear infinite;
-    animation-delay: -2.6s;
+  /* Dot motion along path */
+  @keyframes moveDot1 { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+  @keyframes moveDot2 { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+  @keyframes moveDot3 { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+  @keyframes moveDot4 { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+  @keyframes moveDot5 { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+  @keyframes moveDot6 { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+
+  /* ======== CONTROLS ======== */
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 12px;
   }
 
-  .flow-dot-3 {
-    animation: flow-move 8s linear infinite;
-    animation-delay: -5.3s;
+  .btn-parchment {
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--ink);
+    background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-dark) 100%);
+    border: 1px solid var(--ink-faint);
+    border-radius: 3px;
+    padding: 6px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .btn-parchment:hover {
+    border-color: var(--ink-light);
+    box-shadow: 0 1px 6px rgba(59,36,21,0.1);
+  }
+  .btn-parchment:active {
+    transform: scale(0.97);
   }
 
-  @keyframes flow-move {
-    0% { offset-distance: 0%; opacity: 0; }
-    5% { opacity: 1; }
-    95% { opacity: 1; }
-    100% { offset-distance: 100%; opacity: 0; }
-  }
-
-  /* Shelf detail lines */
-  .shelf-line {
-    stroke-opacity: 0.12;
-    stroke-width: 1;
-  }
-
-  .counter-line {
-    stroke-opacity: 0.15;
-    stroke-width: 1.5;
-    stroke-dasharray: 4,4;
-  }
-
-  /* ── Info Panel (slide-in sidebar) ── */
-  .info-panel-wrapper {
-    width: 0;
-    flex-shrink: 0;
-    overflow: hidden;
-    transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    border-left: 1px solid transparent;
-  }
-
-  .info-panel-wrapper.open {
-    width: var(--panel-width);
-    border-left-color: var(--border);
+  /* ======== INFO PANEL ======== */
+  .info-panel-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
   }
 
   .info-panel {
-    width: var(--panel-width);
-    height: 100%;
+    position: fixed;
+    top: 60px;
+    right: -380px;
+    width: 340px;
+    max-height: calc(100vh - 100px);
     overflow-y: auto;
-    padding: 24px 20px;
-    background: rgba(18, 12, 30, 0.95);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: linear-gradient(135deg, #FAF3E4 0%, var(--parchment) 40%, var(--parchment-dark) 100%);
+    border: 1.5px solid rgba(59,36,21,0.25);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    box-shadow:
+      -4px 0 24px rgba(59,36,21,0.12),
+      inset 0 0 20px rgba(59,36,21,0.03);
+    z-index: 1000;
+    padding: 24px 22px;
+    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.88rem;
+  }
+  .info-panel.open {
+    right: 0;
+  }
+  .info-panel-overlay.visible {
+    display: block;
   }
 
-  .info-panel::-webkit-scrollbar { width: 4px; }
-  .info-panel::-webkit-scrollbar-track { background: transparent; }
-  .info-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-
-  .info-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-
-  .info-close {
-    width: 28px;
-    height: 28px;
+  .panel-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
     border: none;
-    background: rgba(255,255,255,0.06);
-    border-radius: 6px;
-    color: var(--text-muted);
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    flex-shrink: 0;
+    color: var(--ink-light);
+    padding: 4px;
+    line-height: 1;
+    font-family: 'IM Fell English', serif;
   }
+  .panel-close:hover { color: var(--ink); }
 
-  .info-close:hover { background: rgba(255,255,255,0.12); color: var(--text); }
-  .info-close:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
-
-  .info-badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 6px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+  .panel-zone-name {
+    font-family: 'IM Fell English SC', Georgia, serif;
+    font-size: 1.2rem;
+    letter-spacing: 0.08em;
     margin-bottom: 8px;
+    padding-right: 24px;
   }
 
-  .info-title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #f0e6ff;
-    margin-bottom: 12px;
-  }
-
-  .info-status-row {
+  .panel-status {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border);
-    margin-bottom: 16px;
+    margin-bottom: 14px;
+    font-style: italic;
+    font-size: 0.82rem;
   }
-
-  .info-status-dot {
-    width: 8px;
-    height: 8px;
+  .status-dot {
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
+    display: inline-block;
     flex-shrink: 0;
   }
-
-  .info-status-dot.green { background: var(--green); box-shadow: 0 0 8px rgba(74, 222, 128, 0.4); }
-  .info-status-dot.amber { background: var(--amber); box-shadow: 0 0 8px rgba(250, 204, 21, 0.4); }
-  .info-status-dot.red { background: var(--red); box-shadow: 0 0 8px rgba(248, 113, 113, 0.4); }
-
-  .info-status-label {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: #c4b8de;
+  .status-dot.green { background: var(--green-dot); }
+  .status-dot.amber { background: var(--amber-dot); }
+  .status-dot.red {
+    background: var(--red-dot);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(139,26,26,0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(139,26,26,0); }
   }
 
-  .info-desc {
-    font-size: 0.85rem;
-    line-height: 1.65;
-    color: #b8aed0;
-    margin-bottom: 20px;
+  .panel-description {
+    font-style: italic;
+    line-height: 1.55;
+    margin-bottom: 16px;
+    color: rgba(59,36,21,0.8);
+    font-size: 0.84rem;
   }
 
-  .info-section-label {
-    font-size: 0.68rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-dim);
-    margin-bottom: 8px;
-  }
-
-  .info-products {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 20px;
-  }
-
-  .product-tag {
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.07);
-    color: #d4cceb;
-  }
-
-  /* Metrics grid in panel */
-  .info-metrics {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-
-  .info-metric-card {
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border);
-  }
-
-  .info-metric-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .info-metric-label {
-    font-size: 0.68rem;
-    color: var(--text-dim);
-    margin-top: 2px;
-  }
-
-  /* Restock button */
-  .restock-btn {
-    width: 100%;
-    padding: 10px 16px;
-    border-radius: 8px;
-    border: 1px solid rgba(250, 204, 21, 0.25);
-    background: rgba(250, 204, 21, 0.06);
-    color: var(--amber);
+  .panel-section-title {
+    font-family: 'IM Fell English SC', Georgia, serif;
     font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    color: var(--ink-light);
+  }
+
+  .panel-items {
+    list-style: none;
+    margin-bottom: 14px;
+  }
+  .panel-items li {
+    padding: 3px 0;
+    font-style: italic;
+    font-size: 0.83rem;
+  }
+  .panel-items li::before {
+    content: '\2022';
+    color: var(--ink-light);
+    margin-right: 8px;
+  }
+
+  .panel-metrics {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .metric-box {
+    background: rgba(59,36,21,0.04);
+    border: 1px solid var(--ink-faint);
+    border-radius: 4px;
+    padding: 8px 14px;
+    text-align: center;
+    flex: 1;
+    min-width: 100px;
+  }
+  .metric-value {
+    font-family: 'IM Fell English SC', Georgia, serif;
+    font-size: 1.15rem;
+    display: block;
+  }
+  .metric-label {
+    font-size: 0.7rem;
+    font-style: italic;
+    color: var(--ink-light);
   }
 
-  .restock-btn:hover {
-    background: rgba(250, 204, 21, 0.12);
-    border-color: rgba(250, 204, 21, 0.4);
+  .btn-stamp {
+    font-family: 'IM Fell English SC', Georgia, serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    color: var(--red-ink);
+    background: transparent;
+    border: 2px solid var(--red-ink);
+    border-radius: 3px;
+    padding: 7px 18px;
+    cursor: pointer;
+    transform: rotate(-1deg);
+    transition: all 0.2s;
+    text-transform: uppercase;
+    display: block;
+    width: 100%;
+    margin-top: 4px;
   }
-
-  .restock-btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-
-  .restock-btn.flagged {
-    border-color: rgba(74, 222, 128, 0.3);
-    background: rgba(74, 222, 128, 0.08);
-    color: var(--green);
+  .btn-stamp:hover {
+    background: rgba(139,26,26,0.06);
+    transform: rotate(0deg) scale(1.02);
+  }
+  .btn-stamp.stamped {
+    background: rgba(139,26,26,0.08);
+    opacity: 0.6;
     cursor: default;
   }
 
-  /* ── Legend ── */
-  .legend-bar {
+  /* ======== LEGEND ======== */
+  .legend {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 24px;
-    border-top: 1px solid var(--border);
-    background: rgba(15, 10, 26, 0.5);
+    justify-content: center;
     flex-wrap: wrap;
-    flex-shrink: 0;
+    gap: 14px 20px;
+    margin-top: 16px;
+    padding: 12px 20px;
+    border: 1px solid var(--ink-faint);
+    border-radius: 4px;
+    background: rgba(59,36,21,0.015);
+    max-width: 820px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .legend-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 5px;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid transparent;
-    background: transparent;
-    font-family: inherit;
-  }
-
-  .legend-item:hover {
-    background: rgba(255,255,255,0.04);
-    color: var(--text);
-  }
-
-  .legend-item:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
-
-  .legend-item.highlighted {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-    color: var(--text);
+    gap: 7px;
+    font-size: 0.73rem;
+    font-style: italic;
   }
 
   .legend-swatch {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
+    width: 16px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid var(--ink-faint);
     flex-shrink: 0;
   }
 
   .legend-dot {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
   }
 
-  .legend-show-all {
-    margin-left: auto;
-    padding: 4px 10px;
-    border-radius: 5px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text-dim);
-    font-size: 0.68rem;
-    font-weight: 500;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
+  /* ======== MISCHIEF MANAGED ======== */
+  .mischief-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--parchment);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .mischief-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .mischief-text {
+    font-family: 'IM Fell English', Georgia, serif;
+    font-style: italic;
+    font-size: 1.6rem;
+    color: var(--ink-light);
+    letter-spacing: 0.1em;
+    opacity: 0;
+    transition: opacity 0.5s ease 0.3s;
+  }
+  .mischief-overlay.active .mischief-text {
+    opacity: 1;
   }
 
-  .legend-show-all:hover { color: var(--text); background: rgba(255,255,255,0.04); }
-  .legend-show-all:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
-
-  /* ── Responsive: stack panel below on narrow viewports ── */
-  @media (max-width: 720px) {
-    :root { --panel-width: 100%; }
-
-    .main-content {
-      flex-direction: column;
-    }
-
-    .info-panel-wrapper {
-      width: 100% !important;
-      height: 0;
-      border-left: none;
-      border-top: 1px solid transparent;
-      transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .info-panel-wrapper.open {
-      height: 380px;
-      border-top-color: var(--border);
-    }
-
-    .info-panel {
-      width: 100%;
-      height: 380px;
-    }
-
-    .header { padding: 12px 16px; }
-    .zone-selector { padding: 8px 16px; }
-    .map-area { padding: 12px; }
-    .legend-bar { padding: 8px 16px; }
+  /* ======== FOOTER ======== */
+  .footer {
+    text-align: center;
+    margin-top: 16px;
+    padding-bottom: 16px;
+    font-size: 0.65rem;
+    font-style: italic;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
   }
 
-  /* ── Pulse click animation ── */
-  @keyframes zone-click-pulse {
-    0% { r: 0; opacity: 0.6; }
-    100% { r: 60; opacity: 0; }
-  }
-
-  .click-pulse {
-    animation: zone-click-pulse 0.6s ease-out forwards;
-  }
-
-  /* ── High contrast mode ── */
-  @media (forced-colors: active) {
-    .zone-bg { stroke-width: 3; }
-    .zone-label { fill: CanvasText; }
-  }
-
-  /* ── Visually hidden (screen reader only) ── */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0,0,0,0);
-    white-space: nowrap;
-    border: 0;
+  /* ======== RESPONSIVE ======== */
+  @media (max-width: 600px) {
+    .header-title { font-size: 1.2rem; }
+    .info-panel { width: 280px; padding: 18px 16px; }
+    .legend { gap: 8px 14px; padding: 10px 14px; }
   }
 </style>
 </head>
 <body>
 
-<div class="app">
-  <!-- Header -->
-  <header class="header" role="banner">
-    <div class="header-left">
-      <h1><span class="accent">93 Diagon Alley</span></h1>
-      <div class="subtitle">Weasleys' Wizard Wheezes &middot; Floor Management System</div>
+<div class="container">
+  <!-- HEADER -->
+  <div class="header" id="headerArea">
+    <div class="header-oath">I solemnly swear that I am up to no good</div>
+    <div class="header-title">THE MARAUDER'S MAP &mdash; 93 Diagon Alley</div>
+    <div class="header-subtitle">Weasleys' Wizard Wheezes Floor Management</div>
+    <div class="header-line"></div>
+  </div>
+
+  <!-- MAP -->
+  <div class="map-wrapper" id="mapWrapper">
+    <svg class="map-svg" id="mapSvg" viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Ink roughness filter -->
+        <filter id="inkRough" x="-2%" y="-2%" width="104%" height="104%">
+          <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="4" result="noise"/>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.2" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <filter id="inkRoughText" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="2" result="noise"/>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.6" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+
+        <!-- Customer path -->
+        <path id="customerPath" d="
+          M 400,540
+          L 400,460
+          C 400,440 300,430 240,400
+          L 180,340
+          L 180,260
+          L 250,220
+          L 400,220
+          L 400,300
+          L 550,300
+          L 620,260
+          L 620,340
+          L 550,400
+          L 400,420
+          L 400,460
+        " fill="none"/>
+      </defs>
+
+      <!-- Background parchment -->
+      <rect width="800" height="560" fill="var(--parchment)" rx="2"/>
+
+      <!-- Store outline -->
+      <rect x="40" y="30" width="720" height="500" rx="6" ry="6"
+        fill="none" stroke="var(--ink)" stroke-width="2" filter="url(#inkRough)" opacity="0.7"/>
+
+      <!-- Inner border decorative -->
+      <rect x="48" y="38" width="704" height="484" rx="4" ry="4"
+        fill="none" stroke="var(--ink)" stroke-width="0.5" opacity="0.2"
+        stroke-dasharray="8,4"/>
+
+      <!-- ====== ZONES ====== -->
+
+      <!-- R&D Lab (top left) -->
+      <g class="zone-area" role="button" tabindex="0" aria-label="The Laboratory - Experiments active"
+         aria-pressed="false" data-zone="lab" id="zone-lab">
+        <rect class="zone-fill" x="55" y="45" width="280" height="165" rx="4"
+          fill="#9B59B6" opacity="0.1"/>
+        <rect class="zone-border" x="55" y="45" width="280" height="165" rx="4"
+          fill="none" stroke="var(--ink)" stroke-width="1.2" filter="url(#inkRough)" opacity="0.5"/>
+        <!-- Lab bench -->
+        <line x1="90" y1="110" x2="200" y2="110" stroke="var(--ink)" stroke-width="0.8" opacity="0.3"/>
+        <line x1="90" y1="140" x2="200" y2="140" stroke="var(--ink)" stroke-width="0.8" opacity="0.3"/>
+        <rect x="230" y="80" width="60" height="40" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.6" opacity="0.25"/>
+        <!-- RESTRICTED stamp -->
+        <text x="195" y="178" font-family="'IM Fell English SC', Georgia, serif" font-size="16"
+          fill="var(--red-ink)" opacity="0.45" transform="rotate(-8, 195, 178)"
+          letter-spacing="0.15em" filter="url(#inkRoughText)">RESTRICTED</text>
+        <!-- Label -->
+        <text class="zone-label" x="195" y="90" font-family="'IM Fell English', Georgia, serif"
+          font-size="14" font-style="italic" fill="var(--ink)" text-anchor="middle"
+          filter="url(#inkRoughText)">The Laboratory</text>
+      </g>
+
+      <!-- Storage Room (top right) -->
+      <g class="zone-area" role="button" tabindex="0" aria-label="Storage - Restocking needed"
+         aria-pressed="false" data-zone="storage" id="zone-storage">
+        <rect class="zone-fill" x="365" y="45" width="280" height="165" rx="4"
+          fill="#3498DB" opacity="0.08"/>
+        <rect class="zone-border" x="365" y="45" width="280" height="165" rx="4"
+          fill="none" stroke="var(--ink)" stroke-width="1.2" filter="url(#inkRough)" opacity="0.5"/>
+        <!-- Crates -->
+        <rect x="400" y="80" width="35" height="28" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <rect x="445" y="80" width="35" height="28" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <rect x="490" y="80" width="35" height="28" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <rect x="400" y="120" width="35" height="28" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <rect x="445" y="120" width="35" height="28" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <rect x="560" y="90" width="50" height="50" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.7" opacity="0.2"/>
+        <!-- Label -->
+        <text class="zone-label" x="505" y="180" font-family="'IM Fell English', Georgia, serif"
+          font-size="14" font-style="italic" fill="var(--ink)" text-anchor="middle"
+          filter="url(#inkRoughText)">Storage</text>
+      </g>
+
+      <!-- Candy Aisle (left) -->
+      <g class="zone-area" role="button" tabindex="0" aria-label="Candy Aisle - Fully stocked"
+         aria-pressed="false" data-zone="candy" id="zone-candy">
+        <rect class="zone-fill" x="55" y="235" width="210" height="190" rx="4"
+          fill="#E74C8B" opacity="0.08"/>
+        <rect class="zone-border" x="55" y="235" width="210" height="190" rx="4"
+          fill="none" stroke="var(--ink)" stroke-width="1.2" filter="url(#inkRough)" opacity="0.5"/>
+        <!-- Shelves -->
+        <line x1="80" y1="280" x2="230" y2="280" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <line x1="80" y1="310" x2="230" y2="310" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <line x1="80" y1="340" x2="230" y2="340" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <line x1="80" y1="370" x2="230" y2="370" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <!-- Labels -->
+        <text class="zone-label" x="160" y="266" font-family="'IM Fell English', Georgia, serif"
+          font-size="14" font-style="italic" fill="var(--ink)" text-anchor="middle"
+          filter="url(#inkRoughText)">Candy Aisle</text>
+        <text x="160" y="405" font-family="'IM Fell English', Georgia, serif"
+          font-size="9" font-style="italic" fill="var(--ink)" text-anchor="middle" opacity="0.4">Sweets &amp; Edibles</text>
+      </g>
+
+      <!-- Prank Shelf (right) -->
+      <g class="zone-area" role="button" tabindex="0" aria-label="Prank Shelf - Fully stocked"
+         aria-pressed="false" data-zone="prank" id="zone-prank">
+        <rect class="zone-fill" x="535" y="235" width="210" height="190" rx="4"
+          fill="#E67E22" opacity="0.08"/>
+        <rect class="zone-border" x="535" y="235" width="210" height="190" rx="4"
+          fill="none" stroke="var(--ink)" stroke-width="1.2" filter="url(#inkRough)" opacity="0.5"/>
+        <!-- Shelves -->
+        <line x1="560" y1="280" x2="715" y2="280" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <line x1="560" y1="310" x2="715" y2="310" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <line x1="560" y1="340" x2="715" y2="340" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <line x1="560" y1="370" x2="715" y2="370" stroke="var(--ink)" stroke-width="0.7" opacity="0.25"/>
+        <!-- Labels -->
+        <text class="zone-label" x="640" y="266" font-family="'IM Fell English', Georgia, serif"
+          font-size="14" font-style="italic" fill="var(--ink)" text-anchor="middle"
+          filter="url(#inkRoughText)">Prank Shelf</text>
+        <text x="640" y="405" font-family="'IM Fell English', Georgia, serif"
+          font-size="9" font-style="italic" fill="var(--ink)" text-anchor="middle" opacity="0.4">Jokes &amp; Tricks</text>
+      </g>
+
+      <!-- Display Window Left -->
+      <g class="zone-area" role="button" tabindex="0" aria-label="Window Display - Rotation Tuesday"
+         aria-pressed="false" data-zone="display" id="zone-display-l">
+        <rect class="zone-fill" x="55" y="450" width="150" height="70" rx="4"
+          fill="#1ABC9C" opacity="0.08"/>
+        <rect class="zone-border" x="55" y="450" width="150" height="70" rx="4"
+          fill="none" stroke="var(--ink)" stroke-width="1.2" filter="url(#inkRough)" opacity="0.5"/>
+        <!-- Window lines -->
+        <line x1="70" y1="470" x2="190" y2="470" stroke="var(--ink)" stroke-width="0.5" opacity="0.2"/>
+        <line x1="70" y1="500" x2="190" y2="500" stroke="var(--ink)" stroke-width="0.5" opacity="0.2"/>
+        <text class="zone-label" x="130" y="490" font-family="'IM Fell English', Georgia, serif"
+          font-size="11" font-style="italic" fill="var(--ink)" text-anchor="middle"
+          filter="url(#inkRoughText)">Window Display</text>
+      </g>
+
+      <!-- Display Window Right -->
+      <g class="zone-area" role="button" tabindex="0" aria-label="Window Display - Rotation Tuesday"
+         aria-pressed="false" data-zone="display" id="zone-display-r">
+        <rect class="zone-fill" x="595" y="450" width="150" height="70" rx="4"
+          fill="#1ABC9C" opacity="0.08"/>
+        <rect class="zone-border" x="595" y="450" width="150" height="70" rx="4"
+          fill="none" stroke="var(--ink)" stroke-width="1.2" filter="url(#inkRough)" opacity="0.5"/>
+        <line x1="610" y1="470" x2="730" y2="470" stroke="var(--ink)" stroke-width="0.5" opacity="0.2"/>
+        <line x1="610" y1="500" x2="730" y2="500" stroke="var(--ink)" stroke-width="0.5" opacity="0.2"/>
+        <text class="zone-label" x="670" y="490" font-family="'IM Fell English', Georgia, serif"
+          font-size="11" font-style="italic" fill="var(--ink)" text-anchor="middle"
+          filter="url(#inkRoughText)">Window Display</text>
+      </g>
+
+      <!-- Checkout Counter (bottom center) -->
+      <g class="zone-area" role="button" tabindex="0" aria-label="Checkout - Open, 47 orders today"
+         aria-pressed="false" data-zone="checkout" id="zone-checkout">
+        <ellipse class="zone-fill" cx="400" cy="470" rx="120" ry="45"
+          fill="#27AE60" opacity="0.08"/>
+        <ellipse class="zone-border" cx="400" cy="470" rx="120" ry="45"
+          fill="none" stroke="var(--ink)" stroke-width="1.2" filter="url(#inkRough)" opacity="0.5"/>
+        <!-- Counter -->
+        <path d="M 340,465 Q 400,440 460,465" fill="none" stroke="var(--ink)" stroke-width="1" opacity="0.35"/>
+        <text class="zone-label" x="400" y="478" font-family="'IM Fell English', Georgia, serif"
+          font-size="13" font-style="italic" fill="var(--ink)" text-anchor="middle"
+          filter="url(#inkRoughText)">Checkout</text>
+      </g>
+
+      <!-- Main Aisle (dotted path) -->
+      <line x1="400" y1="215" x2="400" y2="440" stroke="var(--ink)" stroke-width="0.8"
+        stroke-dasharray="6,4" opacity="0.2"/>
+      <text x="412" y="330" font-family="'IM Fell English', Georgia, serif"
+        font-size="8" font-style="italic" fill="var(--ink)" opacity="0.3"
+        transform="rotate(-90,412,330)">Main Aisle</text>
+
+      <!-- Cross aisle -->
+      <line x1="270" y1="330" x2="530" y2="330" stroke="var(--ink)" stroke-width="0.6"
+        stroke-dasharray="4,4" opacity="0.15"/>
+
+      <!-- Doors between zones -->
+      <!-- Lab to Candy -->
+      <rect x="170" y="206" width="30" height="6" rx="1" fill="var(--parchment)" stroke="var(--ink)" stroke-width="0.8" opacity="0.4"/>
+      <!-- Lab to Storage -->
+      <rect x="338" y="100" width="6" height="30" rx="1" fill="var(--parchment)" stroke="var(--ink)" stroke-width="0.8" opacity="0.4"/>
+      <!-- Storage to Prank -->
+      <rect x="600" y="206" width="30" height="6" rx="1" fill="var(--parchment)" stroke="var(--ink)" stroke-width="0.8" opacity="0.4"/>
+
+      <!-- Entrance -->
+      <rect x="370" y="525" width="60" height="10" rx="2" fill="var(--parchment)"
+        stroke="var(--ink)" stroke-width="1.5" opacity="0.6"/>
+      <rect x="376" y="527" width="22" height="6" rx="1" fill="none" stroke="var(--ink)" stroke-width="0.6" opacity="0.3"/>
+      <rect x="402" y="527" width="22" height="6" rx="1" fill="none" stroke="var(--ink)" stroke-width="0.6" opacity="0.3"/>
+      <text x="400" y="550" font-family="'IM Fell English SC', Georgia, serif"
+        font-size="9" fill="var(--ink)" text-anchor="middle" opacity="0.5"
+        letter-spacing="0.15em">ENTRANCE</text>
+
+      <!-- ====== FOOTSTEPS ====== -->
+      <g id="footstepGroup">
+        <!-- Customer path (invisible, for reference) -->
+        <path id="walkPath" d="
+          M 400,530
+          L 400,460
+          L 300,400
+          L 180,340
+          L 180,280
+          L 250,240
+          L 400,240
+          L 400,330
+          L 530,330
+          L 620,280
+          L 620,340
+          L 530,400
+          L 400,430
+          L 400,460
+        " fill="none" stroke="none"/>
+
+        <g class="footstep-pair" style="offset-path: path('M 400,530 L 400,460 L 300,400 L 180,340 L 180,280 L 250,240 L 400,240 L 400,330 L 530,330 L 620,280 L 620,340 L 530,400 L 400,430 L 400,460'); animation: moveDot1 18s linear infinite;">
+          <circle class="footstep-left" cx="-3" cy="0" r="2.5"/>
+          <circle class="footstep-right" cx="3" cy="0" r="2.5"/>
+        </g>
+
+        <g class="footstep-pair" style="offset-path: path('M 400,530 L 400,460 L 300,400 L 180,340 L 180,280 L 250,240 L 400,240 L 400,330 L 530,330 L 620,280 L 620,340 L 530,400 L 400,430 L 400,460'); animation: moveDot2 24s linear infinite; animation-delay: -6s;">
+          <circle class="footstep-left" cx="-3" cy="0" r="2.2"/>
+          <circle class="footstep-right" cx="3" cy="0" r="2.2"/>
+        </g>
+
+        <g class="footstep-pair" style="offset-path: path('M 400,530 L 400,460 L 300,400 L 180,340 L 180,280 L 250,240 L 400,240 L 400,330 L 530,330 L 620,280 L 620,340 L 530,400 L 400,430 L 400,460'); animation: moveDot3 20s linear infinite; animation-delay: -10s;">
+          <circle class="footstep-left" cx="-3" cy="0" r="2"/>
+          <circle class="footstep-right" cx="3" cy="0" r="2"/>
+        </g>
+
+        <g class="footstep-pair" style="offset-path: path('M 400,530 L 400,460 L 300,400 L 180,340 L 180,280 L 250,240 L 400,240 L 400,330 L 530,330 L 620,280 L 620,340 L 530,400 L 400,430 L 400,460'); animation: moveDot4 28s linear infinite; animation-delay: -3s;">
+          <circle class="footstep-left" cx="-3" cy="0" r="2.3"/>
+          <circle class="footstep-right" cx="3" cy="0" r="2.3"/>
+        </g>
+
+        <g class="footstep-pair" style="offset-path: path('M 400,530 L 400,460 L 300,400 L 180,340 L 180,280 L 250,240 L 400,240 L 400,330 L 530,330 L 620,280 L 620,340 L 530,400 L 400,430 L 400,460'); animation: moveDot5 22s linear infinite; animation-delay: -14s;">
+          <circle class="footstep-left" cx="-3" cy="0" r="1.8"/>
+          <circle class="footstep-right" cx="3" cy="0" r="1.8"/>
+        </g>
+
+        <g class="footstep-pair" style="offset-path: path('M 400,530 L 400,460 L 300,400 L 180,340 L 180,280 L 250,240 L 400,240 L 400,330 L 530,330 L 620,280 L 620,340 L 530,400 L 400,430 L 400,460'); animation: moveDot6 26s linear infinite; animation-delay: -20s;">
+          <circle class="footstep-left" cx="-3" cy="0" r="2.1"/>
+          <circle class="footstep-right" cx="3" cy="0" r="2.1"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="btn-parchment" id="toggleFootsteps">Hide Customer Flow</button>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(231,76,139,0.15)"></div>
+      Candy Aisle
+      <div class="legend-dot status-dot green"></div>
     </div>
-    <div class="header-right">
-      <div class="header-clock" id="clock" aria-live="off"></div>
-      <div class="store-status" role="status" aria-label="Store status: All systems operational">
-        <div class="pulse-dot"></div>
-        All Systems Operational
-      </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(230,126,34,0.15)"></div>
+      Prank Shelf
+      <div class="legend-dot status-dot green"></div>
     </div>
-  </header>
-
-  <!-- Zone selector breadcrumbs -->
-  <nav class="zone-selector" role="navigation" aria-label="Zone quick navigation">
-    <button class="zone-btn" data-zone="candy" aria-label="Candy Aisle, status: fully stocked">
-      <span class="dot" style="background:var(--green)"></span>Candy Aisle
-    </button>
-    <button class="zone-btn" data-zone="prank" aria-label="Prank Shelf, status: fully stocked">
-      <span class="dot" style="background:var(--green)"></span>Prank Shelf
-    </button>
-    <button class="zone-btn" data-zone="checkout" aria-label="Checkout Counter, status: open">
-      <span class="dot" style="background:var(--green)"></span>Checkout
-    </button>
-    <button class="zone-btn" data-zone="rdlab" aria-label="R&D Lab, status: caution">
-      <span class="dot" style="background:var(--red)"></span>R&D Lab
-    </button>
-    <button class="zone-btn" data-zone="display" aria-label="Display Window, status: rotation pending">
-      <span class="dot" style="background:var(--amber)"></span>Display
-    </button>
-    <button class="zone-btn" data-zone="storage" aria-label="Storage Room, status: restocking">
-      <span class="dot" style="background:var(--amber)"></span>Storage
-    </button>
-    <button class="flow-toggle" id="flowToggle" aria-pressed="false" aria-label="Toggle customer flow visualization">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      Customer Flow
-    </button>
-  </nav>
-
-  <!-- Main area: map + slide-in panel -->
-  <div class="main-content">
-    <div class="map-area">
-      <div class="floor-wrapper">
-        <svg class="floor-svg" viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Interactive floor plan of Weasleys' Wizard Wheezes shop at 93 Diagon Alley">
-          <title>Shop floor plan with 6 interactive zones</title>
-
-          <!-- Defs -->
-          <defs>
-            <!-- Grid pattern -->
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.018)" stroke-width="1"/>
-            </pattern>
-
-            <!-- Isometric-ish gradient fills for depth -->
-            <linearGradient id="grad-candy" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ec4899" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="#ec4899" stop-opacity="0.12"/>
-            </linearGradient>
-            <linearGradient id="grad-prank" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#f97316" stop-opacity="0.28"/>
-              <stop offset="100%" stop-color="#f97316" stop-opacity="0.1"/>
-            </linearGradient>
-            <linearGradient id="grad-checkout" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#10b981" stop-opacity="0.32"/>
-              <stop offset="100%" stop-color="#10b981" stop-opacity="0.12"/>
-            </linearGradient>
-            <linearGradient id="grad-rdlab" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="#7c3aed" stop-opacity="0.12"/>
-            </linearGradient>
-            <linearGradient id="grad-display" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.28"/>
-              <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.1"/>
-            </linearGradient>
-            <linearGradient id="grad-storage" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
-              <stop offset="100%" stop-color="#6366f1" stop-opacity="0.1"/>
-            </linearGradient>
-
-            <!-- R&D Lab animated glow filter -->
-            <filter id="rdlab-glow-filter" x="-20%" y="-20%" width="140%" height="140%">
-              <feFlood flood-color="#7c3aed" class="rdlab-glow" flood-opacity="0.2" result="glow"/>
-              <feGaussianBlur in="glow" stdDeviation="8" result="blur"/>
-              <feMerge>
-                <feMergeNode in="blur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-
-            <!-- Hazard stripe pattern -->
-            <pattern id="hazard" width="12" height="6" patternUnits="userSpaceOnUse">
-              <rect width="12" height="6" fill="#7c3aed" fill-opacity="0.25"/>
-              <polygon points="0,6 6,0 12,6" fill="#facc15" fill-opacity="0.3"/>
-            </pattern>
-
-            <!-- Customer flow path -->
-            <path id="customerFlowPath" d="M 400,545 L 400,490 Q 400,460 370,440 L 160,440 Q 120,440 100,400 L 100,320 Q 100,260 160,240 L 300,240 Q 340,240 380,240 L 500,240 Q 540,240 580,260 L 650,300 Q 680,320 680,360 L 680,440 Q 680,460 640,470 L 520,470 Q 500,470 480,460 L 420,440 Q 400,430 400,410" fill="none"/>
-          </defs>
-
-          <!-- Background floor -->
-          <rect x="20" y="20" width="760" height="520" rx="12" fill="#140e24" stroke="#2a1f40" stroke-width="2"/>
-          <rect x="20" y="20" width="760" height="520" rx="12" fill="url(#grid)"/>
-
-          <!-- Subtle floor shadow edges for depth -->
-          <rect x="20" y="20" width="760" height="520" rx="12" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="4" filter="url(#floor-shadow)"/>
-          <defs>
-            <filter id="floor-shadow">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-              <feOffset dx="0" dy="2"/>
-              <feComposite in2="SourceAlpha" operator="out"/>
-            </filter>
-          </defs>
-
-          <!-- ═══════ Customer Flow Path ═══════ -->
-          <g class="flow-path" id="flowPath">
-            <!-- Path line -->
-            <use href="#customerFlowPath" stroke="rgba(192, 132, 252, 0.15)" stroke-width="2" stroke-dasharray="8,6"/>
-
-            <!-- Animated dots along path -->
-            <circle r="3" fill="var(--purple)" opacity="0.8" class="flow-dot">
-              <animateMotion dur="8s" repeatCount="indefinite">
-                <mpath href="#customerFlowPath"/>
-              </animateMotion>
-            </circle>
-            <circle r="3" fill="var(--purple)" opacity="0.6" class="flow-dot-2">
-              <animateMotion dur="8s" repeatCount="indefinite" begin="-2.6s">
-                <mpath href="#customerFlowPath"/>
-              </animateMotion>
-            </circle>
-            <circle r="3" fill="var(--purple)" opacity="0.4" class="flow-dot-3">
-              <animateMotion dur="8s" repeatCount="indefinite" begin="-5.3s">
-                <mpath href="#customerFlowPath"/>
-              </animateMotion>
-            </circle>
-
-            <!-- Flow direction labels -->
-            <text x="400" y="555" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" fill="rgba(192,132,252,0.4)" letter-spacing="0.1em">ENTRANCE</text>
-            <text x="100" y="310" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6" fill="rgba(192,132,252,0.3)" transform="rotate(-90 100 310)">BROWSE</text>
-          </g>
-
-          <!-- ═══════ R&D LAB (top-left, irregular shape) ═══════ -->
-          <g class="zone-group" data-zone="rdlab" role="button" tabindex="0" aria-label="R&D Lab. Status: Caution, unstable experiments. 3 active experiments." filter="url(#rdlab-glow-filter)">
-            <rect class="zone-bg" x="40" y="40" width="355" height="165" rx="10" fill="url(#grad-rdlab)" stroke="#7c3aed" stroke-opacity="0.5" stroke-width="1.5"/>
-            <!-- Hazard stripe top -->
-            <rect x="40" y="40" width="355" height="5" rx="3" fill="url(#hazard)" fill-opacity="0.6"/>
-            <!-- Interior details: lab benches -->
-            <line x1="70" y1="80" x2="200" y2="80" class="shelf-line" stroke="#7c3aed"/>
-            <line x1="70" y1="100" x2="200" y2="100" class="shelf-line" stroke="#7c3aed"/>
-            <line x1="240" y1="80" x2="370" y2="80" class="shelf-line" stroke="#7c3aed"/>
-            <line x1="240" y1="100" x2="370" y2="100" class="shelf-line" stroke="#7c3aed"/>
-            <rect x="70" y="150" width="60" height="35" rx="4" fill="rgba(124,58,237,0.08)" stroke="#7c3aed" stroke-opacity="0.12"/>
-            <rect x="310" y="150" width="60" height="35" rx="4" fill="rgba(124,58,237,0.08)" stroke="#7c3aed" stroke-opacity="0.12"/>
-            <!-- Icon: flask -->
-            <g class="zone-icon" transform="translate(195, 130)">
-              <path d="M-6,-12 L-6,-4 L-14,10 Q-15,12 -13,14 L13,14 Q15,12 14,10 L6,-4 L6,-12 Z" fill="none" stroke="#7c3aed" stroke-width="1.2"/>
-              <line x1="-4" y1="-12" x2="4" y2="-12" stroke="#7c3aed" stroke-width="1.2"/>
-              <circle cx="-3" cy="6" r="2" fill="#7c3aed" opacity="0.4"/>
-              <circle cx="4" cy="9" r="1.5" fill="#7c3aed" opacity="0.3"/>
-            </g>
-            <!-- Labels -->
-            <text class="zone-label" x="215" y="120" text-anchor="middle" font-size="15">R&amp;D Lab</text>
-            <text class="zone-sublabel" x="215" y="138" text-anchor="middle">AUTHORIZED PERSONNEL ONLY</text>
-            <!-- Status indicator -->
-            <g class="status-indicator" transform="translate(370, 55)">
-              <circle class="status-ring" r="8" fill="none" stroke="var(--red)" stroke-width="1"/>
-              <circle r="4" fill="var(--red)"/>
-            </g>
-            <!-- Metric badge -->
-            <g class="zone-metric" transform="translate(60, 190)">
-              <rect class="zone-metric-bg" x="0" y="-10" width="78" height="16" rx="4"/>
-              <text class="zone-metric-text" x="6" y="1" data-metric="rdlab">3 experiments</text>
-            </g>
-          </g>
-
-          <!-- ═══════ STORAGE (top-right) ═══════ -->
-          <g class="zone-group" data-zone="storage" role="button" tabindex="0" aria-label="Storage Room. Status: Restocking in progress. 78% capacity.">
-            <rect class="zone-bg" x="415" y="40" width="345" height="165" rx="10" fill="url(#grad-storage)" stroke="#6366f1" stroke-opacity="0.4" stroke-width="1.5"/>
-            <!-- Crate outlines -->
-            <rect x="435" y="60" width="50" height="35" rx="3" fill="rgba(99,102,241,0.06)" stroke="#6366f1" stroke-opacity="0.12"/>
-            <rect x="495" y="60" width="50" height="35" rx="3" fill="rgba(99,102,241,0.06)" stroke="#6366f1" stroke-opacity="0.12"/>
-            <rect x="555" y="60" width="50" height="35" rx="3" fill="rgba(99,102,241,0.06)" stroke="#6366f1" stroke-opacity="0.12"/>
-            <rect x="435" y="105" width="50" height="35" rx="3" fill="rgba(99,102,241,0.06)" stroke="#6366f1" stroke-opacity="0.12"/>
-            <rect x="495" y="105" width="50" height="35" rx="3" fill="rgba(99,102,241,0.06)" stroke="#6366f1" stroke-opacity="0.12"/>
-            <!-- Shelf lines -->
-            <line x1="640" y1="60" x2="740" y2="60" class="shelf-line" stroke="#6366f1"/>
-            <line x1="640" y1="80" x2="740" y2="80" class="shelf-line" stroke="#6366f1"/>
-            <line x1="640" y1="100" x2="740" y2="100" class="shelf-line" stroke="#6366f1"/>
-            <line x1="640" y1="120" x2="740" y2="120" class="shelf-line" stroke="#6366f1"/>
-            <line x1="640" y1="140" x2="740" y2="140" class="shelf-line" stroke="#6366f1"/>
-            <!-- Icon: box -->
-            <g class="zone-icon" transform="translate(585, 148)">
-              <rect x="-10" y="-8" width="20" height="16" rx="2" fill="none" stroke="#6366f1" stroke-width="1.2"/>
-              <line x1="-10" y1="-3" x2="10" y2="-3" stroke="#6366f1" stroke-width="1"/>
-              <line x1="0" y1="-8" x2="0" y2="8" stroke="#6366f1" stroke-width="0.8"/>
-            </g>
-            <!-- Labels -->
-            <text class="zone-label" x="587" y="120" text-anchor="middle" font-size="15">Storage Room</text>
-            <text class="zone-sublabel" x="587" y="138" text-anchor="middle">INVENTORY</text>
-            <!-- Status -->
-            <g class="status-indicator" transform="translate(735, 55)">
-              <circle class="status-ring" r="8" fill="none" stroke="var(--amber)" stroke-width="1"/>
-              <circle r="4" fill="var(--amber)"/>
-            </g>
-            <!-- Metric -->
-            <g class="zone-metric" transform="translate(435, 190)">
-              <rect class="zone-metric-bg" x="0" y="-10" width="76" height="16" rx="4"/>
-              <text class="zone-metric-text" x="6" y="1" data-metric="storage">78% capacity</text>
-            </g>
-          </g>
-
-          <!-- Door between R&D and main floor -->
-          <rect x="170" y="198" width="45" height="8" rx="4" fill="rgba(255,255,255,0.06)"/>
-          <text x="192" y="218" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6.5" fill="rgba(255,255,255,0.08)" letter-spacing="0.05em">DOOR</text>
-
-          <!-- Door between Storage and main floor -->
-          <rect x="575" y="198" width="45" height="8" rx="4" fill="rgba(255,255,255,0.06)"/>
-          <text x="597" y="218" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="6.5" fill="rgba(255,255,255,0.08)" letter-spacing="0.05em">DOOR</text>
-
-          <!-- Center aisle -->
-          <rect x="292" y="222" width="216" height="200" rx="4" fill="rgba(255,255,255,0.008)"/>
-          <line x1="400" y1="235" x2="400" y2="408" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="6,6"/>
-          <text x="400" y="326" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="rgba(255,255,255,0.08)" letter-spacing="0.15em">MAIN AISLE</text>
-
-          <!-- ═══════ CANDY AISLE (left) ═══════ -->
-          <g class="zone-group" data-zone="candy" role="button" tabindex="0" aria-label="Candy Aisle. Status: Fully stocked. 234 units in stock.">
-            <rect class="zone-bg" x="40" y="222" width="245" height="200" rx="10" fill="url(#grad-candy)" stroke="#ec4899" stroke-opacity="0.45" stroke-width="1.5"/>
-            <!-- Shelves -->
-            <line x1="60" y1="258" x2="265" y2="258" class="shelf-line" stroke="#ec4899"/>
-            <line x1="60" y1="280" x2="265" y2="280" class="shelf-line" stroke="#ec4899"/>
-            <line x1="60" y1="302" x2="265" y2="302" class="shelf-line" stroke="#ec4899"/>
-            <line x1="60" y1="355" x2="265" y2="355" class="shelf-line" stroke="#ec4899"/>
-            <line x1="60" y1="377" x2="265" y2="377" class="shelf-line" stroke="#ec4899"/>
-            <line x1="60" y1="399" x2="265" y2="399" class="shelf-line" stroke="#ec4899"/>
-            <!-- Center display table -->
-            <ellipse cx="162" cy="330" rx="35" ry="16" fill="rgba(236,72,153,0.06)" stroke="#ec4899" stroke-opacity="0.12"/>
-            <!-- Icon: candy/lollipop -->
-            <g class="zone-icon" transform="translate(162, 326)">
-              <circle cx="0" cy="-6" r="6" fill="none" stroke="#ec4899" stroke-width="1.2"/>
-              <line x1="0" y1="0" x2="0" y2="12" stroke="#ec4899" stroke-width="1.2"/>
-              <path d="M-4,-8 Q0,-2 4,-8" fill="none" stroke="#ec4899" stroke-width="0.8" opacity="0.5"/>
-            </g>
-            <!-- Labels -->
-            <text class="zone-label" x="162" y="312" text-anchor="middle" font-size="15">Candy Aisle</text>
-            <text class="zone-sublabel" x="162" y="330" text-anchor="middle">SWEETS &amp; EDIBLES</text>
-            <!-- Status -->
-            <g class="status-indicator" transform="translate(260, 237)">
-              <circle class="status-ring" r="8" fill="none" stroke="var(--green)" stroke-width="1"/>
-              <circle r="4" fill="var(--green)"/>
-            </g>
-            <!-- Metric -->
-            <g class="zone-metric" transform="translate(60, 412)">
-              <rect class="zone-metric-bg" x="0" y="-10" width="62" height="16" rx="4"/>
-              <text class="zone-metric-text" x="6" y="1" data-metric="candy">234 units</text>
-            </g>
-          </g>
-
-          <!-- ═══════ PRANK SHELF (right) ═══════ -->
-          <g class="zone-group" data-zone="prank" role="button" tabindex="0" aria-label="Prank Shelf. Status: Fully stocked. 187 units in stock.">
-            <rect class="zone-bg" x="515" y="222" width="245" height="200" rx="10" fill="url(#grad-prank)" stroke="#f97316" stroke-opacity="0.45" stroke-width="1.5"/>
-            <!-- Shelves -->
-            <line x1="535" y1="258" x2="740" y2="258" class="shelf-line" stroke="#f97316"/>
-            <line x1="535" y1="280" x2="740" y2="280" class="shelf-line" stroke="#f97316"/>
-            <line x1="535" y1="302" x2="740" y2="302" class="shelf-line" stroke="#f97316"/>
-            <line x1="535" y1="355" x2="740" y2="355" class="shelf-line" stroke="#f97316"/>
-            <line x1="535" y1="377" x2="740" y2="377" class="shelf-line" stroke="#f97316"/>
-            <line x1="535" y1="399" x2="740" y2="399" class="shelf-line" stroke="#f97316"/>
-            <!-- Display stand -->
-            <rect x="610" y="316" width="40" height="24" rx="4" fill="rgba(249,115,22,0.06)" stroke="#f97316" stroke-opacity="0.12"/>
-            <!-- Icon: wand/sparkle -->
-            <g class="zone-icon" transform="translate(637, 310)">
-              <line x1="0" y1="-10" x2="0" y2="10" stroke="#f97316" stroke-width="1.2"/>
-              <line x1="-3" y1="-7" x2="3" y2="-7" stroke="#f97316" stroke-width="0.8"/>
-              <circle cx="0" cy="-12" r="2" fill="#f97316" opacity="0.4"/>
-              <path d="M-2,-14 L0,-16 L2,-14" fill="none" stroke="#f97316" stroke-width="0.7" opacity="0.4"/>
-            </g>
-            <!-- Labels -->
-            <text class="zone-label" x="637" y="312" text-anchor="middle" font-size="15">Prank Shelf</text>
-            <text class="zone-sublabel" x="637" y="330" text-anchor="middle">JOKES &amp; TRICKS</text>
-            <!-- Status -->
-            <g class="status-indicator" transform="translate(735, 237)">
-              <circle class="status-ring" r="8" fill="none" stroke="var(--green)" stroke-width="1"/>
-              <circle r="4" fill="var(--green)"/>
-            </g>
-            <!-- Metric -->
-            <g class="zone-metric" transform="translate(535, 412)">
-              <rect class="zone-metric-bg" x="0" y="-10" width="62" height="16" rx="4"/>
-              <text class="zone-metric-text" x="6" y="1" data-metric="prank">187 units</text>
-            </g>
-          </g>
-
-          <!-- ═══════ DISPLAY WINDOWS (bottom flanks) ═══════ -->
-          <g class="zone-group" data-zone="display" role="button" tabindex="0" aria-label="Display Windows. Status: Rotation scheduled Tuesday. Currently featuring Wildfire Whiz-Bangs.">
-            <!-- Left display -->
-            <rect class="zone-bg" x="40" y="440" width="225" height="85" rx="10" fill="url(#grad-display)" stroke="#06b6d4" stroke-opacity="0.4" stroke-width="1.5"/>
-            <!-- Window pane lines -->
-            <line x1="100" y1="445" x2="100" y2="520" stroke="#06b6d4" stroke-opacity="0.08"/>
-            <line x1="160" y1="445" x2="160" y2="520" stroke="#06b6d4" stroke-opacity="0.08"/>
-            <line x1="220" y1="445" x2="220" y2="520" stroke="#06b6d4" stroke-opacity="0.08"/>
-            <!-- Icon: star/display -->
-            <g class="zone-icon" transform="translate(152, 476)">
-              <polygon points="0,-8 2,-3 8,-3 3,1 5,7 0,3 -5,7 -3,1 -8,-3 -2,-3" fill="none" stroke="#06b6d4" stroke-width="1"/>
-            </g>
-            <text class="zone-label" x="152" y="480" text-anchor="middle" font-size="13">Display Window</text>
-            <text class="zone-sublabel" x="152" y="496" text-anchor="middle">FEATURED</text>
-
-            <!-- Right display -->
-            <rect class="zone-bg" x="535" y="440" width="225" height="85" rx="10" fill="url(#grad-display)" stroke="#06b6d4" stroke-opacity="0.4" stroke-width="1.5"/>
-            <line x1="595" y1="445" x2="595" y2="520" stroke="#06b6d4" stroke-opacity="0.08"/>
-            <line x1="655" y1="445" x2="655" y2="520" stroke="#06b6d4" stroke-opacity="0.08"/>
-            <line x1="715" y1="445" x2="715" y2="520" stroke="#06b6d4" stroke-opacity="0.08"/>
-            <g class="zone-icon" transform="translate(647, 476)">
-              <polygon points="0,-8 2,-3 8,-3 3,1 5,7 0,3 -5,7 -3,1 -8,-3 -2,-3" fill="none" stroke="#06b6d4" stroke-width="1"/>
-            </g>
-            <text class="zone-label" x="647" y="480" text-anchor="middle" font-size="13">Display Window</text>
-            <text class="zone-sublabel" x="647" y="496" text-anchor="middle">FEATURED</text>
-
-            <!-- Status -->
-            <g class="status-indicator" transform="translate(245, 452)">
-              <circle class="status-ring" r="8" fill="none" stroke="var(--amber)" stroke-width="1"/>
-              <circle r="4" fill="var(--amber)"/>
-            </g>
-          </g>
-
-          <!-- ═══════ CHECKOUT (bottom center) ═══════ -->
-          <g class="zone-group" data-zone="checkout" role="button" tabindex="0" aria-label="Checkout Counter. Status: Open for business. 47 orders today.">
-            <rect class="zone-bg" x="278" y="440" width="245" height="85" rx="10" fill="url(#grad-checkout)" stroke="#10b981" stroke-opacity="0.5" stroke-width="1.5"/>
-            <!-- Counter lines -->
-            <line x1="298" y1="465" x2="503" y2="465" class="counter-line" stroke="#10b981"/>
-            <line x1="298" y1="490" x2="503" y2="490" class="counter-line" stroke="#10b981"/>
-            <!-- Register positions -->
-            <rect x="330" y="472" width="18" height="14" rx="3" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-opacity="0.2"/>
-            <rect x="390" y="472" width="18" height="14" rx="3" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-opacity="0.2"/>
-            <rect x="450" y="472" width="18" height="14" rx="3" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-opacity="0.2"/>
-            <!-- Icon: register -->
-            <g class="zone-icon" transform="translate(400, 476)">
-              <rect x="-7" y="-5" width="14" height="10" rx="1.5" fill="none" stroke="#10b981" stroke-width="1"/>
-              <rect x="-5" y="-3" width="10" height="4" rx="1" fill="none" stroke="#10b981" stroke-width="0.7" opacity="0.5"/>
-              <rect x="-4" y="5" width="8" height="2" rx="1" fill="#10b981" opacity="0.3"/>
-            </g>
-            <!-- Labels -->
-            <text class="zone-label" x="400" y="480" text-anchor="middle" font-size="14">Checkout Counter</text>
-            <text class="zone-sublabel" x="400" y="498" text-anchor="middle">POINT OF SALE</text>
-            <!-- Status -->
-            <g class="status-indicator" transform="translate(498, 452)">
-              <circle class="status-ring" r="8" fill="none" stroke="var(--green)" stroke-width="1"/>
-              <circle r="4" fill="var(--green)"/>
-            </g>
-            <!-- Metric -->
-            <g class="zone-metric" transform="translate(298, 518)">
-              <rect class="zone-metric-bg" x="0" y="-10" width="82" height="16" rx="4"/>
-              <text class="zone-metric-text" x="6" y="1" data-metric="checkout">47 orders today</text>
-            </g>
-          </g>
-
-          <!-- Entrance -->
-          <rect x="368" y="530" width="64" height="10" rx="5" fill="rgba(192, 132, 252, 0.25)" stroke="var(--purple)" stroke-opacity="0.3" stroke-width="1"/>
-          <text x="400" y="550" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" fill="rgba(192,132,252,0.5)" letter-spacing="0.08em">ENTRANCE</text>
-
-          <!-- Click pulse container (added dynamically) -->
-          <g id="pulseContainer"></g>
-        </svg>
-      </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(155,89,182,0.15)"></div>
+      Laboratory
+      <div class="legend-dot status-dot red"></div>
     </div>
-
-    <!-- Slide-in Info Panel -->
-    <div class="info-panel-wrapper" id="panelWrapper" role="complementary" aria-label="Zone details panel">
-      <div class="info-panel" id="infoPanel">
-        <div class="info-header">
-          <div>
-            <div class="info-badge" id="infoBadge"></div>
-          </div>
-          <button class="info-close" id="infoClose" aria-label="Close zone details">&times;</button>
-        </div>
-        <h2 class="info-title" id="infoTitle"></h2>
-        <div class="info-status-row">
-          <div class="info-status-dot" id="infoStatusDot"></div>
-          <span class="info-status-label" id="infoStatusLabel"></span>
-        </div>
-        <p class="info-desc" id="infoDesc"></p>
-
-        <div class="info-section-label">Live Metrics</div>
-        <div class="info-metrics" id="infoMetrics"></div>
-
-        <div class="info-section-label">Key Products</div>
-        <div class="info-products" id="infoProducts"></div>
-
-        <button class="restock-btn" id="restockBtn" aria-label="Flag zone for restocking">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-          Flag for Restocking
-        </button>
-      </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(52,152,219,0.15)"></div>
+      Storage
+      <div class="legend-dot status-dot amber"></div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(39,174,96,0.15)"></div>
+      Checkout
+      <div class="legend-dot status-dot green"></div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(26,188,156,0.15)"></div>
+      Display
+      <div class="legend-dot status-dot amber"></div>
     </div>
   </div>
 
-  <!-- Interactive Legend -->
-  <footer class="legend-bar" role="navigation" aria-label="Zone legend">
-    <button class="legend-item" data-zone="candy" aria-label="Highlight Candy Aisle">
-      <span class="legend-swatch" style="background:var(--candy)"></span>
-      <span>Candy Aisle</span>
-      <span class="legend-dot" style="background:var(--green)"></span>
-    </button>
-    <button class="legend-item" data-zone="prank" aria-label="Highlight Prank Shelf">
-      <span class="legend-swatch" style="background:var(--prank)"></span>
-      <span>Prank Shelf</span>
-      <span class="legend-dot" style="background:var(--green)"></span>
-    </button>
-    <button class="legend-item" data-zone="checkout" aria-label="Highlight Checkout">
-      <span class="legend-swatch" style="background:var(--checkout)"></span>
-      <span>Checkout</span>
-      <span class="legend-dot" style="background:var(--green)"></span>
-    </button>
-    <button class="legend-item" data-zone="rdlab" aria-label="Highlight R&D Lab">
-      <span class="legend-swatch" style="background:var(--rdlab)"></span>
-      <span>R&amp;D Lab</span>
-      <span class="legend-dot" style="background:var(--red)"></span>
-    </button>
-    <button class="legend-item" data-zone="display" aria-label="Highlight Display Windows">
-      <span class="legend-swatch" style="background:var(--display)"></span>
-      <span>Display</span>
-      <span class="legend-dot" style="background:var(--amber)"></span>
-    </button>
-    <button class="legend-item" data-zone="storage" aria-label="Highlight Storage">
-      <span class="legend-swatch" style="background:var(--storage)"></span>
-      <span>Storage</span>
-      <span class="legend-dot" style="background:var(--amber)"></span>
-    </button>
-    <button class="legend-show-all" id="legendShowAll" aria-label="Show all zones">Show All</button>
-  </footer>
+  <!-- FOOTER -->
+  <div class="footer">
+    Messrs Moony, Wormtail, Padfoot &amp; Prongs are proud to present this floor management aid
+  </div>
 </div>
 
-<!-- Screen reader live region -->
-<div id="srAnnounce" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<!-- INFO PANEL -->
+<div class="info-panel-overlay" id="panelOverlay"></div>
+<div class="info-panel" id="infoPanel" role="dialog" aria-label="Zone details">
+  <button class="panel-close" id="panelClose" aria-label="Close panel">&times;</button>
+  <div class="panel-zone-name" id="panelName"></div>
+  <div class="panel-status" id="panelStatus">
+    <span class="status-dot" id="panelDot"></span>
+    <span id="panelStatusText"></span>
+  </div>
+  <div class="panel-description" id="panelDesc"></div>
+  <div class="panel-section-title">Key Items</div>
+  <ul class="panel-items" id="panelItems"></ul>
+  <div class="panel-section-title">Metrics</div>
+  <div class="panel-metrics" id="panelMetrics"></div>
+  <button class="btn-stamp" id="btnRestock">Flag for Restock</button>
+</div>
+
+<!-- MISCHIEF MANAGED -->
+<div class="mischief-overlay" id="mischiefOverlay">
+  <div class="mischief-text">Mischief Managed.</div>
+</div>
 
 <script>
-// ── Zone Data ──
-const zones = {
-  candy: {
-    name: 'Candy Aisle',
-    color: '#ec4899',
-    badge: 'Sweets & Edibles',
-    description: 'The sweetest corner of the shop, literally! Every shelf is packed with enchanted confections that\'ll make your taste buds do a jig. Fair warning: some of these treats have rather... dramatic side effects. George reckons that\'s half the fun.',
-    products: ['Puking Pastilles', 'Ton-Tongue Toffee', 'Nosebleed Nougat', 'Fever Fudge', 'Fainting Fancies', 'U-No-Poo'],
-    status: 'Fully stocked',
-    statusColor: 'green',
-    traffic: 'High',
-    metrics: { units: 234, revenue: '1,247 G', avgBasket: '12 G', visitors: 89 }
-  },
-  prank: {
-    name: 'Prank Shelf',
-    color: '#f97316',
-    badge: 'Jokes & Tricks',
-    description: 'Our pride and joy! This section\'s got everything a budding troublemaker could dream of. Each product has been field-tested at Hogwarts (before we got chucked out, naturally). If Filch banned it, we sell it.',
-    products: ['Extendable Ears', 'Decoy Detonators', 'Peruvian Darkness Powder', 'Trick Wands', 'Headless Hats', 'Boxing Telescope'],
-    status: 'Fully stocked',
-    statusColor: 'green',
-    traffic: 'High',
-    metrics: { units: 187, revenue: '982 G', avgBasket: '15 G', visitors: 72 }
-  },
-  checkout: {
-    name: 'Checkout Counter',
-    color: '#10b981',
-    badge: 'Point of Sale',
-    description: 'Where the Galleons change hands! Verity runs a tight ship at the till. We accept all wizarding currency and the occasional interesting trade. Loyalty card members get 10% off and first dibs on new product launches.',
-    products: ['Gift Wrapping', 'Loyalty Cards', 'Bulk Order Forms', 'Owl Delivery Service'],
-    status: 'Open for business',
-    statusColor: 'green',
-    traffic: 'Moderate',
-    metrics: { orders: 47, revenue: '2,340 G', avgWait: '2 min', registers: '3/3' }
-  },
-  rdlab: {
-    name: 'R&D Lab',
-    color: '#7c3aed',
-    badge: 'Experimental Zone',
-    description: 'Strictly off-limits to customers, and for good reason. This is where the magic happens -- sometimes literally through the walls. Fred\'s portrait oversees all new experiments. If you hear a small explosion, that\'s just progress.',
-    products: ['Prototype Shield Hats', 'Volatile Potions', 'Experimental Fireworks', 'Classified Projects'],
-    status: 'Caution: unstable experiments in progress',
-    statusColor: 'red',
-    traffic: 'Restricted',
-    metrics: { experiments: 3, prototypes: 7, incidents: 1, breakthroughs: 2 }
-  },
-  display: {
-    name: 'Display Windows',
-    color: '#06b6d4',
-    badge: 'Featured Products',
-    description: 'The first thing every witch and wizard sees when they walk down Diagon Alley! Our enchanted window displays rotate through the latest and greatest. Currently featuring the new Wildfire Whiz-Bangs collection -- guaranteed to outdo last year\'s.',
-    products: ['Wildfire Whiz-Bangs', 'Pygmy Puffs', 'WonderWitch Products', 'Seasonal Specials'],
-    status: 'Display rotation scheduled for Tuesday',
-    statusColor: 'amber',
-    traffic: 'High',
-    metrics: { featured: 4, footfall: 312, conversion: '23%', nextRotation: 'Tue' }
-  },
-  storage: {
-    name: 'Storage Room',
-    color: '#6366f1',
-    badge: 'Inventory',
-    description: 'Organized chaos, emphasis on the chaos. Every crate is charmed with an Undetectable Extension Charm, so there\'s rather more in here than meets the eye. Verity does the stock counts -- she\'s the only one who can find anything.',
-    products: ['Bulk Skiving Snackboxes', 'Firework Crates', 'Pygmy Puff Habitats', 'Raw Potion Ingredients'],
-    status: 'Restocking in progress',
-    statusColor: 'amber',
-    traffic: 'Low',
-    metrics: { capacity: '78%', crates: 42, incoming: 8, pendingShip: 3 }
-  }
-};
+(function() {
+  'use strict';
 
-const metricLabels = {
-  candy:    { units: 'Units', revenue: 'Revenue', avgBasket: 'Avg Basket', visitors: 'Visitors' },
-  prank:    { units: 'Units', revenue: 'Revenue', avgBasket: 'Avg Basket', visitors: 'Visitors' },
-  checkout: { orders: 'Orders', revenue: 'Revenue', avgWait: 'Avg Wait', registers: 'Registers' },
-  rdlab:    { experiments: 'Active Exp.', prototypes: 'Prototypes', incidents: 'Incidents', breakthroughs: 'Breakthroughs' },
-  display:  { featured: 'Featured', footfall: 'Foot Traffic', conversion: 'Conversion', nextRotation: 'Next Rotation' },
-  storage:  { capacity: 'Capacity', crates: 'Crates', incoming: 'Incoming', pendingShip: 'Pending Ship' }
-};
-
-// ── State ──
-let activeZone = null;
-let highlightedLegend = null;
-let flowVisible = false;
-const flaggedZones = new Set();
-
-// ── DOM refs ──
-const panelWrapper = document.getElementById('panelWrapper');
-const srAnnounce = document.getElementById('srAnnounce');
-const flowPath = document.getElementById('flowPath');
-const flowToggle = document.getElementById('flowToggle');
-const legendShowAll = document.getElementById('legendShowAll');
-
-// ── Clock ──
-function updateClock() {
-  const now = new Date();
-  document.getElementById('clock').textContent = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-updateClock();
-setInterval(updateClock, 1000);
-
-// ── Select Zone ──
-function selectZone(zoneId) {
-  if (!zones[zoneId]) return;
-  const zone = zones[zoneId];
-
-  // Deselect previous
-  document.querySelectorAll('.zone-group.selected').forEach(el => el.classList.remove('selected'));
-  document.querySelectorAll('.zone-btn.active').forEach(el => el.classList.remove('active'));
-
-  // Select new
-  activeZone = zoneId;
-  const svgZone = document.querySelector(`.zone-group[data-zone="${zoneId}"]`);
-  if (svgZone) {
-    svgZone.classList.add('selected');
-    firePulse(svgZone);
-  }
-
-  // Update breadcrumb
-  document.querySelectorAll(`.zone-btn[data-zone="${zoneId}"]`).forEach(b => b.classList.add('active'));
-
-  // Populate panel
-  const badge = document.getElementById('infoBadge');
-  badge.textContent = zone.badge;
-  badge.style.background = zone.color + '18';
-  badge.style.color = zone.color;
-
-  document.getElementById('infoTitle').textContent = zone.name;
-  document.getElementById('infoDesc').textContent = zone.description;
-
-  const dot = document.getElementById('infoStatusDot');
-  dot.className = 'info-status-dot ' + zone.statusColor;
-  document.getElementById('infoStatusLabel').textContent = zone.status + ' \u00b7 Foot Traffic: ' + zone.traffic;
-
-  // Products
-  const productsEl = document.getElementById('infoProducts');
-  productsEl.innerHTML = zone.products.map(p => '<span class="product-tag">' + p + '</span>').join('');
-
-  // Metrics
-  const metricsEl = document.getElementById('infoMetrics');
-  const labels = metricLabels[zoneId];
-  metricsEl.innerHTML = Object.entries(zone.metrics).map(([key, val]) =>
-    '<div class="info-metric-card"><div class="info-metric-value">' + val + '</div><div class="info-metric-label">' + (labels[key] || key) + '</div></div>'
-  ).join('');
-
-  // Restock button
-  const btn = document.getElementById('restockBtn');
-  if (flaggedZones.has(zoneId)) {
-    btn.classList.add('flagged');
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Flagged for Restocking';
-  } else {
-    btn.classList.remove('flagged');
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg> Flag for Restocking';
-  }
-
-  // Open panel
-  panelWrapper.classList.add('open');
-
-  // Announce to screen reader
-  announce(zone.name + '. ' + zone.status + '. Foot traffic: ' + zone.traffic);
-}
-
-function closePanel() {
-  panelWrapper.classList.remove('open');
-  document.querySelectorAll('.zone-group.selected').forEach(el => el.classList.remove('selected'));
-  document.querySelectorAll('.zone-btn.active').forEach(el => el.classList.remove('active'));
-  activeZone = null;
-}
-
-// ── Click Pulse Animation ──
-function firePulse(svgZone) {
-  const bg = svgZone.querySelector('.zone-bg');
-  if (!bg) return;
-  const bbox = bg.getBBox();
-  const cx = bbox.x + bbox.width / 2;
-  const cy = bbox.y + bbox.height / 2;
-  const container = document.getElementById('pulseContainer');
-  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  circle.setAttribute('cx', cx);
-  circle.setAttribute('cy', cy);
-  circle.setAttribute('r', '0');
-  circle.setAttribute('fill', 'none');
-  circle.setAttribute('stroke', zones[svgZone.dataset.zone]?.color || '#c084fc');
-  circle.setAttribute('stroke-width', '2');
-  circle.setAttribute('opacity', '0.5');
-  circle.classList.add('click-pulse');
-  container.appendChild(circle);
-  setTimeout(() => circle.remove(), 700);
-}
-
-// ── Screen Reader Announcements ──
-function announce(text) {
-  srAnnounce.textContent = '';
-  requestAnimationFrame(() => { srAnnounce.textContent = text; });
-}
-
-// ── SVG Zone Click/Keyboard Handlers ──
-document.querySelectorAll('.zone-group').forEach(g => {
-  g.addEventListener('click', () => selectZone(g.dataset.zone));
-  g.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      selectZone(g.dataset.zone);
+  // ======== ZONE DATA ========
+  const zones = {
+    candy: {
+      name: 'Candy Aisle',
+      status: 'green',
+      statusText: 'Fully Stocked',
+      description: 'The sweetest corner of the shop, where every treat comes with a twist! Fred always said the real magic is in the aftertaste. Stock levels are looking tip-top, and the Puking Pastilles are flying off the shelves as usual.',
+      items: ['Puking Pastilles', 'Ton-Tongue Toffee', 'Nosebleed Nougat', 'Fever Fudge'],
+      traffic: 'High',
+      metrics: [
+        { value: '234', label: 'Units in Stock' },
+        { value: 'High', label: 'Foot Traffic' }
+      ]
+    },
+    prank: {
+      name: 'Prank Shelf',
+      status: 'green',
+      statusText: 'Fully Stocked',
+      description: 'The heart of mischief! Every serious prankster knows this aisle by heart. Decoy Detonators are the bestseller this week \u2014 perfect for dodging Filch or boring meetings.',
+      items: ['Extendable Ears', 'Decoy Detonators', 'Peruvian Darkness Powder', 'Trick Wands'],
+      traffic: 'High',
+      metrics: [
+        { value: '187', label: 'Units in Stock' },
+        { value: 'High', label: 'Foot Traffic' }
+      ]
+    },
+    checkout: {
+      name: 'Checkout',
+      status: 'green',
+      statusText: 'Open',
+      description: 'The final stop before the magic goes home! Gift wrapping available for an extra Sickle. Loyalty cards get you a free Skiving Snackbox after ten purchases. George personally approves every bag.',
+      items: ['Gift Wrapping', 'Loyalty Cards', 'Bag Enchantments'],
+      traffic: 'Medium',
+      metrics: [
+        { value: '47', label: 'Orders Today' },
+        { value: 'Medium', label: 'Foot Traffic' }
+      ]
+    },
+    lab: {
+      name: 'The Laboratory',
+      status: 'red',
+      statusText: 'Experiments Active',
+      description: 'RESTRICTED AREA \u2014 Authorised Weasleys only! Three volatile experiments are currently bubbling away. The Shield Hat prototype is looking promising, but we strongly advise against touching the purple cauldron.',
+      items: ['Shield Hats (Prototype)', 'Volatile Potions', 'Experimental Sweets'],
+      traffic: 'Low',
+      metrics: [
+        { value: '3', label: 'Active Experiments' },
+        { value: 'Low', label: 'Foot Traffic' }
+      ]
+    },
+    storage: {
+      name: 'Storage Room',
+      status: 'amber',
+      statusText: 'Restocking Needed',
+      description: 'The nerve centre of our supply chain! Crates of Snackboxes stacked to the ceiling, firework stores at 78% capacity. A few items need reordering before the weekend rush hits.',
+      items: ['Bulk Snackboxes', 'Firework Crates', 'Packaging Supplies'],
+      traffic: 'Low',
+      metrics: [
+        { value: '78%', label: 'Capacity' },
+        { value: 'Low', label: 'Foot Traffic' }
+      ]
+    },
+    display: {
+      name: 'Window Display',
+      status: 'amber',
+      statusText: 'Rotation Tuesday',
+      description: 'The shop\u2019s calling card! Wildfire Whiz-Bangs light up the windows while the Pygmy Puffs charm every passerby. Display rotation scheduled for Tuesday \u2014 seasonal theme incoming.',
+      items: ['Wildfire Whiz-Bangs', 'Pygmy Puffs', 'Seasonal Display Props'],
+      traffic: 'Medium',
+      metrics: [
+        { value: 'Tue', label: 'Next Rotation' },
+        { value: 'Medium', label: 'Foot Traffic' }
+      ]
     }
-  });
-});
+  };
 
-// Arrow key navigation between zones
-const zoneOrder = ['rdlab', 'storage', 'candy', 'prank', 'display', 'checkout'];
-document.querySelectorAll('.zone-group').forEach(g => {
-  g.addEventListener('keydown', e => {
+  // ======== DOM REFS ========
+  const infoPanel = document.getElementById('infoPanel');
+  const panelOverlay = document.getElementById('panelOverlay');
+  const panelClose = document.getElementById('panelClose');
+  const panelName = document.getElementById('panelName');
+  const panelStatus = document.getElementById('panelStatus');
+  const panelDot = document.getElementById('panelDot');
+  const panelStatusText = document.getElementById('panelStatusText');
+  const panelDesc = document.getElementById('panelDesc');
+  const panelItems = document.getElementById('panelItems');
+  const panelMetrics = document.getElementById('panelMetrics');
+  const btnRestock = document.getElementById('btnRestock');
+  const toggleBtn = document.getElementById('toggleFootsteps');
+  const footstepGroup = document.getElementById('footstepGroup');
+  const headerArea = document.getElementById('headerArea');
+  const mischiefOverlay = document.getElementById('mischiefOverlay');
+
+  let currentZone = null;
+  let footstepsVisible = true;
+
+  // ======== ZONE INTERACTION ========
+  const zoneElements = document.querySelectorAll('.zone-area');
+
+  function openPanel(zoneKey) {
+    const data = zones[zoneKey];
+    if (!data) return;
+
+    // Reset pressed state on all
+    zoneElements.forEach(el => el.setAttribute('aria-pressed', 'false'));
+    // Set pressed on matching zones
+    document.querySelectorAll('[data-zone="' + zoneKey + '"]').forEach(el =>
+      el.setAttribute('aria-pressed', 'true')
+    );
+
+    currentZone = zoneKey;
+
+    panelName.textContent = data.name;
+    panelDot.className = 'status-dot ' + data.status;
+    panelStatusText.textContent = data.statusText;
+    panelDesc.textContent = data.description;
+
+    panelItems.innerHTML = '';
+    data.items.forEach(function(item) {
+      var li = document.createElement('li');
+      li.textContent = item;
+      panelItems.appendChild(li);
+    });
+
+    panelMetrics.innerHTML = '';
+    data.metrics.forEach(function(m) {
+      var box = document.createElement('div');
+      box.className = 'metric-box';
+      box.innerHTML = '<span class="metric-value">' + m.value + '</span><span class="metric-label">' + m.label + '</span>';
+      panelMetrics.appendChild(box);
+    });
+
+    btnRestock.classList.remove('stamped');
+    btnRestock.textContent = 'Flag for Restock';
+    btnRestock.disabled = false;
+
+    panelOverlay.classList.add('visible');
+    infoPanel.classList.add('open');
+
+    // Announce to screen readers
+    infoPanel.setAttribute('aria-label', data.name + ' - ' + data.statusText);
+  }
+
+  function closePanel() {
+    infoPanel.classList.remove('open');
+    panelOverlay.classList.remove('visible');
+    zoneElements.forEach(el => el.setAttribute('aria-pressed', 'false'));
+    currentZone = null;
+  }
+
+  zoneElements.forEach(function(el) {
+    el.addEventListener('click', function() {
+      var zone = this.getAttribute('data-zone');
+      if (currentZone === zone) {
+        closePanel();
+      } else {
+        openPanel(zone);
+      }
+    });
+
+    el.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.click();
+      }
+    });
+  });
+
+  // Arrow key navigation between zones
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closePanel();
+      return;
+    }
+
+    var focused = document.activeElement;
+    if (!focused || !focused.classList.contains('zone-area')) return;
+
+    var arr = Array.from(zoneElements);
+    var idx = arr.indexOf(focused);
+    if (idx === -1) return;
+
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
-      const idx = zoneOrder.indexOf(g.dataset.zone);
-      const next = zoneOrder[(idx + 1) % zoneOrder.length];
-      document.querySelector(`.zone-group[data-zone="${next}"]`)?.focus();
-    }
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      arr[(idx + 1) % arr.length].focus();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       e.preventDefault();
-      const idx = zoneOrder.indexOf(g.dataset.zone);
-      const prev = zoneOrder[(idx - 1 + zoneOrder.length) % zoneOrder.length];
-      document.querySelector(`.zone-group[data-zone="${prev}"]`)?.focus();
+      arr[(idx - 1 + arr.length) % arr.length].focus();
     }
   });
-});
 
-// ── Zone Selector Buttons ──
-document.querySelectorAll('.zone-btn[data-zone]').forEach(btn => {
-  btn.addEventListener('click', () => selectZone(btn.dataset.zone));
-});
+  panelClose.addEventListener('click', closePanel);
+  panelOverlay.addEventListener('click', closePanel);
 
-// ── Close Button + Escape ──
-document.getElementById('infoClose').addEventListener('click', closePanel);
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closePanel();
-});
+  // ======== RESTOCK BUTTON ========
+  btnRestock.addEventListener('click', function() {
+    if (this.classList.contains('stamped')) return;
+    this.classList.add('stamped');
+    this.textContent = 'Flagged for Restock';
+    this.disabled = true;
+  });
 
-// ── Restock Button ──
-document.getElementById('restockBtn').addEventListener('click', () => {
-  if (!activeZone || flaggedZones.has(activeZone)) return;
-  flaggedZones.add(activeZone);
-  const btn = document.getElementById('restockBtn');
-  btn.classList.add('flagged');
-  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Flagged for Restocking';
-  announce('Zone flagged for restocking');
-});
-
-// ── Customer Flow Toggle ──
-flowToggle.addEventListener('click', () => {
-  flowVisible = !flowVisible;
-  flowPath.classList.toggle('visible', flowVisible);
-  flowToggle.classList.toggle('active', flowVisible);
-  flowToggle.setAttribute('aria-pressed', flowVisible);
-});
-
-// ── Interactive Legend ──
-document.querySelectorAll('.legend-item[data-zone]').forEach(item => {
-  item.addEventListener('click', () => {
-    const zone = item.dataset.zone;
-    if (highlightedLegend === zone) {
-      // Unhighlight
-      highlightedLegend = null;
-      item.classList.remove('highlighted');
-      document.querySelectorAll('.zone-group').forEach(g => g.style.opacity = '');
+  // ======== TOGGLE FOOTSTEPS ========
+  toggleBtn.addEventListener('click', function() {
+    footstepsVisible = !footstepsVisible;
+    if (footstepsVisible) {
+      footstepGroup.classList.remove('footsteps-hidden');
+      toggleBtn.textContent = 'Hide Customer Flow';
     } else {
-      // Remove previous highlight
-      document.querySelectorAll('.legend-item').forEach(li => li.classList.remove('highlighted'));
-      highlightedLegend = zone;
-      item.classList.add('highlighted');
-      // Dim other zones, brighten this one
-      document.querySelectorAll('.zone-group').forEach(g => {
-        g.style.opacity = g.dataset.zone === zone ? '1' : '0.25';
-      });
+      footstepGroup.classList.add('footsteps-hidden');
+      toggleBtn.textContent = 'Show Customer Flow';
     }
   });
-});
 
-legendShowAll.addEventListener('click', () => {
-  highlightedLegend = null;
-  document.querySelectorAll('.legend-item').forEach(li => li.classList.remove('highlighted'));
-  document.querySelectorAll('.zone-group').forEach(g => g.style.opacity = '');
-});
+  // ======== MISCHIEF MANAGED EASTER EGG ========
+  var dblClickTimer = null;
+  var clickCount = 0;
 
-// ── Live Metric Updates (simulate) ──
-function randomDelta(val, range) {
-  const num = parseInt(val);
-  if (isNaN(num)) return val;
-  const delta = Math.floor(Math.random() * range * 2) - range;
-  return Math.max(0, num + delta);
-}
-
-function updateMetrics() {
-  // Candy units
-  zones.candy.metrics.units = randomDelta(zones.candy.metrics.units, 2);
-  // Prank units
-  zones.prank.metrics.units = randomDelta(zones.prank.metrics.units, 1);
-  // Checkout orders
-  zones.checkout.metrics.orders = randomDelta(zones.checkout.metrics.orders, 1);
-  // Display footfall
-  zones.display.metrics.footfall = randomDelta(zones.display.metrics.footfall, 3);
-
-  // Update SVG metric badges
-  document.querySelectorAll('[data-metric]').forEach(el => {
-    const z = el.dataset.metric;
-    if (z === 'candy') el.textContent = zones.candy.metrics.units + ' units';
-    if (z === 'prank') el.textContent = zones.prank.metrics.units + ' units';
-    if (z === 'checkout') el.textContent = zones.checkout.metrics.orders + ' orders today';
-    if (z === 'storage') el.textContent = zones.storage.metrics.capacity;
-    if (z === 'rdlab') el.textContent = zones.rdlab.metrics.experiments + ' experiments';
+  headerArea.addEventListener('click', function() {
+    clickCount++;
+    if (clickCount === 1) {
+      dblClickTimer = setTimeout(function() { clickCount = 0; }, 400);
+    } else if (clickCount >= 2) {
+      clearTimeout(dblClickTimer);
+      clickCount = 0;
+      triggerMischief();
+    }
   });
 
-  // If panel is open for one of these, update panel too
-  if (activeZone && panelWrapper.classList.contains('open')) {
-    const labels = metricLabels[activeZone];
-    const metricsEl = document.getElementById('infoMetrics');
-    metricsEl.innerHTML = Object.entries(zones[activeZone].metrics).map(([key, val]) =>
-      '<div class="info-metric-card"><div class="info-metric-value">' + val + '</div><div class="info-metric-label">' + (labels[key] || key) + '</div></div>'
-    ).join('');
+  function triggerMischief() {
+    mischiefOverlay.classList.add('active');
+    setTimeout(function() {
+      mischiefOverlay.classList.remove('active');
+    }, 2500);
   }
-}
 
-setInterval(updateMetrics, 4000);
+  // ======== SCREEN READER: announce zone on focus ========
+  zoneElements.forEach(function(el) {
+    el.addEventListener('focus', function() {
+      var zoneKey = this.getAttribute('data-zone');
+      var data = zones[zoneKey];
+      if (data) {
+        this.setAttribute('aria-label', data.name + ' - ' + data.statusText);
+      }
+    });
+  });
+
+})();
 </script>
 
 </body>

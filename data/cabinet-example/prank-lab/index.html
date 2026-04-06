@@ -1,1627 +1,1045 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Prank Lab</title>
-    <style>
-      :root {
-        --bg-dark: #08100b;
-        --bg-surface: #111e15;
-        --neon-green: #97ff6a;
-        --neon-acid: #d2ff53;
-        --status-stable: #4ade80;
-        --status-caution: #ffae42;
-        --status-volatile: #ff5f6d;
-        --blue: #6cb4ee;
-        --text: #f7ffe8;
-        --muted: rgba(247, 255, 232, 0.72);
-        --panel: rgba(17, 30, 21, 0.78);
-        --line: rgba(151, 255, 106, 0.18);
-        --radius-panel: 24px;
-        --radius-card: 18px;
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-        }
-      }
-
-      * { box-sizing: border-box; margin: 0; }
-
-      body {
-        min-height: 100vh;
-        color: var(--text);
-        font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-        background:
-          radial-gradient(circle at 20% 0%, rgba(151,255,106,0.14), transparent 28%),
-          radial-gradient(circle at 80% 0%, rgba(255,174,66,0.10), transparent 24%),
-          linear-gradient(168deg, #08100b 0%, #162019 48%, var(--bg-dark) 100%);
-        overflow-x: hidden;
-        line-height: 1.5;
-      }
-
-      /* Focus visible */
-      :focus-visible {
-        outline: 2px solid var(--neon-green);
-        outline-offset: 2px;
-      }
-
-      button:focus-visible {
-        outline: 2px solid var(--neon-green);
-        outline-offset: 2px;
-        box-shadow: 0 0 12px rgba(151,255,106,0.3);
-      }
-
-      /* ===== HEADER BAR ===== */
-      .header-bar {
-        position: sticky;
-        top: 0;
-        z-index: 50;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 12px 24px;
-        background: rgba(8, 16, 11, 0.85);
-        backdrop-filter: blur(20px);
-        border-bottom: 1px solid var(--line);
-      }
-
-      .header-title {
-        font-size: 18px;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--neon-green);
-        text-shadow: 0 0 20px rgba(151,255,106,0.5), 0 0 40px rgba(151,255,106,0.2);
-        flex-shrink: 0;
-      }
-
-      .header-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 12px;
-        border-radius: 999px;
-        background: rgba(151,255,106,0.12);
-        border: 1px solid rgba(151,255,106,0.2);
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--neon-green);
-      }
-
-      .header-badge .pulse-dot {
-        width: 6px; height: 6px;
-        border-radius: 50%;
-        background: var(--neon-green);
-        animation: pulse-dot 2s ease-in-out infinite;
-      }
-
-      @keyframes pulse-dot {
-        0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--neon-green); }
-        50% { opacity: 0.4; box-shadow: none; }
-      }
-
-      .header-spacer { flex: 1; }
-
-      .header-clock {
-        font-size: 13px;
-        font-weight: 600;
-        font-variant-numeric: tabular-nums;
-        color: var(--muted);
-      }
-
-      .header-sound-btn {
-        background: rgba(255,255,255,0.06);
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 6px 12px;
-        color: var(--muted);
-        font-size: 13px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: background 0.15s;
-      }
-
-      .header-sound-btn:hover { background: rgba(255,255,255,0.1); }
-      .header-sound-btn.muted { opacity: 0.5; }
-
-      .header-emergency-btn {
-        background: linear-gradient(135deg, rgba(255,95,109,0.25), rgba(255,95,109,0.12));
-        border: 1px solid rgba(255,95,109,0.35);
-        border-radius: 999px;
-        padding: 6px 16px;
-        color: var(--status-volatile);
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: box-shadow 0.2s, transform 0.15s;
-      }
-
-      .header-emergency-btn:hover {
-        box-shadow: 0 0 20px rgba(255,95,109,0.3);
-        transform: scale(1.03);
-      }
-
-      /* ===== SHELL ===== */
-      .shell {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 24px 20px 40px;
-      }
-
-      .panel {
-        border-radius: var(--radius-panel);
-        border: 1px solid var(--line);
-        background: var(--panel);
-        backdrop-filter: blur(16px);
-        box-shadow: 0 20px 50px rgba(2, 10, 5, 0.3);
-      }
-
-      .section-label {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.22em;
-        color: var(--neon-green);
-        margin-bottom: 4px;
-      }
-
-      h1 { font-size: 28px; font-weight: 800; line-height: 1.15; }
-      h2 { font-size: 20px; font-weight: 700; }
-      h3 { font-size: 16px; font-weight: 700; }
-      p { color: var(--muted); line-height: 1.6; }
-
-      /* ===== TOP ROW: Hero + Gauges ===== */
-      .top-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
-      }
-
-      .hero-panel { padding: 28px; }
-
-      .hero-panel h1 {
-        margin: 10px 0 12px;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(32px, 4vw, 48px);
-        line-height: 1.05;
-      }
-
-      .hero-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 20px;
-      }
-
-      button {
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.08);
-        color: var(--text);
-        padding: 10px 18px;
-        font: inherit;
-        font-size: 14px;
-        cursor: pointer;
-        transition: transform 0.15s, box-shadow 0.2s, background 0.15s;
-      }
-
-      button:hover { transform: scale(1.03); }
-
-      .cta-btn {
-        background: linear-gradient(135deg, rgba(151,255,106,0.22), rgba(210,255,83,0.15));
-        border-color: rgba(151,255,106,0.3);
-        font-weight: 700;
-        padding: 12px 24px;
-        font-size: 15px;
-      }
-
-      .cta-btn:hover {
-        box-shadow: 0 0 24px rgba(151,255,106,0.2);
-      }
-
-      .cta-btn.running {
-        pointer-events: none;
-        opacity: 0.7;
-      }
-
-      .cta-btn .spinner {
-        display: none;
-        width: 14px; height: 14px;
-        border: 2px solid transparent;
-        border-top-color: var(--neon-green);
-        border-radius: 50%;
-        animation: spin 0.6s linear infinite;
-        margin-right: 6px;
-      }
-
-      .cta-btn.running .spinner { display: inline-block; }
-
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-
-      /* ===== GAUGES ===== */
-      .gauges-panel { padding: 24px; }
-
-      .gauges-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin-top: 14px;
-      }
-
-      .gauge-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .gauge-svg-wrap {
-        position: relative;
-        width: 120px;
-        height: 120px;
-      }
-
-      .gauge-svg {
-        transform: rotate(-90deg);
-        width: 120px;
-        height: 120px;
-      }
-
-      .gauge-bg {
-        fill: none;
-        stroke: rgba(255,255,255,0.06);
-        stroke-width: 10;
-        stroke-linecap: round;
-      }
-
-      .gauge-fill {
-        fill: none;
-        stroke-width: 10;
-        stroke-linecap: round;
-        transition: stroke-dashoffset 1.8s cubic-bezier(0.22, 1, 0.36, 1),
-                    stroke 0.6s ease;
-        filter: drop-shadow(0 0 6px var(--gauge-color, var(--neon-green)));
-      }
-
-      .gauge-center {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .gauge-icon { font-size: 18px; line-height: 1; }
-
-      .gauge-value {
-        font-size: 26px;
-        font-weight: 800;
-        font-variant-numeric: tabular-nums;
-        line-height: 1.1;
-      }
-
-      .gauge-label {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--muted);
-        text-align: center;
-      }
-
-      /* ===== MIDDLE ROW: Timeline + Experiments ===== */
-      .mid-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
-        margin-top: 18px;
-      }
-
-      /* Timeline */
-      .timeline-panel { padding: 24px; }
-
-      .timeline-list {
-        margin-top: 14px;
-        position: relative;
-        max-height: 440px;
-        overflow-y: auto;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(151,255,106,0.2) transparent;
-      }
-
-      .timeline-list::before {
-        content: '';
-        position: absolute;
-        left: 7px;
-        top: 12px;
-        bottom: 12px;
-        width: 2px;
-        background: var(--line);
-      }
-
-      .tl-entry {
-        display: flex;
-        gap: 14px;
-        padding: 10px 0;
-        position: relative;
-        cursor: pointer;
-      }
-
-      .tl-entry.new-entry {
-        animation: slide-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-      }
-
-      @keyframes slide-in {
-        from { opacity: 0; transform: translateX(-16px); }
-        to { opacity: 1; transform: translateX(0); }
-      }
-
-      @keyframes fade-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-
-      .tl-dot {
-        width: 16px; height: 16px;
-        border-radius: 50%;
-        border: 3px solid var(--bg-dark);
-        flex-shrink: 0;
-        z-index: 1;
-        margin-top: 1px;
-        transition: box-shadow 0.2s;
-      }
-
-      .tl-dot.green { background: var(--status-stable); }
-      .tl-dot.amber { background: var(--status-caution); }
-      .tl-dot.red { background: var(--status-volatile); }
-
-      .tl-entry:hover .tl-dot {
-        box-shadow: 0 0 8px currentColor;
-      }
-
-      .tl-body { flex: 1; min-width: 0; }
-
-      .tl-meta {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .tl-time {
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--neon-green);
-        font-variant-numeric: tabular-nums;
-      }
-
-      .tl-category {
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        padding: 2px 8px;
-        border-radius: 999px;
-      }
-
-      .tl-category.candy { background: rgba(151,255,106,0.15); color: var(--neon-green); }
-      .tl-category.prank { background: rgba(255,174,66,0.15); color: var(--status-caution); }
-      .tl-category.safety { background: rgba(255,95,109,0.15); color: var(--status-volatile); }
-      .tl-category.general { background: rgba(108,180,238,0.15); color: var(--blue); }
-
-      .tl-text {
-        font-size: 13px;
-        color: var(--muted);
-        line-height: 1.45;
-        margin-top: 3px;
-      }
-
-      .tl-detail {
-        display: none;
-        margin-top: 6px;
-        padding: 8px 12px;
-        background: rgba(255,255,255,0.04);
-        border-radius: 10px;
-        font-size: 12px;
-        color: rgba(247,255,232,0.55);
-        line-height: 1.5;
-      }
-
-      .tl-entry.expanded .tl-detail { display: block; animation: fade-in 0.3s ease; }
-
-      .tl-load-more {
-        text-align: center;
-        padding: 10px;
-      }
-
-      .tl-load-more button {
-        font-size: 12px;
-        padding: 6px 16px;
-        opacity: 0.6;
-      }
-
-      /* Experiments */
-      .experiments-panel { padding: 24px; }
-
-      .exp-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-top: 14px;
-      }
-
-      .exp-card {
-        padding: 18px;
-        border-radius: var(--radius-card);
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.04);
-        cursor: pointer;
-        transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
-      }
-
-      .exp-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 32px rgba(2, 10, 5, 0.5);
-      }
-
-      .exp-card:hover.accent-green { border-color: rgba(151,255,106,0.35); }
-      .exp-card:hover.accent-red { border-color: rgba(255,95,109,0.35); }
-      .exp-card:hover.accent-amber { border-color: rgba(255,174,66,0.35); }
-      .exp-card:hover.accent-blue { border-color: rgba(108,180,238,0.35); }
-
-      .exp-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .exp-icon {
-        width: 36px; height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        flex-shrink: 0;
-      }
-
-      .exp-icon.green-bg { background: rgba(151,255,106,0.12); }
-      .exp-icon.red-bg { background: rgba(255,95,109,0.12); }
-      .exp-icon.amber-bg { background: rgba(255,174,66,0.12); }
-      .exp-icon.blue-bg { background: rgba(108,180,238,0.12); }
-
-      .exp-title-area { flex: 1; min-width: 0; }
-
-      .exp-name {
-        font-size: 14px;
-        font-weight: 700;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .exp-type {
-        font-size: 11px;
-        color: rgba(247,255,232,0.45);
-        margin-top: 1px;
-      }
-
-      .badge {
-        border-radius: 999px;
-        padding: 3px 10px;
-        font-size: 11px;
-        font-weight: 700;
-        flex-shrink: 0;
-      }
-
-      .badge-stable { background: rgba(151,255,106,0.18); color: #e8ffd7; }
-      .badge-testing { background: rgba(255,174,66,0.18); color: #fff1d2; }
-      .badge-volatile { background: rgba(255,95,143,0.18); color: #ffd9e6; }
-      .badge-brewing { background: rgba(108,180,238,0.18); color: #d4edff; }
-
-      .exp-progress-track {
-        margin-top: 12px;
-        height: 6px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.06);
-        overflow: hidden;
-      }
-
-      .exp-progress-fill {
-        height: 100%;
-        border-radius: 999px;
-        transition: width 1s ease;
-      }
-
-      .exp-progress-fill.green { background: var(--status-stable); }
-      .exp-progress-fill.amber { background: var(--status-caution); }
-      .exp-progress-fill.red { background: var(--status-volatile); }
-      .exp-progress-fill.blue { background: var(--blue); }
-
-      .exp-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 10px;
-        font-size: 12px;
-        color: rgba(247,255,232,0.45);
-      }
-
-      .exp-finding {
-        margin-top: 8px;
-        font-size: 12px;
-        color: var(--muted);
-        line-height: 1.4;
-        font-style: italic;
-      }
-
-      .exp-researcher {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .avatar-init {
-        width: 20px; height: 20px;
-        border-radius: 50%;
-        background: rgba(151,255,106,0.15);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: 700;
-        color: var(--neon-green);
-      }
-
-      .exp-expanded-area {
-        display: none;
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid var(--line);
-        font-size: 12px;
-        color: var(--muted);
-        line-height: 1.5;
-      }
-
-      .exp-card.expanded .exp-expanded-area { display: block; animation: fade-in 0.3s ease; }
-
-      .risk-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 10px;
-        font-weight: 700;
-        margin-right: 6px;
-      }
-
-      .risk-low { background: rgba(74,222,128,0.15); color: var(--status-stable); }
-      .risk-medium { background: rgba(255,174,66,0.15); color: var(--status-caution); }
-      .risk-high { background: rgba(255,95,109,0.15); color: var(--status-volatile); }
-
-      /* ===== BOTTOM ROW: Environment + Inventory ===== */
-      .bottom-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
-        margin-top: 18px;
-      }
-
-      .env-panel, .inv-panel { padding: 24px; }
-
-      /* Environment Monitor */
-      .env-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-top: 14px;
-      }
-
-      .env-item {
-        padding: 14px;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid var(--line);
-      }
-
-      .env-item-label {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: rgba(247,255,232,0.45);
-        margin-bottom: 6px;
-      }
-
-      .env-item-value {
-        font-size: 22px;
-        font-weight: 800;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .env-item-status {
-        font-size: 11px;
-        margin-top: 4px;
-      }
-
-      .env-item-status.ok { color: var(--status-stable); }
-      .env-item-status.warn { color: var(--status-caution); }
-
-      .cauldron-row {
-        display: flex;
-        gap: 10px;
-        margin-top: 14px;
-      }
-
-      .cauldron-indicator {
-        flex: 1;
-        padding: 10px;
-        border-radius: 12px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid var(--line);
-        text-align: center;
-        font-size: 12px;
-        font-weight: 600;
-      }
-
-      .cauldron-indicator .cauldron-dot {
-        width: 10px; height: 10px;
-        border-radius: 50%;
-        margin: 0 auto 6px;
-      }
-
-      .cauldron-dot.green { background: var(--status-stable); box-shadow: 0 0 8px var(--status-stable); }
-      .cauldron-dot.amber { background: var(--status-caution); box-shadow: 0 0 8px var(--status-caution); }
-      .cauldron-dot.red { background: var(--status-volatile); box-shadow: 0 0 8px var(--status-volatile); }
-
-      /* Inventory */
-      .inv-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 14px;
-      }
-
-      .inv-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid var(--line);
-        font-size: 13px;
-        transition: background 0.15s;
-      }
-
-      .inv-tag .inv-name { font-weight: 600; }
-
-      .inv-tag .inv-qty {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--muted);
-        padding: 1px 6px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.06);
-      }
-
-      .inv-tag.low {
-        border-color: rgba(255,174,66,0.3);
-        background: rgba(255,174,66,0.06);
-      }
-
-      .inv-tag.low .inv-qty {
-        background: rgba(255,174,66,0.2);
-        color: var(--status-caution);
-      }
-
-      .inv-tag.critical {
-        border-color: rgba(255,95,109,0.3);
-        background: rgba(255,95,109,0.06);
-      }
-
-      .inv-tag.critical .inv-qty {
-        background: rgba(255,95,109,0.2);
-        color: var(--status-volatile);
-      }
-
-      .reorder-btn {
-        margin-top: 14px;
-        font-size: 13px;
-        padding: 8px 16px;
-        background: rgba(108,180,238,0.12);
-        border-color: rgba(108,180,238,0.25);
-        color: var(--blue);
-        font-weight: 600;
-      }
-
-      .reorder-btn:hover {
-        box-shadow: 0 0 16px rgba(108,180,238,0.2);
-      }
-
-      /* ===== RESULT POPUP ===== */
-      .result-popup {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) scale(0.9);
-        z-index: 80;
-        padding: 32px 40px;
-        border-radius: 24px;
-        text-align: center;
-        max-width: 440px;
-        width: 90%;
-        backdrop-filter: blur(20px);
-        animation: popup-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-      }
-
-      .result-popup.visible {
-        display: block;
-        transform: translate(-50%, -50%) scale(1);
-      }
-
-      @keyframes popup-in {
-        from { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
-        to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-      }
-
-      .result-popup.success {
-        background: linear-gradient(160deg, rgba(17,30,21,0.95), rgba(20,40,25,0.95));
-        border: 2px solid rgba(151,255,106,0.35);
-        box-shadow: 0 0 60px rgba(151,255,106,0.15);
-      }
-
-      .result-popup.warning {
-        background: linear-gradient(160deg, rgba(30,25,17,0.95), rgba(40,32,20,0.95));
-        border: 2px solid rgba(255,174,66,0.35);
-        box-shadow: 0 0 60px rgba(255,174,66,0.15);
-      }
-
-      .result-popup.failure {
-        background: linear-gradient(160deg, rgba(30,17,17,0.95), rgba(40,20,20,0.95));
-        border: 2px solid rgba(255,95,109,0.35);
-        box-shadow: 0 0 60px rgba(255,95,109,0.15);
-      }
-
-      .result-popup h3 {
-        font-size: 14px;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        margin-bottom: 10px;
-      }
-
-      .result-popup .result-text {
-        font-size: 18px;
-        font-weight: 700;
-        line-height: 1.35;
-      }
-
-      .result-popup .result-dismiss {
-        margin-top: 18px;
-        padding: 8px 20px;
-        font-size: 13px;
-      }
-
-      /* ===== ALERT OVERLAY (Emergency Shutdown) ===== */
-      .alert-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        z-index: 100;
-        justify-content: center;
-        align-items: center;
-        transition: background 0.5s;
-      }
-
-      .alert-overlay.open {
-        display: flex;
-        background: rgba(8, 4, 4, 0.95);
-        backdrop-filter: blur(12px);
-      }
-
-      .alert-overlay.flash-border {
-        box-shadow: inset 0 0 0 6px rgba(255,95,109,0.6);
-        animation: flash-border 0.3s ease 3;
-      }
-
-      @keyframes flash-border {
-        0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,95,109,0.6); }
-        50% { box-shadow: inset 0 0 0 6px rgba(255,95,109,0.1); }
-      }
-
-      .alert-box {
-        background: linear-gradient(160deg, #1a0a0a, #2d1212);
-        border: 2px solid rgba(255,95,109,0.45);
-        border-radius: 28px;
-        padding: 40px;
-        text-align: center;
-        max-width: 460px;
-        width: 90%;
-        box-shadow: 0 0 80px rgba(255,95,109,0.2);
-        animation: shake 0.6s ease;
-      }
-
-      @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        15% { transform: translateX(-10px) rotate(-1deg); }
-        30% { transform: translateX(10px) rotate(1deg); }
-        45% { transform: translateX(-7px); }
-        60% { transform: translateX(7px); }
-        75% { transform: translateX(-3px); }
-      }
-
-      .alert-warning-stripes {
-        height: 6px;
-        background: repeating-linear-gradient(
-          90deg,
-          var(--status-volatile) 0px,
-          var(--status-volatile) 12px,
-          transparent 12px,
-          transparent 24px
-        );
-        border-radius: 999px;
-        margin-bottom: 20px;
-        animation: stripe-move 0.5s linear infinite;
-      }
-
-      @keyframes stripe-move {
-        to { background-position: 24px 0; }
-      }
-
-      .alert-box h2 {
-        color: var(--status-volatile);
-        font-size: 26px;
-        font-family: Georgia, serif;
-      }
-
-      .alert-box p {
-        margin-top: 12px;
-        color: var(--muted);
-        font-size: 14px;
-        line-height: 1.5;
-      }
-
-      .alert-countdown {
-        margin-top: 16px;
-        font-size: 32px;
-        font-weight: 800;
-        color: var(--status-volatile);
-        font-variant-numeric: tabular-nums;
-      }
-
-      .alert-countdown-label {
-        font-size: 12px;
-        color: rgba(255,255,255,0.4);
-        margin-top: 4px;
-      }
-
-      .alert-dismiss-btn {
-        margin-top: 20px;
-        padding: 12px 28px;
-        background: rgba(255,95,109,0.2);
-        border-color: rgba(255,95,109,0.35);
-        font-weight: 700;
-        color: var(--status-volatile);
-      }
-
-      /* ===== CONFETTI ===== */
-      #confetti-layer {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        overflow: hidden;
-        z-index: 60;
-      }
-
-      .confetti {
-        position: absolute;
-        top: -10vh;
-        font-size: 22px;
-        animation: fall 1500ms linear forwards;
-      }
-
-      @keyframes fall {
-        to {
-          transform: translate3d(var(--x), 112vh, 0) rotate(620deg);
-          opacity: 0;
-        }
-      }
-
-      /* ===== RESPONSIVE ===== */
-      @media (max-width: 1024px) {
-        .top-row, .mid-row, .bottom-row {
-          grid-template-columns: 1fr;
-        }
-        .exp-grid {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
-
-      @media (max-width: 680px) {
-        .shell { padding: 14px 12px 30px; }
-        .header-bar { padding: 10px 14px; gap: 10px; }
-        .header-badge, .header-clock { display: none; }
-        .gauges-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-        .exp-grid { grid-template-columns: 1fr; }
-        .env-grid { grid-template-columns: 1fr; }
-        .hero-panel h1 { font-size: 24px; }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="confetti-layer" aria-hidden="true"></div>
-
-    <!-- Result Popup -->
-    <div class="result-popup" id="result-popup" role="alert" aria-live="assertive">
-      <h3 id="result-label">Result</h3>
-      <div class="result-text" id="result-text"></div>
-      <button class="result-dismiss" id="result-dismiss" aria-label="Dismiss result">OK</button>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weasley Prank Laboratory</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0A0F0C;
+    --bg-panel: #0D1410;
+    --bg-card: #111A15;
+    --phosphor: #33FF33;
+    --phosphor-soft: rgba(51, 255, 51, 0.7);
+    --phosphor-dim: rgba(51, 255, 51, 0.3);
+    --phosphor-faint: rgba(51, 255, 51, 0.08);
+    --amber: #FFB347;
+    --amber-dim: rgba(255, 179, 71, 0.3);
+    --brass: #C5953A;
+    --brass-dim: rgba(197, 149, 58, 0.3);
+    --red: #FF4444;
+    --red-dim: rgba(255, 68, 68, 0.3);
+    --blue: #44AAFF;
+    --blue-dim: rgba(68, 170, 255, 0.3);
+    --text: rgba(51, 255, 51, 0.7);
+    --text-dim: rgba(51, 255, 51, 0.4);
+    --border: rgba(51, 255, 51, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* CRT Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Subtle CRT flicker */
+  @keyframes crt-flicker {
+    0%, 100% { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.98; }
+    94% { opacity: 1; }
+  }
+  body { animation: crt-flicker 4s infinite; }
+
+  /* ========== HEADER ========== */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: linear-gradient(180deg, #111A15 0%, #0D1410 100%);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--phosphor-soft);
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(51, 255, 51, 0.4);
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--phosphor);
+    box-shadow: 0 0 6px var(--phosphor);
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--phosphor); }
+    50% { opacity: 0.6; box-shadow: 0 0 12px var(--phosphor); }
+  }
+  .header-clock {
+    font-size: 14px;
+    color: var(--phosphor-soft);
+    font-weight: 500;
+    min-width: 90px;
+    text-align: center;
+  }
+  .active-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    border: 1px solid var(--phosphor-dim);
+    border-radius: 3px;
+    color: var(--phosphor-soft);
+    background: var(--phosphor-faint);
+    letter-spacing: 1px;
+  }
+  .btn-shutdown {
+    background: var(--red);
+    color: #fff;
+    border: none;
+    padding: 6px 16px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 3px;
+    text-transform: uppercase;
+    box-shadow: 0 0 8px var(--red-dim);
+    transition: box-shadow 0.2s;
+  }
+  .btn-shutdown:hover, .btn-shutdown:focus {
+    box-shadow: 0 0 16px rgba(255, 68, 68, 0.6);
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+  }
+
+  /* ========== MAIN LAYOUT ========== */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    grid-template-rows: 1fr auto;
+    gap: 0;
+    height: calc(100vh - 52px);
+  }
+  .panel {
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+  }
+  .panel:last-child { border-right: none; }
+  .panel-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  /* ========== LEFT: GAUGES ========== */
+  .gauges-panel {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+  .gauge-container {
+    width: 100%;
+    max-width: 220px;
+    text-align: center;
+  }
+  .gauge-svg {
+    width: 140px;
+    height: 140px;
+    display: block;
+    margin: 0 auto;
+  }
+  .gauge-bezel {
+    fill: none;
+    stroke: var(--brass);
+    stroke-width: 3;
+    opacity: 0.5;
+  }
+  .gauge-track {
+    fill: none;
+    stroke: rgba(255,255,255,0.05);
+    stroke-width: 10;
+    stroke-linecap: round;
+  }
+  .gauge-arc {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s ease-out;
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+  .gauge-value {
+    font-size: 22px;
+    font-weight: 700;
+    fill: var(--phosphor-soft);
+  }
+  .gauge-unit {
+    font-size: 10px;
+    fill: var(--text-dim);
+  }
+  .gauge-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* ========== CENTER: LOG ========== */
+  .log-panel {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .log-header .panel-title { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .btn-run {
+    background: transparent;
+    border: 1px solid var(--phosphor-dim);
+    color: var(--phosphor-soft);
+    padding: 6px 16px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 3px;
+    text-transform: uppercase;
+    box-shadow: 0 0 8px var(--phosphor-faint);
+    transition: all 0.2s;
+  }
+  .btn-run:hover, .btn-run:focus {
+    background: var(--phosphor-faint);
+    box-shadow: 0 0 14px rgba(51, 255, 51, 0.2);
+    outline: 2px solid var(--phosphor-dim);
+    outline-offset: 2px;
+  }
+  .btn-run:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .log-entries {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .log-entry {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 2px;
+    padding: 6px 0;
+    font-size: 12px;
+    line-height: 1.5;
+    position: relative;
+  }
+  .log-dot-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 12px;
+    flex-shrink: 0;
+    padding-top: 6px;
+  }
+  .log-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .log-line {
+    width: 1px;
+    flex: 1;
+    min-height: 12px;
+    opacity: 0.3;
+  }
+  .log-dot.green, .log-line.green { background: var(--phosphor); }
+  .log-dot.amber, .log-line.amber { background: var(--amber); }
+  .log-dot.red, .log-line.red { background: var(--red); }
+  .log-dot.blue, .log-line.blue { background: var(--blue); }
+  .log-text { flex: 1; }
+  .log-time { color: var(--text-dim); }
+  .log-tag {
+    font-weight: 600;
+    padding: 0 1px;
+  }
+  .log-tag.green { color: var(--phosphor-soft); }
+  .log-tag.amber { color: var(--amber); }
+  .log-tag.red { color: var(--red); }
+  .log-tag.blue { color: var(--blue); }
+
+  /* ========== RIGHT: EXPERIMENT CARDS ========== */
+  .experiments-panel {
+    grid-column: 3;
+    grid-row: 1;
+    border-right: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .exp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    transition: border-color 0.3s;
+  }
+  .exp-card:hover, .exp-card:focus-within {
+    border-color: var(--phosphor-dim);
+  }
+  .exp-card[data-glow="green"] { box-shadow: inset 0 0 20px rgba(51, 255, 51, 0.03); }
+  .exp-card[data-glow="amber"] { box-shadow: inset 0 0 20px rgba(255, 179, 71, 0.03); }
+  .exp-card[data-glow="red"] { box-shadow: inset 0 0 20px rgba(255, 68, 68, 0.05); border-color: var(--red-dim); animation: card-pulse-red 2s infinite; }
+  .exp-card[data-glow="blue"] { box-shadow: inset 0 0 20px rgba(68, 170, 255, 0.03); }
+  @keyframes card-pulse-red {
+    0%, 100% { border-color: var(--red-dim); }
+    50% { border-color: rgba(255, 68, 68, 0.5); }
+  }
+  .exp-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .exp-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--phosphor-soft);
+  }
+  .exp-badge {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+  .exp-badge.stable { background: rgba(51,255,51,0.1); color: var(--phosphor-soft); border: 1px solid var(--phosphor-dim); }
+  .exp-badge.testing { background: rgba(255,179,71,0.1); color: var(--amber); border: 1px solid var(--amber-dim); }
+  .exp-badge.volatile { background: rgba(255,68,68,0.1); color: var(--red); border: 1px solid var(--red-dim); }
+  .exp-badge.brewing { background: rgba(68,170,255,0.1); color: var(--blue); border: 1px solid var(--blue-dim); }
+  .exp-type {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  .exp-progress-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .exp-progress-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease-out;
+  }
+  .exp-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .exp-researcher {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--brass);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--brass);
+    background: var(--brass-dim);
+  }
+  .exp-finding {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  /* ========== BOTTOM: ENVIRONMENT ========== */
+  .env-panel {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    border-top: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--bg-panel);
+  }
+  .env-reading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .env-icon { font-size: 14px; }
+  .env-label { color: var(--text-dim); }
+  .env-value { color: var(--phosphor-soft); font-weight: 500; }
+  .env-value.warning {
+    color: var(--amber);
+    animation: pulse-amber 1.5s infinite;
+  }
+  .env-value.active { color: var(--phosphor-soft); }
+  .env-value.idle { color: var(--text-dim); }
+  @keyframes pulse-amber {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* ========== SHUTDOWN OVERLAY ========== */
+  .shutdown-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.92);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+  .shutdown-overlay.active { display: flex; }
+  .shutdown-stripes {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 20px,
+      rgba(255, 68, 68, 0.08) 20px,
+      rgba(255, 68, 68, 0.08) 40px
+    );
+    pointer-events: none;
+  }
+  .shutdown-text {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--red);
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+    z-index: 1;
+    text-align: center;
+  }
+  .shutdown-countdown {
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--red);
+    text-shadow: 0 0 30px rgba(255, 68, 68, 0.6);
+    z-index: 1;
+  }
+  .shutdown-sub {
+    font-size: 12px;
+    color: var(--amber);
+    letter-spacing: 2px;
+    z-index: 1;
+  }
+
+  /* ========== CONFETTI ========== */
+  .confetti-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9998;
+    overflow: hidden;
+  }
+  .confetti-particle {
+    position: absolute;
+    width: 6px; height: 6px;
+    opacity: 0;
+    animation: confetti-fall 1.5s ease-out forwards;
+  }
+  @keyframes confetti-fall {
+    0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+    100% { opacity: 0; transform: translateY(300px) rotate(720deg) scale(0.3); }
+  }
+
+  /* ========== RED FLASH ========== */
+  .red-flash {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 0, 0, 0.3);
+    z-index: 9999;
+    pointer-events: none;
+    animation: flash-out 0.4s ease-out forwards;
+  }
+  @keyframes flash-out {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* ========== SCROLLBAR ========== */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--phosphor-dim); border-radius: 2px; }
+
+  /* ========== REDUCED MOTION ========== */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    body { animation: none !important; }
+    body::after { display: none; }
+  }
+
+  /* ========== RESPONSIVE ========== */
+  @media (max-width: 900px) {
+    .main {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto auto;
+      height: auto;
+    }
+    .gauges-panel {
+      grid-column: 1;
+      grid-row: 1;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .log-panel { grid-column: 1; grid-row: 2; min-height: 300px; }
+    .experiments-panel { grid-column: 1; grid-row: 3; }
+    .env-panel { grid-column: 1; grid-row: 4; }
+    .panel { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<header class="header" role="banner">
+  <div class="header-left">
+    <div class="header-title" aria-label="Weasley Prank Laboratory">&#9879;&#65039; WEASLEY PRANK LABORATORY</div>
+  </div>
+  <div class="header-right">
+    <div class="status-indicator">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span>SYSTEM STATUS: OPERATIONAL</span>
     </div>
+    <div class="header-clock" id="clock" aria-label="Current time" role="timer">--:--:--</div>
+    <div class="active-badge" aria-label="4 experiments active">EXPERIMENTS ACTIVE: 4</div>
+    <button class="btn-shutdown" id="btn-shutdown" aria-label="Emergency Shutdown">EMERGENCY SHUTDOWN</button>
+  </div>
+</header>
 
-    <!-- Emergency Shutdown Overlay -->
-    <div class="alert-overlay" id="alert-overlay" role="dialog" aria-modal="true" aria-labelledby="alert-heading">
-      <div class="alert-box">
-        <div class="alert-warning-stripes" aria-hidden="true"></div>
-        <h2 id="alert-heading">EMERGENCY SHUTDOWN</h2>
-        <p>
-          All cauldrons extinguished. Swamp Taffy contained. Peeves notified (thrilled). Fred is pretending he meant to do that.
-        </p>
-        <p style="margin-top: 6px; color: var(--status-volatile); font-size: 12px;">
-          Estimated restart: whenever George stops laughing.
-        </p>
-        <div class="alert-countdown" id="alert-countdown" aria-live="polite">5</div>
-        <div class="alert-countdown-label">Systems resuming in...</div>
-        <button class="alert-dismiss-btn" id="alert-dismiss" aria-label="Resume lab operations">Resume Operations</button>
+<!-- ========== MAIN GRID ========== -->
+<div class="main">
+
+  <!-- LEFT: GAUGES -->
+  <div class="panel gauges-panel">
+    <div class="panel-title">Instrument Readings</div>
+    <div class="gauge-container" id="gauge-hilarity" role="meter" aria-label="Hilarity Index" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100">
+      <svg class="gauge-svg" viewBox="0 0 140 140">
+        <circle class="gauge-bezel" cx="70" cy="70" r="62"/>
+        <circle class="gauge-track" cx="70" cy="70" r="50" stroke-dasharray="235.6 314.2" stroke-dashoffset="-39.3" transform="rotate(135 70 70)"/>
+        <circle class="gauge-arc" cx="70" cy="70" r="50" stroke="var(--phosphor)" stroke-dasharray="0 314.2" stroke-dashoffset="0" transform="rotate(135 70 70)" data-max="235.6"/>
+        <text class="gauge-value" x="70" y="68" text-anchor="middle" dominant-baseline="middle">0</text>
+        <text class="gauge-unit" x="70" y="86" text-anchor="middle">%</text>
+      </svg>
+      <div class="gauge-label">HILARITY INDEX</div>
+    </div>
+    <div class="gauge-container" id="gauge-safety" role="meter" aria-label="Safety Rating" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100">
+      <svg class="gauge-svg" viewBox="0 0 140 140">
+        <circle class="gauge-bezel" cx="70" cy="70" r="62"/>
+        <circle class="gauge-track" cx="70" cy="70" r="50" stroke-dasharray="235.6 314.2" stroke-dashoffset="-39.3" transform="rotate(135 70 70)"/>
+        <circle class="gauge-arc" cx="70" cy="70" r="50" stroke="var(--amber)" stroke-dasharray="0 314.2" stroke-dashoffset="0" transform="rotate(135 70 70)" data-max="235.6"/>
+        <text class="gauge-value" x="70" y="68" text-anchor="middle" dominant-baseline="middle">0</text>
+        <text class="gauge-unit" x="70" y="86" text-anchor="middle">%</text>
+      </svg>
+      <div class="gauge-label">SAFETY RATING</div>
+    </div>
+    <div class="gauge-container" id="gauge-stability" role="meter" aria-label="Stability" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100">
+      <svg class="gauge-svg" viewBox="0 0 140 140">
+        <circle class="gauge-bezel" cx="70" cy="70" r="62"/>
+        <circle class="gauge-track" cx="70" cy="70" r="50" stroke-dasharray="235.6 314.2" stroke-dashoffset="-39.3" transform="rotate(135 70 70)"/>
+        <circle class="gauge-arc" cx="70" cy="70" r="50" stroke="var(--red)" stroke-dasharray="0 314.2" stroke-dashoffset="0" transform="rotate(135 70 70)" data-max="235.6" style="animation: gauge-pulse-red 2s infinite"/>
+        <text class="gauge-value" x="70" y="68" text-anchor="middle" dominant-baseline="middle">0</text>
+        <text class="gauge-unit" x="70" y="86" text-anchor="middle">%</text>
+      </svg>
+      <div class="gauge-label">STABILITY</div>
+    </div>
+    <div class="gauge-container" id="gauge-excitement" role="meter" aria-label="Customer Excitement" aria-valuenow="91" aria-valuemin="0" aria-valuemax="100">
+      <svg class="gauge-svg" viewBox="0 0 140 140">
+        <circle class="gauge-bezel" cx="70" cy="70" r="62"/>
+        <circle class="gauge-track" cx="70" cy="70" r="50" stroke-dasharray="235.6 314.2" stroke-dashoffset="-39.3" transform="rotate(135 70 70)"/>
+        <circle class="gauge-arc" cx="70" cy="70" r="50" stroke="var(--phosphor)" stroke-dasharray="0 314.2" stroke-dashoffset="0" transform="rotate(135 70 70)" data-max="235.6"/>
+        <text class="gauge-value" x="70" y="68" text-anchor="middle" dominant-baseline="middle">0</text>
+        <text class="gauge-unit" x="70" y="86" text-anchor="middle">%</text>
+      </svg>
+      <div class="gauge-label">CUSTOMER EXCITEMENT</div>
+    </div>
+  </div>
+
+  <!-- CENTER: LOG -->
+  <div class="panel log-panel">
+    <div class="log-header">
+      <div class="panel-title">Experiment Log</div>
+      <button class="btn-run" id="btn-run" aria-label="Run Experiment">RUN EXPERIMENT</button>
+    </div>
+    <div class="log-entries" id="log-entries" role="log" aria-live="polite" aria-label="Experiment log entries">
+    </div>
+  </div>
+
+  <!-- RIGHT: EXPERIMENT CARDS -->
+  <div class="panel experiments-panel">
+    <div class="panel-title">Active Experiments</div>
+    <div class="exp-card" data-glow="green" tabindex="0" role="article" aria-label="Swamp Taffy experiment, status Stable">
+      <div class="exp-card-header">
+        <span class="exp-card-name">Swamp Taffy</span>
+        <span class="exp-badge stable">STABLE</span>
       </div>
+      <div class="exp-type">Candy / Bog Flavor</div>
+      <div class="exp-progress-track"><div class="exp-progress-bar" style="width:82%;background:var(--phosphor-soft)"></div></div>
+      <div class="exp-meta">
+        <span>Days Active: 12</span>
+        <span class="exp-researcher" aria-label="Lead researcher: F">F</span>
+      </div>
+      <div class="exp-finding">"Elegant swamp-gas aroma with zero sticky fallout"</div>
     </div>
+    <div class="exp-card" data-glow="amber" tabindex="0" role="article" aria-label="Shimmer Specs experiment, status Testing">
+      <div class="exp-card-header">
+        <span class="exp-card-name">Shimmer Specs</span>
+        <span class="exp-badge testing">TESTING</span>
+      </div>
+      <div class="exp-type">Prank / Shimmer Effect</div>
+      <div class="exp-progress-track"><div class="exp-progress-bar" style="width:57%;background:var(--amber)"></div></div>
+      <div class="exp-meta">
+        <span>Days Active: 8</span>
+        <span class="exp-researcher" aria-label="Lead researcher: G">G</span>
+      </div>
+      <div class="exp-finding">"Sparkle intensity excellent, slight nausea in batch 4"</div>
+    </div>
+    <div class="exp-card" data-glow="red" tabindex="0" role="article" aria-label="Vanishing Varnish experiment, status Volatile">
+      <div class="exp-card-header">
+        <span class="exp-card-name">Vanishing Varnish</span>
+        <span class="exp-badge volatile">VOLATILE</span>
+      </div>
+      <div class="exp-type">Prank / Invisibility</div>
+      <div class="exp-progress-track"><div class="exp-progress-bar" style="width:34%;background:var(--red)"></div></div>
+      <div class="exp-meta">
+        <span>Days Active: 23</span>
+        <span class="exp-researcher" aria-label="Lead researcher: F">F</span>
+      </div>
+      <div class="exp-finding">"Subjects remain invisible 3min too long — investigating"</div>
+    </div>
+    <div class="exp-card" data-glow="blue" tabindex="0" role="article" aria-label="Bubbling Brew experiment, status Brewing">
+      <div class="exp-card-header">
+        <span class="exp-card-name">Bubbling Brew</span>
+        <span class="exp-badge brewing">BREWING</span>
+      </div>
+      <div class="exp-type">Candy / Fizzing Potion</div>
+      <div class="exp-progress-track"><div class="exp-progress-bar" style="width:19%;background:var(--blue)"></div></div>
+      <div class="exp-meta">
+        <span>Days Active: 3</span>
+        <span class="exp-researcher" aria-label="Lead researcher: G">G</span>
+      </div>
+      <div class="exp-finding">"Initial fermentation shows promise, mild levitation noted"</div>
+    </div>
+  </div>
 
-    <!-- ===== HEADER BAR ===== -->
-    <header class="header-bar" role="banner">
-      <span class="header-title" aria-label="Prank Lab">PRANK LAB</span>
-      <span class="header-badge" aria-label="4 experiments running"><span class="pulse-dot" aria-hidden="true"></span> Experiments: 4</span>
-      <div class="header-spacer"></div>
-      <time class="header-clock" id="header-clock" aria-label="Current time"></time>
-      <button class="header-sound-btn muted" id="sound-toggle" aria-label="Toggle sound effects" aria-pressed="false">
-        <span aria-hidden="true">🔇</span> Sound
-      </button>
-      <button class="header-emergency-btn" id="emergency-shutdown" aria-label="Emergency shutdown">
-        <span aria-hidden="true">⚠</span> Shutdown
-      </button>
-    </header>
+  <!-- BOTTOM: ENVIRONMENT -->
+  <div class="env-panel" role="status" aria-label="Environment monitoring">
+    <div class="env-reading">
+      <span class="env-icon" aria-hidden="true">&#127777;&#65039;</span>
+      <span class="env-label">Temp:</span>
+      <span class="env-value" id="env-temp">23.4&deg;C</span>
+    </div>
+    <div class="env-reading">
+      <span class="env-icon" aria-hidden="true">&#128167;</span>
+      <span class="env-label">Humidity:</span>
+      <span class="env-value" id="env-humidity">45%</span>
+    </div>
+    <div class="env-reading">
+      <span class="env-icon" aria-hidden="true">&#129514;</span>
+      <span class="env-label">Cauldron Bay 1:</span>
+      <span class="env-value active" id="env-c1">Active</span>
+    </div>
+    <div class="env-reading">
+      <span class="env-icon" aria-hidden="true">&#129514;</span>
+      <span class="env-label">Cauldron Bay 2:</span>
+      <span class="env-value idle" id="env-c2">Idle</span>
+    </div>
+    <div class="env-reading">
+      <span class="env-icon" aria-hidden="true">&#129514;</span>
+      <span class="env-label">Cauldron Bay 3:</span>
+      <span class="env-value warning" id="env-c3">WARNING</span>
+    </div>
+    <div class="env-reading">
+      <span class="env-icon" aria-hidden="true">&#127788;&#65039;</span>
+      <span class="env-label">Air Quality:</span>
+      <span class="env-value" id="env-air">97%</span>
+    </div>
+  </div>
 
-    <main class="shell" role="main">
-      <!-- TOP ROW: Hero + Gauges -->
-      <section class="top-row" aria-label="Lab overview">
-        <div class="panel hero-panel">
-          <div class="section-label">Weasley Prank R&amp;D Division</div>
-          <h1>Test the joke. Measure the danger. Respect neither too much.</h1>
-          <p>
-            Internal lab console for tracking candy effects, prank safety ratings,
-            and whether a product is ready for sale or still best described as "educational smoke."
-          </p>
-          <div class="hero-actions">
-            <button class="cta-btn" id="run-experiment" aria-label="Run a new experiment">
-              <span class="spinner" aria-hidden="true"></span>
-              <span id="run-btn-text">Run Experiment</span>
-            </button>
-          </div>
-        </div>
+</div>
 
-        <div class="panel gauges-panel" aria-label="Lab meters">
-          <div class="section-label">Lab Meters</div>
-          <div class="gauges-grid" role="list">
-            <div class="gauge-item" role="listitem" aria-label="Hilarity Index: 78%">
-              <div class="gauge-svg-wrap">
-                <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
-                  <circle class="gauge-bg" cx="60" cy="60" r="50" />
-                  <circle class="gauge-fill" id="gauge-hilarity" cx="60" cy="60" r="50"
-                    stroke-dasharray="314.16" stroke-dashoffset="314.16"
-                    data-target="78" style="stroke: var(--status-stable); --gauge-color: var(--status-stable);" />
-                </svg>
-                <div class="gauge-center">
-                  <span class="gauge-icon">😂</span>
-                  <span class="gauge-value" id="gauge-val-hilarity" data-target="78">0</span>
-                </div>
-              </div>
-              <div class="gauge-label">Hilarity Index</div>
-            </div>
+<!-- SHUTDOWN OVERLAY -->
+<div class="shutdown-overlay" id="shutdown-overlay" role="alertdialog" aria-label="Emergency Shutdown" aria-modal="true">
+  <div class="shutdown-stripes" aria-hidden="true"></div>
+  <div class="shutdown-text">EMERGENCY SHUTDOWN INITIATED</div>
+  <div class="shutdown-countdown" id="shutdown-countdown">5</div>
+  <div class="shutdown-sub" id="shutdown-sub">ALL EXPERIMENTS SUSPENDING...</div>
+</div>
 
-            <div class="gauge-item" role="listitem" aria-label="Safety Rating: 62%">
-              <div class="gauge-svg-wrap">
-                <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
-                  <circle class="gauge-bg" cx="60" cy="60" r="50" />
-                  <circle class="gauge-fill" id="gauge-safety" cx="60" cy="60" r="50"
-                    stroke-dasharray="314.16" stroke-dashoffset="314.16"
-                    data-target="62" style="stroke: var(--status-caution); --gauge-color: var(--status-caution);" />
-                </svg>
-                <div class="gauge-center">
-                  <span class="gauge-icon">🛡️</span>
-                  <span class="gauge-value" id="gauge-val-safety" data-target="62">0</span>
-                </div>
-              </div>
-              <div class="gauge-label">Safety Rating</div>
-            </div>
+<!-- CONFETTI CONTAINER -->
+<div class="confetti-container" id="confetti-container" aria-hidden="true"></div>
 
-            <div class="gauge-item" role="listitem" aria-label="Stability: 45%">
-              <div class="gauge-svg-wrap">
-                <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
-                  <circle class="gauge-bg" cx="60" cy="60" r="50" />
-                  <circle class="gauge-fill" id="gauge-stability" cx="60" cy="60" r="50"
-                    stroke-dasharray="314.16" stroke-dashoffset="314.16"
-                    data-target="45" style="stroke: var(--status-volatile); --gauge-color: var(--status-volatile);" />
-                </svg>
-                <div class="gauge-center">
-                  <span class="gauge-icon">⚗️</span>
-                  <span class="gauge-value" id="gauge-val-stability" data-target="45">0</span>
-                </div>
-              </div>
-              <div class="gauge-label">Stability</div>
-            </div>
+<style>
+  @keyframes gauge-pulse-red {
+    0%, 100% { filter: drop-shadow(0 0 4px var(--red)); }
+    50% { filter: drop-shadow(0 0 10px var(--red)); }
+  }
+</style>
 
-            <div class="gauge-item" role="listitem" aria-label="Customer Excitement: 91%">
-              <div class="gauge-svg-wrap">
-                <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
-                  <circle class="gauge-bg" cx="60" cy="60" r="50" />
-                  <circle class="gauge-fill" id="gauge-excitement" cx="60" cy="60" r="50"
-                    stroke-dasharray="314.16" stroke-dashoffset="314.16"
-                    data-target="91" style="stroke: var(--blue); --gauge-color: var(--blue);" />
-                </svg>
-                <div class="gauge-center">
-                  <span class="gauge-icon">🎆</span>
-                  <span class="gauge-value" id="gauge-val-excitement" data-target="91">0</span>
-                </div>
-              </div>
-              <div class="gauge-label">Excitement</div>
-            </div>
-          </div>
-        </div>
-      </section>
+<script>
+(function() {
+  'use strict';
 
-      <!-- MIDDLE ROW: Timeline + Experiments -->
-      <section class="mid-row" aria-label="Activity and experiments">
-        <div class="panel timeline-panel">
-          <div class="section-label">Experiment Timeline</div>
-          <h2>Lab Log</h2>
-          <div class="timeline-list" id="timeline-list" role="log" aria-label="Experiment log entries"></div>
-          <div class="tl-load-more">
-            <button id="load-more-btn" aria-label="Load older log entries">Load earlier entries</button>
-          </div>
-        </div>
+  // ===== REDUCED MOTION CHECK =====
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        <div class="panel experiments-panel">
-          <div class="section-label">Active Experiments</div>
-          <h2>Current Projects</h2>
-          <div class="exp-grid" id="exp-grid" role="list" aria-label="Experiment cards"></div>
-        </div>
-      </section>
+  // ===== CLOCK =====
+  const clockEl = document.getElementById('clock');
+  function updateClock() {
+    const now = new Date();
+    clockEl.textContent = now.toTimeString().slice(0, 8) + ' GMT';
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
 
-      <!-- BOTTOM ROW: Environment + Inventory -->
-      <section class="bottom-row" aria-label="Lab environment and inventory">
-        <div class="panel env-panel">
-          <div class="section-label">Lab Environment</div>
-          <h2>Monitor</h2>
-          <div class="env-grid">
-            <div class="env-item">
-              <div class="env-item-label">Temperature</div>
-              <div class="env-item-value" id="env-temp">23°C</div>
-              <div class="env-item-status ok" id="env-temp-status">Optimal</div>
-            </div>
-            <div class="env-item">
-              <div class="env-item-label">Humidity</div>
-              <div class="env-item-value" id="env-humidity">45%</div>
-              <div class="env-item-status ok" id="env-humidity-status">Nominal</div>
-            </div>
-            <div class="env-item">
-              <div class="env-item-label">Air Quality</div>
-              <div class="env-item-value" id="env-air">97%</div>
-              <div class="env-item-status ok" id="env-air-status">Fumes nominal</div>
-            </div>
-            <div class="env-item">
-              <div class="env-item-label">Potion Vapor</div>
-              <div class="env-item-value" id="env-vapor">12 ppm</div>
-              <div class="env-item-status ok" id="env-vapor-status">Within tolerance</div>
-            </div>
-          </div>
-          <h3 style="margin-top: 18px;">Cauldron Bay Status</h3>
-          <div class="cauldron-row" role="list" aria-label="Cauldron statuses">
-            <div class="cauldron-indicator" role="listitem">
-              <div class="cauldron-dot green" id="cauldron-1-dot" aria-hidden="true"></div>
-              Bay 1
-            </div>
-            <div class="cauldron-indicator" role="listitem">
-              <div class="cauldron-dot green" id="cauldron-2-dot" aria-hidden="true"></div>
-              Bay 2
-            </div>
-            <div class="cauldron-indicator" role="listitem">
-              <div class="cauldron-dot amber" id="cauldron-3-dot" aria-hidden="true"></div>
-              Bay 3
-            </div>
-          </div>
-        </div>
+  // ===== GAUGES =====
+  const gaugeConfigs = [
+    { id: 'gauge-hilarity', value: 78 },
+    { id: 'gauge-safety', value: 62 },
+    { id: 'gauge-stability', value: 45 },
+    { id: 'gauge-excitement', value: 91 }
+  ];
+  const gauges = gaugeConfigs.map(cfg => {
+    const el = document.getElementById(cfg.id);
+    const arc = el.querySelector('.gauge-arc');
+    const valueText = el.querySelector('.gauge-value');
+    const maxDash = parseFloat(arc.dataset.max);
+    return { el, arc, valueText, maxDash, target: cfg.value, current: 0 };
+  });
 
-        <div class="panel inv-panel">
-          <div class="section-label">Experiment Inventory</div>
-          <h2>Ingredient Stock</h2>
-          <div class="inv-grid" id="inv-grid" role="list" aria-label="Ingredient inventory"></div>
-          <button class="reorder-btn" id="reorder-btn" aria-label="Reorder low-stock ingredients">Reorder Low Stock</button>
-        </div>
-      </section>
-    </main>
+  function setGaugeValue(g, val, animate) {
+    val = Math.max(0, Math.min(100, val));
+    g.current = val;
+    const dashLen = (val / 100) * g.maxDash;
+    g.arc.setAttribute('stroke-dasharray', dashLen + ' 314.2');
+    g.valueText.textContent = Math.round(val);
+    g.el.setAttribute('aria-valuenow', Math.round(val));
+  }
 
-    <script>
-      /* ============================================================
-         PRANK LAB — Weasley R&D Console
-         Self-contained. No external dependencies.
-         ============================================================ */
+  // Animate in from 0
+  function animateGaugesIn() {
+    const duration = 1500;
+    const start = performance.now();
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      gauges.forEach(g => setGaugeValue(g, g.target * ease));
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+  if (!prefersReducedMotion) {
+    animateGaugesIn();
+  } else {
+    gauges.forEach(g => setGaugeValue(g, g.target));
+  }
 
-      // ===== CLOCK =====
-      function updateClock() {
-        const now = new Date();
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        const s = String(now.getSeconds()).padStart(2, '0');
-        document.getElementById('header-clock').textContent = h + ':' + m + ':' + s;
-      }
-      updateClock();
-      setInterval(updateClock, 1000);
-
-      // ===== GAUGE ANIMATION =====
-      const CIRC = 2 * Math.PI * 50; // 314.16
-
-      function getGaugeColor(pct) {
-        if (pct >= 70) return 'var(--status-stable)';
-        if (pct >= 40) return 'var(--status-caution)';
-        return 'var(--status-volatile)';
-      }
-
-      function animateGauges() {
-        document.querySelectorAll('.gauge-fill').forEach(circle => {
-          const target = parseInt(circle.dataset.target);
-          const offset = CIRC - (CIRC * target / 100);
-          circle.style.strokeDashoffset = offset;
-        });
-
-        document.querySelectorAll('.gauge-value').forEach(el => {
-          const target = parseInt(el.dataset.target);
-          const duration = 1800;
-          const start = performance.now();
-          function step(now) {
-            const progress = Math.min((now - start) / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            el.textContent = Math.round(eased * target);
-            if (progress < 1) requestAnimationFrame(step);
-          }
-          requestAnimationFrame(step);
-        });
-      }
-
-      function updateGauge(id, newVal) {
-        newVal = Math.max(0, Math.min(100, newVal));
-        const circle = document.getElementById('gauge-' + id);
-        const valEl = document.getElementById('gauge-val-' + id);
-        if (!circle || !valEl) return;
-
-        circle.dataset.target = newVal;
-        valEl.dataset.target = newVal;
-
-        const offset = CIRC - (CIRC * newVal / 100);
-        circle.style.strokeDashoffset = offset;
-
-        // Update color based on threshold
-        const color = getGaugeColor(newVal);
-        circle.style.stroke = color;
-        circle.style.setProperty('--gauge-color', color);
-
-        // Animate number
-        const current = parseInt(valEl.textContent) || 0;
-        const duration = 800;
-        const start = performance.now();
-        function step(now) {
-          const progress = Math.min((now - start) / duration, 1);
-          const eased = 1 - Math.pow(1 - progress, 3);
-          valEl.textContent = Math.round(current + (newVal - current) * eased);
-          if (progress < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
-
-        // Update aria
-        const item = circle.closest('.gauge-item');
-        if (item) {
-          const label = item.querySelector('.gauge-label').textContent;
-          item.setAttribute('aria-label', label + ': ' + newVal + '%');
-        }
-      }
-
-      setTimeout(animateGauges, 400);
-
-      // ===== TIMELINE LOG =====
-      const timelineLogs = [
-        { time: "14:32", cat: "candy", text: "Swamp Taffy batch 7: viscosity within tolerance", detail: "Batch passed 3/3 consistency tests. Ready for texture review with Lee Jordan.", dot: "green" },
-        { time: "14:18", cat: "candy", text: "Patronus Pop Rocks: glow duration extended to 4.2s", detail: "Phosphor compound adjusted. Glow color now dynamically matches caster intent. George calls it 'brilliant'.", dot: "green" },
-        { time: "13:55", cat: "candy", text: "Moonbeam Meltdrops shimmer test passed QA review", detail: "Zero sticky fallout across 50 samples. Packaging trial approved.", dot: "green" },
-        { time: "13:41", cat: "prank", text: "Invisible Ink Taffy: tongue reappearance still variable (3-7 min)", detail: "Duration variance too wide for retail. Need to stabilize binding agent. Fred volunteered as test subject again.", dot: "amber" },
-        { time: "13:12", cat: "safety", text: "Lab temperature spike in cauldron bay 3 — auto-vent activated", detail: "Spike reached 47°C before vent engaged. Root cause: unsupervised Swamp Taffy reaction. Bay 3 on amber status.", dot: "red" },
-        { time: "12:48", cat: "general", text: "New batch of Fizzing Whizzbees base solution prepared", detail: "500ml prepared. Levitation compound ratio adjusted per last week's feedback.", dot: "green" },
-      ];
-
-      const archiveLogs = [
-        { time: "12:15", cat: "prank", text: "Decoy Detonator v3: blast radius now configurable via wrapper twist", detail: "Three levels: subtle pop, standard bang, 'George special'. Marketing approved.", dot: "green" },
-        { time: "11:48", cat: "safety", text: "Canary Cream feather density audit completed", detail: "Feather density at 142/cm² — 12% above target. Subjects report 'extra fluffy'. Adjusting down.", dot: "amber" },
-        { time: "11:30", cat: "candy", text: "Skiving Snackbox: new Truancy Toffee flavor passes blind taste test", detail: "8/10 testers preferred it over Nosebleed Nougat. Production greenlit.", dot: "green" },
-        { time: "10:55", cat: "prank", text: "Extendable Ear sensitivity boosted — now picks up whispers at 30m", detail: "Magical acoustic amplifier re-tuned. Filch test scheduled for Thursday.", dot: "green" },
-        { time: "10:22", cat: "safety", text: "Puking Pastille aftertaste formula improved", detail: "Now 'merely unpleasant' per George. Major improvement from 'actively hostile'.", dot: "amber" },
-      ];
-
-      const randomLogPool = [
-        { cat: "candy", text: "Canary Cream feather density increased by 12% — 'extra fluffy'", detail: "Subjects transformed for 4.2s average. Feather softness rated 9/10." },
-        { cat: "prank", text: "Swamp Taffy batch 8: puff radius within acceptable corridor width", detail: "Hallway coverage reduced to 2.1m. Filch avoidance probability: 73%." },
-        { cat: "candy", text: "Patronus Pop Rocks: new crackle rhythm — 'pleasantly startling'", detail: "Rhythm pattern #7 selected. Resembles tiny fireworks. Lee Jordan wants a crate." },
-        { cat: "candy", text: "Moonbeam Meltdrops: shelf stability confirmed at 6 months", detail: "No shimmer degradation detected. Packaging can proceed to production." },
-        { cat: "prank", text: "Invisible Ink Taffy: tongue reappears with faint shimmer effect", detail: "Unintended but delightful side effect. George wants to keep it." },
-        { cat: "safety", text: "Emergency: Fred ate three Canary Creams at once — feathers everywhere", detail: "Full transformation lasted 28 seconds. Lab cleanup took 15 minutes. Fred is fine and laughing." },
-        { cat: "candy", text: "Nosebleed Nougat reformulation: onset time reduced to 2.3 seconds", detail: "Fast enough for classroom use. Recovery candy effectiveness unchanged." },
-        { cat: "prank", text: "Decoy Detonator prototype: explosion radius 15% over spec", detail: "Needs adjustment before retail. Current version reserved for 'special occasions'." },
-        { cat: "general", text: "Ton-Tongue Toffee v3: effect now user-selectable via wrapper color", detail: "Blue = 30s, green = 60s, red = 'surprise me'. Dudley Dursley would not approve." },
-        { cat: "safety", text: "Cauldron bay 2 auto-clean cycle completed successfully", detail: "All residue cleared. Bay 2 back to green status." },
-        { cat: "candy", text: "New shimmer compound tested — 40% brighter with zero toxicity", detail: "Potential upgrade for Moonbeam Meltdrops and Patronus Pop Rocks." },
-        { cat: "prank", text: "Portable Swamp miniature version: fits in a pocket", detail: "1/10 scale. Perfect for 'desk pranks'. Fred is extremely excited." },
-      ];
-
-      const timelineList = document.getElementById('timeline-list');
-
-      function renderTimeline(logs, animate) {
-        timelineList.innerHTML = logs.map((entry, i) => {
-          const isNew = animate && i === 0;
-          return '<div class="tl-entry' + (isNew ? ' new-entry' : '') + '" tabindex="0" role="article" aria-label="' + entry.time + ' — ' + entry.text + '">' +
-            '<div class="tl-dot ' + entry.dot + '" aria-hidden="true"></div>' +
-            '<div class="tl-body">' +
-              '<div class="tl-meta">' +
-                '<span class="tl-time">' + entry.time + '</span>' +
-                '<span class="tl-category ' + entry.cat + '">' + entry.cat + '</span>' +
-              '</div>' +
-              '<div class="tl-text">' + entry.text + '</div>' +
-              '<div class="tl-detail">' + (entry.detail || 'No additional details.') + '</div>' +
-            '</div>' +
-          '</div>';
-        }).join('');
-
-        // Expand/collapse on click
-        timelineList.querySelectorAll('.tl-entry').forEach(el => {
-          el.addEventListener('click', () => el.classList.toggle('expanded'));
-          el.addEventListener('keydown', e => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.classList.toggle('expanded'); }
-          });
-        });
-      }
-
-      renderTimeline(timelineLogs, false);
-
-      // Load more
-      let archiveLoaded = false;
-      document.getElementById('load-more-btn').addEventListener('click', () => {
-        if (archiveLoaded) return;
-        archiveLoaded = true;
-        archiveLogs.forEach(log => timelineLogs.push(log));
-        renderTimeline(timelineLogs, false);
-        document.getElementById('load-more-btn').textContent = 'All entries loaded';
-        document.getElementById('load-more-btn').disabled = true;
+  // Gauge fluctuation
+  if (!prefersReducedMotion) {
+    setInterval(() => {
+      if (isShutdown) return;
+      gauges.forEach(g => {
+        const delta = (Math.random() - 0.5) * 4;
+        g.target = Math.max(5, Math.min(99, g.target + delta));
+        setGaugeValue(g, g.target);
       });
+    }, 5000);
+  }
 
-      // ===== EXPERIMENT CARDS =====
-      const experiments = [
-        {
-          name: "Moonbeam Meltdrops", icon: "🌙", type: "Candy / Shimmer Effect",
-          status: "Stable", statusClass: "badge-stable", accent: "accent-green", iconBg: "green-bg",
-          progressColor: "green", progress: 88,
-          finding: "Elegant sparkle with zero sticky fallout. Ready for packaging trial.",
-          researcher: "F", researcherName: "Fred", days: 34,
-          risk: "low", riskLabel: "Low Risk",
-          notes: "Shimmer intensity optimal at 3.2 lux. Consumer testing showed 94% satisfaction. Packaging mockups approved by both twins. Launch target: next Hogsmeade weekend."
-        },
-        {
-          name: "Swamp Taffy v2", icon: "🐊", type: "Prank / Environmental",
-          status: "Volatile", statusClass: "badge-volatile", accent: "accent-red", iconBg: "red-bg",
-          progressColor: "red", progress: 41,
-          finding: "Great visuals. Hallway ethics remain unresolved. Radius reduced 40%.",
-          researcher: "G", researcherName: "George", days: 52,
-          risk: "high", riskLabel: "High Risk",
-          notes: "Radius containment improved but still exceeds safe corridor width in 2/5 tests. Filch incident rate must drop below 15% before retail. Fred suggests we 'just go for it' — motion denied."
-        },
-        {
-          name: "Patronus Pop Rocks", icon: "✨", type: "Candy / Glow Effect",
-          status: "Testing", statusClass: "badge-testing", accent: "accent-amber", iconBg: "amber-bg",
-          progressColor: "amber", progress: 63,
-          finding: "Crackle pacing needs work. Glow now matches caster's Patronus.",
-          researcher: "F", researcherName: "Fred", days: 21,
-          risk: "medium", riskLabel: "Medium Risk",
-          notes: "Glow color calibration is the breakthrough feature. Crackle rhythm pattern #7 selected after 12 iterations. Duration target: 5 seconds. Current: 4.2 seconds. Close enough for beta release."
-        },
-        {
-          name: "Invisible Ink Taffy", icon: "👻", type: "Prank / Stealth",
-          status: "Brewing", statusClass: "badge-brewing", accent: "accent-blue", iconBg: "blue-bg",
-          progressColor: "blue", progress: 28,
-          finding: "Temporary tongue transparency. Duration unpredictable (3-7 min).",
-          researcher: "G", researcherName: "George", days: 14,
-          risk: "medium", riskLabel: "Medium Risk",
-          notes: "Binding agent instability causes duration variance. Three formulation paths under evaluation. Unexpected shimmer-on-reappearance effect discovered — keeping it. George has tested on himself 11 times this week."
+  // ===== EXPERIMENT LOG =====
+  const logContainer = document.getElementById('log-entries');
+  const btnRun = document.getElementById('btn-run');
+
+  function timeStr() {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5);
+  }
+
+  const initialEntries = [
+    { time: '09:14', tag: 'SYSTEM', color: 'blue', text: 'Laboratory systems initialized. All cauldrons online.' },
+    { time: '10:22', tag: 'CANDY', color: 'green', text: 'Swamp Taffy batch 7: viscosity within tolerance \u2713' },
+    { time: '11:05', tag: 'PRANK', color: 'amber', text: 'Shimmer Specs trial 12: sparkle duration increased to 8min' },
+    { time: '12:30', tag: 'SAFETY', color: 'red', text: 'Vanishing Varnish containment check \u2014 pressure nominal' },
+    { time: '13:15', tag: 'CANDY', color: 'green', text: 'Bubbling Brew fermentation rate: 2.3ml/hr \u2013 within spec' },
+    { time: '13:58', tag: 'SYSTEM', color: 'blue', text: 'Cauldron Bay 3 temperature spike detected \u2014 monitoring' }
+  ];
+
+  function createLogEntry(entry, animate) {
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    div.setAttribute('role', 'listitem');
+
+    const dotCol = document.createElement('div');
+    dotCol.className = 'log-dot-col';
+    const dot = document.createElement('div');
+    dot.className = 'log-dot ' + entry.color;
+    const line = document.createElement('div');
+    line.className = 'log-line ' + entry.color;
+    dotCol.appendChild(dot);
+    dotCol.appendChild(line);
+
+    const textDiv = document.createElement('div');
+    textDiv.className = 'log-text';
+
+    const fullText = '<span class="log-time">[' + entry.time + ']</span> <span class="log-tag ' + entry.color + '">[' + entry.tag + ']</span> ' + entry.text;
+
+    if (animate && !prefersReducedMotion) {
+      textDiv.innerHTML = '';
+      div.appendChild(dotCol);
+      div.appendChild(textDiv);
+      logContainer.appendChild(div);
+      logContainer.scrollTop = logContainer.scrollHeight;
+
+      // Type out plain text portion, show tag/time immediately
+      const prefix = '<span class="log-time">[' + entry.time + ']</span> <span class="log-tag ' + entry.color + '">[' + entry.tag + ']</span> ';
+      textDiv.innerHTML = prefix;
+      let i = 0;
+      const chars = entry.text;
+      const interval = setInterval(() => {
+        if (i < chars.length) {
+          textDiv.innerHTML = prefix + chars.slice(0, i + 1);
+          i++;
+          logContainer.scrollTop = logContainer.scrollHeight;
+        } else {
+          clearInterval(interval);
         }
-      ];
+      }, 30);
+    } else {
+      textDiv.innerHTML = fullText;
+      div.appendChild(dotCol);
+      div.appendChild(textDiv);
+      logContainer.appendChild(div);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+  }
 
-      function renderExperiments() {
-        const grid = document.getElementById('exp-grid');
-        grid.innerHTML = experiments.map((exp, i) =>
-          '<div class="exp-card ' + exp.accent + '" role="listitem" tabindex="0" data-idx="' + i + '">' +
-            '<div class="exp-header">' +
-              '<div class="exp-icon ' + exp.iconBg + '" aria-hidden="true">' + exp.icon + '</div>' +
-              '<div class="exp-title-area">' +
-                '<div class="exp-name">' + exp.name + '</div>' +
-                '<div class="exp-type">' + exp.type + '</div>' +
-              '</div>' +
-              '<span class="badge ' + exp.statusClass + '">' + exp.status + '</span>' +
-            '</div>' +
-            '<div class="exp-progress-track"><div class="exp-progress-fill ' + exp.progressColor + '" style="width: ' + exp.progress + '%;"></div></div>' +
-            '<div class="exp-finding">"' + exp.finding + '"</div>' +
-            '<div class="exp-meta">' +
-              '<div class="exp-researcher"><div class="avatar-init">' + exp.researcher + '</div> ' + exp.researcherName + '</div>' +
-              '<div>' + exp.days + ' days active</div>' +
-            '</div>' +
-            '<div class="exp-expanded-area">' +
-              '<div style="margin-bottom:8px;"><span class="risk-badge risk-' + exp.risk + '">' + exp.riskLabel + '</span> Risk Assessment</div>' +
-              '<p style="color:var(--muted);font-size:12px;line-height:1.5;">' + exp.notes + '</p>' +
-            '</div>' +
-          '</div>'
-        ).join('');
+  initialEntries.forEach(e => createLogEntry(e, false));
 
-        grid.querySelectorAll('.exp-card').forEach(card => {
-          card.addEventListener('click', () => card.classList.toggle('expanded'));
-          card.addEventListener('keydown', e => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.classList.toggle('expanded'); }
-          });
-        });
+  // ===== RUN EXPERIMENT =====
+  const experimentResults = [
+    { tag: 'CANDY', color: 'green', text: '\u2713 Shimmer intensity: OPTIMAL \u2014 batch approved', type: 'success' },
+    { tag: 'CANDY', color: 'green', text: '\u2713 Flavor stability test passed \u2014 no residual tingling', type: 'success' },
+    { tag: 'PRANK', color: 'green', text: '\u2713 Duration extended to 12 minutes without side effects', type: 'success' },
+    { tag: 'SAFETY', color: 'amber', text: '\u26A0 Unexpected color shift detected in sample 4B', type: 'warning' },
+    { tag: 'PRANK', color: 'amber', text: '\u26A0 Mild sparking observed \u2014 adjusting compound ratio', type: 'warning' },
+    { tag: 'CANDY', color: 'amber', text: '\u26A0 Viscosity deviation: +7% above nominal range', type: 'warning' },
+    { tag: 'SAFETY', color: 'red', text: '\u2715 Sample destabilized \u2014 containment holding', type: 'failure' },
+    { tag: 'PRANK', color: 'red', text: '\u2715 Critical: Uncontrolled levitation event in Bay 2', type: 'failure' }
+  ];
+
+  let isRunning = false;
+  let isShutdown = false;
+
+  btnRun.addEventListener('click', function() {
+    if (isRunning || isShutdown) return;
+    isRunning = true;
+    btnRun.textContent = 'RUNNING...';
+    btnRun.disabled = true;
+
+    setTimeout(() => {
+      const result = experimentResults[Math.floor(Math.random() * experimentResults.length)];
+      createLogEntry({ time: timeStr(), tag: result.tag, color: result.color, text: result.text }, true);
+
+      // Random gauge update
+      const gi = Math.floor(Math.random() * gauges.length);
+      const delta = result.type === 'success' ? Math.random() * 5 + 2 : result.type === 'failure' ? -(Math.random() * 8 + 3) : (Math.random() - 0.5) * 6;
+      gauges[gi].target = Math.max(5, Math.min(99, gauges[gi].target + delta));
+      setGaugeValue(gauges[gi], gauges[gi].target);
+
+      // Confetti on success
+      if (result.type === 'success' && !prefersReducedMotion) {
+        spawnConfetti();
       }
 
-      renderExperiments();
+      btnRun.textContent = 'RUN EXPERIMENT';
+      btnRun.disabled = false;
+      isRunning = false;
+    }, 2000);
+  });
 
-      // ===== INVENTORY =====
-      const inventory = [
-        { name: "Phoenix Feather Dust", qty: 12, unit: "units" },
-        { name: "Bundimun Secretion", qty: 8, unit: "vials" },
-        { name: "Billywig Stings", qty: 24, unit: "units" },
-        { name: "Ashwinder Eggs", qty: 3, unit: "units" },
-        { name: "Mooncalf Dung", qty: 18, unit: "scoops" },
-        { name: "Doxy Venom", qty: 5, unit: "drops" },
-        { name: "Fizzing Whizzbee Base", qty: 42, unit: "ml" },
-        { name: "Niffler Glitter", qty: 7, unit: "pinches" },
-        { name: "Streeler Venom", qty: 2, unit: "drops" },
-        { name: "Dragon Claw Powder", qty: 15, unit: "grams" },
-      ];
+  // ===== CONFETTI =====
+  function spawnConfetti() {
+    const container = document.getElementById('confetti-container');
+    const colors = ['#33FF33', '#55FF55', '#22CC22', '#FFB347', '#C5953A'];
+    for (let i = 0; i < 30; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti-particle';
+      p.style.left = (30 + Math.random() * 40) + '%';
+      p.style.top = (20 + Math.random() * 20) + '%';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+      p.style.animationDelay = (Math.random() * 0.5) + 's';
+      p.style.animationDuration = (1 + Math.random()) + 's';
+      container.appendChild(p);
+      setTimeout(() => p.remove(), 2500);
+    }
+  }
 
-      function getStockClass(qty) {
-        if (qty <= 3) return 'critical';
-        if (qty <= 7) return 'low';
-        return '';
-      }
+  // ===== EMERGENCY SHUTDOWN =====
+  const btnShutdown = document.getElementById('btn-shutdown');
+  const shutdownOverlay = document.getElementById('shutdown-overlay');
+  const shutdownCountdown = document.getElementById('shutdown-countdown');
+  const shutdownSub = document.getElementById('shutdown-sub');
 
-      function renderInventory() {
-        const grid = document.getElementById('inv-grid');
-        grid.innerHTML = inventory.map(item => {
-          const cls = getStockClass(item.qty);
-          return '<div class="inv-tag ' + cls + '" role="listitem">' +
-            '<span class="inv-name">' + item.name + '</span>' +
-            '<span class="inv-qty">' + item.qty + ' ' + item.unit + '</span>' +
-          '</div>';
-        }).join('');
-      }
+  btnShutdown.addEventListener('click', function() {
+    if (isShutdown) return;
+    isShutdown = true;
 
-      renderInventory();
+    // Red flash
+    if (!prefersReducedMotion) {
+      const flash = document.createElement('div');
+      flash.className = 'red-flash';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 400);
+    }
 
-      document.getElementById('reorder-btn').addEventListener('click', () => {
-        inventory.forEach(item => {
-          if (item.qty <= 7) item.qty += 10 + Math.floor(Math.random() * 10);
-        });
-        renderInventory();
-        addTimelineEntry("general", "Resupply order placed — low-stock ingredients restocked", "Owl dispatch sent to suppliers. Expected delivery: tomorrow morning.", "green");
-      });
+    // Save gauge targets
+    const savedTargets = gauges.map(g => g.target);
 
-      // ===== ENVIRONMENT MONITOR =====
-      function fluctuateEnv() {
-        const temp = 22 + Math.random() * 3;
-        const humidity = 42 + Math.random() * 8;
-        const air = 94 + Math.random() * 5;
-        const vapor = 8 + Math.random() * 10;
+    // Drop all gauges to 0
+    gauges.forEach(g => {
+      g.target = 0;
+      setGaugeValue(g, 0);
+    });
 
-        document.getElementById('env-temp').textContent = temp.toFixed(1) + '°C';
-        document.getElementById('env-temp-status').textContent = temp > 24 ? 'Slightly warm' : 'Optimal';
-        document.getElementById('env-temp-status').className = 'env-item-status ' + (temp > 24 ? 'warn' : 'ok');
+    shutdownOverlay.classList.add('active');
+    shutdownCountdown.textContent = '5';
+    shutdownSub.textContent = 'ALL EXPERIMENTS SUSPENDING...';
 
-        document.getElementById('env-humidity').textContent = Math.round(humidity) + '%';
-        document.getElementById('env-humidity-status').textContent = humidity > 48 ? 'Elevated' : 'Nominal';
-        document.getElementById('env-humidity-status').className = 'env-item-status ' + (humidity > 48 ? 'warn' : 'ok');
-
-        document.getElementById('env-air').textContent = Math.round(air) + '%';
-        document.getElementById('env-air-status').textContent = air < 95 ? 'Fumes rising' : 'Fumes nominal';
-        document.getElementById('env-air-status').className = 'env-item-status ' + (air < 95 ? 'warn' : 'ok');
-
-        document.getElementById('env-vapor').textContent = Math.round(vapor) + ' ppm';
-        document.getElementById('env-vapor-status').textContent = vapor > 15 ? 'Monitor closely' : 'Within tolerance';
-        document.getElementById('env-vapor-status').className = 'env-item-status ' + (vapor > 15 ? 'warn' : 'ok');
-
-        // Cauldron bays — randomize bay 3 status
-        const bay3rand = Math.random();
-        const bay3dot = document.getElementById('cauldron-3-dot');
-        bay3dot.className = 'cauldron-dot ' + (bay3rand > 0.7 ? 'red' : bay3rand > 0.3 ? 'amber' : 'green');
-      }
-
-      setInterval(fluctuateEnv, 4000);
-
-      // ===== CONFETTI =====
-      const confettiLayer = document.getElementById('confetti-layer');
-
-      function burstConfetti() {
-        const symbols = ["\uD83E\uDDEA", "\u2728", "\uD83D\uDCA5", "\uD83C\uDF6C", "\uD83E\uDE84", "\uD83C\uDF1F"];
-        for (let i = 0; i < 30; i++) {
-          const node = document.createElement('span');
-          node.className = 'confetti';
-          node.setAttribute('aria-hidden', 'true');
-          node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-          node.style.left = (Math.random() * 100) + 'vw';
-          node.style.setProperty('--x', ((Math.random() - 0.5) * 200) + 'px');
-          node.style.animationDelay = (Math.random() * 200) + 'ms';
-          confettiLayer.appendChild(node);
-          setTimeout(() => node.remove(), 1800);
-        }
-      }
-
-      // ===== TIMELINE HELPERS =====
-      function addTimelineEntry(cat, text, detail, dot) {
-        const now = new Date();
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        timelineLogs.unshift({ time: h + ':' + m, cat: cat, text: text, detail: detail || '', dot: dot || 'green' });
-        if (timelineLogs.length > 20) timelineLogs.pop();
-        renderTimeline(timelineLogs, true);
-        timelineList.scrollTop = 0;
-      }
-
-      // ===== RUN EXPERIMENT =====
-      const experimentOutcomes = [
-        { type: "success", text: "Shimmer intensity: OPTIMAL", icon: "✓" },
-        { type: "success", text: "Crackle rhythm synchronization: PERFECT", icon: "✓" },
-        { type: "success", text: "Flavor profile: approved by both twins", icon: "✓" },
-        { type: "success", text: "Glow duration: exceeded target by 18%", icon: "✓" },
-        { type: "success", text: "Zero side effects detected in trial batch", icon: "✓" },
-        { type: "warning", text: "WARNING: Unexpected color change in batch 4", icon: "⚠" },
-        { type: "warning", text: "WARNING: Fizz intensity 23% above threshold", icon: "⚠" },
-        { type: "warning", text: "WARNING: Slight tongue-tingling side effect", icon: "⚠" },
-        { type: "warning", text: "WARNING: Scent profile shifted to 'burnt caramel'", icon: "⚠" },
-        { type: "failure", text: "CRITICAL: Mild explosion in cauldron 3", icon: "✕" },
-        { type: "failure", text: "CRITICAL: Subject sprouted temporary antlers", icon: "✕" },
-        { type: "failure", text: "CRITICAL: Batch collapsed into sentient goo", icon: "✕" },
-      ];
-
-      const runBtn = document.getElementById('run-experiment');
-      const resultPopup = document.getElementById('result-popup');
-      const resultText = document.getElementById('result-text');
-      const resultLabel = document.getElementById('result-label');
-      let experimentRunning = false;
-
-      runBtn.addEventListener('click', () => {
-        if (experimentRunning) return;
-        experimentRunning = true;
-        runBtn.classList.add('running');
-        document.getElementById('run-btn-text').textContent = 'Running...';
+    let count = 5;
+    const countInterval = setInterval(() => {
+      count--;
+      if (count > 0) {
+        shutdownCountdown.textContent = count;
+      } else {
+        clearInterval(countInterval);
+        shutdownCountdown.textContent = '';
+        shutdownSub.textContent = 'Systems resuming...';
 
         setTimeout(() => {
-          burstConfetti();
+          shutdownOverlay.classList.remove('active');
+          isShutdown = false;
 
-          const outcome = experimentOutcomes[Math.floor(Math.random() * experimentOutcomes.length)];
+          // Restore gauges
+          gauges.forEach((g, i) => {
+            g.target = savedTargets[i];
+            setGaugeValue(g, g.target);
+          });
 
-          // Show result popup
-          resultPopup.className = 'result-popup visible ' + (outcome.type === 'success' ? 'success' : outcome.type === 'warning' ? 'warning' : 'failure');
-          resultLabel.textContent = outcome.type === 'success' ? 'EXPERIMENT RESULT' : outcome.type === 'warning' ? 'EXPERIMENT CAUTION' : 'EXPERIMENT FAILURE';
-          resultText.textContent = outcome.icon + ' ' + outcome.text;
+          createLogEntry({ time: timeStr(), tag: 'SYSTEM', color: 'blue', text: 'Emergency shutdown complete. All systems nominal.' }, true);
+        }, 1500);
+      }
+    }, 1000);
+  });
 
-          // Update a random gauge
-          const gaugeIds = ['hilarity', 'safety', 'stability', 'excitement'];
-          const randomGauge = gaugeIds[Math.floor(Math.random() * gaugeIds.length)];
-          const currentVal = parseInt(document.getElementById('gauge-val-' + randomGauge).textContent) || 50;
-          const delta = outcome.type === 'success' ? Math.floor(Math.random() * 12) + 3
-                      : outcome.type === 'warning' ? Math.floor(Math.random() * 8) - 4
-                      : -(Math.floor(Math.random() * 15) + 5);
-          updateGauge(randomGauge, currentVal + delta);
+  // Escape to close overlay
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && shutdownOverlay.classList.contains('active')) {
+      shutdownOverlay.classList.remove('active');
+      isShutdown = false;
+      gauges.forEach(g => setGaugeValue(g, g.target));
+    }
+  });
 
-          // Add timeline entry
-          const cat = outcome.type === 'failure' ? 'safety' : outcome.type === 'warning' ? 'prank' : 'candy';
-          const dot = outcome.type === 'failure' ? 'red' : outcome.type === 'warning' ? 'amber' : 'green';
-          const poolEntry = randomLogPool[Math.floor(Math.random() * randomLogPool.length)];
-          addTimelineEntry(cat, poolEntry.text, poolEntry.detail, dot);
+  // ===== ENVIRONMENT FLUCTUATION =====
+  if (!prefersReducedMotion) {
+    const envTemp = document.getElementById('env-temp');
+    const envHumidity = document.getElementById('env-humidity');
+    const envAir = document.getElementById('env-air');
 
-          // Reset button
-          runBtn.classList.remove('running');
-          document.getElementById('run-btn-text').textContent = 'Run Experiment';
-          experimentRunning = false;
-        }, 2000);
-      });
+    let temp = 23.4, humidity = 45, air = 97;
 
-      // Dismiss result
-      document.getElementById('result-dismiss').addEventListener('click', () => {
-        resultPopup.className = 'result-popup';
-      });
+    setInterval(() => {
+      if (isShutdown) return;
+      temp = Math.round((temp + (Math.random() - 0.5) * 0.6) * 10) / 10;
+      temp = Math.max(20, Math.min(28, temp));
+      envTemp.textContent = temp.toFixed(1) + '\u00B0C';
 
-      // ===== EMERGENCY SHUTDOWN =====
-      const alertOverlay = document.getElementById('alert-overlay');
-      const alertCountdown = document.getElementById('alert-countdown');
-      let shutdownTimer = null;
+      humidity = Math.round(humidity + (Math.random() - 0.5) * 2);
+      humidity = Math.max(35, Math.min(55, humidity));
+      envHumidity.textContent = humidity + '%';
 
-      document.getElementById('emergency-shutdown').addEventListener('click', () => {
-        // Flash border phase
-        alertOverlay.classList.add('open', 'flash-border');
+      air = Math.round(air + (Math.random() - 0.5) * 2);
+      air = Math.max(90, Math.min(100, air));
+      envAir.textContent = air + '%';
+    }, 4000);
+  }
 
-        setTimeout(() => {
-          alertOverlay.classList.remove('flash-border');
-        }, 1000);
-
-        // Countdown
-        let count = 5;
-        alertCountdown.textContent = count;
-        clearInterval(shutdownTimer);
-        shutdownTimer = setInterval(() => {
-          count--;
-          alertCountdown.textContent = count;
-          if (count <= 0) {
-            clearInterval(shutdownTimer);
-            alertOverlay.classList.remove('open');
-            addTimelineEntry("safety", "Emergency shutdown triggered — all systems paused for 5 seconds", "Full shutdown procedure executed. All cauldrons extinguished. Systems resumed automatically.", "red");
-          }
-        }, 1000);
-      });
-
-      document.getElementById('alert-dismiss').addEventListener('click', () => {
-        clearInterval(shutdownTimer);
-        alertOverlay.classList.remove('open');
-        addTimelineEntry("safety", "Emergency shutdown manually dismissed — operations resumed", "Operator override accepted. All bays returning to active status.", "amber");
-      });
-
-      alertOverlay.addEventListener('click', e => {
-        if (e.target === alertOverlay) {
-          clearInterval(shutdownTimer);
-          alertOverlay.classList.remove('open');
-        }
-      });
-
-      // Keyboard: Escape to dismiss overlays
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') {
-          if (alertOverlay.classList.contains('open')) {
-            clearInterval(shutdownTimer);
-            alertOverlay.classList.remove('open');
-          }
-          if (resultPopup.classList.contains('visible')) {
-            resultPopup.className = 'result-popup';
-          }
-        }
-      });
-
-      // ===== SOUND TOGGLE =====
-      const soundBtn = document.getElementById('sound-toggle');
-      let soundOn = false;
-
-      soundBtn.addEventListener('click', () => {
-        soundOn = !soundOn;
-        soundBtn.innerHTML = soundOn
-          ? '<span aria-hidden="true">🔊</span> Sound'
-          : '<span aria-hidden="true">🔇</span> Sound';
-        soundBtn.classList.toggle('muted', !soundOn);
-        soundBtn.setAttribute('aria-pressed', soundOn);
-      });
-    </script>
-  </body>
+})();
+</script>
+</body>
 </html>

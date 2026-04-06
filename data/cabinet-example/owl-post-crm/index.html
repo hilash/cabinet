@@ -1,2109 +1,1121 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Owl Post CRM</title>
-    <style>
-      :root {
-        --night: #091221;
-        --night-2: #12284b;
-        --night-3: #0a1628;
-        --gold: #f4c96d;
-        --gold-dim: rgba(244, 201, 109, 0.15);
-        --ice: #9ad8ff;
-        --lavender: #b7a7ff;
-        --text: #edf5ff;
-        --muted: rgba(237, 245, 255, 0.6);
-        --panel: rgba(12, 26, 49, 0.82);
-        --line: rgba(173, 220, 255, 0.14);
-        --line-strong: rgba(173, 220, 255, 0.28);
-        --col-cold: #60a5fa;
-        --col-warm: #fbbf24;
-        --col-hot: #f87171;
-        --col-closed: #4ade80;
-        --radius-sm: 10px;
-        --radius-md: 16px;
-        --radius-lg: 24px;
-        --radius-pill: 999px;
-        --shadow-card: 0 4px 16px rgba(0,0,0,0.25);
-        --shadow-card-hover: 0 12px 32px rgba(0,0,0,0.4);
-        --shadow-card-drag: 0 20px 48px rgba(0,0,0,0.5);
-        --transition-fast: 0.15s ease;
-        --transition-med: 0.25s ease;
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-        }
-      }
-
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-
-      body {
-        min-height: 100vh;
-        font-family: "Avenir Next", "Inter", "Segoe UI", sans-serif;
-        color: var(--text);
-        background: linear-gradient(160deg, var(--night) 0%, var(--night-2) 50%, var(--night-3) 100%);
-        overflow-x: hidden;
-        line-height: 1.5;
-      }
-
-      /* Star field */
-      .stars {
-        position: fixed; inset: 0;
-        pointer-events: none; opacity: 0.45;
-        background-image:
-          radial-gradient(circle, rgba(255,255,255,0.9) 1px, transparent 1px),
-          radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px),
-          radial-gradient(circle, rgba(255,255,255,0.3) 0.5px, transparent 0.5px);
-        background-size: 140px 140px, 200px 200px, 80px 80px;
-        background-position: 10px 20px, 60px 80px, 30px 50px;
-        z-index: 0;
-      }
-
-      /* Focus visible */
-      :focus-visible {
-        outline: 2px solid var(--gold);
-        outline-offset: 2px;
-      }
-
-      button { font-family: inherit; border: none; cursor: pointer; }
-      input, textarea, select { font-family: inherit; }
-
-      .shell {
-        position: relative; z-index: 1;
-        max-width: 1440px;
-        margin: 0 auto;
-        padding: 20px 20px 40px;
-        display: flex;
-        gap: 0;
-      }
-
-      .main-content {
-        flex: 1;
-        min-width: 0;
-        transition: margin-right var(--transition-med);
-      }
-
-      .main-content.stats-open {
-        margin-right: 16px;
-      }
-
-      /* ── Header ── */
-      .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 16px;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-
-      .header-left {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
-
-      .brand {
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: 26px;
-        font-weight: 700;
-        color: var(--gold);
-        letter-spacing: -0.01em;
-      }
-
-      .brand-sub {
-        font-size: 12px;
-        color: var(--muted);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      .header-actions {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border-radius: var(--radius-pill);
-        padding: 9px 18px;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        background: rgba(255,255,255,0.06);
-        border: 1px solid var(--line);
-        transition: all var(--transition-fast);
-      }
-
-      .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
-      .btn:active { transform: translateY(0); }
-
-      .btn-primary {
-        background: linear-gradient(135deg, rgba(244,201,109,0.25), rgba(154,216,255,0.18));
-        border-color: rgba(244,201,109,0.3);
-      }
-
-      .btn-primary:hover {
-        background: linear-gradient(135deg, rgba(244,201,109,0.35), rgba(154,216,255,0.25));
-        box-shadow: 0 4px 20px rgba(244,201,109,0.2);
-      }
-
-      .btn-icon {
-        width: 36px; height: 36px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-pill);
-        background: rgba(255,255,255,0.06);
-        border: 1px solid var(--line);
-        color: var(--muted);
-        font-size: 16px;
-        transition: all var(--transition-fast);
-      }
-
-      .btn-icon:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-
-      /* ── Quick Stats Bar ── */
-      .quick-stats {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        padding: 10px 18px;
-        border-radius: var(--radius-md);
-        background: var(--panel);
-        border: 1px solid var(--line);
-        margin-bottom: 14px;
-        font-size: 13px;
-        flex-wrap: wrap;
-        backdrop-filter: blur(12px);
-      }
-
-      .stat-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        color: var(--muted);
-      }
-
-      .stat-item strong {
-        color: var(--text);
-        font-weight: 700;
-      }
-
-      .stat-divider {
-        width: 1px;
-        height: 16px;
-        background: var(--line);
-      }
-
-      /* ── Search & Filter Bar ── */
-      .filter-bar {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 14px;
-        flex-wrap: wrap;
-      }
-
-      .search-box {
-        position: relative;
-        flex: 0 1 260px;
-      }
-
-      .search-box svg {
-        position: absolute;
-        left: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--muted);
-        pointer-events: none;
-      }
-
-      .search-box input {
-        width: 100%;
-        padding: 9px 14px 9px 36px;
-        border-radius: var(--radius-pill);
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.05);
-        color: var(--text);
-        font-size: 13px;
-        outline: none;
-        transition: border-color var(--transition-fast);
-      }
-
-      .search-box input::placeholder { color: var(--muted); }
-      .search-box input:focus { border-color: var(--gold); }
-
-      .filter-pills {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        border-radius: var(--radius-pill);
-        border: 1px solid var(--line);
-        padding: 7px 14px;
-        background: rgba(255,255,255,0.04);
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all var(--transition-fast);
-      }
-
-      .pill:hover { background: rgba(255,255,255,0.08); color: var(--text); }
-      .pill.active { background: rgba(183,167,255,0.18); color: var(--lavender); border-color: rgba(183,167,255,0.35); }
-
-      .pill .pill-count {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 18px;
-        height: 18px;
-        border-radius: var(--radius-pill);
-        background: rgba(255,255,255,0.1);
-        font-size: 10px;
-        font-weight: 700;
-        padding: 0 4px;
-      }
-
-      .pill.active .pill-count {
-        background: rgba(183,167,255,0.25);
-      }
-
-      .sort-select {
-        padding: 7px 28px 7px 12px;
-        border-radius: var(--radius-pill);
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.04);
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 600;
-        appearance: none;
-        cursor: pointer;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(237,245,255,0.6)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 10px center;
-        outline: none;
-      }
-
-      .sort-select:focus { border-color: var(--gold); }
-
-      .sort-select option {
-        background: var(--night-2);
-        color: var(--text);
-      }
-
-      /* ── Pipeline Funnel ── */
-      .pipeline-funnel {
-        margin-bottom: 14px;
-        border-radius: var(--radius-md);
-        background: var(--panel);
-        border: 1px solid var(--line);
-        padding: 14px 18px;
-        backdrop-filter: blur(12px);
-      }
-
-      .funnel-label {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.16em;
-        color: var(--muted);
-        margin-bottom: 8px;
-      }
-
-      .funnel-bar {
-        display: flex;
-        height: 32px;
-        border-radius: var(--radius-sm);
-        overflow: hidden;
-        background: rgba(255,255,255,0.03);
-      }
-
-      .funnel-seg {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        min-width: 0;
-        transition: flex-basis 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 11px;
-        font-weight: 700;
-        color: rgba(0,0,0,0.7);
-        padding: 0 8px;
-        white-space: nowrap;
-        overflow: hidden;
-      }
-
-      .funnel-seg[data-stage="cold"] { background: var(--col-cold); }
-      .funnel-seg[data-stage="warm"] { background: var(--col-warm); }
-      .funnel-seg[data-stage="hot"] { background: var(--col-hot); }
-      .funnel-seg[data-stage="closed"] { background: var(--col-closed); }
-
-      .funnel-seg .seg-label { opacity: 1; transition: opacity 0.3s; }
-
-      .funnel-totals {
-        display: flex;
-        gap: 16px;
-        margin-top: 8px;
-      }
-
-      .funnel-total-item {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 11px;
-        color: var(--muted);
-      }
-
-      .funnel-dot {
-        width: 8px; height: 8px;
-        border-radius: 50%;
-      }
-
-      /* ── Kanban Board ── */
-      .board {
-        display: grid;
-        gap: 12px;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-
-      .column {
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.025);
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        transition: background var(--transition-med), border-color var(--transition-med);
-      }
-
-      .column.drag-over {
-        border-color: var(--lavender);
-      }
-
-      .column[data-stage="cold"].drag-over { background: rgba(96,165,250,0.06); }
-      .column[data-stage="warm"].drag-over { background: rgba(251,191,36,0.06); }
-      .column[data-stage="hot"].drag-over  { background: rgba(248,113,113,0.06); }
-      .column[data-stage="closed"].drag-over { background: rgba(74,222,128,0.06); }
-
-      .col-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 14px 16px 10px;
-        border-bottom: 1px solid var(--line);
-      }
-
-      .col-dot {
-        width: 10px; height: 10px;
-        border-radius: 50%;
-        flex-shrink: 0;
-      }
-
-      .col-dot[data-stage="cold"] { background: var(--col-cold); }
-      .col-dot[data-stage="warm"] { background: var(--col-warm); }
-      .col-dot[data-stage="hot"]  { background: var(--col-hot); }
-      .col-dot[data-stage="closed"] { background: var(--col-closed); }
-
-      .col-title {
-        font-size: 14px;
-        font-weight: 700;
-        flex: 1;
-      }
-
-      .col-count {
-        font-size: 11px;
-        color: var(--muted);
-        background: rgba(255,255,255,0.08);
-        padding: 2px 8px;
-        border-radius: var(--radius-pill);
-        font-weight: 600;
-      }
-
-      .col-value {
-        font-size: 11px;
-        color: var(--gold);
-        font-weight: 600;
-      }
-
-      .cards-container {
-        flex: 1;
-        padding: 10px;
-        overflow-y: auto;
-        max-height: 520px;
-        min-height: 100px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .cards-container::-webkit-scrollbar { width: 4px; }
-      .cards-container::-webkit-scrollbar-track { background: transparent; }
-      .cards-container::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
-
-      .col-empty {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 20px 12px;
-        flex: 1;
-        font-size: 12px;
-        color: var(--muted);
-        font-style: italic;
-        line-height: 1.5;
-      }
-
-      .col-footer {
-        padding: 8px 10px;
-        border-top: 1px solid var(--line);
-      }
-
-      .add-lead-btn {
-        width: 100%;
-        padding: 8px;
-        border-radius: var(--radius-sm);
-        background: transparent;
-        border: 1px dashed var(--line);
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all var(--transition-fast);
-      }
-
-      .add-lead-btn:hover {
-        background: rgba(255,255,255,0.04);
-        border-color: var(--line-strong);
-        color: var(--text);
-      }
-
-      /* ── Lead Cards ── */
-      .card {
-        position: relative;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.055);
-        cursor: grab;
-        transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), border-color var(--transition-fast);
-        user-select: none;
-        overflow: hidden;
-      }
-
-      .card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-card-hover);
-        border-color: var(--line-strong);
-      }
-
-      .card:active { cursor: grabbing; }
-
-      .card.dragging {
-        opacity: 0.35;
-        transform: scale(0.95);
-      }
-
-      .card.kb-focused {
-        outline: 2px solid var(--gold);
-        outline-offset: -2px;
-      }
-
-      .card-stage-stripe {
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 4px;
-      }
-
-      .card-stage-stripe[data-stage="cold"] { background: var(--col-cold); }
-      .card-stage-stripe[data-stage="warm"] { background: var(--col-warm); }
-      .card-stage-stripe[data-stage="hot"]  { background: var(--col-hot); }
-      .card-stage-stripe[data-stage="closed"] { background: var(--col-closed); }
-
-      .card-body {
-        padding: 12px 12px 10px 16px;
-      }
-
-      .card-row-top {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .card-avatar {
-        width: 32px; height: 32px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-        font-weight: 800;
-        flex-shrink: 0;
-        color: rgba(0,0,0,0.75);
-      }
-
-      .avatar-hogwarts { background: linear-gradient(135deg, #b7a7ff, #9ad8ff); }
-      .avatar-ministry { background: linear-gradient(135deg, #f4c96d, #f0a040); }
-      .avatar-business { background: linear-gradient(135deg, #4ade80, #60a5fa); }
-      .avatar-personal { background: linear-gradient(135deg, #f87171, #fbbf24); }
-
-      .card-name-block {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .card-name {
-        font-weight: 700;
-        font-size: 13px;
-        line-height: 1.2;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .card-affiliation {
-        font-size: 11px;
-        color: var(--ice);
-        letter-spacing: 0.03em;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .card-value {
-        font-size: 14px;
-        font-weight: 800;
-        color: var(--gold);
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-
-      .card-want {
-        margin-top: 6px;
-        font-size: 12px;
-        color: var(--muted);
-        line-height: 1.4;
-      }
-
-      .card-meta {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-top: 8px;
-      }
-
-      .card-timestamp {
-        font-size: 10px;
-        color: var(--muted);
-        opacity: 0.7;
-      }
-
-      .card-actions {
-        display: flex;
-        gap: 2px;
-        opacity: 0;
-        transition: opacity var(--transition-fast);
-      }
-
-      .card:hover .card-actions { opacity: 1; }
-
-      .card-action-btn {
-        width: 26px; height: 26px;
-        border-radius: 6px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        color: var(--muted);
-        font-size: 13px;
-        border: none;
-        cursor: pointer;
-        transition: all var(--transition-fast);
-      }
-
-      .card-action-btn:hover {
-        background: rgba(255,255,255,0.1);
-        color: var(--text);
-      }
-
-      .card-action-btn.priority-active {
-        color: var(--gold);
-      }
-
-      /* Card expanded */
-      .card-expanded {
-        display: none;
-        padding: 0 12px 12px 16px;
-        border-top: 1px solid var(--line);
-        margin-top: 0;
-      }
-
-      .card.expanded .card-expanded {
-        display: block;
-      }
-
-      .card-notes-area {
-        width: 100%;
-        margin-top: 8px;
-        padding: 8px 10px;
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.04);
-        color: var(--text);
-        font-size: 12px;
-        resize: vertical;
-        min-height: 60px;
-        outline: none;
-      }
-
-      .card-notes-area:focus { border-color: var(--gold); }
-
-      .card-detail-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-        font-size: 12px;
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-      }
-
-      .card-detail-label { color: var(--muted); }
-      .card-detail-value { color: var(--text); font-weight: 600; }
-
-      /* ── Context Menu ── */
-      .context-menu {
-        display: none;
-        position: fixed;
-        z-index: 200;
-        min-width: 180px;
-        border-radius: var(--radius-sm);
-        background: linear-gradient(160deg, #0f1f3d, #162850);
-        border: 1px solid var(--line-strong);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-        padding: 4px;
-        font-size: 13px;
-      }
-
-      .context-menu.open { display: block; }
-
-      .ctx-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        width: 100%;
-        padding: 8px 12px;
-        border-radius: 6px;
-        background: transparent;
-        color: var(--text);
-        font-size: 12px;
-        font-weight: 500;
-        text-align: left;
-        cursor: pointer;
-        border: none;
-        transition: background var(--transition-fast);
-      }
-
-      .ctx-item:hover { background: rgba(255,255,255,0.08); }
-
-      .ctx-item svg { flex-shrink: 0; }
-
-      .ctx-divider {
-        height: 1px;
-        background: var(--line);
-        margin: 4px 0;
-      }
-
-      .ctx-submenu {
-        position: relative;
-      }
-
-      .ctx-submenu-items {
-        display: none;
-        position: absolute;
-        left: 100%;
-        top: -4px;
-        min-width: 140px;
-        border-radius: var(--radius-sm);
-        background: linear-gradient(160deg, #0f1f3d, #162850);
-        border: 1px solid var(--line-strong);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-        padding: 4px;
-      }
-
-      .ctx-submenu:hover .ctx-submenu-items { display: block; }
-
-      /* ── Sidebar Stats Panel ── */
-      .stats-panel {
-        width: 0;
-        overflow: hidden;
-        flex-shrink: 0;
-        transition: width var(--transition-med), opacity var(--transition-med);
-        opacity: 0;
-      }
-
-      .stats-panel.open {
-        width: 280px;
-        opacity: 1;
-      }
-
-      .stats-inner {
-        width: 280px;
-        border-radius: var(--radius-lg);
-        background: var(--panel);
-        border: 1px solid var(--line);
-        backdrop-filter: blur(12px);
-        padding: 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-        height: fit-content;
-        position: sticky;
-        top: 20px;
-      }
-
-      .stats-section-title {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.16em;
-        color: var(--muted);
-        margin-bottom: 8px;
-      }
-
-      .stat-big {
-        text-align: center;
-        padding: 12px;
-      }
-
-      .stat-big-value {
-        font-size: 36px;
-        font-weight: 800;
-        font-family: Georgia, serif;
-        color: var(--gold);
-      }
-
-      .stat-big-label {
-        font-size: 11px;
-        color: var(--muted);
-        margin-top: 2px;
-      }
-
-      .stat-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 6px 0;
-        font-size: 12px;
-      }
-
-      .stat-row-label { color: var(--muted); }
-      .stat-row-value { color: var(--text); font-weight: 700; }
-
-      /* Mini donut chart */
-      .donut-wrap {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .donut-chart {
-        width: 72px; height: 72px;
-        flex-shrink: 0;
-      }
-
-      .donut-legend {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-
-      .donut-legend-item {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 11px;
-        color: var(--muted);
-      }
-
-      .donut-legend-dot {
-        width: 6px; height: 6px;
-        border-radius: 50%;
-        flex-shrink: 0;
-      }
-
-      /* Activity feed */
-      .activity-feed {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        max-height: 200px;
-        overflow-y: auto;
-      }
-
-      .activity-item {
-        display: flex;
-        gap: 8px;
-        font-size: 11px;
-        line-height: 1.4;
-        color: var(--muted);
-      }
-
-      .activity-icon {
-        flex-shrink: 0;
-        margin-top: 1px;
-      }
-
-      .activity-time {
-        font-size: 10px;
-        opacity: 0.6;
-      }
-
-      /* ── Compose Owl Modal ── */
-      .modal-overlay {
-        display: none;
-        position: fixed; inset: 0;
-        background: rgba(9, 18, 33, 0.88);
-        backdrop-filter: blur(10px);
-        z-index: 100;
-        justify-content: center;
-        align-items: center;
-      }
-
-      .modal-overlay.open { display: flex; }
-
-      .modal {
-        background: linear-gradient(160deg, #0f1f3d, #162850);
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-lg);
-        padding: 28px;
-        width: 92%;
-        max-width: 520px;
-        box-shadow: 0 32px 80px rgba(0,0,0,0.6);
-        max-height: 90vh;
-        overflow-y: auto;
-      }
-
-      .modal h2 {
-        font-size: 22px;
-        font-family: Georgia, serif;
-        margin-bottom: 18px;
-        color: var(--gold);
-      }
-
-      .modal-field {
-        margin-bottom: 14px;
-      }
-
-      .modal-field label {
-        display: block;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--ice);
-        margin-bottom: 5px;
-        font-weight: 600;
-      }
-
-      .modal-field input,
-      .modal-field textarea,
-      .modal-field select {
-        width: 100%;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid var(--line);
-        border-radius: var(--radius-sm);
-        padding: 10px 14px;
-        color: var(--text);
-        font-size: 13px;
-        outline: none;
-        transition: border-color var(--transition-fast);
-      }
-
-      .modal-field input:focus,
-      .modal-field textarea:focus,
-      .modal-field select:focus {
-        border-color: var(--gold);
-      }
-
-      .modal-field textarea { resize: vertical; min-height: 100px; }
-
-      .modal-field select option {
-        background: var(--night-2);
-        color: var(--text);
-      }
-
-      .autocomplete-wrap {
-        position: relative;
-      }
-
-      .autocomplete-list {
-        display: none;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        z-index: 10;
-        background: linear-gradient(160deg, #0f1f3d, #162850);
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-sm);
-        max-height: 160px;
-        overflow-y: auto;
-        margin-top: 2px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      }
-
-      .autocomplete-list.open { display: block; }
-
-      .autocomplete-item {
-        padding: 8px 14px;
-        font-size: 13px;
-        cursor: pointer;
-        transition: background var(--transition-fast);
-      }
-
-      .autocomplete-item:hover,
-      .autocomplete-item.highlighted {
-        background: rgba(255,255,255,0.08);
-      }
-
-      .char-count {
-        text-align: right;
-        font-size: 10px;
-        color: var(--muted);
-        margin-top: 4px;
-      }
-
-      .schedule-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-top: 6px;
-      }
-
-      .schedule-option {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 6px 12px;
-        border-radius: var(--radius-pill);
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.04);
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all var(--transition-fast);
-      }
-
-      .schedule-option.active {
-        background: rgba(183,167,255,0.18);
-        color: var(--lavender);
-        border-color: rgba(183,167,255,0.35);
-      }
-
-      .schedule-option:hover { background: rgba(255,255,255,0.08); }
-
-      .modal-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: 18px;
-      }
-
-      .modal-actions .btn { flex: 1; justify-content: center; padding: 12px; }
-
-      /* Add Lead Modal */
-      .add-lead-modal .modal {
-        max-width: 440px;
-      }
-
-      /* ── Toast System ── */
-      .toast-container {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 300;
-        display: flex;
-        flex-direction: column-reverse;
-        gap: 8px;
-        pointer-events: none;
-      }
-
-      .toast {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 18px;
-        border-radius: var(--radius-sm);
-        background: linear-gradient(160deg, #0f1f3d, #162850);
-        border: 1px solid var(--line-strong);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        pointer-events: auto;
-        animation: toast-in 0.3s ease forwards;
-        backdrop-filter: blur(12px);
-      }
-
-      .toast.toast-out {
-        animation: toast-out 0.3s ease forwards;
-      }
-
-      .toast-icon { flex-shrink: 0; }
-      .toast.toast-green .toast-icon { color: var(--col-closed); }
-      .toast.toast-gold .toast-icon  { color: var(--gold); }
-      .toast.toast-blue .toast-icon  { color: var(--col-cold); }
-
-      @keyframes toast-in {
-        from { opacity: 0; transform: translateY(12px) scale(0.95); }
-        to   { opacity: 1; transform: translateY(0) scale(1); }
-      }
-
-      @keyframes toast-out {
-        from { opacity: 1; transform: translateY(0) scale(1); }
-        to   { opacity: 0; transform: translateY(12px) scale(0.95); }
-      }
-
-      /* ── Flying Owl Animation ── */
-      .owl-flight {
-        position: fixed;
-        z-index: 301;
-        font-size: 40px;
-        pointer-events: none;
-        animation: owl-fly 1.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
-      }
-
-      @keyframes owl-fly {
-        0%   { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
-        40%  { opacity: 1; transform: translate(30vw, -20vh) rotate(-10deg) scale(1.2); }
-        100% { opacity: 0; transform: translate(80vw, -50vh) rotate(-5deg) scale(0.6); }
-      }
-
-      /* ── Feather Animation ── */
-      #confetti-layer {
-        position: fixed; inset: 0;
-        pointer-events: none;
-        overflow: hidden;
-        z-index: 101;
-      }
-
-      .feather {
-        position: absolute;
-        top: -10vh;
-        font-size: 22px;
-        animation: feather-fall 2200ms ease-out forwards;
-      }
-
-      @keyframes feather-fall {
-        0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 1; }
-        100% { transform: translate3d(var(--x), 110vh, 0) rotate(var(--rot)); opacity: 0; }
-      }
-
-      /* ── Inline Add Lead Form ── */
-      .inline-add-form {
-        display: none;
-        flex-direction: column;
-        gap: 6px;
-        padding: 10px;
-        border: 1px solid var(--line);
-        border-radius: var(--radius-sm);
-        background: rgba(255,255,255,0.04);
-      }
-
-      .inline-add-form.open { display: flex; }
-
-      .inline-add-form input {
-        width: 100%;
-        padding: 7px 10px;
-        border-radius: 6px;
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.05);
-        color: var(--text);
-        font-size: 12px;
-        outline: none;
-      }
-
-      .inline-add-form input:focus { border-color: var(--gold); }
-
-      .inline-add-actions {
-        display: flex;
-        gap: 4px;
-      }
-
-      .inline-add-actions button {
-        flex: 1;
-        padding: 6px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 600;
-      }
-
-      /* ── Responsive ── */
-      @media (max-width: 1200px) {
-        .stats-panel.open { width: 240px; }
-        .stats-inner { width: 240px; }
-      }
-
-      @media (max-width: 1080px) {
-        .board { grid-template-columns: 1fr 1fr; }
-        .stats-panel.open { width: 0; opacity: 0; }
-      }
-
-      @media (max-width: 640px) {
-        .board { grid-template-columns: 1fr; }
-        .shell { padding: 12px; }
-        .header { flex-direction: column; align-items: flex-start; }
-        .quick-stats { flex-direction: column; gap: 8px; }
-        .stat-divider { display: none; }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="stars" aria-hidden="true"></div>
-    <div id="confetti-layer" aria-hidden="true"></div>
-    <div id="toast-container" class="toast-container" aria-live="polite"></div>
-
-    <!-- Compose Owl Modal -->
-    <div class="modal-overlay" id="modal-compose" role="dialog" aria-modal="true" aria-label="Compose Owl">
-      <div class="modal">
-        <h2>Compose Owl</h2>
-        <div class="modal-field">
-          <label for="owl-to">To</label>
-          <div class="autocomplete-wrap">
-            <input type="text" id="owl-to" placeholder="Start typing a lead name..." autocomplete="off" />
-            <div class="autocomplete-list" id="owl-autocomplete" role="listbox"></div>
-          </div>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Owl Post — Weasleys' Wizard Wheezes CRM</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --navy:#0B1426;
+  --navy-light:#12203A;
+  --navy-mid:#1A2D4E;
+  --parchment:#F5F0E8;
+  --parchment-dark:#E8DFD0;
+  --gold:#D4A847;
+  --gold-dim:#A8863A;
+  --ice:#7CB9E8;
+  --ice-dim:#5A9AD0;
+  --cold:#5B8FD4;
+  --warm:#D4A847;
+  --hot:#D45B5B;
+  --closed:#5BD47A;
+  --gryffindor:#AE2029;
+  --ravenclaw:#2A5CB7;
+  --slytherin:#1A7A3A;
+  --hufflepuff:#D4A847;
+  --ministry:#5A3D8A;
+  --business:#C07030;
+  --text-dark:#2C1810;
+  --text-muted:#6B5D50;
+}
+
+@keyframes twinkle{
+  0%,100%{opacity:.3}
+  50%{opacity:.8}
+}
+
+@keyframes floatUp{
+  0%{transform:translateY(0) rotate(0deg);opacity:1}
+  100%{transform:translateY(-80px) rotate(45deg);opacity:0}
+}
+
+@keyframes owlFly{
+  0%{left:-80px;top:60%;opacity:0;transform:scaleX(1)}
+  10%{opacity:1}
+  30%{top:35%}
+  50%{top:45%}
+  70%{top:30%}
+  90%{opacity:1}
+  100%{left:calc(100% + 80px);top:40%;opacity:0;transform:scaleX(1)}
+}
+
+@keyframes featherDrift{
+  0%{opacity:.8;transform:translateY(0) rotate(0deg) scale(1)}
+  100%{opacity:0;transform:translateY(60px) rotate(180deg) scale(.3)}
+}
+
+@keyframes scrollUnfurl{
+  0%{max-height:0;opacity:0;transform:scaleY(0)}
+  100%{max-height:700px;opacity:1;transform:scaleY(1)}
+}
+
+@keyframes toastSlide{
+  0%{transform:translateX(120%);opacity:0}
+  10%{transform:translateX(0);opacity:1}
+  90%{transform:translateX(0);opacity:1}
+  100%{transform:translateX(120%);opacity:0}
+}
+
+@keyframes countUp{
+  0%{opacity:0;transform:translateY(8px)}
+  100%{opacity:1;transform:translateY(0)}
+}
+
+@keyframes cardLift{
+  0%{box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  100%{box-shadow:0 12px 32px rgba(0,0,0,.25)}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:0.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:0.01ms!important;
+  }
+}
+
+html{font-size:15px}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--navy);
+  color:var(--parchment);
+  min-height:100vh;
+  overflow-x:hidden;
+  position:relative;
+}
+
+/* Star field */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(1px 1px at 10% 15%,rgba(255,255,255,.6),transparent),
+    radial-gradient(1px 1px at 25% 40%,rgba(255,255,255,.4),transparent),
+    radial-gradient(1.5px 1.5px at 45% 10%,rgba(255,255,255,.7),transparent),
+    radial-gradient(1px 1px at 60% 55%,rgba(255,255,255,.3),transparent),
+    radial-gradient(1px 1px at 75% 20%,rgba(255,255,255,.5),transparent),
+    radial-gradient(1.5px 1.5px at 85% 65%,rgba(255,255,255,.6),transparent),
+    radial-gradient(1px 1px at 15% 70%,rgba(255,255,255,.4),transparent),
+    radial-gradient(1px 1px at 35% 85%,rgba(255,255,255,.5),transparent),
+    radial-gradient(1.5px 1.5px at 55% 75%,rgba(255,255,255,.3),transparent),
+    radial-gradient(1px 1px at 90% 35%,rgba(255,255,255,.6),transparent),
+    radial-gradient(1px 1px at 5% 90%,rgba(255,255,255,.4),transparent),
+    radial-gradient(1px 1px at 70% 90%,rgba(255,255,255,.5),transparent),
+    radial-gradient(1.5px 1.5px at 40% 50%,rgba(255,255,255,.3),transparent),
+    radial-gradient(1px 1px at 95% 80%,rgba(255,255,255,.4),transparent),
+    radial-gradient(1px 1px at 20% 30%,rgba(255,255,255,.5),transparent),
+    radial-gradient(1.5px 1.5px at 80% 45%,rgba(255,255,255,.6),transparent);
+  z-index:0;
+}
+
+/* Top Bar */
+.top-bar{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;gap:16px;
+  padding:12px 24px;
+  background:linear-gradient(180deg,rgba(11,20,38,.98),rgba(11,20,38,.92));
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(212,168,71,.2);
+}
+
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo svg{width:32px;height:32px;fill:var(--gold)}
+.logo h1{
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:1.4rem;letter-spacing:2px;color:var(--gold);
+  text-shadow:0 0 20px rgba(212,168,71,.3);
+}
+
+.pipeline-total{
+  font-family:Georgia,serif;
+  font-size:.95rem;color:var(--gold);
+  opacity:.9;white-space:nowrap;
+  animation:countUp .6s ease;
+}
+.pipeline-total .amount{font-weight:700;font-size:1.1rem}
+
+.search-box{
+  position:relative;flex:0 1 260px;margin-left:auto;
+}
+.search-box input{
+  width:100%;padding:8px 12px 8px 34px;
+  border-radius:8px;border:1px solid rgba(212,168,71,.25);
+  background:var(--navy-light);color:var(--parchment);
+  font-size:.85rem;outline:none;
+  transition:border-color .2s;
+}
+.search-box input::placeholder{color:rgba(245,240,232,.35)}
+.search-box input:focus{border-color:var(--gold)}
+.search-box svg{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  width:16px;height:16px;stroke:rgba(245,240,232,.4);fill:none;
+}
+
+.btn-compose{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 20px;border-radius:8px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--gold),#C09A3A);
+  color:var(--navy);font-weight:700;font-size:.85rem;
+  letter-spacing:.5px;white-space:nowrap;
+  box-shadow:0 2px 12px rgba(212,168,71,.3);
+  transition:transform .15s,box-shadow .15s;
+}
+.btn-compose:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(212,168,71,.45)}
+.btn-compose:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.btn-compose svg{width:18px;height:18px}
+
+/* Filter Pills */
+.filter-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 24px;
+  position:relative;z-index:1;
+}
+.filter-pill{
+  padding:6px 14px;border-radius:20px;border:1px solid rgba(212,168,71,.15);
+  background:transparent;color:var(--parchment);
+  font-size:.8rem;cursor:pointer;
+  transition:all .2s;display:flex;align-items:center;gap:6px;
+}
+.filter-pill:hover{border-color:rgba(212,168,71,.4);background:rgba(212,168,71,.08)}
+.filter-pill.active{
+  border-color:var(--gold);
+  background:rgba(212,168,71,.12);
+  box-shadow:0 2px 0 var(--gold);
+}
+.filter-pill:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.filter-badge{
+  background:rgba(212,168,71,.2);padding:1px 7px;border-radius:10px;
+  font-size:.7rem;color:var(--gold);
+}
+
+/* Pipeline Funnel */
+.pipeline-funnel{
+  margin:0 24px 12px;padding:0;
+  display:flex;height:32px;border-radius:8px;overflow:hidden;
+  background:var(--navy-light);
+  border:1px solid rgba(255,255,255,.06);
+  position:relative;z-index:1;
+}
+.funnel-segment{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  font-size:.72rem;font-weight:600;
+  transition:flex .5s ease;
+  white-space:nowrap;overflow:hidden;
+  min-width:0;
+}
+.funnel-segment .seg-label{opacity:.85}
+.funnel-segment .seg-value{font-weight:800}
+.funnel-cold{background:rgba(91,143,212,.35);color:#B8D4F0}
+.funnel-warm{background:rgba(212,168,71,.35);color:#F0DCA0}
+.funnel-hot{background:rgba(212,91,91,.35);color:#F0B8B8}
+.funnel-closed{background:rgba(91,212,122,.35);color:#B8F0C8}
+
+/* Kanban Board */
+.board{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+  padding:8px 24px 24px;
+  position:relative;z-index:1;
+  min-height:60vh;
+}
+
+.column{
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;
+  padding:0;
+  display:flex;flex-direction:column;
+  min-height:300px;
+  transition:background .2s,border-color .2s;
+}
+.column.drag-over{
+  border-color:rgba(212,168,71,.5);
+  background:rgba(212,168,71,.06);
+}
+
+.col-header{
+  display:flex;align-items:center;gap:8px;
+  padding:14px 14px 10px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.col-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.col-dot.cold{background:var(--cold)}
+.col-dot.warm{background:var(--warm)}
+.col-dot.hot{background:var(--hot)}
+.col-dot.closed{background:var(--closed)}
+.col-title{font-family:Georgia,serif;font-size:.95rem;font-weight:700}
+.col-meta{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:.72rem;color:var(--text-muted)}
+.col-count{
+  background:rgba(255,255,255,.08);padding:2px 8px;border-radius:10px;
+  font-size:.7rem;color:var(--parchment);
+}
+.col-total{color:var(--gold);font-weight:600;font-size:.75rem}
+
+.col-cards{
+  flex:1;padding:10px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:10px;
+}
+
+/* Lead Cards — Sealed Letters */
+.lead-card{
+  position:relative;
+  background:var(--parchment);
+  border-radius:8px;
+  padding:14px 14px 10px 18px;
+  cursor:grab;
+  color:var(--text-dark);
+  transition:transform .15s,box-shadow .15s;
+  /* Paper texture via subtle gradient */
+  background-image:
+    linear-gradient(135deg,rgba(0,0,0,.01) 25%,transparent 25%),
+    linear-gradient(225deg,rgba(0,0,0,.01) 25%,transparent 25%),
+    linear-gradient(315deg,rgba(0,0,0,.01) 25%,transparent 25%),
+    linear-gradient(45deg,rgba(0,0,0,.01) 25%,transparent 25%);
+  background-size:20px 20px;
+  background-color:var(--parchment);
+  box-shadow:0 1px 4px rgba(0,0,0,.1);
+}
+.lead-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:5px;
+  border-radius:8px 0 0 8px;
+}
+.lead-card[data-stage="cold"]::before{background:var(--cold)}
+.lead-card[data-stage="warm"]::before{background:var(--warm)}
+.lead-card[data-stage="hot"]::before{background:var(--hot)}
+.lead-card[data-stage="closed"]::before{background:var(--closed)}
+
+.lead-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.lead-card.dragging{opacity:.5;transform:rotate(2deg)}
+.lead-card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* Wax seal fold line */
+.lead-card::after{
+  content:'';position:absolute;right:12px;top:12px;
+  width:20px;height:20px;
+  border-right:1px solid rgba(0,0,0,.06);
+  border-bottom:1px solid rgba(0,0,0,.06);
+  transform:rotate(-45deg);
+  pointer-events:none;
+}
+
+.card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+
+.wax-seal{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:Georgia,serif;font-weight:700;font-size:.95rem;
+  color:#fff;flex-shrink:0;
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.2),0 2px 6px rgba(0,0,0,.15);
+  text-shadow:0 1px 2px rgba(0,0,0,.3);
+  position:relative;
+}
+/* Wax seal texture ring */
+.wax-seal::after{
+  content:'';position:absolute;inset:2px;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.2);
+}
+
+.card-name{font-family:Georgia,serif;font-weight:700;font-size:.9rem;line-height:1.2}
+.card-affiliation{
+  font-size:.65rem;text-transform:uppercase;letter-spacing:1.5px;
+  color:var(--text-muted);margin-top:1px;
+}
+
+.card-seeks{
+  font-size:.78rem;color:var(--text-muted);
+  margin-bottom:6px;font-style:italic;
+}
+.card-seeks strong{color:var(--text-dark);font-style:normal}
+
+.card-bottom{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:8px;
+  border-top:1px dashed rgba(0,0,0,.08);
+}
+
+.card-value{
+  font-family:Georgia,serif;font-weight:700;font-size:.9rem;
+  color:var(--gold-dim);
+}
+
+.card-owl-time{
+  display:flex;align-items:center;gap:4px;
+  font-size:.68rem;color:var(--text-muted);
+}
+.card-owl-time svg{width:12px;height:12px;fill:var(--text-muted);opacity:.6}
+
+.card-actions{
+  display:flex;align-items:center;gap:2px;
+  margin-top:6px;
+}
+.card-actions button{
+  background:none;border:none;cursor:pointer;
+  padding:4px 6px;border-radius:4px;font-size:.85rem;
+  transition:background .15s;color:var(--text-muted);
+}
+.card-actions button:hover{background:rgba(0,0,0,.06)}
+.card-actions button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+
+/* Card Expansion */
+.card-expanded-content{
+  display:none;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid rgba(0,0,0,.08);
+}
+.lead-card.expanded .card-expanded-content{display:block}
+
+.card-expanded-content label{
+  display:block;font-size:.7rem;text-transform:uppercase;
+  letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;
+  font-weight:600;
+}
+.card-expanded-content textarea{
+  width:100%;height:60px;border:1px solid rgba(0,0,0,.1);
+  border-radius:6px;padding:8px;font-size:.78rem;
+  background:rgba(255,255,255,.5);resize:vertical;
+  font-family:inherit;color:var(--text-dark);
+}
+.card-expanded-content textarea:focus{outline:2px solid var(--gold);border-color:transparent}
+
+.card-timeline{margin:10px 0;padding-left:14px;border-left:2px solid rgba(0,0,0,.08)}
+.timeline-event{
+  font-size:.72rem;color:var(--text-muted);
+  padding:3px 0;position:relative;
+}
+.timeline-event::before{
+  content:'';position:absolute;left:-19px;top:8px;
+  width:8px;height:8px;border-radius:50%;
+  background:var(--gold);border:2px solid var(--parchment);
+}
+.timeline-event strong{color:var(--text-dark)}
+
+.card-next-action{margin-top:8px}
+.card-next-action input{
+  width:100%;padding:6px 8px;border:1px solid rgba(0,0,0,.1);
+  border-radius:6px;font-size:.78rem;background:rgba(255,255,255,.5);
+  color:var(--text-dark);
+}
+.card-next-action input:focus{outline:2px solid var(--gold);border-color:transparent}
+
+.btn-close-card{
+  display:block;margin:10px auto 0;padding:4px 16px;
+  border:1px solid rgba(0,0,0,.1);border-radius:6px;
+  background:transparent;cursor:pointer;font-size:.72rem;
+  color:var(--text-muted);transition:all .15s;
+}
+.btn-close-card:hover{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.2)}
+.btn-close-card:focus-visible{outline:2px solid var(--gold)}
+
+/* Toast */
+.toast-container{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px;
+}
+.toast{
+  padding:12px 20px;border-radius:10px;
+  background:var(--navy-mid);
+  border:1px solid rgba(212,168,71,.3);
+  color:var(--parchment);font-size:.82rem;
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
+  animation:toastSlide 3.5s ease forwards;
+  display:flex;align-items:center;gap:8px;
+}
+.toast svg{width:16px;height:16px;fill:var(--gold)}
+
+/* Compose Owl Modal */
+.modal-overlay{
+  display:none;position:fixed;inset:0;z-index:1000;
+  background:rgba(11,20,38,.8);
+  backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;
+}
+.modal-overlay.open{display:flex}
+
+.compose-modal{
+  width:500px;max-width:92vw;
+  background:var(--parchment);
+  border-radius:12px;
+  color:var(--text-dark);
+  position:relative;
+  overflow:hidden;
+  animation:scrollUnfurl .4s ease;
+  transform-origin:top center;
+  /* Scroll edge decoration */
+  border:2px solid var(--gold);
+  box-shadow:0 20px 60px rgba(0,0,0,.5),inset 0 0 30px rgba(0,0,0,.03);
+}
+/* Scroll top curl */
+.compose-modal::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:8px;
+  background:linear-gradient(180deg,rgba(0,0,0,.08),transparent);
+  border-radius:12px 12px 0 0;
+}
+/* Scroll bottom curl */
+.compose-modal::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:8px;
+  background:linear-gradient(0deg,rgba(0,0,0,.08),transparent);
+  border-radius:0 0 12px 12px;
+}
+
+.compose-header{
+  padding:20px 24px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid rgba(0,0,0,.08);
+}
+.compose-header h2{
+  font-family:Georgia,serif;font-size:1.2rem;color:var(--text-dark);
+  display:flex;align-items:center;gap:8px;
+}
+.btn-close-modal{
+  background:none;border:none;cursor:pointer;font-size:1.3rem;
+  color:var(--text-muted);padding:4px;border-radius:4px;
+  transition:color .15s;
+}
+.btn-close-modal:hover{color:var(--text-dark)}
+.btn-close-modal:focus-visible{outline:2px solid var(--gold)}
+
+.compose-body{padding:16px 24px 24px}
+
+.compose-field{margin-bottom:14px}
+.compose-field label{
+  display:block;font-size:.72rem;text-transform:uppercase;
+  letter-spacing:1.5px;color:var(--text-muted);margin-bottom:5px;
+  font-weight:600;
+}
+.compose-field input,.compose-field textarea{
+  width:100%;padding:10px 12px;border:1px solid rgba(0,0,0,.12);
+  border-radius:8px;font-size:.85rem;
+  background:rgba(255,255,255,.6);color:var(--text-dark);
+  font-family:inherit;
+}
+.compose-field input:focus,.compose-field textarea:focus{
+  outline:2px solid var(--gold);border-color:transparent;
+}
+.compose-field textarea{height:120px;resize:vertical}
+
+/* To field autocomplete */
+.to-field-wrap{position:relative}
+.autocomplete-dropdown{
+  display:none;
+  position:absolute;top:100%;left:0;right:0;
+  background:var(--parchment);border:1px solid rgba(0,0,0,.12);
+  border-radius:0 0 8px 8px;box-shadow:0 4px 12px rgba(0,0,0,.1);
+  max-height:180px;overflow-y:auto;z-index:10;
+}
+.autocomplete-dropdown.open{display:block}
+.autocomplete-item{
+  padding:8px 12px;cursor:pointer;font-size:.82rem;
+  display:flex;align-items:center;gap:8px;
+  transition:background .1s;
+}
+.autocomplete-item:hover,.autocomplete-item.highlighted{
+  background:rgba(212,168,71,.12);
+}
+.autocomplete-item .mini-seal{
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.6rem;font-weight:700;color:#fff;
+}
+
+/* Template Seals */
+.template-seals{
+  display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;
+}
+.template-seal{
+  width:52px;height:52px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;border:2px solid transparent;
+  font-size:.55rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;transition:all .15s;
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.15),0 2px 6px rgba(0,0,0,.1);
+  color:#fff;
+}
+.template-seal:hover{transform:scale(1.08)}
+.template-seal.active{border-color:var(--text-dark);transform:scale(1.08)}
+.template-seal:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.template-seal[data-template="intro"]{background:var(--cold)}
+.template-seal[data-template="followup"]{background:var(--warm)}
+.template-seal[data-template="offer"]{background:var(--hot)}
+.template-seal[data-template="thanks"]{background:var(--closed)}
+.template-seal span{margin-top:2px;font-size:.5rem}
+
+.btn-send-owl{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;padding:12px;border-radius:8px;border:none;
+  background:linear-gradient(135deg,var(--gold),#C09A3A);
+  color:var(--navy);font-weight:700;font-size:.95rem;
+  cursor:pointer;letter-spacing:.5px;
+  box-shadow:0 2px 12px rgba(212,168,71,.3);
+  transition:transform .15s,box-shadow .15s;
+}
+.btn-send-owl:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(212,168,71,.45)}
+.btn-send-owl:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* Owl Flight Animation */
+.owl-flight{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:9998;
+  display:none;
+}
+.owl-flight.active{display:block}
+.flying-owl{
+  position:absolute;
+  width:60px;height:40px;
+  animation:owlFly 2s ease-in-out forwards;
+}
+.flying-owl svg{width:100%;height:100%;fill:var(--gold)}
+
+.feather{
+  position:absolute;width:8px;height:16px;
+  background:var(--gold);
+  border-radius:50% 50% 50% 0;
+  opacity:0;
+  animation:featherDrift 1.5s ease forwards;
+}
+
+/* Responsive */
+@media(max-width:900px){
+  .board{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:560px){
+  .board{grid-template-columns:1fr}
+  .top-bar{flex-wrap:wrap;gap:10px}
+  .search-box{flex:1 1 100%;order:5}
+}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="logo">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <ellipse cx="20" cy="18" rx="16" ry="14" fill="none" stroke="currentColor" stroke-width="1.5" style="stroke:var(--gold)"/>
+      <circle cx="14" cy="14" r="4" fill="var(--gold)"/>
+      <circle cx="26" cy="14" r="4" fill="var(--gold)"/>
+      <circle cx="14" cy="14" r="2" fill="var(--navy)"/>
+      <circle cx="26" cy="14" r="2" fill="var(--navy)"/>
+      <path d="M17 20 Q20 24 23 20" fill="var(--gold)"/>
+      <path d="M20 24 L20 30" stroke="var(--gold)" stroke-width="1.5" fill="none"/>
+      <path d="M8 10 Q4 4 10 6" fill="var(--gold)"/>
+      <path d="M32 10 Q36 4 30 6" fill="var(--gold)"/>
+      <path d="M13 32 L20 30 L27 32" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+    </svg>
+    <h1>OWL POST</h1>
+  </div>
+  <div class="pipeline-total">
+    <span class="amount" id="pipelineTotal">4,160</span> Galleons in flight
+  </div>
+  <div class="search-box">
+    <svg viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input type="text" id="searchInput" placeholder="Search leads..." aria-label="Search leads by name">
+  </div>
+  <button class="btn-compose" id="btnCompose" aria-label="Compose new owl message">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/><polygon points="18 2 22 6 12 16 8 16 8 12 18 2" fill="var(--navy)" stroke="var(--navy)"/></svg>
+    Compose Owl
+  </button>
+</div>
+
+<!-- Filter Pills -->
+<div class="filter-bar" role="toolbar" aria-label="Filter leads">
+  <button class="filter-pill active" data-filter="all" aria-pressed="true">All <span class="filter-badge" id="filterAll">10</span></button>
+  <button class="filter-pill" data-filter="hogwarts" aria-pressed="false">Hogwarts <span class="filter-badge" id="filterHogwarts">0</span></button>
+  <button class="filter-pill" data-filter="ministry" aria-pressed="false">Ministry <span class="filter-badge" id="filterMinistry">0</span></button>
+  <button class="filter-pill" data-filter="business" aria-pressed="false">Business <span class="filter-badge" id="filterBusiness">0</span></button>
+</div>
+
+<!-- Pipeline Funnel -->
+<div class="pipeline-funnel" role="img" aria-label="Pipeline funnel showing deal values by stage">
+  <div class="funnel-segment funnel-cold" id="funnelCold"><span class="seg-label">Cold</span>&nbsp;<span class="seg-value"></span></div>
+  <div class="funnel-segment funnel-warm" id="funnelWarm"><span class="seg-label">Warm</span>&nbsp;<span class="seg-value"></span></div>
+  <div class="funnel-segment funnel-hot" id="funnelHot"><span class="seg-label">Hot</span>&nbsp;<span class="seg-value"></span></div>
+  <div class="funnel-segment funnel-closed" id="funnelClosed"><span class="seg-label">Closed</span>&nbsp;<span class="seg-value"></span></div>
+</div>
+
+<!-- Kanban Board -->
+<div class="board" id="board">
+  <div class="column" data-stage="cold" id="colCold">
+    <div class="col-header">
+      <div class="col-dot cold"></div>
+      <span class="col-title">Cold</span>
+      <div class="col-meta">
+        <span class="col-count" id="countCold">0</span>
+        <span class="col-total" id="totalCold">0g</span>
+      </div>
+    </div>
+    <div class="col-cards" role="list" aria-label="Cold leads"></div>
+  </div>
+  <div class="column" data-stage="warm" id="colWarm">
+    <div class="col-header">
+      <div class="col-dot warm"></div>
+      <span class="col-title">Warm</span>
+      <div class="col-meta">
+        <span class="col-count" id="countWarm">0</span>
+        <span class="col-total" id="totalWarm">0g</span>
+      </div>
+    </div>
+    <div class="col-cards" role="list" aria-label="Warm leads"></div>
+  </div>
+  <div class="column" data-stage="hot" id="colHot">
+    <div class="col-header">
+      <div class="col-dot hot"></div>
+      <span class="col-title">Hot</span>
+      <div class="col-meta">
+        <span class="col-count" id="countHot">0</span>
+        <span class="col-total" id="totalHot">0g</span>
+      </div>
+    </div>
+    <div class="col-cards" role="list" aria-label="Hot leads"></div>
+  </div>
+  <div class="column" data-stage="closed" id="colClosed">
+    <div class="col-header">
+      <div class="col-dot closed"></div>
+      <span class="col-title">Closed</span>
+      <div class="col-meta">
+        <span class="col-count" id="countClosed">0</span>
+        <span class="col-total" id="totalClosed">0g</span>
+      </div>
+    </div>
+    <div class="col-cards" role="list" aria-label="Closed leads"></div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<!-- Owl Flight Layer -->
+<div class="owl-flight" id="owlFlight" aria-hidden="true"></div>
+
+<!-- Compose Modal -->
+<div class="modal-overlay" id="composeModal" role="dialog" aria-modal="true" aria-label="Compose owl message">
+  <div class="compose-modal">
+    <div class="compose-header">
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-dark)" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Compose Owl
+      </h2>
+      <button class="btn-close-modal" id="btnCloseModal" aria-label="Close compose dialog">&times;</button>
+    </div>
+    <div class="compose-body">
+      <div class="compose-field">
+        <label for="composeTo">To</label>
+        <div class="to-field-wrap">
+          <input type="text" id="composeTo" placeholder="Start typing a name..." autocomplete="off" aria-autocomplete="list" aria-controls="autocompleteList">
+          <div class="autocomplete-dropdown" id="autocompleteList" role="listbox"></div>
         </div>
-        <div class="modal-field">
-          <label for="owl-template">Template</label>
-          <select id="owl-template">
-            <option value="">-- Select template --</option>
-            <option value="intro">Introduction</option>
-            <option value="followup">Follow-up</option>
-            <option value="offer">Special Offer</option>
-            <option value="thankyou">Thank You</option>
-          </select>
-        </div>
-        <div class="modal-field">
-          <label for="owl-subject">Subject</label>
-          <input type="text" id="owl-subject" placeholder="e.g. Exclusive preview of Moonbeam Meltdrops" />
-        </div>
-        <div class="modal-field">
-          <label for="owl-message">Message</label>
-          <textarea id="owl-message" placeholder="Write your owl post here..."></textarea>
-          <div class="char-count"><span id="owl-char-count">0</span> / 500</div>
-        </div>
-        <div class="modal-field">
-          <label>Schedule</label>
-          <div class="schedule-row">
-            <button class="schedule-option active" data-schedule="now">Send Now</button>
-            <button class="schedule-option" data-schedule="tomorrow">Tomorrow</button>
-            <button class="schedule-option" data-schedule="custom">Custom</button>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn" id="modal-cancel">Cancel</button>
-          <button class="btn btn-primary" id="modal-send">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-            Send Owl
+      </div>
+      <div class="compose-field">
+        <label>Template</label>
+        <div class="template-seals" role="radiogroup" aria-label="Message template">
+          <button class="template-seal" data-template="intro" role="radio" aria-checked="false" aria-label="Introduction template" tabindex="0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <span>Intro</span>
+          </button>
+          <button class="template-seal" data-template="followup" role="radio" aria-checked="false" aria-label="Follow-up template" tabindex="-1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>Follow</span>
+          </button>
+          <button class="template-seal" data-template="offer" role="radio" aria-checked="false" aria-label="Special offer template" tabindex="-1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>Offer</span>
+          </button>
+          <button class="template-seal" data-template="thanks" role="radio" aria-checked="false" aria-label="Thank you template" tabindex="-1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span>Thanks</span>
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- Add Lead Modal -->
-    <div class="modal-overlay add-lead-modal" id="modal-add-lead" role="dialog" aria-modal="true" aria-label="Add Lead">
-      <div class="modal">
-        <h2>Add New Lead</h2>
-        <div class="modal-field">
-          <label for="new-lead-name">Name</label>
-          <input type="text" id="new-lead-name" placeholder="e.g. Cedric Diggory" />
-        </div>
-        <div class="modal-field">
-          <label for="new-lead-affiliation">Affiliation</label>
-          <input type="text" id="new-lead-affiliation" placeholder="e.g. Hufflepuff House" />
-        </div>
-        <div class="modal-field">
-          <label for="new-lead-category">Category</label>
-          <select id="new-lead-category">
-            <option value="hogwarts">Hogwarts</option>
-            <option value="ministry">Ministry</option>
-            <option value="business">Business</option>
-            <option value="personal">Personal</option>
-          </select>
-        </div>
-        <div class="modal-field">
-          <label for="new-lead-want">Interest</label>
-          <input type="text" id="new-lead-want" placeholder="e.g. Quidditch care packages" />
-        </div>
-        <div class="modal-field">
-          <label for="new-lead-value">Deal Value (Galleons)</label>
-          <input type="number" id="new-lead-value" placeholder="e.g. 350" min="0" />
-        </div>
-        <div class="modal-actions">
-          <button class="btn" id="add-lead-cancel">Cancel</button>
-          <button class="btn btn-primary" id="add-lead-confirm">Add Lead</button>
-        </div>
+      <div class="compose-field">
+        <label for="composeMsg">Message</label>
+        <textarea id="composeMsg" placeholder="Dear friend, we write to inform you of our latest magical mischief..."></textarea>
       </div>
-    </div>
-
-    <!-- Context Menu -->
-    <div class="context-menu" id="context-menu" role="menu">
-      <div class="ctx-submenu">
-        <button class="ctx-item" role="menuitem">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-          Move to...
-          <span style="margin-left:auto;opacity:0.5;font-size:10px;">&#9654;</span>
-        </button>
-        <div class="ctx-submenu-items" id="ctx-move-submenu"></div>
-      </div>
-      <button class="ctx-item" role="menuitem" data-action="send-owl">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      <button class="btn-send-owl" id="btnSendOwl" aria-label="Send owl message">
+        <svg width="18" height="18" viewBox="0 0 40 40" aria-hidden="true">
+          <ellipse cx="20" cy="18" rx="14" ry="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="15" cy="14" r="2.5"/><circle cx="25" cy="14" r="2.5"/>
+          <path d="M17 20 Q20 23 23 20"/>
+          <path d="M8 10 Q4 5 9 6"/><path d="M32 10 Q36 5 31 6"/>
+        </svg>
         Send Owl
       </button>
-      <button class="ctx-item" role="menuitem" data-action="add-note">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Add Note
-      </button>
-      <button class="ctx-item" role="menuitem" data-action="toggle-priority">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        Toggle Priority
-      </button>
-      <div class="ctx-divider"></div>
-      <button class="ctx-item" role="menuitem" data-action="archive" style="color: var(--col-hot);">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-        Archive
-      </button>
     </div>
+  </div>
+</div>
 
-    <div class="shell">
-      <div class="main-content" id="main-content">
-        <!-- Header -->
-        <header class="header">
-          <div class="header-left">
-            <div>
-              <div class="brand">Owl Post CRM</div>
-              <div class="brand-sub">Weasleys' Wizard Wheezes</div>
-            </div>
-          </div>
-          <div class="header-actions">
-            <button class="btn btn-primary" id="compose-owl">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-              Compose Owl
-            </button>
-            <button class="btn-icon" id="toggle-stats" title="Toggle stats panel" aria-label="Toggle statistics panel">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-            </button>
-          </div>
-        </header>
+<script>
+// =============================================
+// DATA
+// =============================================
+const LEADS = [
+  { id:1, name:"Neville Longbottom", initial:"N", house:"hufflepuff", affiliation:"Hogwarts", category:"hogwarts", seeks:"Herbology prank kits", value:260, stage:"cold", lastOwl:5, color:"var(--hufflepuff)",
+    notes:"Interested in self-repotting plants that insult passersby.", history:["Visited shop 2 weeks ago","Asked about Screaming Seedlings","Received catalog by owl"], nextAction:"Send Herbology special offer" },
+  { id:2, name:"Draco Malfoy", initial:"D", house:"slytherin", affiliation:"Malfoy Manor", category:"hogwarts", seeks:"Premium gift boxes", value:520, stage:"cold", lastOwl:8, color:"var(--slytherin)",
+    notes:"Wants luxury packaging. Very particular about branding.", history:["Initial inquiry via house-elf","Requested exclusive catalog","Discussed custom wax seals"], nextAction:"Send premium sample box" },
+  { id:3, name:"Kingsley Shacklebolt", initial:"K", house:"ministry", affiliation:"Ministry of Magic", category:"ministry", seeks:"Bulk defensive novelties", value:750, stage:"cold", lastOwl:2, color:"var(--ministry)",
+    notes:"Departmental order for morale-boosting desk toys.", history:["Met at Ministry gala","Follow-up meeting scheduled","Budget approved pending samples"], nextAction:"Deliver sample crate to Ministry" },
+  { id:4, name:"Hermione Granger", initial:"H", house:"gryffindor", affiliation:"Dept. of Magical Law", category:"ministry", seeks:"Educational trick quills", value:480, stage:"warm", lastOwl:3, color:"var(--gryffindor)",
+    notes:"Wants quills that correct grammar while writing. Very on-brand.", history:["Owled inquiry about Smart Quills","Discussed educational licensing","Sent product specs"], nextAction:"Finalize quill enchantment specs" },
+  { id:5, name:"Luna Lovegood", initial:"L", house:"ravenclaw", affiliation:"The Quibbler", category:"business", seeks:"Invisible ink subscriptions", value:320, stage:"warm", lastOwl:1, color:"var(--ravenclaw)",
+    notes:"Wants invisible ink for secret Quibbler supplements.", history:["Bumped into at Diagon Alley","Discussed bulk ink pricing","Tested samples - loved the Nargle-scented variant"], nextAction:"Send revised pricing for quarterly supply" },
+  { id:6, name:"Cho Chang", initial:"C", house:"ravenclaw", affiliation:"Tutshill Tornados", category:"business", seeks:"Team-branded fireworks", value:210, stage:"warm", lastOwl:4, color:"var(--ravenclaw)",
+    notes:"Wants fireworks in team colors for match celebrations.", history:["Agent reached out","Discussed custom color options","Awaiting team manager approval"], nextAction:"Follow up on approval status" },
+  { id:7, name:"Lee Jordan", initial:"L", house:"gryffindor", affiliation:"WWN Radio", category:"business", seeks:"Commentator voice changers", value:610, stage:"hot", lastOwl:1, color:"var(--gryffindor)",
+    notes:"Wants voice modulation candies for radio segments.", history:["Long-time customer","Tested prototypes on air","Listeners loved the dragon-voice variant","Negotiating bulk deal"], nextAction:"Close the deal this week" },
+  { id:8, name:"Angelina Johnson", initial:"A", house:"gryffindor", affiliation:"Gryffindor Quidditch", category:"hogwarts", seeks:"Trick bludger training sets", value:390, stage:"hot", lastOwl:2, color:"var(--gryffindor)",
+    notes:"Wants practice bludgers that taunt players to improve reflexes.", history:["Contacted via Oliver Wood","Demo at training ground","Team voted to purchase"], nextAction:"Send final invoice" },
+  { id:9, name:"Arthur Weasley", initial:"A", house:"gryffindor", affiliation:"The Burrow", category:"hogwarts", seeks:"Muggle magic kits", value:180, stage:"closed", lastOwl:0, color:"var(--gryffindor)",
+    notes:"Dad discount applied. Absolutely thrilled with rubber ducks that quack spells.", history:["Family order","Picked items personally","Paid in full","Sent thank-you owl"], nextAction:"Send holiday catalog" },
+  { id:10, name:"Madam Rosmerta", initial:"R", house:"business", affiliation:"Three Broomsticks", category:"business", seeks:"Tavern trick coasters", value:440, stage:"closed", lastOwl:1, color:"var(--business)",
+    notes:"Coasters that tell fortunes when you set down your butterbeer.", history:["Met at Hogsmeade visit","Loved the fortune-telling concept","Ordered 500 units","Delivery complete"], nextAction:"Check in for reorder" },
+];
 
-        <!-- Quick Stats -->
-        <div class="quick-stats" id="quick-stats"></div>
+let activeFilter = 'all';
 
-        <!-- Filter Bar -->
-        <div class="filter-bar">
-          <div class="search-box">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" id="search-input" placeholder="Search leads... ( / )" aria-label="Search leads" />
-          </div>
-          <div class="filter-pills" id="filter-pills"></div>
-          <select class="sort-select" id="sort-select" aria-label="Sort leads">
-            <option value="default">Sort: Default</option>
-            <option value="value-desc">Value: High to Low</option>
-            <option value="value-asc">Value: Low to High</option>
-            <option value="name-asc">Name: A to Z</option>
-            <option value="name-desc">Name: Z to A</option>
-            <option value="contact-asc">Last Contact: Oldest</option>
-            <option value="contact-desc">Last Contact: Newest</option>
-          </select>
+// =============================================
+// RENDER
+// =============================================
+function getLeads() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  return LEADS.filter(l => {
+    if (activeFilter !== 'all' && l.category !== activeFilter) return false;
+    if (q && !l.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function stageLeads(stage) {
+  return getLeads().filter(l => l.stage === stage);
+}
+
+function createCardHTML(lead) {
+  const owlText = lead.lastOwl === 0 ? 'Today' : lead.lastOwl === 1 ? '1 day ago' : `${lead.lastOwl} days ago`;
+  const historyHTML = lead.history.map(h => `<div class="timeline-event"><strong>${h}</strong></div>`).join('');
+
+  return `
+    <div class="lead-card" draggable="true" data-id="${lead.id}" data-stage="${lead.stage}" data-category="${lead.category}"
+         role="listitem" aria-label="${lead.name}, ${lead.value} Galleons, ${lead.stage}" tabindex="0">
+      <div class="card-top">
+        <div class="wax-seal" style="background:${lead.color}" aria-hidden="true">${lead.initial}</div>
+        <div>
+          <div class="card-name">${lead.name}</div>
+          <div class="card-affiliation">${lead.affiliation}</div>
         </div>
-
-        <!-- Pipeline Funnel -->
-        <div class="pipeline-funnel" id="pipeline-funnel">
-          <div class="funnel-label">Pipeline Funnel</div>
-          <div class="funnel-bar" id="funnel-bar"></div>
-          <div class="funnel-totals" id="funnel-totals"></div>
-        </div>
-
-        <!-- Kanban Board -->
-        <div class="board" id="board" role="list" aria-label="Sales pipeline board"></div>
       </div>
+      <div class="card-seeks"><strong>Seeks:</strong> ${lead.seeks}</div>
+      <div class="card-bottom">
+        <div class="card-value">${lead.value} Galleons</div>
+        <div class="card-owl-time">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="11" rx="8" ry="7"/><circle cx="9" cy="9" r="1.5"/><circle cx="15" cy="9" r="1.5"/><path d="M10 13 Q12 15 14 13"/></svg>
+          Last owl: ${owlText}
+        </div>
+      </div>
+      <div class="card-actions">
+        <button aria-label="Send owl to ${lead.name}" title="Send Owl" onclick="event.stopPropagation();openComposeFor('${lead.name}')">&#x1F989;</button>
+        <button aria-label="Mark ${lead.name} as priority" title="Priority" onclick="event.stopPropagation();showToast('${lead.name} marked as priority!')">&#x2B50;</button>
+        <button aria-label="More actions for ${lead.name}" title="More" onclick="event.stopPropagation();showToast('More options for ${lead.name}')">&#x22EF;</button>
+      </div>
+      <div class="card-expanded-content">
+        <label>Notes</label>
+        <textarea aria-label="Notes for ${lead.name}">${lead.notes}</textarea>
+        <label style="margin-top:10px">Deal History</label>
+        <div class="card-timeline">${historyHTML}</div>
+        <div class="card-next-action">
+          <label for="next-${lead.id}">Next Action</label>
+          <input type="text" id="next-${lead.id}" value="${lead.nextAction}" aria-label="Next action for ${lead.name}">
+        </div>
+        <button class="btn-close-card" onclick="event.stopPropagation();collapseCard(this)" aria-label="Close expanded details">Close</button>
+      </div>
+    </div>`;
+}
 
-      <!-- Stats Panel -->
-      <aside class="stats-panel" id="stats-panel" aria-label="Statistics panel">
-        <div class="stats-inner" id="stats-inner"></div>
-      </aside>
+function render() {
+  const stages = ['cold','warm','hot','closed'];
+  let grandTotal = 0;
+  const stageTotals = {};
+  const stageCounts = {};
+
+  stages.forEach(s => {
+    const leads = stageLeads(s);
+    const container = document.querySelector(`#col${s.charAt(0).toUpperCase()+s.slice(1)} .col-cards`);
+    container.innerHTML = leads.map(createCardHTML).join('');
+    const total = leads.reduce((a,l) => a+l.value, 0);
+    stageTotals[s] = total;
+    stageCounts[s] = leads.length;
+    grandTotal += total;
+    document.getElementById(`count${s.charAt(0).toUpperCase()+s.slice(1)}`).textContent = leads.length;
+    document.getElementById(`total${s.charAt(0).toUpperCase()+s.slice(1)}`).textContent = total + 'g';
+  });
+
+  // Pipeline total
+  document.getElementById('pipelineTotal').textContent = grandTotal.toLocaleString();
+
+  // Funnel segments
+  if (grandTotal > 0) {
+    stages.forEach(s => {
+      const seg = document.getElementById(`funnel${s.charAt(0).toUpperCase()+s.slice(1)}`);
+      const pct = (stageTotals[s] / grandTotal) * 100;
+      seg.style.flex = pct;
+      seg.querySelector('.seg-value').textContent = `${stageCounts[s]} · ${stageTotals[s]}g`;
+    });
+  }
+
+  // Filter counts
+  const allLeads = LEADS.filter(l => {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    return !q || l.name.toLowerCase().includes(q);
+  });
+  document.getElementById('filterAll').textContent = allLeads.length;
+  document.getElementById('filterHogwarts').textContent = allLeads.filter(l=>l.category==='hogwarts').length;
+  document.getElementById('filterMinistry').textContent = allLeads.filter(l=>l.category==='ministry').length;
+  document.getElementById('filterBusiness').textContent = allLeads.filter(l=>l.category==='business').length;
+
+  // Re-attach drag events
+  attachDragEvents();
+}
+
+// =============================================
+// DRAG AND DROP
+// =============================================
+let draggedId = null;
+
+function attachDragEvents() {
+  document.querySelectorAll('.lead-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      draggedId = parseInt(card.dataset.id);
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      draggedId = null;
+      document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-over'));
+    });
+    // Card expansion on click
+    card.addEventListener('click', () => {
+      const wasExpanded = card.classList.contains('expanded');
+      // Collapse all others
+      document.querySelectorAll('.lead-card.expanded').forEach(c => c.classList.remove('expanded'));
+      if (!wasExpanded) card.classList.add('expanded');
+    });
+    // Keyboard
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter') card.click();
+      if (e.key === 'Escape') card.classList.remove('expanded');
+    });
+  });
+
+  document.querySelectorAll('.column').forEach(col => {
+    const cardsArea = col.querySelector('.col-cards');
+    cardsArea.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      col.classList.add('drag-over');
+    });
+    cardsArea.addEventListener('dragleave', e => {
+      if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+    });
+    cardsArea.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const newStage = col.dataset.stage;
+      const lead = LEADS.find(l => l.id === draggedId);
+      if (lead && lead.stage !== newStage) {
+        const oldStage = lead.stage;
+        lead.stage = newStage;
+        render();
+        const excitement = ['the owls are excited','magic is in the air','the parchment glows','mischief managed'];
+        showToast(`${lead.name} moved to ${newStage.charAt(0).toUpperCase()+newStage.slice(1)} — ${excitement[Math.floor(Math.random()*excitement.length)]}`);
+      }
+    });
+  });
+}
+
+function collapseCard(btn) {
+  btn.closest('.lead-card').classList.remove('expanded');
+}
+
+// =============================================
+// SEARCH
+// =============================================
+document.getElementById('searchInput').addEventListener('input', render);
+
+// =============================================
+// FILTER PILLS
+// =============================================
+document.querySelectorAll('.filter-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.filter-pill').forEach(p => { p.classList.remove('active'); p.setAttribute('aria-pressed','false'); });
+    pill.classList.add('active');
+    pill.setAttribute('aria-pressed','true');
+    activeFilter = pill.dataset.filter;
+    render();
+  });
+});
+
+// =============================================
+// TOAST
+// =============================================
+function showToast(msg) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="11" rx="8" ry="7"/><circle cx="9" cy="9" r="1.5"/><circle cx="15" cy="9" r="1.5"/><path d="M10 13 Q12 15 14 13"/></svg>${msg}`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3600);
+}
+
+// =============================================
+// COMPOSE MODAL
+// =============================================
+const modal = document.getElementById('composeModal');
+const composeTo = document.getElementById('composeTo');
+const composeMsg = document.getElementById('composeMsg');
+const autocompleteList = document.getElementById('autocompleteList');
+let selectedTemplate = null;
+
+document.getElementById('btnCompose').addEventListener('click', () => { modal.classList.add('open'); composeTo.focus(); });
+document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
+
+function closeModal() {
+  modal.classList.remove('open');
+  composeTo.value = '';
+  composeMsg.value = '';
+  selectedTemplate = null;
+  autocompleteList.classList.remove('open');
+  document.querySelectorAll('.template-seal').forEach(s => { s.classList.remove('active'); s.setAttribute('aria-checked','false'); });
+}
+
+function openComposeFor(name) {
+  modal.classList.add('open');
+  composeTo.value = name;
+  composeMsg.focus();
+}
+
+// Autocomplete
+composeTo.addEventListener('input', () => {
+  const q = composeTo.value.toLowerCase();
+  if (!q) { autocompleteList.classList.remove('open'); return; }
+  const matches = LEADS.filter(l => l.name.toLowerCase().includes(q));
+  if (matches.length === 0) { autocompleteList.classList.remove('open'); return; }
+  autocompleteList.innerHTML = matches.map(l => `
+    <div class="autocomplete-item" role="option" data-name="${l.name}">
+      <div class="mini-seal" style="background:${l.color}">${l.initial}</div>
+      ${l.name} <span style="color:var(--text-muted);font-size:.7rem;margin-left:auto">${l.affiliation}</span>
     </div>
-
-    <script>
-    (function() {
-      'use strict';
-
-      // ── Data ──
-      let nextId = 11;
-      const leads = [
-        { id: 1,  name: "Hermione Granger",    stage: "warm",   category: "hogwarts",  affiliation: "Hogwarts Prefect",   want: "Premium gift boxes",           value: 480,  lastContact: 2,  priority: false, notes: "Appreciates quality packaging. Send samples first." },
-        { id: 2,  name: "Luna Lovegood",        stage: "warm",   category: "hogwarts",  affiliation: "Ravenclaw House",    want: "Dreamy limited editions",      value: 320,  lastContact: 5,  priority: true,  notes: "Loves the Dirigible Plum drops." },
-        { id: 3,  name: "Neville Longbottom",   stage: "cold",   category: "hogwarts",  affiliation: "Herbology Club",     want: "Greenhouse-safe sweets",       value: 260,  lastContact: 14, priority: false, notes: "" },
-        { id: 4,  name: "Draco Malfoy",         stage: "cold",   category: "hogwarts",  affiliation: "Slytherin House",    want: "Luxury presentation tins",     value: 520,  lastContact: 21, priority: false, notes: "Insists on premium branding. Surprisingly interested." },
-        { id: 5,  name: "Lee Jordan",           stage: "hot",    category: "business",  affiliation: "Wizarding Radio",    want: "On-air prank bundles",         value: 610,  lastContact: 1,  priority: true,  notes: "Ready to sign. Wants exclusive on-air branding." },
-        { id: 6,  name: "Angelina Johnson",     stage: "hot",    category: "business",  affiliation: "Quidditch League",   want: "Match-day support packs",      value: 390,  lastContact: 3,  priority: false, notes: "Needs bulk pricing for league events." },
-        { id: 7,  name: "Cho Chang",            stage: "warm",   category: "hogwarts",  affiliation: "Ravenclaw House",    want: "Elegant sampler boxes",        value: 210,  lastContact: 8,  priority: false, notes: "" },
-        { id: 8,  name: "Arthur Weasley",       stage: "closed", category: "ministry",  affiliation: "Ministry of Magic",  want: "Muggle-themed novelty set",    value: 180,  lastContact: 0,  priority: false, notes: "Delighted with the rubber duck candy. Reorder likely." },
-        { id: 9,  name: "Kingsley Shacklebolt", stage: "cold",   category: "ministry",  affiliation: "Auror Office",       want: "Diplomatic gift bundles",      value: 750,  lastContact: 30, priority: true,  notes: "High-value target. Needs formal proposal." },
-        { id: 10, name: "Madam Rosmerta",       stage: "closed", category: "business",  affiliation: "Three Broomsticks",  want: "Wholesale candy display",      value: 440,  lastContact: 1,  priority: false, notes: "Display installed. Monthly restock scheduled." },
-      ];
-
-      const stages = [
-        { key: "cold",   title: "Cold",   color: "var(--col-cold)",   emptyMsg: "No cold leads. Either you're too good at warming them up, or you need to go find some." },
-        { key: "warm",   title: "Warm",   color: "var(--col-warm)",   emptyMsg: "No warm leads. The owls are idle and feeling judged." },
-        { key: "hot",    title: "Hot",    color: "var(--col-hot)",    emptyMsg: "No hot leads. Let's get some deals sizzling." },
-        { key: "closed", title: "Closed", color: "var(--col-closed)", emptyMsg: "No closed deals yet. The Galleons are out there waiting." },
-      ];
-
-      const templates = {
-        intro: { subject: "Introducing Weasleys' Wizard Wheezes", body: "Dear {name},\n\nWe'd love to introduce you to our latest range of magical merchandise. From Skiving Snackboxes to Peruvian Instant Darkness Powder, we've got something for every occasion.\n\nWould you be open to a quick owl exchange this week?\n\nMischief managed,\nFred & George" },
-        followup: { subject: "Following up on our last owl", body: "Dear {name},\n\nJust wanted to check in since our last correspondence. We've been brewing some exciting new products and thought of you immediately.\n\nAny thoughts on the samples we sent over? We'd love your feedback.\n\nCheers,\nFred & George" },
-        offer: { subject: "A special offer just for you", body: "Dear {name},\n\nAs a valued connection, we're extending an exclusive 15% discount on your first bulk order. This offer is valid for the next fortnight.\n\nLet us know if you'd like to proceed, and we'll have the order owled to you faster than a Firebolt.\n\nYours in commerce,\nFred & George" },
-        thankyou: { subject: "Thank you for your business!", body: "Dear {name},\n\nA massive thank you for your recent order! We hope every item brings joy, laughter, and perhaps a bit of controlled chaos.\n\nWe truly value your patronage. Don't hesitate to reach out if you need anything.\n\nWith gratitude,\nFred & George" },
-      };
-
-      let currentFilter = "all";
-      let currentSort = "default";
-      let searchTerm = "";
-      let draggedId = null;
-      let contextMenuLeadId = null;
-      let focusedCardId = null;
-      let addLeadStage = null;
-      const activityLog = [];
-
-      // ── DOM refs ──
-      const $board = document.getElementById('board');
-      const $quickStats = document.getElementById('quick-stats');
-      const $filterPills = document.getElementById('filter-pills');
-      const $funnelBar = document.getElementById('funnel-bar');
-      const $funnelTotals = document.getElementById('funnel-totals');
-      const $searchInput = document.getElementById('search-input');
-      const $sortSelect = document.getElementById('sort-select');
-      const $statsPanel = document.getElementById('stats-panel');
-      const $statsInner = document.getElementById('stats-inner');
-      const $mainContent = document.getElementById('main-content');
-      const $contextMenu = document.getElementById('context-menu');
-      const $toastContainer = document.getElementById('toast-container');
-      const $modalCompose = document.getElementById('modal-compose');
-      const $modalAddLead = document.getElementById('modal-add-lead');
-      const $owlTo = document.getElementById('owl-to');
-      const $owlTemplate = document.getElementById('owl-template');
-      const $owlSubject = document.getElementById('owl-subject');
-      const $owlMessage = document.getElementById('owl-message');
-      const $owlAutocomplete = document.getElementById('owl-autocomplete');
-      const $owlCharCount = document.getElementById('owl-char-count');
-
-      // ── Utility ──
-      function formatGalleons(n) { return new Intl.NumberFormat().format(n) + 'g'; }
-
-      function getInitial(name) { return name.split(' ').map(w => w[0]).join('').substring(0, 2); }
-
-      function daysAgoText(days) {
-        if (days === 0) return "Today";
-        if (days === 1) return "Yesterday";
-        return days + " days ago";
-      }
-
-      function logActivity(icon, text) {
-        activityLog.unshift({ icon, text, time: new Date() });
-        if (activityLog.length > 20) activityLog.pop();
-      }
-
-      // ── Toast ──
-      function showToast(message, type) {
-        type = type || 'green';
-        var icons = {
-          green: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-          gold:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
-          blue:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
-        };
-        var toast = document.createElement('div');
-        toast.className = 'toast toast-' + type;
-        toast.innerHTML = '<span class="toast-icon">' + icons[type] + '</span>' + message;
-        $toastContainer.appendChild(toast);
-        setTimeout(function() {
-          toast.classList.add('toast-out');
-          setTimeout(function() { toast.remove(); }, 300);
-        }, 3000);
-      }
-
-      // ── Flying owl animation ──
-      function flyOwl() {
-        var owl = document.createElement('div');
-        owl.className = 'owl-flight';
-        owl.textContent = '\uD83E\uDD89';
-        owl.style.left = '10%';
-        owl.style.top = '60%';
-        document.body.appendChild(owl);
-        setTimeout(function() { owl.remove(); }, 1600);
-      }
-
-      // ── Feather burst ──
-      function burstFeathers() {
-        var layer = document.getElementById('confetti-layer');
-        var symbols = ["\uD83E\uDEB6", "\u2728", "\uD83E\uDEB6", "\u2B50", "\uD83D\uDC8C", "\uD83E\uDEB6"];
-        for (var i = 0; i < 28; i++) {
-          var node = document.createElement('span');
-          node.className = 'feather';
-          node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-          node.style.left = (Math.random() * 100) + 'vw';
-          node.style.setProperty('--x', ((Math.random() - 0.5) * 200) + 'px');
-          node.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
-          node.style.animationDelay = (Math.random() * 300) + 'ms';
-          layer.appendChild(node);
-          setTimeout(function(n) { n.remove(); }, 2500, node);
-        }
-      }
-
-      // ── Filtering & Sorting ──
-      function getVisibleLeads() {
-        var list = leads.filter(function(l) {
-          if (currentFilter !== "all" && l.category !== currentFilter) return false;
-          if (searchTerm) {
-            var q = searchTerm.toLowerCase();
-            return l.name.toLowerCase().includes(q) || l.affiliation.toLowerCase().includes(q) || l.want.toLowerCase().includes(q);
-          }
-          return true;
-        });
-
-        if (currentSort === "value-desc") list.sort(function(a,b) { return b.value - a.value; });
-        else if (currentSort === "value-asc") list.sort(function(a,b) { return a.value - b.value; });
-        else if (currentSort === "name-asc") list.sort(function(a,b) { return a.name.localeCompare(b.name); });
-        else if (currentSort === "name-desc") list.sort(function(a,b) { return b.name.localeCompare(a.name); });
-        else if (currentSort === "contact-asc") list.sort(function(a,b) { return b.lastContact - a.lastContact; });
-        else if (currentSort === "contact-desc") list.sort(function(a,b) { return a.lastContact - b.lastContact; });
-
-        return list;
-      }
-
-      function getCategoryCounts() {
-        var counts = { all: leads.length, hogwarts: 0, ministry: 0, business: 0, personal: 0 };
-        leads.forEach(function(l) { counts[l.category] = (counts[l.category] || 0) + 1; });
-        return counts;
-      }
-
-      function getStageStats() {
-        var stats = {};
-        stages.forEach(function(s) { stats[s.key] = { count: 0, value: 0 }; });
-        leads.forEach(function(l) {
-          stats[l.stage].count++;
-          stats[l.stage].value += l.value;
-        });
-        stats.total = leads.reduce(function(sum, l) { return sum + l.value; }, 0);
-        stats.totalCount = leads.length;
-        return stats;
-      }
-
-      // ── Quick Stats ──
-      function renderQuickStats() {
-        var ss = getStageStats();
-        var readyToClose = ss.hot ? ss.hot.count : 0;
-        $quickStats.innerHTML =
-          '<div class="stat-item"><strong>' + ss.totalCount + '</strong> leads</div>' +
-          '<div class="stat-divider"></div>' +
-          '<div class="stat-item"><strong style="color:var(--gold)">' + formatGalleons(ss.total) + '</strong> pipeline</div>' +
-          '<div class="stat-divider"></div>' +
-          '<div class="stat-item"><strong>' + readyToClose + '</strong> ready to close</div>' +
-          '<div class="stat-divider"></div>' +
-          '<div class="stat-item"><strong style="color:var(--col-closed)">' + formatGalleons(ss.closed ? ss.closed.value : 0) + '</strong> won</div>';
-      }
-
-      // ── Filter Pills ──
-      function renderFilterPills() {
-        var counts = getCategoryCounts();
-        var cats = [
-          { key: "all", label: "All" },
-          { key: "hogwarts", label: "Hogwarts" },
-          { key: "ministry", label: "Ministry" },
-          { key: "business", label: "Business" },
-          { key: "personal", label: "Personal" },
-        ];
-        $filterPills.innerHTML = cats.map(function(c) {
-          return '<button class="pill' + (currentFilter === c.key ? ' active' : '') + '" data-filter="' + c.key + '">' +
-            c.label + ' <span class="pill-count">' + (counts[c.key] || 0) + '</span></button>';
-        }).join('');
-      }
-
-      // ── Pipeline Funnel ──
-      function renderFunnel() {
-        var ss = getStageStats();
-        var total = ss.total || 1;
-
-        $funnelBar.innerHTML = stages.map(function(s) {
-          var pct = Math.max(((ss[s.key].value / total) * 100), ss[s.key].count > 0 ? 8 : 0);
-          return '<div class="funnel-seg" data-stage="' + s.key + '" style="flex-basis:' + pct + '%">' +
-            '<span class="seg-label">' + s.title + ' ' + formatGalleons(ss[s.key].value) + '</span></div>';
-        }).join('');
-
-        $funnelTotals.innerHTML = stages.map(function(s) {
-          return '<div class="funnel-total-item">' +
-            '<span class="funnel-dot" style="background:' + s.color + '"></span>' +
-            s.title + ': ' + ss[s.key].count + ' leads / ' + formatGalleons(ss[s.key].value) +
-          '</div>';
-        }).join('');
-      }
-
-      // ── Build a card HTML ──
-      function buildCardHTML(lead, stage) {
-        var avatarClass = 'avatar-' + lead.category;
-        var priorityClass = lead.priority ? ' priority-active' : '';
-        return '<article class="card' + (focusedCardId === lead.id ? ' expanded' : '') + '" ' +
-          'draggable="true" data-id="' + lead.id + '" role="listitem" tabindex="0" ' +
-          'aria-label="' + lead.name + ', ' + formatGalleons(lead.value) + ', ' + stage.title + '">' +
-          '<div class="card-stage-stripe" data-stage="' + stage.key + '"></div>' +
-          '<div class="card-body">' +
-            '<div class="card-row-top">' +
-              '<div class="card-avatar ' + avatarClass + '">' + getInitial(lead.name) + '</div>' +
-              '<div class="card-name-block">' +
-                '<div class="card-name">' + lead.name + '</div>' +
-                '<div class="card-affiliation">' + lead.affiliation + '</div>' +
-              '</div>' +
-              '<div class="card-value">' + formatGalleons(lead.value) + '</div>' +
-            '</div>' +
-            '<div class="card-want">' + lead.want + '</div>' +
-            '<div class="card-meta">' +
-              '<span class="card-timestamp">Last contact: ' + daysAgoText(lead.lastContact) + '</span>' +
-              '<div class="card-actions">' +
-                '<button class="card-action-btn" data-action="send-owl" title="Send Owl" aria-label="Send owl to ' + lead.name + '">' +
-                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>' +
-                '</button>' +
-                '<button class="card-action-btn' + priorityClass + '" data-action="toggle-priority" title="Toggle Priority" aria-label="Toggle priority for ' + lead.name + '">' +
-                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="' + (lead.priority ? 'var(--gold)' : 'none') + '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
-                '</button>' +
-                '<button class="card-action-btn" data-action="expand" title="Expand" aria-label="Expand details for ' + lead.name + '">' +
-                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
-                '</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="card-expanded">' +
-            '<div class="card-detail-row"><span class="card-detail-label">Category</span><span class="card-detail-value">' + lead.category.charAt(0).toUpperCase() + lead.category.slice(1) + '</span></div>' +
-            '<div class="card-detail-row"><span class="card-detail-label">Deal Value</span><span class="card-detail-value">' + formatGalleons(lead.value) + '</span></div>' +
-            '<div class="card-detail-row"><span class="card-detail-label">Stage</span><span class="card-detail-value">' + stage.title + '</span></div>' +
-            '<div class="card-detail-row"><span class="card-detail-label">Priority</span><span class="card-detail-value">' + (lead.priority ? 'Yes' : 'No') + '</span></div>' +
-            '<textarea class="card-notes-area" placeholder="Add notes..." data-lead-id="' + lead.id + '">' + (lead.notes || '') + '</textarea>' +
-          '</div>' +
-        '</article>';
-      }
-
-      // ── Render Board ──
-      function renderBoard() {
-        var visible = getVisibleLeads();
-
-        $board.innerHTML = stages.map(function(stage) {
-          var stageLeads = visible.filter(function(l) { return l.stage === stage.key; });
-          var stageValue = stageLeads.reduce(function(s, l) { return s + l.value; }, 0);
-          var cards = stageLeads.map(function(lead) { return buildCardHTML(lead, stage); }).join('');
-
-          var emptyHTML = stageLeads.length === 0 ?
-            '<div class="col-empty">' + stage.emptyMsg + '</div>' : '';
-
-          return '<section class="column" data-stage="' + stage.key + '" role="list" aria-label="' + stage.title + ' leads">' +
-            '<div class="col-header">' +
-              '<span class="col-dot" data-stage="' + stage.key + '"></span>' +
-              '<span class="col-title">' + stage.title + '</span>' +
-              '<span class="col-value">' + formatGalleons(stageValue) + '</span>' +
-              '<span class="col-count">' + stageLeads.length + '</span>' +
-            '</div>' +
-            '<div class="cards-container" data-stage="' + stage.key + '">' +
-              (cards || emptyHTML) +
-            '</div>' +
-            '<div class="col-footer">' +
-              '<button class="add-lead-btn" data-stage="' + stage.key + '">+ Add Lead</button>' +
-            '</div>' +
-          '</section>';
-        }).join('');
-
-        attachBoardEvents();
-      }
-
-      // ── Board Event Binding ──
-      function attachBoardEvents() {
-        // Drag events on cards
-        document.querySelectorAll('.card[draggable]').forEach(function(card) {
-          card.addEventListener('dragstart', function(e) {
-            draggedId = parseInt(card.dataset.id);
-            card.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', card.dataset.id);
-          });
-          card.addEventListener('dragend', function() {
-            card.classList.remove('dragging');
-            draggedId = null;
-            document.querySelectorAll('.column').forEach(function(col) { col.classList.remove('drag-over'); });
-          });
-        });
-
-        // Drop events on columns
-        document.querySelectorAll('.cards-container').forEach(function(container) {
-          var col = container.closest('.column');
-          container.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            col.classList.add('drag-over');
-          });
-          container.addEventListener('dragleave', function(e) {
-            if (!container.contains(e.relatedTarget)) col.classList.remove('drag-over');
-          });
-          container.addEventListener('drop', function(e) {
-            e.preventDefault();
-            col.classList.remove('drag-over');
-            if (draggedId !== null) {
-              var lead = leads.find(function(l) { return l.id === draggedId; });
-              var newStage = container.dataset.stage;
-              if (lead && lead.stage !== newStage) {
-                var oldStage = lead.stage;
-                lead.stage = newStage;
-                logActivity('\u2192', lead.name + ' moved from ' + oldStage + ' to ' + newStage);
-                showToast('Lead moved to ' + newStage.charAt(0).toUpperCase() + newStage.slice(1), 'green');
-                fullRender();
-              }
-            }
-          });
-        });
-
-        // Card click actions
-        document.querySelectorAll('.card-action-btn').forEach(function(btn) {
-          btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var card = btn.closest('.card');
-            var leadId = parseInt(card.dataset.id);
-            var action = btn.dataset.action;
-            handleCardAction(leadId, action);
-          });
-        });
-
-        // Card click to expand
-        document.querySelectorAll('.card').forEach(function(card) {
-          card.addEventListener('click', function(e) {
-            if (e.target.closest('.card-action-btn') || e.target.closest('.card-notes-area')) return;
-            var leadId = parseInt(card.dataset.id);
-            focusedCardId = focusedCardId === leadId ? null : leadId;
-            renderBoard();
-          });
-
-          // Context menu
-          card.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            contextMenuLeadId = parseInt(card.dataset.id);
-            showContextMenu(e.clientX, e.clientY);
-          });
-        });
-
-        // Notes change
-        document.querySelectorAll('.card-notes-area').forEach(function(ta) {
-          ta.addEventListener('input', function() {
-            var lead = leads.find(function(l) { return l.id === parseInt(ta.dataset.leadId); });
-            if (lead) lead.notes = ta.value;
-          });
-        });
-
-        // Add lead buttons
-        document.querySelectorAll('.add-lead-btn').forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            addLeadStage = btn.dataset.stage;
-            openAddLeadModal();
-          });
-        });
-      }
-
-      // ── Card Actions ──
-      function handleCardAction(leadId, action) {
-        var lead = leads.find(function(l) { return l.id === leadId; });
-        if (!lead) return;
-
-        if (action === 'send-owl') {
-          openComposeModal(lead.name);
-        } else if (action === 'toggle-priority') {
-          lead.priority = !lead.priority;
-          showToast(lead.name + (lead.priority ? ' marked as priority' : ' unmarked'), lead.priority ? 'gold' : 'blue');
-          logActivity(lead.priority ? '\u2605' : '\u2606', lead.name + ' priority ' + (lead.priority ? 'set' : 'removed'));
-          fullRender();
-        } else if (action === 'expand') {
-          focusedCardId = focusedCardId === leadId ? null : leadId;
-          renderBoard();
-        }
-      }
-
-      // ── Context Menu ──
-      function showContextMenu(x, y) {
-        // Build move-to submenu
-        var submenu = document.getElementById('ctx-move-submenu');
-        submenu.innerHTML = stages.map(function(s) {
-          return '<button class="ctx-item" data-action="move-to" data-stage="' + s.key + '" role="menuitem">' +
-            '<span class="funnel-dot" style="background:' + s.color + ';display:inline-block"></span> ' + s.title + '</button>';
-        }).join('');
-
-        // Position
-        $contextMenu.style.left = Math.min(x, window.innerWidth - 200) + 'px';
-        $contextMenu.style.top = Math.min(y, window.innerHeight - 300) + 'px';
-        $contextMenu.classList.add('open');
-      }
-
-      function hideContextMenu() {
-        $contextMenu.classList.remove('open');
-        contextMenuLeadId = null;
-      }
-
-      $contextMenu.addEventListener('click', function(e) {
-        var btn = e.target.closest('.ctx-item');
-        if (!btn || contextMenuLeadId === null) return;
-
-        var lead = leads.find(function(l) { return l.id === contextMenuLeadId; });
-        if (!lead) { hideContextMenu(); return; }
-
-        var action = btn.dataset.action;
-        if (action === 'move-to') {
-          var newStage = btn.dataset.stage;
-          if (lead.stage !== newStage) {
-            lead.stage = newStage;
-            logActivity('\u2192', lead.name + ' moved to ' + newStage);
-            showToast('Lead moved to ' + newStage.charAt(0).toUpperCase() + newStage.slice(1), 'green');
-            fullRender();
-          }
-        } else if (action === 'send-owl') {
-          openComposeModal(lead.name);
-        } else if (action === 'add-note') {
-          focusedCardId = lead.id;
-          renderBoard();
-          setTimeout(function() {
-            var ta = document.querySelector('.card-notes-area[data-lead-id="' + lead.id + '"]');
-            if (ta) ta.focus();
-          }, 100);
-        } else if (action === 'toggle-priority') {
-          lead.priority = !lead.priority;
-          showToast(lead.name + (lead.priority ? ' marked as priority' : ' unmarked'), lead.priority ? 'gold' : 'blue');
-          fullRender();
-        } else if (action === 'archive') {
-          var idx = leads.findIndex(function(l) { return l.id === lead.id; });
-          if (idx > -1) {
-            leads.splice(idx, 1);
-            logActivity('\uD83D\uDDD1', lead.name + ' archived');
-            showToast(lead.name + ' archived', 'blue');
-            fullRender();
-          }
-        }
-        hideContextMenu();
-      });
-
-      document.addEventListener('click', function(e) {
-        if (!$contextMenu.contains(e.target)) hideContextMenu();
-      });
-
-      // ── Compose Modal ──
-      function openComposeModal(toName) {
-        $owlTo.value = toName || '';
-        $owlTemplate.value = '';
-        $owlSubject.value = '';
-        $owlMessage.value = '';
-        updateCharCount();
-        $modalCompose.classList.add('open');
-        setTimeout(function() { (toName ? $owlSubject : $owlTo).focus(); }, 100);
-      }
-
-      function closeComposeModal() {
-        $modalCompose.classList.remove('open');
-        $owlAutocomplete.classList.remove('open');
-      }
-
-      document.getElementById('compose-owl').addEventListener('click', function() { openComposeModal(); });
-      document.getElementById('modal-cancel').addEventListener('click', closeComposeModal);
-      $modalCompose.addEventListener('click', function(e) { if (e.target === $modalCompose) closeComposeModal(); });
-
-      // Autocomplete
-      $owlTo.addEventListener('input', function() {
-        var val = $owlTo.value.toLowerCase().trim();
-        if (!val) { $owlAutocomplete.classList.remove('open'); return; }
-        var matches = leads.filter(function(l) { return l.name.toLowerCase().includes(val); });
-        if (matches.length === 0) { $owlAutocomplete.classList.remove('open'); return; }
-        $owlAutocomplete.innerHTML = matches.map(function(l) {
-          return '<div class="autocomplete-item" data-name="' + l.name + '" role="option">' + l.name + ' <span style="color:var(--muted);font-size:11px">(' + l.affiliation + ')</span></div>';
-        }).join('');
-        $owlAutocomplete.classList.add('open');
-      });
-
-      $owlAutocomplete.addEventListener('click', function(e) {
-        var item = e.target.closest('.autocomplete-item');
-        if (item) {
-          $owlTo.value = item.dataset.name;
-          $owlAutocomplete.classList.remove('open');
-          // Update template if set
-          if ($owlTemplate.value) applyTemplate();
-        }
-      });
-
-      // Template selection
-      $owlTemplate.addEventListener('change', applyTemplate);
-
-      function applyTemplate() {
-        var tpl = templates[$owlTemplate.value];
-        if (tpl) {
-          var name = $owlTo.value || '{name}';
-          $owlSubject.value = tpl.subject;
-          $owlMessage.value = tpl.body.replace(/\{name\}/g, name);
-          updateCharCount();
-        }
-      }
-
-      // Character count
-      $owlMessage.addEventListener('input', updateCharCount);
-      function updateCharCount() {
-        $owlCharCount.textContent = $owlMessage.value.length;
-      }
-
-      // Schedule options
-      document.querySelectorAll('.schedule-option').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          document.querySelectorAll('.schedule-option').forEach(function(b) { b.classList.remove('active'); });
-          btn.classList.add('active');
-        });
-      });
-
-      // Send
-      document.getElementById('modal-send').addEventListener('click', function() {
-        var to = $owlTo.value.trim();
-        if (!to) { $owlTo.focus(); return; }
-        closeComposeModal();
-        flyOwl();
-        burstFeathers();
-        var schedule = document.querySelector('.schedule-option.active');
-        var scheduleText = schedule ? schedule.dataset.schedule : 'now';
-        var suffix = scheduleText === 'tomorrow' ? ' (scheduled for tomorrow)' : scheduleText === 'custom' ? ' (scheduled)' : '';
-        showToast('Owl dispatched to ' + to + '!' + suffix, 'gold');
-        logActivity('\uD83D\uDCE8', 'Owl sent to ' + to);
-        // Update last contact for matching lead
-        var lead = leads.find(function(l) { return l.name.toLowerCase() === to.toLowerCase(); });
-        if (lead) lead.lastContact = 0;
-        fullRender();
-      });
-
-      // ── Add Lead Modal ──
-      function openAddLeadModal() {
-        document.getElementById('new-lead-name').value = '';
-        document.getElementById('new-lead-affiliation').value = '';
-        document.getElementById('new-lead-want').value = '';
-        document.getElementById('new-lead-value').value = '';
-        $modalAddLead.classList.add('open');
-        setTimeout(function() { document.getElementById('new-lead-name').focus(); }, 100);
-      }
-
-      function closeAddLeadModal() {
-        $modalAddLead.classList.remove('open');
-        addLeadStage = null;
-      }
-
-      document.getElementById('add-lead-cancel').addEventListener('click', closeAddLeadModal);
-      $modalAddLead.addEventListener('click', function(e) { if (e.target === $modalAddLead) closeAddLeadModal(); });
-
-      document.getElementById('add-lead-confirm').addEventListener('click', function() {
-        var name = document.getElementById('new-lead-name').value.trim();
-        var affiliation = document.getElementById('new-lead-affiliation').value.trim();
-        var category = document.getElementById('new-lead-category').value;
-        var want = document.getElementById('new-lead-want').value.trim();
-        var value = parseInt(document.getElementById('new-lead-value').value) || 0;
-
-        if (!name) { document.getElementById('new-lead-name').focus(); return; }
-
-        leads.push({
-          id: nextId++,
-          name: name,
-          stage: addLeadStage || 'cold',
-          category: category,
-          affiliation: affiliation || 'Unknown',
-          want: want || 'TBD',
-          value: value,
-          lastContact: 0,
-          priority: false,
-          notes: ''
-        });
-
-        logActivity('\u2795', name + ' added to ' + (addLeadStage || 'cold'));
-        showToast(name + ' added!', 'green');
-        closeAddLeadModal();
-        fullRender();
-      });
-
-      // ── Stats Panel ──
-      function renderStatsPanel() {
-        var ss = getStageStats();
-        var closedCount = ss.closed ? ss.closed.count : 0;
-        var totalCount = ss.totalCount || 1;
-        var winRate = Math.round((closedCount / totalCount) * 100);
-        var avgDeal = Math.round(ss.total / totalCount);
-
-        // Donut chart SVG
-        var counts = getCategoryCounts();
-        var cats = [
-          { key: 'hogwarts', label: 'Hogwarts', color: '#b7a7ff' },
-          { key: 'ministry', label: 'Ministry', color: '#f4c96d' },
-          { key: 'business', label: 'Business', color: '#4ade80' },
-          { key: 'personal', label: 'Personal', color: '#f87171' },
-        ];
-
-        var total = leads.length || 1;
-        var offset = 0;
-        var circumference = 2 * Math.PI * 28;
-        var donutPaths = cats.map(function(c) {
-          var count = counts[c.key] || 0;
-          var pct = count / total;
-          var dash = circumference * pct;
-          var gap = circumference - dash;
-          var rot = (offset * 360) - 90;
-          offset += pct;
-          if (count === 0) return '';
-          return '<circle cx="36" cy="36" r="28" fill="none" stroke="' + c.color + '" stroke-width="8" ' +
-            'stroke-dasharray="' + dash + ' ' + gap + '" ' +
-            'transform="rotate(' + rot + ' 36 36)" />';
-        }).join('');
-
-        var donutSvg = '<svg class="donut-chart" viewBox="0 0 72 72">' + donutPaths +
-          '<text x="36" y="36" text-anchor="middle" dominant-baseline="central" fill="var(--text)" font-size="14" font-weight="800">' + total + '</text></svg>';
-
-        var donutLegend = cats.map(function(c) {
-          return '<div class="donut-legend-item"><span class="donut-legend-dot" style="background:' + c.color + '"></span>' + c.label + ': ' + (counts[c.key] || 0) + '</div>';
-        }).join('');
-
-        var activityHTML = activityLog.length === 0 ?
-          '<div style="font-size:12px;color:var(--muted);font-style:italic">No activity yet. Start moving leads around!</div>' :
-          activityLog.slice(0, 8).map(function(a) {
-            return '<div class="activity-item"><span class="activity-icon">' + a.icon + '</span><div>' + a.text + '</div></div>';
-          }).join('');
-
-        $statsInner.innerHTML =
-          '<div class="stat-big">' +
-            '<div class="stat-big-value">' + winRate + '%</div>' +
-            '<div class="stat-big-label">Win Rate</div>' +
-          '</div>' +
-          '<div>' +
-            '<div class="stat-row"><span class="stat-row-label">Average Deal</span><span class="stat-row-value">' + formatGalleons(avgDeal) + '</span></div>' +
-            '<div class="stat-row"><span class="stat-row-label">Total Pipeline</span><span class="stat-row-value">' + formatGalleons(ss.total) + '</span></div>' +
-            '<div class="stat-row"><span class="stat-row-label">Closed Deals</span><span class="stat-row-value">' + closedCount + '</span></div>' +
-            '<div class="stat-row"><span class="stat-row-label">Priority Leads</span><span class="stat-row-value">' + leads.filter(function(l) { return l.priority; }).length + '</span></div>' +
-          '</div>' +
-          '<div>' +
-            '<div class="stats-section-title">Leads by Source</div>' +
-            '<div class="donut-wrap">' + donutSvg + '<div class="donut-legend">' + donutLegend + '</div></div>' +
-          '</div>' +
-          '<div>' +
-            '<div class="stats-section-title">Recent Activity</div>' +
-            '<div class="activity-feed">' + activityHTML + '</div>' +
-          '</div>';
-      }
-
-      // Toggle stats panel
-      document.getElementById('toggle-stats').addEventListener('click', function() {
-        $statsPanel.classList.toggle('open');
-        $mainContent.classList.toggle('stats-open');
-      });
-
-      // ── Search ──
-      $searchInput.addEventListener('input', function() {
-        searchTerm = $searchInput.value;
-        renderBoard();
-      });
-
-      // ── Sort ──
-      $sortSelect.addEventListener('change', function() {
-        currentSort = $sortSelect.value;
-        renderBoard();
-      });
-
-      // ── Filter Pills ──
-      $filterPills.addEventListener('click', function(e) {
-        var pill = e.target.closest('.pill');
-        if (pill) {
-          currentFilter = pill.dataset.filter;
-          renderFilterPills();
-          renderBoard();
-        }
-      });
-
-      // ── Keyboard Navigation ──
-      document.addEventListener('keydown', function(e) {
-        // "/" to focus search
-        if (e.key === '/' && !e.target.closest('input, textarea, select')) {
-          e.preventDefault();
-          $searchInput.focus();
-        }
-
-        // Escape to close modals/panels
-        if (e.key === 'Escape') {
-          if ($modalCompose.classList.contains('open')) { closeComposeModal(); return; }
-          if ($modalAddLead.classList.contains('open')) { closeAddLeadModal(); return; }
-          if ($contextMenu.classList.contains('open')) { hideContextMenu(); return; }
-          if (focusedCardId !== null) { focusedCardId = null; renderBoard(); return; }
-        }
-
-        // Arrow keys for card navigation between columns
-        if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && document.activeElement && document.activeElement.classList.contains('card')) {
-          var activeCard = document.activeElement;
-          var leadId = parseInt(activeCard.dataset.id);
-          var lead = leads.find(function(l) { return l.id === leadId; });
-          if (!lead) return;
-
-          var stageKeys = stages.map(function(s) { return s.key; });
-          var currentIdx = stageKeys.indexOf(lead.stage);
-          var newIdx = e.key === 'ArrowLeft' ? currentIdx - 1 : currentIdx + 1;
-
-          if (newIdx >= 0 && newIdx < stageKeys.length) {
-            e.preventDefault();
-            var oldStage = lead.stage;
-            lead.stage = stageKeys[newIdx];
-            logActivity('\u2192', lead.name + ' moved from ' + oldStage + ' to ' + lead.stage);
-            showToast('Lead moved to ' + lead.stage.charAt(0).toUpperCase() + lead.stage.slice(1), 'green');
-            focusedCardId = leadId;
-            fullRender();
-            // Refocus the card
-            setTimeout(function() {
-              var newCard = document.querySelector('.card[data-id="' + leadId + '"]');
-              if (newCard) newCard.focus();
-            }, 50);
-          }
-        }
-
-        // Enter to expand focused card
-        if (e.key === 'Enter' && document.activeElement && document.activeElement.classList.contains('card')) {
-          var cardId = parseInt(document.activeElement.dataset.id);
-          focusedCardId = focusedCardId === cardId ? null : cardId;
-          renderBoard();
-          setTimeout(function() {
-            var c = document.querySelector('.card[data-id="' + cardId + '"]');
-            if (c) c.focus();
-          }, 50);
-        }
-      });
-
-      // ── Full Render ──
-      function fullRender() {
-        renderQuickStats();
-        renderFilterPills();
-        renderFunnel();
-        renderBoard();
-        renderStatsPanel();
-      }
-
-      // ── Init ──
-      logActivity('\uD83D\uDE80', 'Owl Post CRM initialized');
-      fullRender();
-
-    })();
-    </script>
-  </body>
+  `).join('');
+  autocompleteList.classList.add('open');
+  autocompleteList.querySelectorAll('.autocomplete-item').forEach(item => {
+    item.addEventListener('click', () => {
+      composeTo.value = item.dataset.name;
+      autocompleteList.classList.remove('open');
+      applyTemplateText();
+    });
+  });
+});
+
+composeTo.addEventListener('blur', () => { setTimeout(() => autocompleteList.classList.remove('open'), 150); });
+
+// Templates
+const templates = {
+  intro: (name) => `Dear ${name},\n\nWe at Weasleys' Wizard Wheezes are delighted to make your acquaintance! Our shelves are bursting with the finest magical mischief this side of Diagon Alley.\n\nMight we interest you in a personal tour of our latest innovations?\n\nWith whimsical regards,\nWeasleys' Wizard Wheezes`,
+  followup: (name) => `Dear ${name},\n\nJust a quick owl to follow up on our recent conversation. We haven't forgotten about you — in fact, our pygmy puffs have been asking after you!\n\nShall we schedule a time to discuss next steps?\n\nMischievously yours,\nWeasleys' Wizard Wheezes`,
+  offer: (name) => `Dear ${name},\n\nExciting news! For a limited time, we're offering an exclusive 15% discount on bulk orders. Our Skiving Snackboxes and Extendable Ears are flying off the shelves!\n\nDon't let this offer vanish like a Peruvian Instant Darkness Powder.\n\nYours in commerce,\nWeasleys' Wizard Wheezes`,
+  thanks: (name) => `Dear ${name},\n\nA thousand thank-yous for your recent order! We're absolutely chuffed. Your support keeps the joke shop lights burning bright.\n\nPlease don't hesitate to owl us if you need anything at all.\n\nWith deepest gratitude,\nWeasleys' Wizard Wheezes`,
+};
+
+document.querySelectorAll('.template-seal').forEach(seal => {
+  seal.addEventListener('click', () => {
+    document.querySelectorAll('.template-seal').forEach(s => { s.classList.remove('active'); s.setAttribute('aria-checked','false'); });
+    seal.classList.add('active');
+    seal.setAttribute('aria-checked','true');
+    selectedTemplate = seal.dataset.template;
+    applyTemplateText();
+  });
+});
+
+function applyTemplateText() {
+  if (!selectedTemplate) return;
+  const name = composeTo.value || 'friend';
+  const firstName = name.split(' ')[0];
+  composeMsg.value = templates[selectedTemplate](firstName);
+}
+
+// Send Owl
+document.getElementById('btnSendOwl').addEventListener('click', () => {
+  const name = composeTo.value || 'unknown wizard';
+  closeModal();
+  triggerOwlFlight();
+  setTimeout(() => showToast(`Owl dispatched to ${name}!`), 800);
+});
+
+// =============================================
+// OWL FLIGHT ANIMATION
+// =============================================
+function triggerOwlFlight() {
+  const flight = document.getElementById('owlFlight');
+  flight.classList.add('active');
+  flight.innerHTML = '';
+
+  // Flying owl SVG
+  const owl = document.createElement('div');
+  owl.className = 'flying-owl';
+  owl.innerHTML = `<svg viewBox="0 0 60 40">
+    <ellipse cx="30" cy="20" rx="18" ry="14" fill="var(--gold)" opacity="0.9"/>
+    <circle cx="24" cy="16" r="4" fill="var(--navy)"/>
+    <circle cx="36" cy="16" r="4" fill="var(--navy)"/>
+    <circle cx="24" cy="15" r="2" fill="var(--gold)"/>
+    <circle cx="36" cy="15" r="2" fill="var(--gold)"/>
+    <path d="M28 22 Q30 25 32 22" fill="var(--navy)"/>
+    <path d="M12 14 Q2 2 14 8" fill="var(--gold)" opacity=".8"/>
+    <path d="M48 14 Q58 2 46 8" fill="var(--gold)" opacity=".8"/>
+    <path d="M8 20 Q0 28 12 26" fill="var(--gold)" opacity=".6"/>
+    <path d="M52 20 Q60 28 48 26" fill="var(--gold)" opacity=".6"/>
+    <path d="M26 32 L30 36 L34 32" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+  </svg>`;
+  flight.appendChild(owl);
+
+  // Feather particles
+  for (let i = 0; i < 12; i++) {
+    setTimeout(() => {
+      const feather = document.createElement('div');
+      feather.className = 'feather';
+      feather.style.left = (15 + Math.random() * 70) + '%';
+      feather.style.top = (30 + Math.random() * 30) + '%';
+      feather.style.animationDuration = (1 + Math.random()) + 's';
+      feather.style.animationDelay = '0s';
+      feather.style.background = Math.random() > 0.5 ? 'var(--gold)' : 'var(--parchment-dark)';
+      feather.style.transform = `rotate(${Math.random()*360}deg)`;
+      flight.appendChild(feather);
+      setTimeout(() => feather.remove(), 2000);
+    }, 200 + i * 120);
+  }
+
+  setTimeout(() => { flight.classList.remove('active'); flight.innerHTML = ''; }, 2500);
+}
+
+// =============================================
+// INIT
+// =============================================
+render();
+</script>
+</body>
 </html>
