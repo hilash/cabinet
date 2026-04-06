@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-06] Replaced onboarding welcome step with the exact runcabinet.com hero: dictionary definition card (dict-card with 3 definitions, phonetic, origin footer), gradient "Your knowledge base. Your AI team." tagline, and "free project / open source / self-hosted" badge. All typography matches website: Instrument Serif italic numbers, JetBrains Mono labels, Source Serif body.
+
 [2026-04-06] Rewrote onboarding wizard to match runcabinet.com visual identity: warm cream background (#FAF6F1), brown text (#3B2F2F), accent brown (#8B5E3C), dot-grid background, dict-card style form cards, Instrument Serif italic headings, rounded-full accent buttons, cabinet icon on welcome step. All hardcoded to website tokens so onboarding always looks identical regardless of active theme.
 
 [2026-04-06] Fixed theme consistency across panels by moving theme initialization from ThemePicker into a dedicated ThemeInitializer component mounted at the layout root. Added Appearance tab to Settings with full theme selection grid (light + dark themes).

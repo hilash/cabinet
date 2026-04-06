@@ -373,52 +373,113 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             ))}
           </div>
 
-          {/* Step 0: Welcome */}
+          {/* Step 0: Welcome — Dictionary card + tagline side-by-side */}
           {step === 0 && (
-            <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
-              <div className="text-center space-y-4">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/cabinet-icon.png"
-                  alt=""
-                  className="mx-auto h-20 w-20 rounded-2xl drop-shadow-lg"
-                />
-                <h1
-                  className="text-4xl tracking-tight italic"
-                  style={{ fontFamily: "var(--font-logo), Georgia, serif", color: WEB.text }}
-                >
-                  cabinet
-                </h1>
-                <p
-                  className="text-lg leading-relaxed"
-                  style={{ color: WEB.textSecondary }}
-                >
-                  Let&apos;s set up your AI team. I&apos;ll ask a few questions
-                  to get the right agents working for you.
-                </p>
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                <span
-                  className="rounded-full px-3 py-1 text-xs font-mono uppercase tracking-widest"
+            <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 animate-in fade-in duration-300">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:gap-10 w-full">
+                {/* Dictionary Definition Card (compact) */}
+                <div
+                  className="text-left rounded-2xl px-8 py-8 md:px-10 md:py-10 flex-1"
                   style={{
-                    border: `1px solid ${WEB.border}`,
                     background: WEB.bgCard,
-                    color: WEB.accent,
+                    border: `1px solid ${WEB.border}`,
+                    boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
                   }}
                 >
-                  <Zap className="inline w-3 h-3 mr-1 -mt-0.5" />
-                  Build your starter team in minutes
-                </span>
-              </div>
-              <div className="flex justify-center pt-2">
-                <button
-                  onClick={() => setStep(1)}
-                  className="inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5"
-                  style={{ background: WEB.accent }}
-                >
-                  Let&apos;s go
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <div className="flex items-baseline gap-3 mb-1">
+                    <h1
+                      className="font-logo text-4xl sm:text-5xl tracking-tight italic"
+                      style={{ color: WEB.text }}
+                    >
+                      cabinet
+                    </h1>
+                    <span className="font-mono text-xs" style={{ color: WEB.textTertiary }}>
+                      /&#x2C8;kab.&#x26A;.n&#x259;t/
+                    </span>
+                  </div>
+                  <p className="font-mono text-xs italic mb-6" style={{ color: WEB.textTertiary }}>
+                    noun
+                  </p>
+
+                  <ol className="font-body-serif space-y-5 text-[15px] leading-relaxed">
+                    <li className="flex gap-3">
+                      <span className="font-logo italic text-lg mt-[-2px] shrink-0" style={{ color: WEB.accent }}>1.</span>
+                      <div>
+                        <p style={{ color: WEB.textSecondary }}>
+                          A cupboard with shelves or drawers for storing or displaying items.
+                        </p>
+                        <p className="font-mono text-xs italic mt-1.5" style={{ color: WEB.textTertiary }}>
+                          &ldquo;a filing cabinet&rdquo;
+                        </p>
+                      </div>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="font-logo italic text-lg mt-[-2px] shrink-0" style={{ color: WEB.accent }}>2.</span>
+                      <div>
+                        <p style={{ color: WEB.textSecondary }}>
+                          <span
+                            className="font-mono text-[11px] uppercase tracking-wider mr-1.5 px-1.5 py-0.5 rounded"
+                            style={{ color: WEB.textTertiary, background: "#F5F0EB" }}
+                          >
+                            politics
+                          </span>
+                          The committee of senior ministers responsible for controlling government policy.
+                        </p>
+                        <p className="font-mono text-xs italic mt-1.5" style={{ color: WEB.textTertiary }}>
+                          &ldquo;a cabinet meeting&rdquo;
+                        </p>
+                      </div>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="font-logo italic text-lg mt-[-2px] shrink-0" style={{ color: WEB.accent }}>3.</span>
+                      <div>
+                        <p style={{ color: WEB.text }}>
+                          <span
+                            className="font-mono text-[11px] uppercase tracking-wider mr-1.5 px-1.5 py-0.5 rounded"
+                            style={{ color: WEB.accent, background: WEB.accentBg }}
+                          >
+                            software
+                          </span>
+                          An AI-first knowledge base where files live on disk and a team of AI agents helps you execute.
+                        </p>
+                        <p className="font-mono text-xs italic mt-1.5" style={{ color: WEB.textTertiary }}>
+                          &ldquo;I asked my cabinet to research the market and draft the blog post&rdquo;
+                        </p>
+                      </div>
+                    </li>
+                  </ol>
+
+                </div>
+
+                {/* Tagline + CTA */}
+                <div className="flex flex-col items-center lg:items-start gap-6 py-6 lg:py-0 lg:max-w-xs shrink-0">
+                  <h2 className="text-center lg:text-left text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-[1.1]">
+                    <span className="font-logo italic" style={{ color: WEB.text }}>
+                      Your knowledge base.
+                    </span>
+                    <br />
+                    <span
+                      className="font-logo italic"
+                      style={{
+                        background: "linear-gradient(135deg, #3B2F2F 0%, #8B5E3C 50%, #A0714D 100%)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                      }}
+                    >
+                      Your AI team.
+                    </span>
+                  </h2>
+
+                  <button
+                    onClick={() => setStep(1)}
+                    className="inline-flex items-center justify-center gap-2.5 rounded-full px-10 py-4 text-base font-medium text-white transition-all hover:-translate-y-0.5 shadow-sm w-full lg:w-auto"
+                    style={{ background: WEB.accent }}
+                  >
+                    Get started
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -429,7 +490,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               <div className="text-center space-y-2">
                 <h1
                   className="text-2xl tracking-tight italic"
-                  style={{ fontFamily: "var(--font-logo), Georgia, serif" }}
+                  className="font-logo"
                 >
                   Tell me about your project
                 </h1>
@@ -515,7 +576,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               <div className="text-center space-y-2">
                 <h1
                   className="text-2xl tracking-tight italic"
-                  style={{ fontFamily: "var(--font-logo), Georgia, serif" }}
+                  className="font-logo"
                 >
                   Almost there
                 </h1>
@@ -596,7 +657,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               <div className="text-center space-y-2">
                 <h1
                   className="text-2xl tracking-tight italic"
-                  style={{ fontFamily: "var(--font-logo), Georgia, serif" }}
+                  className="font-logo"
                 >
                   Your starter team
                 </h1>
@@ -666,32 +727,67 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
           {/* Steps 4-6: Community */}
           {communityStep && (
-            <div className="mx-auto flex max-w-2xl flex-col gap-8 animate-in fade-in duration-300">
+            <div className="relative mx-auto flex max-w-2xl flex-col gap-8 animate-in fade-in duration-300">
+              {/* Floating emoji backdrop per community step */}
+              {(() => {
+                const emojiMap: Record<string, string> = {
+                  "GitHub": "✨",
+                  "Discord": "💬",
+                  "Cabinet Cloud": "☁️",
+                };
+                const emoji = emojiMap[communityStep.eyebrow];
+                if (!emoji) return null;
+                return (
+                  <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+                    {[
+                      { top: "-5%", left: "-8%", duration: "34s", delay: "-8s", opacity: 0.45, reverse: false },
+                      { top: "5%", left: "55%", duration: "42s", delay: "-17s", opacity: 0.4, reverse: true },
+                      { top: "40%", left: "-5%", duration: "38s", delay: "-12s", opacity: 0.38, reverse: true },
+                      { top: "50%", left: "60%", duration: "46s", delay: "-22s", opacity: 0.4, reverse: false },
+                      { top: "75%", left: "20%", duration: "40s", delay: "-5s", opacity: 0.35, reverse: false },
+                    ].map((cloud, i) => (
+                      <div
+                        key={i}
+                        className={`waitlist-cloud-row absolute ${cloud.reverse ? "waitlist-cloud-row-reverse" : ""}`}
+                        style={{
+                          top: cloud.top,
+                          left: cloud.left,
+                          opacity: cloud.opacity,
+                          ["--cloud-row-duration" as string]: cloud.duration,
+                          animationDelay: cloud.delay,
+                        }}
+                      >
+                        <span
+                          className={`select-none leading-none ${
+                            communityStep.eyebrow === "Cabinet Cloud"
+                              ? "text-[280px] sm:text-[400px]"
+                              : "text-[180px] sm:text-[260px]"
+                          }`}
+                          style={{ filter: "drop-shadow(0 18px 26px rgba(214,194,160,0.22))" }}
+                        >
+                          {emoji}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               <div
-                className="rounded-2xl p-5 sm:p-6"
+                className="relative z-10 rounded-2xl p-5 sm:p-6"
                 style={{
                   border: `1px solid ${WEB.border}`,
-                  background: WEB.bgCard,
+                  background: communityStep.eyebrow === "Cabinet Cloud"
+                    ? `linear-gradient(180deg, rgba(252,249,244,0.96), rgba(247,241,232,0.94))`
+                    : WEB.bgCard,
                   boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
                 }}
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-3">
-                    <div
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-mono uppercase tracking-[0.18em]"
-                      style={{
-                        border: `1px solid ${WEB.border}`,
-                        background: WEB.bg,
-                        color: WEB.accent,
-                      }}
-                    >
-                      <Sparkles className="size-3.5" style={{ color: WEB.accent }} />
-                      {communityStep.eyebrow}
-                    </div>
                     <div className="space-y-2">
                       <h2
-                        className="text-xl tracking-tight italic"
-                        style={{ fontFamily: "var(--font-logo), Georgia, serif", color: WEB.text }}
+                        className="font-logo text-xl tracking-tight italic"
+                        style={{ color: WEB.text }}
                       >
                         {communityStep.title}
                       </h2>
@@ -707,18 +803,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   </div>
                 </div>
 
-                {communityStep.cards.length > 0 && (
-                  <>
-                    <div className="my-5" style={{ borderTop: `1px solid ${WEB.borderLight}` }} />
-
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {communityStep.cards.map((card) => (
-                        <CommunityCardTile key={card.title} card={card} />
-                      ))}
-                    </div>
-                  </>
-                )}
-
+                {/* Big CTA buttons — same style across all community steps */}
                 {isGitHubCommunityStep && (
                   <div className="pt-6">
                     <a
@@ -726,35 +811,69 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex w-full items-center justify-between gap-4 rounded-full px-5 py-5 sm:px-6 sm:py-6 transition-all hover:-translate-y-0.5"
-                      style={{
-                        background: WEB.accentBg,
-                        border: `1px solid ${WEB.border}`,
-                      }}
+                      style={{ background: WEB.accentBg, border: `1px solid ${WEB.border}` }}
                     >
                       <span className="flex min-w-0 items-center gap-4">
-                        <span
-                          className="flex size-11 shrink-0 items-center justify-center rounded-full shadow-sm"
-                          style={{ background: WEB.bgCard }}
-                        >
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-full shadow-sm" style={{ background: WEB.bgCard }}>
                           <Star className="size-5 fill-current" style={{ color: WEB.accent }} />
                         </span>
                         <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>
-                            Star Cabinet on GitHub
-                          </span>
-                          <span className="text-sm" style={{ color: WEB.textSecondary }}>
-                            Help more people find the community
-                          </span>
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Star Cabinet on GitHub</span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Help more people find the community</span>
                         </span>
                       </span>
-                      <span
-                        className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex"
-                        style={{
-                          background: WEB.bgWarm,
-                          color: WEB.accent,
-                        }}
-                      >
+                      <span className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex" style={{ background: WEB.bgWarm, color: WEB.accent }}>
                         {starsLabel}
+                      </span>
+                    </a>
+                  </div>
+                )}
+
+                {communityStep.eyebrow === "Discord" && (
+                  <div className="pt-6">
+                    <a
+                      href={DISCORD_SUPPORT_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-between gap-4 rounded-full px-5 py-5 sm:px-6 sm:py-6 transition-all hover:-translate-y-0.5"
+                      style={{ background: "#ECEAFD", border: "1px solid #D8D4F7" }}
+                    >
+                      <span className="flex min-w-0 items-center gap-4">
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-full shadow-sm" style={{ background: WEB.bgCard }}>
+                          <DiscordIcon className="size-5" style={{ color: "#5865F2" }} />
+                        </span>
+                        <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Join the Discord</span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Chat with the people building Cabinet</span>
+                        </span>
+                      </span>
+                      <span className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex" style={{ background: "#D8D4F7", color: "#5865F2" }}>
+                        Join
+                      </span>
+                    </a>
+                  </div>
+                )}
+
+                {communityStep.eyebrow === "Cabinet Cloud" && (
+                  <div className="pt-6">
+                    <a
+                      href={CABINET_CLOUD_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-between gap-4 rounded-full px-5 py-5 sm:px-6 sm:py-6 transition-all hover:-translate-y-0.5"
+                      style={{ background: WEB.accentBg, border: `1px solid ${WEB.border}` }}
+                    >
+                      <span className="flex min-w-0 items-center gap-4">
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-full shadow-sm" style={{ background: WEB.bgCard }}>
+                          <Cloud className="size-5" style={{ color: WEB.accent }} />
+                        </span>
+                        <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Join the Cabinet Cloud waitlist</span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Get the hosted version when it&apos;s ready</span>
+                        </span>
+                      </span>
+                      <span className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex" style={{ background: WEB.bgWarm, color: WEB.accent }}>
+                        Waitlist
                       </span>
                     </a>
                   </div>

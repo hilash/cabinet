@@ -165,6 +165,46 @@ html[data-custom-theme] .tiptap h3,
 html[data-custom-theme] .tiptap h4 {
   font-family: var(--font-heading-theme, var(--font-theme)) !important;
 }
+/* Cloud sway animation (from runcabinet.com) */
+@keyframes waitlist-cloud-sway {
+  0% { transform: translate3d(11%, 0, 0); }
+  50% { transform: translate3d(-9%, 0, 0); }
+  100% { transform: translate3d(11%, 0, 0); }
+}
+@keyframes waitlist-cloud-sway-reverse {
+  0% { transform: translate3d(-10%, 0, 0); }
+  50% { transform: translate3d(8%, 0, 0); }
+  100% { transform: translate3d(-10%, 0, 0); }
+}
+.waitlist-cloud-row {
+  animation: waitlist-cloud-sway var(--cloud-row-duration, 38s) ease-in-out infinite;
+  will-change: transform;
+}
+.waitlist-cloud-row-reverse {
+  animation-name: waitlist-cloud-sway-reverse;
+}
+@media (prefers-reduced-motion: reduce) {
+  .waitlist-cloud-row,
+  .waitlist-cloud-row-reverse {
+    animation: none;
+  }
+}
+
+/* Body serif — Source Serif 4, beats theme overrides */
+html[data-custom-theme] .font-body-serif,
+.font-body-serif {
+  font-family: 'Source Serif 4', Georgia, serif !important;
+}
+/* Logo / display font — always Instrument Serif, beats theme overrides */
+html[data-custom-theme] h1.font-logo,
+html[data-custom-theme] h2.font-logo,
+html[data-custom-theme] h3.font-logo,
+html[data-custom-theme] h4.font-logo,
+html[data-custom-theme] span.font-logo,
+html[data-custom-theme] .font-logo,
+.font-logo {
+  font-family: var(--font-logo), Georgia, serif !important;
+}
 
 .scrollbar-none {
   -ms-overflow-style: none;
