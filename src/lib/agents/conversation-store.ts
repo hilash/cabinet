@@ -511,6 +511,14 @@ export async function appendConversationTranscript(
   await fs.appendFile(transcriptPathFs(id), chunk, "utf-8");
 }
 
+export async function writeConversationTranscript(
+  id: string,
+  transcript: string
+): Promise<void> {
+  await ensureDirectory(conversationDir(id));
+  await writeFileContent(transcriptPathFs(id), transcript);
+}
+
 export async function replaceConversationArtifacts(
   id: string,
   artifacts: ConversationArtifact[]
@@ -537,6 +545,7 @@ export async function finalizeConversation(
   ]);
   const cleanedOutput = cleanConversationOutputForParsing(output, prompt);
   const parsed = parseCabinetBlock(cleanedOutput, prompt);
+  const displayTranscript = formatConversationTranscriptForDisplay(cleanedOutput, prompt);
   const artifacts = parsed.artifactPaths.map((artifactPath) => ({
     path: artifactPath,
   }));
@@ -555,6 +564,7 @@ export async function finalizeConversation(
   await Promise.all([
     writeConversationMeta(meta),
     replaceConversationArtifacts(id, artifacts),
+    writeConversationTranscript(id, displayTranscript),
   ]);
 
   return meta;

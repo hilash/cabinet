@@ -22,7 +22,6 @@ import { execSync } from "child_process";
 import matter from "gray-matter";
 import { getDb, closeDb } from "./db";
 import {
-  appendConversationTranscript,
   finalizeConversation,
   readConversationMeta,
   readConversationTranscript,
@@ -194,14 +193,6 @@ function submitInitialPrompt(session: PtySession): void {
 
   session.pty.write(session.initialPrompt);
   session.pty.write("\r");
-}
-
-async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
-  const meta = await readConversationMeta(sessionId);
-  if (!meta) return;
-  const plainChunk = stripAnsi(chunk);
-  if (!plainChunk) return;
-  await appendConversationTranscript(sessionId, plainChunk);
 }
 
 function maybeAutoExitClaudeSession(session: PtySession): void {
@@ -437,7 +428,6 @@ function createDetachedSession(input: {
       submitInitialPrompt(session);
     }
     maybeAutoExitClaudeSession(session);
-    void syncConversationChunk(input.sessionId, data).catch(() => {});
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
       session.ws.send(data);
     }
