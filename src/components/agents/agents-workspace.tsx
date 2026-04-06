@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import {
   Bot,
   CheckCircle2,
+  Copy,
   Clock3,
   HeartPulse,
   Loader2,
@@ -201,6 +202,13 @@ function formatRelative(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function formatTimestamp(iso?: string): string {
+  if (!iso) return "Not available";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString();
+}
+
 function triggerFromFilter(filter: TriggerFilter): ConversationMeta["trigger"] | undefined {
   if (filter === "all") return undefined;
   return filter;
@@ -309,6 +317,8 @@ export function AgentsWorkspace({
   const [settingsEditorOpen, setSettingsEditorOpen] = useState(false);
   const [newJobDialogOpen, setNewJobDialogOpen] = useState(false);
   const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
+  const [conversationDetailsOpen, setConversationDetailsOpen] = useState(false);
+  const [detailsCopied, setDetailsCopied] = useState(false);
   const [libraryTemplates, setLibraryTemplates] = useState<JobLibraryTemplate[]>([]);
   const [savingJob, setSavingJob] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
@@ -906,6 +916,24 @@ export function AgentsWorkspace({
   const settingsAgent = settingsAgentSlug
     ? agents.find((agent) => agent.slug === settingsAgentSlug) || null
     : null;
+  const selectedConversationDebugText = selectedConversationMeta
+    ? [
+        `Conversation ID: ${selectedConversationMeta.id}`,
+        `Title: ${selectedConversationMeta.title}`,
+        `Agent: ${selectedConversationMeta.agentSlug}`,
+        `Trigger: ${selectedConversationMeta.trigger}`,
+        `Status: ${selectedConversationMeta.status}`,
+        `Job ID: ${selectedConversationMeta.jobId || "Not available"}`,
+        `Job name: ${selectedConversationMeta.jobName || "Not available"}`,
+        `Started at: ${formatTimestamp(selectedConversationMeta.startedAt)}`,
+        `Completed at: ${formatTimestamp(selectedConversationMeta.completedAt)}`,
+        `Exit code: ${selectedConversationMeta.exitCode ?? "Not available"}`,
+        `Prompt path: ${selectedConversationMeta.promptPath}`,
+        `Transcript path: ${selectedConversationMeta.transcriptPath}`,
+        `Mentioned paths: ${selectedConversationMeta.mentionedPaths.join(", ") || "None"}`,
+        `Artifact paths: ${selectedConversationMeta.artifactPaths.join(", ") || "None"}`,
+      ].join("\n")
+    : "";
 
   function renderSettingsComposerPanel(agentSlug: string) {
     const panelAgent = agents.find((agent) => agent.slug === agentSlug) || null;
@@ -1007,6 +1035,13 @@ export function AgentsWorkspace({
         </div>
       </div>
     );
+  }
+
+  async function copyConversationDetails() {
+    if (!selectedConversationDebugText) return;
+    await navigator.clipboard.writeText(selectedConversationDebugText);
+    setDetailsCopied(true);
+    window.setTimeout(() => setDetailsCopied(false), 1500);
   }
 
   return (
@@ -1169,6 +1204,29 @@ export function AgentsWorkspace({
       <div className="flex-1 overflow-hidden">
         {mode === "conversation" && selectedConversationMeta ? (
           <div className="flex h-full flex-col">
+            <Dialog open={conversationDetailsOpen} onOpenChange={setConversationDetailsOpen}>
+              <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                  <div className="flex items-center justify-between gap-3 pr-10">
+                    <DialogTitle>Job Details</DialogTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 text-xs"
+                      onClick={() => void copyConversationDetails()}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                      {detailsCopied ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
+                </DialogHeader>
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-foreground">
+                    {selectedConversationDebugText}
+                  </pre>
+                </div>
+              </DialogContent>
+            </Dialog>
             <div className="border-b border-border px-5 py-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg">
@@ -1182,6 +1240,15 @@ export function AgentsWorkspace({
                   </p>
                 </div>
                 <div className="ml-auto flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => setConversationDetailsOpen(true)}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Job details
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"

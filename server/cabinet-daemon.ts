@@ -106,6 +106,11 @@ interface PtySession {
   initialPrompt?: string;
   initialPromptSent?: boolean;
   initialPromptTimer?: NodeJS.Timeout;
+  promptSubmittedOutputLength?: number;
+  autoExitRequested?: boolean;
+  autoExitFallbackTimer?: NodeJS.Timeout;
+  resolvedStatus?: "completed" | "failed";
+  resolvingStatus?: boolean;
 }
 
 const sessions = new Map<string, PtySession>();
@@ -145,10 +150,12 @@ function rejectUnauthorized(res: http.ServerResponse): void {
 }
 
 function stripAnsi(str: string): string {
-  return str.replace(
-    /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
-    ""
-  );
+  return str
+    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, "")
+    .replace(/\u001B[P^_][\s\S]*?\u001B\\/g, "")
+    .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/\u001B[@-_]/g, "")
+    .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "");
 }
 
 function claudePromptReady(output: string): boolean {
@@ -159,12 +166,27 @@ function claudePromptReady(output: string): boolean {
   );
 }
 
+function claudeIdlePromptVisible(output: string): boolean {
+  const plain = stripAnsi(output).replace(/\r/g, "\n");
+  return /(?:^|\n)[❯>]\s*$/.test(plain);
+}
+
+function transcriptShowsCompletedRun(output: string): boolean {
+  const plain = stripAnsi(output).replace(/\r/g, "\n");
+  return (
+    /(?:^|\n)SUMMARY:\s*\S+/m.test(plain) ||
+    /(?:^|\n)ARTIFACT:\s*\S+/m.test(plain) ||
+    claudeIdlePromptVisible(plain)
+  );
+}
+
 function submitInitialPrompt(session: PtySession): void {
   if (!session.initialPrompt || session.initialPromptSent || session.exited) {
     return;
   }
 
   session.initialPromptSent = true;
+  session.promptSubmittedOutputLength = session.output.join("").length;
   if (session.initialPromptTimer) {
     clearTimeout(session.initialPromptTimer);
     delete session.initialPromptTimer;
@@ -177,7 +199,48 @@ function submitInitialPrompt(session: PtySession): void {
 async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
   const meta = await readConversationMeta(sessionId);
   if (!meta) return;
-  await appendConversationTranscript(sessionId, chunk);
+  const plainChunk = stripAnsi(chunk);
+  if (!plainChunk) return;
+  await appendConversationTranscript(sessionId, plainChunk);
+}
+
+function maybeAutoExitClaudeSession(session: PtySession): void {
+  if (
+    !session.initialPrompt ||
+    !session.initialPromptSent ||
+    session.exited ||
+    session.autoExitRequested ||
+    session.resolvedStatus
+  ) {
+    return;
+  }
+
+  const submittedLength = session.promptSubmittedOutputLength ?? 0;
+  const currentOutput = session.output.join("");
+  if (currentOutput.length <= submittedLength) return;
+
+  const outputSincePrompt = currentOutput.slice(submittedLength);
+  if (!claudeIdlePromptVisible(outputSincePrompt)) return;
+
+  session.resolvedStatus = "completed";
+  session.resolvingStatus = true;
+  session.autoExitRequested = true;
+  const plain = stripAnsi(currentOutput);
+  completedOutput.set(session.id, { output: plain, completedAt: Date.now() });
+  void finalizeConversation(session.id, {
+    status: "completed",
+    exitCode: 0,
+    output: plain,
+  }).finally(() => {
+    session.resolvingStatus = false;
+  });
+  session.pty.write("/exit\r");
+  session.autoExitFallbackTimer = setTimeout(() => {
+    if (session.exited) return;
+    try {
+      session.pty.kill();
+    } catch {}
+  }, 1500);
 }
 
 async function finalizeSessionConversation(session: PtySession): Promise<void> {
@@ -185,9 +248,13 @@ async function finalizeSessionConversation(session: PtySession): Promise<void> {
   if (!meta) return;
 
   const plain = stripAnsi(session.output.join(""));
+  if (meta.status !== "running") {
+    completedOutput.set(session.id, { output: plain, completedAt: Date.now() });
+    return;
+  }
   await finalizeConversation(session.id, {
-    status: session.exitCode === 0 ? "completed" : "failed",
-    exitCode: session.exitCode,
+    status: session.resolvedStatus || (session.exitCode === 0 ? "completed" : "failed"),
+    exitCode: session.resolvedStatus === "completed" ? 0 : session.exitCode,
     output: plain,
   });
 }
@@ -352,6 +419,8 @@ function createDetachedSession(input: {
     exitCode: null,
     initialPrompt: input.args ? undefined : input.prompt?.trim() || undefined,
     initialPromptSent: false,
+    promptSubmittedOutputLength: 0,
+    autoExitRequested: false,
   };
   sessions.set(input.sessionId, session);
 
@@ -364,6 +433,7 @@ function createDetachedSession(input: {
     ) {
       submitInitialPrompt(session);
     }
+    maybeAutoExitClaudeSession(session);
     void syncConversationChunk(input.sessionId, data).catch(() => {});
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
       session.ws.send(data);
@@ -382,6 +452,10 @@ function createDetachedSession(input: {
     if (session.initialPromptTimer) {
       clearTimeout(session.initialPromptTimer);
       delete session.initialPromptTimer;
+    }
+    if (session.autoExitFallbackTimer) {
+      clearTimeout(session.autoExitFallbackTimer);
+      delete session.autoExitFallbackTimer;
     }
 
     const plain = stripAnsi(session.output.join(""));
@@ -628,11 +702,13 @@ const server = http.createServer(async (req, res) => {
       res.end(
         JSON.stringify({
           sessionId,
-          status: active.exited
-            ? active.exitCode === 0
-              ? "completed"
-              : "failed"
-            : "running",
+          status: active.resolvedStatus
+            ? active.resolvedStatus
+            : active.exited
+              ? active.exitCode === 0
+                ? "completed"
+                : "failed"
+              : "running",
           output: plain,
         })
       );
@@ -642,12 +718,32 @@ const server = http.createServer(async (req, res) => {
     const conversationMeta = await readConversationMeta(sessionId).catch(() => null);
     if (conversationMeta) {
       const transcript = await readConversationTranscript(sessionId).catch(() => "");
+      const plainTranscript = stripAnsi(transcript);
+      if (
+        conversationMeta.status === "running" &&
+        transcriptShowsCompletedRun(plainTranscript)
+      ) {
+        await finalizeConversation(sessionId, {
+          status: "completed",
+          exitCode: 0,
+          output: plainTranscript,
+        }).catch(() => null);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            sessionId,
+            status: "completed",
+            output: plainTranscript,
+          })
+        );
+        return;
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
           sessionId,
           status: conversationMeta.status,
-          output: transcript,
+          output: plainTranscript,
         })
       );
       return;

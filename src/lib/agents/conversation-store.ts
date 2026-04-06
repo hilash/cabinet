@@ -103,30 +103,65 @@ function normalizeArtifactPath(rawPath: string): string | null {
 
 export function parseCabinetBlock(output: string): ParsedCabinetBlock {
   const match = output.match(/```cabinet\s*([\s\S]*?)```/i);
-  if (!match) {
-    return { artifactPaths: [] };
-  }
-
-  const lines = match[1]
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
   const artifactPaths: string[] = [];
   let summary = "";
   let contextSummary = "";
 
-  for (const line of lines) {
-    if (line.startsWith("SUMMARY:")) {
-      summary = line.slice("SUMMARY:".length).trim();
+  if (match) {
+    const lines = match[1]
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    for (const line of lines) {
+      if (line.startsWith("SUMMARY:")) {
+        summary = line.slice("SUMMARY:".length).trim();
+        continue;
+      }
+      if (line.startsWith("CONTEXT:")) {
+        contextSummary = line.slice("CONTEXT:".length).trim();
+        continue;
+      }
+      if (line.startsWith("ARTIFACT:")) {
+        const normalized = normalizeArtifactPath(line.slice("ARTIFACT:".length));
+        if (normalized && !artifactPaths.includes(normalized)) {
+          artifactPaths.push(normalized);
+        }
+      }
+    }
+
+    return {
+      summary: summary || undefined,
+      contextSummary: contextSummary || undefined,
+      artifactPaths,
+    };
+  }
+
+  const fieldMatches = Array.from(
+    output.matchAll(/(?:^|\n)\s*(SUMMARY|CONTEXT|ARTIFACT):\s*(.*)$/gm)
+  );
+  if (fieldMatches.length === 0) {
+    return { artifactPaths: [] };
+  }
+
+  const lastSummaryMatch = [...fieldMatches].reverse().find((entry) => entry[1] === "SUMMARY");
+  const relevantStart = lastSummaryMatch?.index ?? 0;
+
+  for (const entry of fieldMatches) {
+    if ((entry.index ?? 0) < relevantStart) continue;
+
+    const field = entry[1];
+    const value = entry[2]?.trim() || "";
+    if (field === "SUMMARY") {
+      summary = value;
       continue;
     }
-    if (line.startsWith("CONTEXT:")) {
-      contextSummary = line.slice("CONTEXT:".length).trim();
+    if (field === "CONTEXT") {
+      contextSummary = value;
       continue;
     }
-    if (line.startsWith("ARTIFACT:")) {
-      const normalized = normalizeArtifactPath(line.slice("ARTIFACT:".length));
+    if (field === "ARTIFACT") {
+      const normalized = normalizeArtifactPath(value);
       if (normalized && !artifactPaths.includes(normalized)) {
         artifactPaths.push(normalized);
       }
@@ -221,6 +256,43 @@ export async function readConversationMeta(
   }
 }
 
+function stripAnsiText(str: string): string {
+  return str
+    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, "")
+    .replace(/\u001B[P^_][\s\S]*?\u001B\\/g, "")
+    .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/\u001B[@-_]/g, "")
+    .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "");
+}
+
+function transcriptShowsCompletedRun(transcript: string): boolean {
+  const plain = stripAnsiText(transcript).replace(/\r/g, "\n");
+  return (
+    /(?:^|\n)SUMMARY:\s*\S+/m.test(plain) ||
+    /(?:^|\n)ARTIFACT:\s*\S+/m.test(plain) ||
+    /(?:^|\n)[❯>]\s*$/.test(plain)
+  );
+}
+
+async function maybeResolveCompletedConversation(
+  meta: ConversationMeta | null
+): Promise<ConversationMeta | null> {
+  if (!meta || meta.status !== "running") return meta;
+
+  const transcript = await readConversationTranscript(meta.id);
+  if (!transcriptShowsCompletedRun(transcript)) {
+    return meta;
+  }
+
+  return (
+    await finalizeConversation(meta.id, {
+      status: "completed",
+      exitCode: 0,
+      output: stripAnsiText(transcript),
+    })
+  ) || meta;
+}
+
 export async function writeConversationMeta(meta: ConversationMeta): Promise<void> {
   await ensureDirectory(conversationDir(meta.id));
   await writeFileContent(metaPath(meta.id), JSON.stringify(meta, null, 2));
@@ -254,7 +326,8 @@ export async function finalizeConversation(
   if (!meta) return null;
 
   const output = input.output ?? (await readConversationTranscript(id));
-  const parsed = parseCabinetBlock(output);
+  const cleanedOutput = stripAnsiText(output).replace(/\r/g, "\n");
+  const parsed = parseCabinetBlock(cleanedOutput);
   const artifacts = parsed.artifactPaths.map((artifactPath) => ({
     path: artifactPath,
   }));
@@ -262,7 +335,7 @@ export async function finalizeConversation(
   meta.status = input.status;
   meta.completedAt = new Date().toISOString();
   meta.exitCode = input.exitCode ?? null;
-  meta.summary = parsed.summary || makeSummaryFromOutput(output);
+  meta.summary = parsed.summary || makeSummaryFromOutput(cleanedOutput);
   meta.contextSummary = parsed.contextSummary;
   meta.artifactPaths = artifacts.map((artifact) => artifact.path);
 
@@ -283,7 +356,7 @@ export async function readConversationTranscript(id: string): Promise<string> {
 export async function readConversationDetail(
   id: string
 ): Promise<ConversationDetail | null> {
-  const meta = await readConversationMeta(id);
+  const meta = await maybeResolveCompletedConversation(await readConversationMeta(id));
   if (!meta) return null;
 
   const [hasPrompt, hasMentions, hasArtifacts] = await Promise.all([
@@ -333,7 +406,9 @@ export async function listConversationMetas(
     await Promise.all(
       entries
         .filter((entry) => entry.isDirectory)
-        .map((entry) => readConversationMeta(entry.name))
+        .map(async (entry) =>
+          maybeResolveCompletedConversation(await readConversationMeta(entry.name))
+        )
     )
   ).filter(Boolean) as ConversationMeta[];
 
