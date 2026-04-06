@@ -1,37 +1,73 @@
 ---
-title: Operations
-created: '2026-04-06T00:00:00.000Z'
-modified: '2026-04-06T18:10:00.000Z'
-tags:
-  - example
-  - operations
+title: "Operations"
+created: 2026-04-06T00:00:00.000Z
+modified: 2026-04-06T18:10:00.000Z
+tags: [operations, logistics, shipping]
 order: 1
 ---
+
+![Operations headquarters](./operations-hero.webp)
+
 # Operations
 
-Today is not a calm day, which is normal, but today is an especially decorative version of not calm.
+**"If it's not on fire, we're ahead of schedule."**
 
-There is a Hogsmeade weekend rush, two display resets, one school-adjacent bulk order, and an active debate about whether Canary Creams count as "candy" or "strategic avian theater."
+Welcome to the nerve centre of Weasleys' Wizard Wheezes. This is where the magic meets the mundane — inventory counts, shipping manifests, and the eternal question of why the Portable Swamps keep leaking in transit.
 
-## Morning Priorities
+George runs point on ops, but honestly? Verity is the reason anything actually ships on time. We just take the credit.
 
-- Ship Honeydukes overflow orders before lunch.
-- Hold back enough Fizzing Whizzbees for the castle tour boxes.
-- Do not let Peeves near the experimental shelf.
-- Confirm the confetti charms are loaded before the lunch rush.
+---
 
-## Files In This Section
+## Morning Priorities (Daily)
 
-- `orders.csv` is the working order board.
+1. **Check overnight orders** — owl post arrives by 6am, Floo orders queue by 7am
+2. **Inventory pulse** — open [[candy-counter]] and flag anything below 50 units
+3. **Shipping board** — confirm all outbound parcels for [[Shipping Routes]]
+4. **Incident report** — did anything explode overnight? (Check the back room. Then check again.)
+5. **Restock triggers** — if Canary Creams drop below 100, ping [[Product]] immediately
 
-## Related Stops
+## Hogsmeade Rush Protocol
 
-- [[Candy Roadmaps]] for what is launching next
-- [[Research]] for what should absolutely not launch yet
-- [[candy-counter]] for the live-ish operator dashboard
+Hogsmeade weekends are our Super Bowl. Student traffic triples, and we need all hands on deck:
 
-## Good Prompts To Try
+- **Pre-rush (Friday):** Pre-pack bestseller bundles, restock front displays, test all demo units
+- **During rush (Saturday):** Two registers minimum, one dedicated "try before you buy" station, Fred on the floor doing demos
+- **Post-rush (Sunday):** Full inventory reconciliation, restock, damage assessment
 
-- "Summarize the riskiest orders and tell Fred what not to promise."
-- "Turn this page and the CSV into a 9 a.m. owl brief."
-- "List which products feel one bad decision away from becoming a Ministry report."
+## Shipment Status
+
+Current shipment data lives in `orders.csv` — it tracks every outbound order with status, destination, and delivery method.
+
+Key routes:
+- [[Shipping Routes]] — full breakdown of our three delivery networks
+- Floo Network (fastest, most expensive)
+- Owl Post (reliable, weather-dependent)
+- Knight Bus (bulk only, things arrive... shaken)
+
+## Key Partnerships
+
+- **Honeydukes** — wholesale partner, they move 200+ units/week of our candy line
+- **Zonko's (RIP)** — we bought their customer list. Their loss, our gain.
+- **Hogwarts Owlery** — bulk owl rental for back-to-school season
+
+## Cross-References
+
+- [[Product]] — what we're shipping and what's coming next
+- [[Research]] — what's in testing (and therefore NOT ready to ship, Fred)
+- [[candy-counter]] — live inventory dashboard
+- [[Finance]] — cost tracking and margin analysis
+
+---
+
+## AI Agent Prompts
+
+Use these prompts with the AI panel to automate ops tasks:
+
+> **Inventory Alert Draft**
+> "Review the candy-counter data and draft a restock alert for any product below 50 units. Include product name, current stock, and suggested reorder quantity."
+
+> **Shipping Delay Report**
+> "Scan orders.csv for any orders older than 3 days with status 'pending'. Summarize by destination and suggest priority actions."
+
+> **Hogsmeade Prep Checklist**
+> "Generate a pre-rush checklist for this weekend's Hogsmeade visit. Include inventory targets, staffing needs, and demo station setup."

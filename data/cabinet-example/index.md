@@ -1,52 +1,50 @@
 ---
-title: Cabinet Example
+title: Weasleys' Wizard Wheezes
 created: '2026-04-06T00:00:00.000Z'
-modified: '2026-04-06T18:10:00.000Z'
+modified: '2026-04-06T19:34:27.938Z'
 tags:
-  - example
-  - demo
-order: 2
+  - home
+  - hub
+  - wizard-wheezes
+order: 1
 ---
-# Cabinet Example
 
-Welcome to the internal workspace for Fred and George Weasley at Weasleys' Wizard Wheezes.
+![Weasleys' Wizard Wheezes shop front](./shop-hero.webp)
 
-This is the candy, pranks, growth, and "please do not test that on Ron again" side of the business.
+# Weasleys' Wizard Wheezes
 
-Fred runs launches with the energy of a fireworks finale.
-George runs operations with the expression of a man who knows at least three products are technically sentient.
+**"Why be boring when you could be legendary?"**
 
-This sample is built to feel like a real magical retail workspace:
+Welcome to the operational brain of the most profitable joke shop in wizarding history. If you're reading this, you're either part of the team, or you've broken through our security charms — in which case, well done, you're hired.
 
-- markdown plans
-- editable CSV tables
-- multiple interactive web apps
-- a repo-linked website section
-- enough jokes to keep morale high and legal slightly nervous
+This is Cabinet: our shared memory, our playbook, our secret weapon. Everything we know about running a magical empire lives here. Every prank formula, every sales trick, every Galleon we've ever counted. Humans set the direction. Agents do the grunt work. Cabinet remembers everything so we don't have to.
 
-## Quick Tour
+---
 
-- [[Operations]] for daily order chaos and the live `orders.csv`
-- [[Marketing]] for launch plans and `campaigns.csv`
-- [[Candy Roadmaps]] for upcoming sweets and launch timing
-- [[Research]] for experimental candies and prank trials
-- [[Sales]] for the Harry Potter character lead sheet in `leads.csv`
-- [[Joke Book]] for tested lines, display jokes, and product banter
-- [[Website Repo]] for the magical storefront repo example
-- [[candy-counter]], [[owl-post-crm]], and [[prank-lab]] for full-screen apps
+## The Grand Tour
 
-## What Makes This Fun
+<table class="border-collapse w-full" style="min-width: 75px;"><colgroup><col style="min-width: 25px;"><col style="min-width: 25px;"><col style="min-width: 25px;"></colgroup><tbody><tr><th colspan="1" rowspan="1"><p>Section</p></th><th colspan="1" rowspan="1"><p>What It Does</p></th><th colspan="1" rowspan="1"><p>Link</p></th></tr><tr><td colspan="1" rowspan="1"><p>Operations</p></td><td colspan="1" rowspan="1"><p>Daily chaos management, shipping, Hogsmeade rush survival</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:operations">Operations</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Marketing</p></td><td colspan="1" rowspan="1"><p>Campaigns, brand voice, making the wizarding world pay attention</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:marketing">Marketing</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Sales</p></td><td colspan="1" rowspan="1"><p>CRM, deal-closing, customer psychology</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:sales">Sales</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Product</p></td><td colspan="1" rowspan="1"><p>Candy roadmap, catalog, pricing</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:product">Product</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Research</p></td><td colspan="1" rowspan="1"><p>R&amp;D, flavor science, things that occasionally explode</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:research">Research</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Finance</p></td><td colspan="1" rowspan="1"><p>Galleon tracking, margins, keeping the lights on</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:finance">Finance</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Team</p></td><td colspan="1" rowspan="1"><p>The brilliant misfits who make it all work</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:team">Team</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Joke Book</p></td><td colspan="1" rowspan="1"><p>Shelf lines, counter scripts, the comedy gold standard</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:joke-book">Joke Book</a></p></td></tr></tbody></table>
 
-- The candy plans are whimsical, but the workspace is practical.
-- The web apps feel like internal tools from an actually profitable shop in Diagon Alley.
-- The repo section shows how code, setup notes, and business context can sit together.
-- The whole thing is magical enough that opening a plain spreadsheet afterward should feel emotionally incorrect.
+## Embedded Apps & Tools
 
-## Suggested First Clicks
+These are live tools built right into our Cabinet — no wand-waving required:
 
-1. Open [[Sales]] and inspect `leads.csv`.
-2. Open [[Research]] and scan `prank-experiments.csv`.
-3. Launch [[candy-counter]] for the shop pulse.
-4. Launch [[owl-post-crm]] and send a few dramatic owls.
-5. Launch [[prank-lab]] and trigger a confetti-heavy trial.
-6. Open [[Website Repo]] and read the setup notes.
+<table class="border-collapse w-full" style="min-width: 75px;"><colgroup><col style="min-width: 25px;"><col style="min-width: 25px;"><col style="min-width: 25px;"></colgroup><tbody><tr><th colspan="1" rowspan="1"><p>Tool</p></th><th colspan="1" rowspan="1"><p>Purpose</p></th><th colspan="1" rowspan="1"><p>Link</p></th></tr><tr><td colspan="1" rowspan="1"><p>Candy Counter</p></td><td colspan="1" rowspan="1"><p>Real-time inventory dashboard</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:candy-counter">candy-counter</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Owl Post CRM</p></td><td colspan="1" rowspan="1"><p>Customer relationship tracking</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:owl-post-crm">owl-post-crm</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Prank Lab</p></td><td colspan="1" rowspan="1"><p>Experiment tracker and R&amp;D simulator</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:prank-lab">prank-lab</a></p></td></tr><tr><td colspan="1" rowspan="1"><p>Shop Floor Map</p></td><td colspan="1" rowspan="1"><p>Interactive store layout</p></td><td colspan="1" rowspan="1"><p><a target="_blank" rel="noopener noreferrer nofollow" class="wiki-link" href="#page:shop-floor-map">Shop Floor Map</a></p></td></tr></tbody></table>
+
+## How This All Works
+
+New to Cabinet? Start with [How to Use Cabinet](#page:how-to-use-cabinet) — it'll walk you through pages, the AI panel, wiki-links, and how our agents keep everything humming while we focus on the important stuff (inventing things that make people laugh).
+
+---
+
+## The State of the Empire
+
+We're in the middle of Q2, and it's shaping up to be our biggest quarter yet. The [Product](#page:product) team has four launches in the pipeline, [Marketing](#page:marketing) is preparing the Moonbeam Meltdrops blitz, and [Operations](#page:operations) is somehow keeping the Floo Network from melting down during Hogsmeade weekends.
+
+[Storefront](#page:storefront) is live and looking sharp — our magical shopfront on the web, linked directly from this workspace so the team can always check what customers are seeing.
+
+Fred says we're "one good prank away from world domination." George says we're "one bad prank away from Azkaban." The truth, as always, is somewhere delightfully in between.
+
+**Let's make some mischief.**
+
+*— Fred & George Weasley, Co-Founders*

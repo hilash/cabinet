@@ -1,7 +1,7 @@
 ---
 title: Getting Started
 created: '2026-03-21T00:00:00.000Z'
-modified: '2026-04-06T12:36:51.000Z'
+modified: '2026-04-06T19:40:16.548Z'
 tags:
   - guide
   - onboarding
@@ -59,6 +59,7 @@ We have 2 parts:
 -   **Embedded Apps** — Directories with `index.html` render as embedded websites. Add a `.app` marker for full-screen mode (sidebar auto-collapses)
     
 -   **Linked Repos** — Add `.repo.yaml` to link a KB directory to a Git repo. AI agents use this to read source code in context
+    
 
 ## Import Your Repos
 
@@ -67,11 +68,13 @@ You can import your existing repos into Cabinet.
 Open the Knowledge Base menu in the left sidebar and choose `Add Symlink`. Cabinet will:
 
 -   create a KB folder for the repo
+    
 -   add a `source` symlink that points to your local repo
+    
 -   create a `.repo.yaml` file so agents understand the repo context
+    
 
 If the linked repo has an `index.html`, Cabinet will show that folder as an embedded website inside the Knowledge Base.
-    
 
 ## Sidebar Icons
 
@@ -80,6 +83,60 @@ If the linked repo has an `index.html`, Cabinet will show that folder as an embe
 ## Keyboard Shortcuts
 
 <table class="border-collapse w-full" style="min-width: 50px;"><colgroup><col style="min-width: 25px;"><col style="min-width: 25px;"></colgroup><tbody><tr><th colspan="1" rowspan="1"><p>Shortcut</p></th><th colspan="1" rowspan="1"><p>Action</p></th></tr><tr><td colspan="1" rowspan="1"><p><code>Cmd+S</code></p></td><td colspan="1" rowspan="1"><p>Force save</p></td></tr><tr><td colspan="1" rowspan="1"><p><code>Cmd+K</code></p></td><td colspan="1" rowspan="1"><p>Search</p></td></tr><tr><td colspan="1" rowspan="1"><p><code>Cmd+``</code></p></td><td colspan="1" rowspan="1"><p>Toggle terminal</p></td></tr><tr><td colspan="1" rowspan="1"><p><code>Cmd+Shift+A</code></p></td><td colspan="1" rowspan="1"><p>Toggle AI panel</p></td></tr></tbody></table>
+
+---
+
+# How to Use Cabinet
+
+Cabinet is an AI-first knowledge base where everything lives as files on disk. There's no database, no cloud lock-in, and no mystery about where your data goes. You write pages in markdown, organize them in a tree, and let AI agents help you edit and maintain the whole thing.
+
+This guide section walks through every major feature. If you're new here, start from the top and work your way down. If you already know what you're looking for, jump straight to the relevant page.
+
+## What Cabinet Can Do
+
+-   **Rich text editing** with a WYSIWYG editor that feels like a proper writing tool, not a code editor with delusions of grandeur
+    
+-   **AI-powered editing** via Claude, which reads your pages and makes targeted changes on command
+    
+-   **Full-text search** across every page in the knowledge base (Cmd+K)
+    
+-   **Wiki-links** between pages using `<a data-wiki-link="true" data-page-name="Page Name" href="#page:page-name" class="wiki-link">Page Name</a>` syntax
+    
+-   **Git-backed version history** so every edit is recoverable
+    
+-   **Embedded web apps** that run inside the sidebar as iframes or full-screen tools
+    
+-   **Linked repositories** that connect KB sections to real Git repos
+    
+-   **Kanban task boards** for tracking work
+    
+-   **Scheduled jobs** for automated recurring tasks
+    
+-   **A web terminal** for running Claude Code directly in the browser
+    
+
+## The Guides
+
+Each sub-page covers a specific feature area in detail:
+
+1.  [Editor Tips](#page:editor-tips) — The WYSIWYG editor, slash commands, markdown toggle, and tables
+    
+2.  [AI Editor Guide](#page:ai-editor-guide) — The AI panel, @mentions, example prompts, and how Claude edits pages
+    
+3.  [Search and Navigation](#page:search-and-navigation) — Cmd+K search, wiki-links, sidebar tree, and image uploads
+    
+4.  [Version History](#page:version-history) — Git auto-save, the diff viewer, and restoring previous versions
+    
+5.  [Apps and Repos](#page:apps-and-repos) — Embedded apps, full-screen mode, linked repos, and symlinks
+    
+6.  [Tasks and Jobs](#page:tasks-and-jobs) — Kanban boards, agent sessions, the web terminal, and scheduled jobs
+    
+
+## A Note on This Example Workspace
+
+This knowledge base is themed around Fred and George Weasley's joke shop. The pages, data, and apps are all built to feel like a real internal workspace for a (magical) retail business. The examples in these guides reference actual pages in this workspace, so you can follow along and try things out.
+
+As George would say: "The best way to learn a tool is to use it on something that might explode."
 
 ---
 

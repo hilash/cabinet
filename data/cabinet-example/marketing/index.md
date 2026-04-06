@@ -1,33 +1,67 @@
 ---
-title: Marketing
-created: '2026-04-06T00:00:00.000Z'
-modified: '2026-04-06T18:10:00.000Z'
-tags:
-  - example
-  - marketing
+title: "Marketing"
+created: 2026-04-06T00:00:00.000Z
+modified: 2026-04-06T18:10:00.000Z
+tags: [marketing, campaigns, brand, advertising]
 order: 2
 ---
+
+![Marketing campaign workshop](./marketing-hero.webp)
+
 # Marketing
 
-Fred wants the next launch to feel like Diagon Alley gossip, a fireworks display, and a suspiciously good impulse purchase all at once.
+**"We don't do subtle. Subtle is for people who lack confidence in their product."**
 
-The challenge is that every campaign becomes better and worse the moment George asks whether the product has been safety-tested on anyone with eyebrows.
+Fred runs marketing, and his philosophy is simple: be impossible to ignore. Every campaign should make someone laugh, gasp, or immediately reach for their money pouch. Ideally all three.
 
-## Campaign Spine
+This quarter's big push is the **Moonbeam Meltdrops launch** — our first foray into the "romantic evening" market. It's a departure from pure pranks, and Fred is terrified it might be... tasteful.
 
-- Hero launch: Moonbeam Meltdrops
-- Supporting line: Patronus Pop Rocks and Canary Cream Party Tins
-- Main promise: "Brilliant sweets, dazzling pranks, and absolutely no boring Tuesdays"
+---
 
-## Connected Context
+## Q2 Campaign Calendar
 
-- [[Operations]] holds the actual order pressure
-- [[Website Repo]] shows the storefront setup and linked-repo pattern
-- [[Sales]] shows who is worth charming first
-- [[owl-post-crm]] turns the campaign into a dramatic lead ritual
+| Week | Campaign | Channel | Owner |
+|------|----------|---------|-------|
+| Apr 7-13 | Moonbeam Meltdrops teaser | Daily Prophet full-page | Fred |
+| Apr 14-20 | "Glow Date" influencer kits | Owl Post to 50 tastemakers | Verity |
+| Apr 21-27 | Launch day — in-store event | Diagon Alley flagship | All hands |
+| May | Patronus Pop Rocks school push | Hogwarts owl drops | Lee Jordan |
+| June | Summer bundle campaign | All channels | Fred + Lee |
 
-## Good Prompts To Try
+Campaign performance data is tracked in `campaigns.csv`.
 
-- "Turn this brief into three Daily Prophet ad hooks."
-- "Look at campaigns.csv and tell me what is blocked."
-- "Suggest a homepage headline that sounds like Fred and George during a very profitable thunderstorm."
+## Active Channels
+
+- **Daily Prophet** — full-page ads, advertorials, "sponsored mischief" column
+- **Owl Post Newsletter** — bi-weekly to 2,400 subscribers (see [[Social Media]])
+- **Wizarding Wireless Network** — 30-second spots during Quidditch coverage
+- **Word of Mouth** — still our #1 channel, and it's free
+
+## Launch Plan: Moonbeam Meltdrops
+
+1. **Week -2:** Teaser campaign — "Something's glowing in Diagon Alley" (mysterious, no product reveal)
+2. **Week -1:** Influencer seeding — send kits to Witch Weekly editors, Celestina Warbeck's manager, and select Hogwarts prefects
+3. **Launch Day:** In-store event with enchanted ceiling (mimics a starry night), free samples, couples discount
+4. **Week +1:** User-generated content push — "Show us your glow" owl-in photo contest
+5. **Week +2:** Expand to Hogsmeade and wholesale partners
+
+## Key Resources
+
+- [[Brand Guide]] — voice, colors, typography rules
+- [[Social Media]] — channel-specific strategies
+- [[Sales]] — alignment on pricing and promotions
+- [[Product]] — what's launching and when
+- [[owl-post-crm]] — subscriber management
+
+---
+
+## AI Agent Prompts
+
+> **Campaign Brief Generator**
+> "Draft a campaign brief for [product name]. Include target audience, key message, channels, timeline, and success metrics. Use our brand voice from the Brand Guide."
+
+> **Ad Copy Writer**
+> "Write three versions of a Daily Prophet ad for [product]. One dramatic, one funny, one mysterious. Each under 50 words."
+
+> **Post-Campaign Analysis**
+> "Review campaigns.csv and summarize performance for the last 30 days. Highlight top-performing campaigns by engagement and suggest optimizations."

@@ -3,248 +3,885 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Candy Counter</title>
+    <title>Candy Counter — Weasley Wizard Wheezes</title>
     <style>
+      /* ===== DESIGN SYSTEM ===== */
       :root {
-        --bg-1: #1b062d;
-        --bg-2: #5a1d77;
-        --sun: #ffb347;
-        --rose: #ff5f8f;
-        --mint: #7af6d0;
-        --text: #fff6ef;
-        --muted: rgba(255, 246, 239, 0.76);
-        --panel: rgba(255, 255, 255, 0.12);
-        --line: rgba(255, 255, 255, 0.16);
+        --bg-primary: #1b062d;
+        --bg-secondary: #321050;
+        --bg-tertiary: #2a0d42;
+        --bg-surface: rgba(255, 255, 255, 0.07);
+        --bg-surface-hover: rgba(255, 255, 255, 0.12);
+        --bg-surface-active: rgba(255, 255, 255, 0.16);
+
+        --accent-gold: #ffb347;
+        --accent-rose: #ff5f8f;
+        --accent-mint: #7af6d0;
+        --accent-violet: #b388ff;
+        --accent-blue: #5fb8e6;
+        --accent-lime: #97ff6a;
+
+        --status-success: #4ade80;
+        --status-warning: #fbbf24;
+        --status-danger: #f87171;
+
+        --text-primary: #fff6ef;
+        --text-secondary: rgba(255, 246, 239, 0.76);
+        --text-muted: rgba(255, 246, 239, 0.48);
+
+        --border: rgba(255, 255, 255, 0.12);
+        --border-strong: rgba(255, 255, 255, 0.2);
+
+        --radius-sm: 8px;
+        --radius-md: 14px;
+        --radius-lg: 22px;
+        --radius-xl: 32px;
+        --radius-full: 999px;
+
+        --space-xs: 4px;
+        --space-sm: 8px;
+        --space-md: 14px;
+        --space-lg: 22px;
+        --space-xl: 32px;
+        --space-2xl: 48px;
+
+        --font-sans: "Trebuchet MS", "Avenir Next", system-ui, sans-serif;
+        --font-serif: Georgia, "Times New Roman", serif;
+        --font-mono: "JetBrains Mono", "SF Mono", monospace;
+
+        --shadow-sm: 0 2px 8px rgba(10, 2, 19, 0.2);
+        --shadow-md: 0 8px 24px rgba(10, 2, 19, 0.3);
+        --shadow-lg: 0 24px 60px rgba(10, 2, 19, 0.34);
+
+        --transition-fast: 0.15s ease;
+        --transition-normal: 0.25s ease;
+        --transition-slow: 0.4s ease;
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      /* ===== RESET & BASE ===== */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
       body {
-        margin: 0;
         min-height: 100vh;
-        color: var(--text);
-        font-family: "Trebuchet MS", "Avenir Next", sans-serif;
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.5;
         background:
-          radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.18), transparent 22%),
-          radial-gradient(circle at 100% 0%, rgba(255, 179, 71, 0.25), transparent 24%),
-          linear-gradient(145deg, var(--bg-1) 0%, #321050 48%, var(--bg-2) 100%);
+          radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.12), transparent 22%),
+          radial-gradient(circle at 100% 0%, rgba(255, 179, 71, 0.18), transparent 24%),
+          radial-gradient(circle at 50% 100%, rgba(179, 136, 255, 0.1), transparent 30%),
+          linear-gradient(145deg, var(--bg-primary) 0%, var(--bg-secondary) 48%, #5a1d77 100%);
+        background-attachment: fixed;
         overflow-x: hidden;
+        padding-bottom: 52px;
       }
 
+      /* ===== ACCESSIBILITY: REDUCED MOTION ===== */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+        .ticker-track { animation: none !important; }
+        .sparkles span { animation: none !important; }
+      }
+
+      /* ===== FOCUS STATES ===== */
+      :focus-visible {
+        outline: 2px solid var(--accent-gold);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+      }
+
+      /* Skip link */
+      .skip-link {
+        position: absolute;
+        top: -100px;
+        left: var(--space-md);
+        background: var(--accent-gold);
+        color: var(--bg-primary);
+        padding: var(--space-sm) var(--space-md);
+        border-radius: var(--radius-sm);
+        font-weight: 700;
+        z-index: 100;
+        text-decoration: none;
+      }
+      .skip-link:focus { top: var(--space-md); }
+
+      /* ===== SPARKLE BACKGROUND ===== */
       .sparkles {
         position: fixed;
         inset: 0;
         pointer-events: none;
         overflow: hidden;
+        z-index: 0;
       }
-
       .sparkles span {
         position: absolute;
-        font-size: 24px;
-        opacity: 0.22;
-        animation: drift linear infinite;
+        font-size: 22px;
+        opacity: 0.18;
+        animation: drift linear infinite alternate;
+      }
+      .sparkles span:nth-child(1) { top: 8%; left: 6%; animation-duration: 18s; }
+      .sparkles span:nth-child(2) { top: 20%; left: 86%; animation-duration: 24s; }
+      .sparkles span:nth-child(3) { top: 65%; left: 10%; animation-duration: 20s; }
+      .sparkles span:nth-child(4) { top: 80%; left: 80%; animation-duration: 22s; }
+      .sparkles span:nth-child(5) { top: 44%; left: 52%; animation-duration: 19s; }
+      .sparkles span:nth-child(6) { top: 32%; left: 28%; animation-duration: 21s; }
+      .sparkles span:nth-child(7) { top: 56%; left: 94%; animation-duration: 17s; }
+
+      @keyframes drift {
+        from { transform: translateY(0) rotate(0deg); opacity: 0.18; }
+        to { transform: translateY(-20px) rotate(18deg); opacity: 0.06; }
       }
 
-      .sparkles span:nth-child(1) { top: 10%; left: 8%; animation-duration: 18s; }
-      .sparkles span:nth-child(2) { top: 22%; left: 84%; animation-duration: 24s; }
-      .sparkles span:nth-child(3) { top: 68%; left: 12%; animation-duration: 20s; }
-      .sparkles span:nth-child(4) { top: 78%; left: 78%; animation-duration: 22s; }
-      .sparkles span:nth-child(5) { top: 46%; left: 55%; animation-duration: 19s; }
+      /* ===== HEADER BAR ===== */
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-md) var(--space-xl);
+        background: rgba(27, 6, 45, 0.88);
+        backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 24px rgba(10, 2, 19, 0.3);
+      }
 
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+      }
+
+      .header-logo {
+        font-family: var(--font-serif);
+        font-size: 20px;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--accent-gold), var(--accent-rose));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .header-subtitle {
+        font-size: 11px;
+        color: var(--text-muted);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .header-center {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+      }
+
+      .clock {
+        font-family: var(--font-mono);
+        font-size: 15px;
+        color: var(--accent-gold);
+        letter-spacing: 0.05em;
+      }
+
+      .live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: var(--radius-full);
+        background: rgba(74, 222, 128, 0.15);
+        border: 1px solid rgba(74, 222, 128, 0.3);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--status-success);
+      }
+
+      .live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--status-success);
+        animation: pulse-live 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse-live {
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4); }
+        50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(74, 222, 128, 0); }
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: var(--space-lg);
+      }
+
+      .status-row {
+        display: flex;
+        gap: var(--space-md);
+        flex-wrap: wrap;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .status-dot.green { background: var(--status-success); box-shadow: 0 0 6px rgba(74, 222, 128, 0.5); }
+      .status-dot.amber { background: var(--status-warning); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); animation: pulse-live 2s ease-in-out infinite; }
+      .status-dot.red { background: var(--status-danger); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); animation: pulse-live 0.8s ease-in-out infinite; }
+
+      /* ===== SHELL ===== */
       .shell {
         position: relative;
         z-index: 1;
-        max-width: 1320px;
+        max-width: 1400px;
         margin: 0 auto;
-        padding: 28px 18px 34px;
+        padding: var(--space-xl) var(--space-lg);
       }
 
-      .hero,
-      .grid {
-        display: grid;
-        gap: 18px;
-      }
-
-      .hero {
-        grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
-      }
-
-      .grid {
-        margin-top: 18px;
-        grid-template-columns: minmax(0, 1fr) minmax(360px, 0.95fr);
-      }
-
+      /* ===== PANEL ===== */
       .panel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 32px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
         backdrop-filter: blur(18px);
-        box-shadow: 0 24px 60px rgba(10, 2, 19, 0.34);
+        box-shadow: var(--shadow-lg);
+        transition: box-shadow var(--transition-normal);
       }
 
-      .hero-copy,
-      .section {
-        padding: 24px;
-      }
+      .section { padding: var(--space-xl); }
 
       .eyebrow {
-        letter-spacing: 0.24em;
+        letter-spacing: 0.22em;
         text-transform: uppercase;
-        font-size: 11px;
-        color: var(--mint);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--accent-mint);
+        margin-bottom: var(--space-xs);
       }
 
-      h1 {
-        margin: 12px 0 14px;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(44px, 6vw, 78px);
-        line-height: 0.92;
-      }
+      h1 { font-family: var(--font-serif); font-size: clamp(36px, 5vw, 64px); line-height: 0.95; margin-bottom: var(--space-md); }
+      h2 { font-size: 20px; font-weight: 700; margin-bottom: var(--space-sm); }
+      h3 { font-size: 15px; font-weight: 600; }
+      p { color: var(--text-secondary); line-height: 1.6; }
 
-      p {
-        margin: 0;
-        color: var(--muted);
-        line-height: 1.55;
-      }
-
-      .metrics {
+      /* ===== TOP HERO ===== */
+      .hero-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 12px;
-        margin-top: 22px;
+        grid-template-columns: 1fr minmax(300px, 0.5fr);
+        gap: var(--space-lg);
+        margin-bottom: var(--space-lg);
       }
 
-      .metric,
-      .order,
-      .aside-card {
-        border-radius: 22px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.08);
+      .hero-copy { padding: var(--space-xl) var(--space-xl) var(--space-md); }
+
+      .hero-description { max-width: 560px; }
+
+      .last-updated {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        margin-top: var(--space-md);
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .last-updated-dot {
+        width: 5px; height: 5px; border-radius: 50%;
+        background: var(--status-success);
+        animation: pulse-live 2s ease-in-out infinite;
       }
 
-      .metric {
-        padding: 16px;
+      /* ===== METRIC CARDS ===== */
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--space-md);
+        margin-top: var(--space-lg);
       }
+
+      .metric-card {
+        position: relative;
+        padding: var(--space-lg) var(--space-md) var(--space-md);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        background: var(--bg-surface);
+        transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+        overflow: hidden;
+        cursor: default;
+      }
+      .metric-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+      }
+      .metric-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      }
+      .metric-card[data-color="gold"]::after { background: linear-gradient(90deg, var(--accent-gold), var(--accent-rose)); }
+      .metric-card[data-color="mint"]::after { background: linear-gradient(90deg, var(--accent-mint), var(--accent-blue)); }
+      .metric-card[data-color="rose"]::after { background: linear-gradient(90deg, var(--accent-rose), var(--accent-violet)); }
+      .metric-card[data-color="violet"]::after { background: linear-gradient(90deg, var(--accent-violet), var(--accent-blue)); }
+
+      .metric-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--space-sm);
+      }
+
+      .metric-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+      .metric-icon.gold { background: rgba(255, 179, 71, 0.15); }
+      .metric-icon.mint { background: rgba(122, 246, 208, 0.15); }
+      .metric-icon.rose { background: rgba(255, 95, 143, 0.15); }
+      .metric-icon.violet { background: rgba(179, 136, 255, 0.15); }
+
+      .metric-change {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: var(--radius-full);
+        white-space: nowrap;
+      }
+      .metric-change.up { background: rgba(74, 222, 128, 0.15); color: var(--status-success); }
+      .metric-change.down { background: rgba(248, 113, 113, 0.15); color: var(--status-danger); }
 
       .metric-label {
         font-size: 11px;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--muted);
+        color: var(--text-muted);
+        font-weight: 500;
       }
 
       .metric-value {
-        margin-top: 8px;
-        font-size: 34px;
-        font-weight: 700;
+        font-size: 32px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+        margin: var(--space-xs) 0;
       }
 
-      .hero-stack {
-        display: grid;
-        gap: 14px;
+      .metric-sub {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-bottom: var(--space-sm);
       }
+
+      .sparkline-container {
+        height: 24px;
+        margin-top: var(--space-xs);
+      }
+      .sparkline-container svg {
+        width: 100%;
+        height: 24px;
+        display: block;
+      }
+
+      /* ===== HERO RIGHT STACK ===== */
+      .hero-stack { display: flex; flex-direction: column; gap: var(--space-md); }
 
       .aside-card {
-        padding: 18px;
-      }
-
-      .aside-card h2,
-      .section h2 {
-        margin: 0;
-        font-size: 24px;
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        background: var(--bg-surface);
       }
 
       .badge-row {
         display: flex;
-        gap: 10px;
+        gap: var(--space-sm);
         flex-wrap: wrap;
-        margin-top: 14px;
+        margin-top: var(--space-md);
       }
 
-      .chip,
+      .chip {
+        border: 1px solid var(--border);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        border-radius: var(--radius-full);
+        padding: 7px 13px;
+        font-size: 12px;
+        font-family: inherit;
+      }
+
       .action {
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--text);
-        border-radius: 999px;
-        padding: 10px 14px;
+        border: 1px solid rgba(255, 95, 143, 0.3);
+        background: linear-gradient(135deg, rgba(255, 95, 143, 0.2), rgba(255, 179, 71, 0.25));
+        color: var(--text-primary);
+        border-radius: var(--radius-full);
+        padding: 9px 18px;
         font: inherit;
-      }
-
-      .action {
+        font-size: 13px;
+        font-weight: 600;
         cursor: pointer;
-        background: linear-gradient(135deg, rgba(255,95,143,0.24), rgba(255,179,71,0.3));
+        transition: transform var(--transition-fast), box-shadow var(--transition-fast);
       }
+      .action:hover {
+        transform: scale(1.04);
+        box-shadow: 0 4px 20px rgba(255, 95, 143, 0.25);
+      }
+      .action:active { transform: scale(0.98); }
 
-      .orders {
+      /* ===== MAIN GRID ===== */
+      .main-grid {
         display: grid;
-        gap: 12px;
-        margin-top: 18px;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-lg);
+        margin-top: var(--space-lg);
       }
 
-      .order {
-        padding: 16px;
+      /* ===== BAR CHART ===== */
+      .chart-container {
+        position: relative;
+        margin-top: var(--space-lg);
       }
 
-      .order-top,
-      .mini-top {
+      .chart-area {
         display: flex;
+        position: relative;
+        height: 200px;
+        padding-left: 40px;
+      }
+
+      .chart-y-axis {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 36px;
+        display: flex;
+        flex-direction: column;
         justify-content: space-between;
+        padding: 0 4px 24px 0;
+      }
+
+      .chart-y-label {
+        font-size: 10px;
+        color: var(--text-muted);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .chart-grid {
+        position: absolute;
+        left: 40px;
+        right: 0;
+        top: 0;
+        bottom: 24px;
+      }
+
+      .chart-grid-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .bars-container {
+        display: flex;
+        align-items: flex-end;
         gap: 12px;
+        flex: 1;
+        padding-bottom: 24px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
         align-items: center;
+        gap: 6px;
+        height: 100%;
+        justify-content: flex-end;
+        position: relative;
       }
 
-      .order small,
-      .mini small {
-        color: var(--muted);
+      .bar {
+        width: 100%;
+        max-width: 56px;
+        border-radius: 10px 10px 3px 3px;
+        min-height: 3px;
+        transition: height 1s cubic-bezier(0.22, 1, 0.36, 1);
+        position: relative;
+        cursor: pointer;
       }
+      .bar:hover { filter: brightness(1.15); }
 
-      .mini-grid {
-        display: grid;
-        gap: 12px;
-        margin-top: 18px;
-      }
-
-      .mini {
-        padding: 16px;
-        border-radius: 20px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.08);
-      }
-
-      .status {
-        padding: 6px 10px;
-        border-radius: 999px;
+      .bar-tooltip {
+        position: absolute;
+        top: -34px;
+        left: 50%;
+        transform: translateX(-50%) scale(0.9);
+        background: rgba(27, 6, 45, 0.95);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-sm);
+        padding: 4px 10px;
         font-size: 12px;
         font-weight: 700;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--transition-fast), transform var(--transition-fast);
+        z-index: 5;
+      }
+      .bar:hover .bar-tooltip {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
       }
 
-      .critical { background: rgba(255,95,143,0.18); color: #ffd0dc; }
-      .high { background: rgba(255,179,71,0.18); color: #ffe0b8; }
-      .okay { background: rgba(122,246,208,0.18); color: #d8fff2; }
+      .bar-label {
+        font-size: 10px;
+        color: var(--text-muted);
+        text-align: center;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+      }
 
+      /* ===== ORDERS TABLE ===== */
+      .orders-table {
+        width: 100%;
+        margin-top: var(--space-md);
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+
+      .orders-table thead th {
+        text-align: left;
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        padding: var(--space-sm) var(--space-md);
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+        transition: color var(--transition-fast);
+      }
+      .orders-table thead th:hover { color: var(--text-primary); }
+      .orders-table thead th .sort-arrow { margin-left: 4px; font-size: 9px; opacity: 0.5; }
+      .orders-table thead th.sorted .sort-arrow { opacity: 1; color: var(--accent-gold); }
+
+      .orders-table tbody tr {
+        transition: background var(--transition-fast);
+      }
+      .orders-table tbody tr:hover { background: var(--bg-surface-hover); }
+
+      .orders-table td {
+        padding: var(--space-sm) var(--space-md);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 13px;
+        vertical-align: middle;
+      }
+
+      .order-customer {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+      }
+
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+        color: var(--text-primary);
+      }
+
+      .priority-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: var(--radius-full);
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .priority-critical { background: rgba(248, 113, 113, 0.18); color: #ffa8b8; }
+      .priority-high { background: rgba(251, 191, 36, 0.18); color: #ffe0a0; }
+      .priority-medium { background: rgba(122, 246, 208, 0.18); color: #b8ffe8; }
+
+      .time-badge {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+      }
+
+      /* ===== STATUS DASHBOARD GRID ===== */
+      .status-grid {
+        display: grid;
+        gap: var(--space-sm);
+        margin-top: var(--space-md);
+      }
+
+      .status-card {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-md);
+        padding: var(--space-md) var(--space-lg);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: var(--bg-surface);
+        cursor: pointer;
+        transition: background var(--transition-fast), transform var(--transition-fast);
+        position: relative;
+        overflow: hidden;
+      }
+      .status-card:hover {
+        background: var(--bg-surface-hover);
+        transform: translateX(2px);
+      }
+      .status-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+      }
+      .status-card[data-status="danger"]::before { background: var(--status-danger); }
+      .status-card[data-status="warning"]::before { background: var(--status-warning); }
+      .status-card[data-status="success"]::before { background: var(--status-success); }
+
+      .status-card-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+        background: var(--bg-surface);
+      }
+
+      .status-card-content { flex: 1; min-width: 0; }
+
+      .status-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-sm);
+      }
+
+      .status-card-title { font-size: 13px; font-weight: 600; }
+
+      .status-badge {
+        padding: 2px 8px;
+        border-radius: var(--radius-full);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+      }
+      .badge-danger { background: rgba(248, 113, 113, 0.15); color: var(--status-danger); }
+      .badge-warning { background: rgba(251, 191, 36, 0.15); color: var(--status-warning); }
+      .badge-success { background: rgba(74, 222, 128, 0.15); color: var(--status-success); }
+
+      .status-card-desc {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 2px;
+        line-height: 1.4;
+      }
+
+      .status-card-detail {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease, margin-top 0.3s ease;
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+      .status-card.expanded .status-card-detail {
+        max-height: 80px;
+        margin-top: var(--space-sm);
+      }
+
+      /* ===== ACTIVITY FEED ===== */
+      .activity-feed {
+        margin-top: var(--space-md);
+        max-height: 280px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      .activity-feed::-webkit-scrollbar { width: 4px; }
+      .activity-feed::-webkit-scrollbar-track { background: transparent; }
+      .activity-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+      .activity-item {
+        display: flex;
+        gap: var(--space-sm);
+        padding: var(--space-sm) 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        animation: slideIn 0.3s ease;
+      }
+
+      .activity-time {
+        font-size: 11px;
+        font-family: var(--font-mono);
+        color: var(--text-muted);
+        white-space: nowrap;
+        padding-top: 1px;
+        min-width: 42px;
+      }
+
+      .activity-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-top: 6px;
+        flex-shrink: 0;
+      }
+
+      .activity-text {
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.4;
+      }
+
+      .activity-text strong { color: var(--text-primary); font-weight: 600; }
+
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* ===== DAILY PROPHET TICKER ===== */
+      .ticker-wrap {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 30;
+        height: 48px;
+        overflow: hidden;
+        background:
+          repeating-linear-gradient(
+            90deg,
+            rgba(255, 179, 71, 0.03) 0px,
+            rgba(255, 179, 71, 0.01) 2px,
+            transparent 2px,
+            transparent 8px
+          ),
+          linear-gradient(180deg, rgba(50, 16, 80, 0.97), rgba(27, 6, 45, 0.99));
+        backdrop-filter: blur(14px);
+        border-top: 1px solid rgba(255, 179, 71, 0.2);
+      }
+
+      .ticker-label {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        padding: 0 18px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--accent-gold);
+        background: linear-gradient(90deg, rgba(27, 6, 45, 0.99) 70%, transparent);
+        z-index: 2;
+        font-weight: 700;
+        min-width: 160px;
+      }
+
+      .ticker-label-icon {
+        font-size: 14px;
+      }
+
+      .ticker-track {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        animation: scroll-ticker 50s linear infinite;
+        white-space: nowrap;
+        padding-left: 170px;
+      }
+      .ticker-wrap:hover .ticker-track {
+        animation-play-state: paused;
+      }
+
+      .ticker-item {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 24px;
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+
+      .ticker-divider {
+        color: var(--accent-gold);
+        font-size: 12px;
+        opacity: 0.6;
+        padding: 0 8px;
+      }
+
+      @keyframes scroll-ticker {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
+
+      /* ===== CONFETTI ===== */
       #confetti-layer {
         position: fixed;
         inset: 0;
         pointer-events: none;
         overflow: hidden;
-        z-index: 3;
+        z-index: 50;
       }
-
       .confetti {
         position: absolute;
         top: -10vh;
-        font-size: 24px;
-        animation: fall 1500ms linear forwards;
+        font-size: 22px;
+        animation: fall 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
       }
-
-      @keyframes drift {
-        from { transform: translateY(0px) rotate(0deg); }
-        to { transform: translateY(-26px) rotate(24deg); }
-      }
-
       @keyframes fall {
         to {
           transform: translate3d(var(--x), 112vh, 0) rotate(720deg);
@@ -252,155 +889,581 @@
         }
       }
 
-      @media (max-width: 980px) {
-        .hero,
-        .grid,
-        .metrics {
-          grid-template-columns: 1fr;
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 1100px) {
+        .hero-grid { grid-template-columns: 1fr; }
+        .main-grid { grid-template-columns: 1fr; }
+        .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 720px) {
+        .header {
+          flex-direction: column;
+          gap: var(--space-sm);
+          padding: var(--space-sm) var(--space-md);
         }
+        .header-right { display: none; }
+        .metrics-grid { grid-template-columns: 1fr; }
+        .shell { padding: var(--space-md) var(--space-sm); }
+        .section { padding: var(--space-md); }
+        .chart-area { height: 150px; }
       }
     </style>
   </head>
   <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
     <div class="sparkles" aria-hidden="true">
-      <span>✨</span>
-      <span>🍬</span>
-      <span>🪄</span>
-      <span>🎉</span>
-      <span>⭐</span>
+      <span>✨</span><span>🍬</span><span>🪄</span><span>🎉</span><span>⭐</span><span>💫</span><span>🍭</span>
     </div>
     <div id="confetti-layer" aria-hidden="true"></div>
 
-    <div class="shell">
-      <section class="hero">
+    <!-- ===== HEADER ===== -->
+    <header class="header" role="banner">
+      <div class="header-left">
+        <div class="header-logo" aria-label="Weasley Wizard Wheezes">W.W.W.</div>
+        <div class="header-subtitle">Candy Counter Ops</div>
+      </div>
+      <div class="header-center">
+        <div class="live-badge" role="status" aria-label="Live data">
+          <span class="live-dot" aria-hidden="true"></span>
+          LIVE
+        </div>
+        <div class="clock" id="diagon-clock" aria-live="polite" aria-label="Current time">00:00:00</div>
+      </div>
+      <nav class="header-right" aria-label="System status">
+        <div class="status-row" role="list">
+          <div class="status-indicator" role="listitem"><div class="status-dot green" aria-hidden="true"></div> Shop Open</div>
+          <div class="status-indicator" role="listitem"><div class="status-dot amber" aria-hidden="true"></div> Lab Active</div>
+          <div class="status-indicator" role="listitem"><div class="status-dot red" aria-hidden="true"></div> Peeves Alert</div>
+        </div>
+      </nav>
+    </header>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="shell" id="main-content">
+      <!-- Hero Section -->
+      <section class="hero-grid" aria-label="Dashboard overview">
         <div class="panel hero-copy">
           <div class="eyebrow">Shop Pulse</div>
           <h1>The counter is charming. The queue is not.</h1>
-          <p>
+          <p class="hero-description">
             Internal dashboard for Fred and George to track sales pressure, display drama,
             and which products are one accidental spell away from becoming a legend.
           </p>
+          <div class="last-updated" aria-live="polite">
+            <span class="last-updated-dot" aria-hidden="true"></span>
+            <span id="last-updated-text">Updated just now</span>
+          </div>
 
-          <div class="metrics">
-            <div class="metric">
-              <div class="metric-label">Rush Orders</div>
-              <div class="metric-value">3</div>
+          <!-- Metrics Cards -->
+          <div class="metrics-grid" role="list" aria-label="Key metrics">
+            <div class="metric-card" data-color="gold" role="listitem" tabindex="0" aria-label="Orders today: loading">
+              <div class="metric-header">
+                <div class="metric-icon gold" aria-hidden="true">📦</div>
+                <span class="metric-change up">+12% ↑</span>
+              </div>
+              <div class="metric-label">Orders Today</div>
+              <div class="metric-value" id="counter-orders">0</div>
+              <div class="metric-sub">vs. yesterday</div>
+              <div class="sparkline-container" id="sparkline-orders" aria-hidden="true"></div>
             </div>
-            <div class="metric">
-              <div class="metric-label">Launches This Week</div>
-              <div class="metric-value">4</div>
+            <div class="metric-card" data-color="mint" role="listitem" tabindex="0" aria-label="Galleons earned: loading">
+              <div class="metric-header">
+                <div class="metric-icon mint" aria-hidden="true">💰</div>
+                <span class="metric-change up">+8% ↑</span>
+              </div>
+              <div class="metric-label">Galleons Earned</div>
+              <div class="metric-value" id="counter-galleons">0</div>
+              <div class="metric-sub">Target: 3,000</div>
+              <div class="sparkline-container" id="sparkline-galleons" aria-hidden="true"></div>
             </div>
-            <div class="metric">
-              <div class="metric-label">Pranks Pending</div>
-              <div class="metric-value">7</div>
+            <div class="metric-card" data-color="rose" role="listitem" tabindex="0" aria-label="Candies sold: loading">
+              <div class="metric-header">
+                <div class="metric-icon rose" aria-hidden="true">🍬</div>
+                <span class="metric-change up">+22% ↑</span>
+              </div>
+              <div class="metric-label">Candies Sold</div>
+              <div class="metric-value" id="counter-candies">0</div>
+              <div class="metric-sub">14 product lines</div>
+              <div class="sparkline-container" id="sparkline-candies" aria-hidden="true"></div>
             </div>
-            <div class="metric">
-              <div class="metric-label">Display Chaos</div>
-              <div class="metric-value">Medium</div>
+            <div class="metric-card" data-color="violet" role="listitem" tabindex="0" aria-label="Active experiments: loading">
+              <div class="metric-header">
+                <div class="metric-icon violet" aria-hidden="true">🧪</div>
+                <span class="metric-change down">-1 ↓</span>
+              </div>
+              <div class="metric-label">Active Experiments</div>
+              <div class="metric-value" id="counter-experiments">0</div>
+              <div class="metric-sub">2 nearing launch</div>
+              <div class="sparkline-container" id="sparkline-experiments" aria-hidden="true"></div>
             </div>
           </div>
         </div>
 
+        <!-- Right Stack -->
         <div class="hero-stack">
           <aside class="panel aside-card">
             <div class="eyebrow">Founders</div>
-            <h2>👬 Fred and George</h2>
-            <p style="margin-top: 10px;">
+            <h2>Fred & George</h2>
+            <p style="margin-top: 6px;">
               Fred wants louder launches. George wants fewer emergency owls.
               Both are correct, which is very inconvenient.
             </p>
             <div class="badge-row">
-              <span class="chip">🎆 Firework energy</span>
-              <span class="chip">🦉 Owl backlog: 11</span>
+              <span class="chip">Firework energy</span>
+              <span class="chip">Owl backlog: 11</span>
             </div>
           </aside>
-
           <aside class="panel aside-card">
             <div class="eyebrow">Instant Joy</div>
-            <h2>Celebrate a giant sale</h2>
-            <p style="margin-top: 10px;">
-              Press the button when a customer buys far too many Canary Creams.
+            <h2>Celebrate a Giant Sale</h2>
+            <p style="margin-top: 6px;">
+              Press when a customer buys far too many Canary Creams.
             </p>
             <div class="badge-row">
-              <button class="action" id="celebrate-sale">🎉 Release confetti</button>
+              <button class="action" id="celebrate-sale" aria-label="Release confetti celebration">Release confetti 🎉</button>
             </div>
+          </aside>
+          <!-- Activity Feed -->
+          <aside class="panel aside-card">
+            <div class="eyebrow">Activity Feed</div>
+            <h2>Recent Events</h2>
+            <div class="activity-feed" id="activity-feed" role="log" aria-label="Recent shop activity" aria-live="polite"></div>
           </aside>
         </div>
       </section>
 
-      <section class="grid">
+      <!-- Orders + Chart Row -->
+      <section class="main-grid" aria-label="Orders and sales data">
         <div class="panel section">
           <div class="eyebrow">Orders</div>
           <h2>What must not be dropped, delayed, or fed to Peeves</h2>
-          <div class="orders" id="orders"></div>
+          <table class="orders-table" id="orders-table" aria-label="Current orders">
+            <thead>
+              <tr>
+                <th data-sort="customer" tabindex="0" role="columnheader" aria-sort="none">Customer <span class="sort-arrow">▲</span></th>
+                <th data-sort="product" tabindex="0" role="columnheader" aria-sort="none">Product <span class="sort-arrow">▲</span></th>
+                <th data-sort="priority" tabindex="0" role="columnheader" aria-sort="none">Priority <span class="sort-arrow">▲</span></th>
+                <th data-sort="deadline" tabindex="0" role="columnheader" aria-sort="none">Ship By <span class="sort-arrow">▲</span></th>
+              </tr>
+            </thead>
+            <tbody id="orders-body"></tbody>
+          </table>
         </div>
 
         <div class="panel section">
-          <div class="eyebrow">Tiny alarms</div>
-          <h2>Magical trouble spots</h2>
-          <div class="mini-grid">
-            <div class="mini">
-              <div class="mini-top">
-                <strong>🪟 Window display charms</strong>
-                <span class="status high">Watch</span>
-              </div>
-              <small>Confetti burst timing still startles the mannequins.</small>
-            </div>
-            <div class="mini">
-              <div class="mini-top">
-                <strong>🍭 Canary Cream shelf</strong>
-                <span class="status critical">Tight</span>
-              </div>
-              <small>Excellent sales. Mildly threatening stock level.</small>
-            </div>
-            <div class="mini">
-              <div class="mini-top">
-                <strong>🦉 VIP owl subscribers</strong>
-                <span class="status okay">Ready</span>
-              </div>
-              <small>They will forgive a lot if the copy is funny enough.</small>
+          <div class="eyebrow">This Week's Top Sellers</div>
+          <h2>By Units Moved</h2>
+          <div class="chart-container">
+            <div class="chart-area" id="chart-area" role="img" aria-label="Bar chart showing top selling products this week">
+              <div class="chart-y-axis" id="chart-y-axis" aria-hidden="true"></div>
+              <div class="chart-grid" id="chart-grid" aria-hidden="true"></div>
+              <div class="bars-container" id="bars-container"></div>
             </div>
           </div>
         </div>
       </section>
+
+      <!-- Status + Lab Row -->
+      <section class="main-grid" style="margin-top: var(--space-lg);" aria-label="Status and lab information">
+        <div class="panel section">
+          <div class="eyebrow">Operations</div>
+          <h2>Status Dashboard</h2>
+          <div class="status-grid" id="status-grid" role="list" aria-label="Operational status items"></div>
+        </div>
+
+        <div class="panel section">
+          <div class="eyebrow">Lab Status</div>
+          <h2>Experiment Readiness</h2>
+          <div class="status-grid" id="lab-grid" role="list" aria-label="Lab experiment status"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Daily Prophet Ticker -->
+    <div class="ticker-wrap" role="marquee" aria-label="Daily Prophet headlines">
+      <div class="ticker-label">
+        <span class="ticker-label-icon" aria-hidden="true">📰</span>
+        Daily Prophet
+      </div>
+      <div class="ticker-track" id="ticker-track"></div>
     </div>
 
     <script>
-      const orderData = [
-        { emoji: "🍬", customer: "Honeydukes Overflow Counter", product: "Fizzing Whizzbees Deluxe", status: "Packing", tone: "critical" },
-        { emoji: "✨", customer: "Ministry Hospitality Desk", product: "Patronus Pop Rocks", status: "Labeling", tone: "high" },
-        { emoji: "🧹", customer: "Quality Quidditch Supplies", product: "Comet Crunch Bars", status: "Awaiting owl receipt", tone: "high" },
-        { emoji: "🐥", customer: "Hogwarts Tour Gift Table", product: "Canary Cream Sampler", status: "Display build", tone: "okay" },
-      ];
+      // ===================================================================
+      // CANDY COUNTER DASHBOARD — JAVASCRIPT
+      // ===================================================================
 
-      const confettiLayer = document.getElementById("confetti-layer");
-      const ordersRoot = document.getElementById("orders");
+      const fmt = new Intl.NumberFormat();
 
-      function burstConfetti() {
-        const symbols = ["✨", "🎉", "🍬", "🪄", "💥", "⭐"];
-        for (let i = 0; i < 28; i += 1) {
-          const node = document.createElement("span");
-          node.className = "confetti";
-          node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-          node.style.left = `${Math.random() * 100}vw`;
-          node.style.setProperty("--x", `${(Math.random() - 0.5) * 160}px`);
-          node.style.animationDelay = `${Math.random() * 120}ms`;
-          confettiLayer.appendChild(node);
-          window.setTimeout(() => node.remove(), 1700);
-        }
+      // ===== SPARKLINE GENERATOR =====
+      function generateSparkline(containerId, color, dataPoints) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const w = 80, h = 24, padding = 2;
+        const points = dataPoints || Array.from({ length: 7 }, () => Math.random() * 80 + 20);
+        const max = Math.max(...points);
+        const min = Math.min(...points);
+        const range = max - min || 1;
+
+        const coords = points.map((v, i) => {
+          const x = padding + (i / (points.length - 1)) * (w - padding * 2);
+          const y = h - padding - ((v - min) / range) * (h - padding * 2);
+          return `${x},${y}`;
+        });
+
+        const pathD = 'M ' + coords.join(' L ');
+        const fillD = pathD + ` L ${w - padding},${h} L ${padding},${h} Z`;
+
+        container.innerHTML = `
+          <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="grad-${containerId}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="${fillD}" fill="url(#grad-${containerId})" />
+            <path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>`;
       }
 
-      document.getElementById("celebrate-sale").addEventListener("click", burstConfetti);
+      // ===== ANIMATED COUNTER =====
+      function animateCounter(id, target, duration, prefix) {
+        prefix = prefix || '';
+        const el = document.getElementById(id);
+        if (!el) return;
+        const start = performance.now();
+        function step(now) {
+          const progress = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          el.textContent = prefix + fmt.format(Math.round(eased * target));
+          if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
 
-      ordersRoot.innerHTML = orderData.map((order) => `
-        <article class="order">
-          <div class="order-top">
-            <strong>${order.emoji} ${order.customer}</strong>
-            <span class="status ${order.tone}">${order.status}</span>
+      // ===== REAL-TIME COUNTER INCREMENTS =====
+      const counterState = { orders: 47, galleons: 2340, candies: 1892, experiments: 3 };
+
+      function incrementCounters() {
+        const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        if (Math.random() > 0.3) {
+          counterState.orders += rand(0, 1);
+          document.getElementById('counter-orders').textContent = fmt.format(counterState.orders);
+        }
+        if (Math.random() > 0.2) {
+          counterState.galleons += rand(3, 18);
+          document.getElementById('counter-galleons').textContent = fmt.format(counterState.galleons);
+        }
+        if (Math.random() > 0.25) {
+          counterState.candies += rand(1, 4);
+          document.getElementById('counter-candies').textContent = fmt.format(counterState.candies);
+        }
+        updateAriaLabels();
+      }
+
+      function updateAriaLabels() {
+        const cards = document.querySelectorAll('.metric-card');
+        const labels = ['Orders today', 'Galleons earned', 'Candies sold', 'Active experiments'];
+        const values = [counterState.orders, counterState.galleons, counterState.candies, counterState.experiments];
+        cards.forEach((card, i) => {
+          card.setAttribute('aria-label', `${labels[i]}: ${fmt.format(values[i])}`);
+        });
+      }
+
+      // ===== CLOCK =====
+      function updateClock() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('diagon-clock').textContent = h + ':' + m + ':' + s;
+      }
+
+      // ===== LAST UPDATED =====
+      let lastUpdateTime = Date.now();
+      function updateLastUpdated() {
+        const seconds = Math.floor((Date.now() - lastUpdateTime) / 1000);
+        const el = document.getElementById('last-updated-text');
+        if (seconds < 5) el.textContent = 'Updated just now';
+        else if (seconds < 60) el.textContent = `Updated ${seconds}s ago`;
+        else el.textContent = `Updated ${Math.floor(seconds / 60)}m ago`;
+      }
+
+      // ===== BAR CHART =====
+      const topSellers = [
+        { name: 'Canary Creams', value: 312, color: 'linear-gradient(180deg, #ffb347, #ff5f8f)' },
+        { name: 'Fizzing Whizzbees', value: 274, color: 'linear-gradient(180deg, #7af6d0, #5fb8e6)' },
+        { name: 'Patronus Pops', value: 241, color: 'linear-gradient(180deg, #b388ff, #7c4dff)' },
+        { name: 'Swamp Taffy', value: 198, color: 'linear-gradient(180deg, #97ff6a, #56c44e)' },
+        { name: 'Moonbeam Drops', value: 156, color: 'linear-gradient(180deg, #ffd54f, #ffab40)' },
+      ];
+
+      function buildChart() {
+        const maxVal = Math.max(...topSellers.map(s => s.value));
+        const gridMax = Math.ceil(maxVal / 100) * 100;
+        const steps = 4;
+
+        // Y-axis labels
+        const yAxis = document.getElementById('chart-y-axis');
+        yAxis.innerHTML = '';
+        for (let i = steps; i >= 0; i--) {
+          const label = document.createElement('div');
+          label.className = 'chart-y-label';
+          label.textContent = Math.round((gridMax / steps) * i);
+          yAxis.appendChild(label);
+        }
+
+        // Grid lines
+        const grid = document.getElementById('chart-grid');
+        grid.innerHTML = '';
+        for (let i = 0; i <= steps; i++) {
+          const line = document.createElement('div');
+          line.className = 'chart-grid-line';
+          line.style.bottom = (i / steps * 100) + '%';
+          grid.appendChild(line);
+        }
+
+        // Bars
+        const barsContainer = document.getElementById('bars-container');
+        barsContainer.innerHTML = topSellers.map(s => {
+          const pct = (s.value / gridMax) * 100;
+          return `<div class="bar-col">
+            <div class="bar" role="img" aria-label="${s.name}: ${s.value} units" style="height: 0%; background: ${s.color};" data-height="${pct}" tabindex="0">
+              <div class="bar-tooltip">${s.name}: ${s.value}</div>
+            </div>
+            <div class="bar-label">${s.name}</div>
+          </div>`;
+        }).join('');
+
+        // Animate bars
+        setTimeout(() => {
+          document.querySelectorAll('.bar').forEach(bar => {
+            bar.style.height = bar.dataset.height + '%';
+          });
+        }, 400);
+      }
+
+      // ===== ORDERS TABLE =====
+      const orderData = [
+        { customer: 'Honeydukes', initials: 'HD', avatarBg: 'rgba(255,179,71,0.3)', product: 'Fizzing Whizzbees Deluxe', priority: 'Critical', priorityOrder: 0, deadline: '2:00 PM', deadlineSort: 14 },
+        { customer: 'Ministry Hospitality', initials: 'MH', avatarBg: 'rgba(179,136,255,0.3)', product: 'Patronus Pop Rocks', priority: 'High', priorityOrder: 1, deadline: '3:30 PM', deadlineSort: 15.5 },
+        { customer: 'Quality Quidditch', initials: 'QQ', avatarBg: 'rgba(122,246,208,0.3)', product: 'Comet Crunch Bars', priority: 'High', priorityOrder: 1, deadline: '4:00 PM', deadlineSort: 16 },
+        { customer: 'Hogwarts Gift Table', initials: 'HG', avatarBg: 'rgba(255,95,143,0.3)', product: 'Canary Cream Sampler', priority: 'Medium', priorityOrder: 2, deadline: '5:00 PM', deadlineSort: 17 },
+        { customer: 'Flourish & Blotts', initials: 'FB', avatarBg: 'rgba(95,184,230,0.3)', product: 'Sugar Quill Variety Pack', priority: 'Medium', priorityOrder: 2, deadline: 'Tomorrow', deadlineSort: 24 },
+      ];
+
+      let sortField = 'priority';
+      let sortAsc = true;
+
+      function renderOrders() {
+        const sorted = [...orderData].sort((a, b) => {
+          let va, vb;
+          if (sortField === 'priority') { va = a.priorityOrder; vb = b.priorityOrder; }
+          else if (sortField === 'deadline') { va = a.deadlineSort; vb = b.deadlineSort; }
+          else { va = a[sortField]; vb = b[sortField]; }
+          if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+          return sortAsc ? va - vb : vb - va;
+        });
+
+        const priorityClass = { Critical: 'priority-critical', High: 'priority-high', Medium: 'priority-medium' };
+
+        document.getElementById('orders-body').innerHTML = sorted.map(o => `
+          <tr>
+            <td>
+              <div class="order-customer">
+                <div class="avatar" style="background: ${o.avatarBg};" aria-hidden="true">${o.initials}</div>
+                <span>${o.customer}</span>
+              </div>
+            </td>
+            <td>${o.product}</td>
+            <td><span class="priority-badge ${priorityClass[o.priority]}">${o.priority}</span></td>
+            <td><span class="time-badge">${o.deadline}</span></td>
+          </tr>
+        `).join('');
+
+        // Update header sort indicators
+        document.querySelectorAll('.orders-table thead th').forEach(th => {
+          const field = th.dataset.sort;
+          th.classList.toggle('sorted', field === sortField);
+          th.querySelector('.sort-arrow').textContent = (field === sortField && !sortAsc) ? '▼' : '▲';
+          th.setAttribute('aria-sort', field === sortField ? (sortAsc ? 'ascending' : 'descending') : 'none');
+        });
+      }
+
+      // Sort on header click
+      document.querySelectorAll('.orders-table thead th').forEach(th => {
+        th.addEventListener('click', () => {
+          const field = th.dataset.sort;
+          if (sortField === field) sortAsc = !sortAsc;
+          else { sortField = field; sortAsc = true; }
+          renderOrders();
+        });
+        th.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); th.click(); }
+        });
+      });
+
+      // ===== STATUS DASHBOARD =====
+      const statusItems = [
+        { icon: '🪟', title: 'Window Display Charms', status: 'warning', badge: 'Watch', desc: 'Confetti burst timing still startles the mannequins.', detail: 'Charm recalibration scheduled for Thursday. George is adjusting the trigger radius to avoid the waving figurines.' },
+        { icon: '🍬', title: 'Canary Cream Shelf', status: 'danger', badge: 'Low Stock', desc: 'Excellent sales. Mildly threatening stock level.', detail: 'Current stock: 23 units. Reorder placed with supplier — ETA 2 days. May need to limit purchases to 5 per customer.' },
+        { icon: '🦉', title: 'VIP Owl Subscribers', status: 'success', badge: 'Ready', desc: 'They will forgive a lot if the copy is funny enough.', detail: 'Next newsletter drops Friday. Subject line: "Your owl looks disappointed. Fix that." Open rate projection: 68%.' },
+        { icon: '📦', title: 'Shipping Queue', status: 'warning', badge: 'Busy', desc: '14 packages awaiting owl dispatch.', detail: 'Peak hour congestion. Three owls on break. Estimated clearance by 4 PM.' },
+        { icon: '🔮', title: 'Enchantment Stability', status: 'success', badge: 'Stable', desc: 'All active product enchantments within safe parameters.', detail: 'Last audit: 2 hours ago. Zero anomalies. Patronus Pop Rocks excluded from audit (see Lab).' },
+      ];
+
+      const labItems = [
+        { icon: '🌙', title: 'Moonbeam Meltdrops', status: 'success', badge: 'Ship-ready', desc: 'Shimmer stable. Packaging finalized. Awaiting launch window.', detail: 'Batch #47 passed all QC checks. Marketing assets ready. Launch date: next Monday.' },
+        { icon: '🌿', title: 'Swamp Taffy v2', status: 'warning', badge: 'Tuning', desc: 'Effect radius reduced to acceptable hallway width.', detail: 'Current radius: 1.2m (down from 4m). Fred insists on adding "squelch sound." George objects. Compromise pending.' },
+        { icon: '⚡', title: 'Patronus Pop Rocks', status: 'danger', badge: 'Volatile', desc: 'Crackle pacing unpredictable. Do not ship until Thursday.', detail: 'Intermittent sparking at 22C ambient. Adding cooling charm layer. Third prototype expected Wednesday.' },
+        { icon: '🫧', title: 'Bubble Blasters', status: 'success', badge: 'Testing', desc: 'Color spectrum locked. Duration charm holding at 4 hours.', detail: 'Beta testers report "delightful." One tester still floating. Retrieval spell working as expected.' },
+      ];
+
+      function buildStatusGrid(items, containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = items.map((item, i) => `
+          <div class="status-card" data-status="${item.status}" role="listitem" tabindex="0" aria-expanded="false" data-index="${i}" data-grid="${containerId}">
+            <div class="status-card-icon" aria-hidden="true">${item.icon}</div>
+            <div class="status-card-content">
+              <div class="status-card-header">
+                <h3 class="status-card-title">${item.title}</h3>
+                <span class="status-badge badge-${item.status}">${item.badge}</span>
+              </div>
+              <div class="status-card-desc">${item.desc}</div>
+              <div class="status-card-detail">${item.detail}</div>
+            </div>
           </div>
-          <p style="margin-top: 10px;">${order.product}</p>
-        </article>
-      `).join("");
+        `).join('');
+
+        container.querySelectorAll('.status-card').forEach(card => {
+          const toggle = () => {
+            const expanded = card.classList.toggle('expanded');
+            card.setAttribute('aria-expanded', expanded);
+          };
+          card.addEventListener('click', toggle);
+          card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+          });
+        });
+      }
+
+      // ===== ACTIVITY FEED =====
+      const activityEvents = [
+        { time: '14:47', text: '<strong>Verity</strong> processed order #1052 — Canary Cream Sampler', color: 'var(--accent-mint)' },
+        { time: '14:43', text: 'New lead from <strong>Neville Longbottom</strong> — wants bulk Remembrall Rocks', color: 'var(--accent-gold)' },
+        { time: '14:38', text: '<strong>Moonbeam Meltdrops</strong> stock: 234 units remaining', color: 'var(--accent-blue)' },
+        { time: '14:32', text: '<strong>Verity</strong> processed order #1047 — Ministry bulk order', color: 'var(--accent-mint)' },
+        { time: '14:28', text: 'Fizzing Whizzbee display <strong>restocked</strong> — 400 units', color: 'var(--status-success)' },
+        { time: '14:22', text: '<strong>Fred</strong> approved Swamp Taffy v2 packaging design', color: 'var(--accent-violet)' },
+        { time: '14:15', text: 'Owl dispatch: 6 packages sent to <strong>Hogsmeade</strong>', color: 'var(--accent-rose)' },
+        { time: '14:08', text: '<strong>George</strong> updated Patronus Pop Rocks cooling charm spec', color: 'var(--accent-violet)' },
+        { time: '13:55', text: 'Customer feedback: "Canary Creams are <strong>life-changing</strong>"', color: 'var(--accent-gold)' },
+        { time: '13:42', text: '<strong>Peeves</strong> attempted to steal from the display. Again.', color: 'var(--status-danger)' },
+      ];
+
+      function renderActivityFeed() {
+        const feed = document.getElementById('activity-feed');
+        feed.innerHTML = activityEvents.map(evt => `
+          <div class="activity-item">
+            <span class="activity-time">${evt.time}</span>
+            <div class="activity-dot" style="background: ${evt.color};" aria-hidden="true"></div>
+            <div class="activity-text">${evt.text}</div>
+          </div>
+        `).join('');
+      }
+
+      // Simulate new activity
+      const newActivityTemplates = [
+        { text: '<strong>Verity</strong> processed order #__NUM__', color: 'var(--accent-mint)' },
+        { text: 'Walk-in customer purchased <strong>__QTY__ Canary Creams</strong>', color: 'var(--accent-gold)' },
+        { text: 'Owl delivery confirmed for order #__NUM__', color: 'var(--accent-blue)' },
+        { text: '<strong>Fred</strong> tested new Firework Fizzer prototype', color: 'var(--accent-violet)' },
+        { text: 'Stock alert: <strong>Fizzing Whizzbees</strong> below 200', color: 'var(--status-warning)' },
+        { text: '<strong>George</strong> updated the window display charms', color: 'var(--accent-rose)' },
+      ];
+
+      let orderNum = 1053;
+      function addNewActivity() {
+        const now = new Date();
+        const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        const template = newActivityTemplates[Math.floor(Math.random() * newActivityTemplates.length)];
+        const text = template.text.replace('__NUM__', orderNum++).replace('__QTY__', Math.floor(Math.random() * 8) + 2);
+
+        activityEvents.unshift({ time, text, color: template.color });
+        if (activityEvents.length > 20) activityEvents.pop();
+        renderActivityFeed();
+        lastUpdateTime = Date.now();
+      }
+
+      // ===== TICKER =====
+      const headlines = [
+        "Weasley Wizard Wheezes reports record Q3 — Canary Creams outsell Bertie Bott's for first time",
+        "Ministry issues formal complaint about Portable Swamp Taffy in Atrium — Fred sends apology owl with free samples",
+        "Luna Lovegood spotted testing Moonbeam Meltdrops in the Forbidden Forest — says the Nargles approve",
+        "Hogwarts students petition for Weasley vending machine in common rooms — Dumbledore 'considering it'",
+        "Peeves caught hoarding Fizzing Whizzbees on the third floor — George negotiating truce via chocolate frogs",
+        "Diagon Alley foot traffic up 34% this week — attributed to new window display charms",
+        "Owl Post reports 200% increase in Weasley-branded shipments — new sorting hat required",
+      ];
+
+      function buildTicker() {
+        const tickerTrack = document.getElementById('ticker-track');
+        const itemsHTML = headlines.map(h =>
+          `<span class="ticker-item">${h}</span><span class="ticker-divider" aria-hidden="true">✧</span>`
+        ).join('');
+        tickerTrack.innerHTML = itemsHTML + itemsHTML; // duplicate for seamless loop
+      }
+
+      // ===== CONFETTI =====
+      function burstConfetti() {
+        const layer = document.getElementById('confetti-layer');
+        const symbols = ['✨', '🎉', '🍬', '🪄', '💥', '⭐', '🍭', '🎊'];
+        for (let i = 0; i < 35; i++) {
+          const node = document.createElement('span');
+          node.className = 'confetti';
+          node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+          node.style.left = (Math.random() * 100) + 'vw';
+          node.style.setProperty('--x', ((Math.random() - 0.5) * 200) + 'px');
+          node.style.animationDelay = (Math.random() * 200) + 'ms';
+          node.style.fontSize = (18 + Math.random() * 14) + 'px';
+          layer.appendChild(node);
+          setTimeout(() => node.remove(), 1900);
+        }
+      }
+      document.getElementById('celebrate-sale').addEventListener('click', burstConfetti);
+
+      // ===== INITIALIZE EVERYTHING =====
+      (function init() {
+        updateClock();
+        setInterval(updateClock, 1000);
+        setInterval(updateLastUpdated, 5000);
+
+        // Animate initial counters
+        setTimeout(() => animateCounter('counter-orders', counterState.orders, 1200), 200);
+        setTimeout(() => animateCounter('counter-galleons', counterState.galleons, 1600), 350);
+        setTimeout(() => animateCounter('counter-candies', counterState.candies, 1400), 500);
+        setTimeout(() => animateCounter('counter-experiments', counterState.experiments, 600), 650);
+
+        // Sparklines
+        generateSparkline('sparkline-orders', '#ffb347', [28, 32, 35, 31, 40, 43, 47]);
+        generateSparkline('sparkline-galleons', '#7af6d0', [1800, 2100, 1950, 2200, 2050, 2280, 2340]);
+        generateSparkline('sparkline-candies', '#ff5f8f', [1200, 1400, 1350, 1600, 1550, 1780, 1892]);
+        generateSparkline('sparkline-experiments', '#b388ff', [5, 4, 4, 3, 3, 4, 3]);
+
+        buildChart();
+        renderOrders();
+        buildStatusGrid(statusItems, 'status-grid');
+        buildStatusGrid(labItems, 'lab-grid');
+        renderActivityFeed();
+        buildTicker();
+        updateAriaLabels();
+
+        // Real-time simulation
+        setInterval(incrementCounters, 4000);
+        setInterval(addNewActivity, 12000);
+      })();
     </script>
   </body>
 </html>

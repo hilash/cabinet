@@ -1,6 +1,16 @@
 Order ID,Customer,Channel,Product,Units,Ship By,Status,Priority,Owner,Delivery Route
-HOG-1001,Honeydukes Overflow Counter,Wholesale,Fizzing Whizzbees Deluxe,60,2026-04-06 10:15,Packing,Critical,George,Hogsmeade
-MIN-1002,Ministry Hospitality Desk,Corporate,Patronus Pop Rocks,45,2026-04-06 11:40,Labeling,High,Fred,London Floo Gate
-QUI-1003,Quality Quidditch Supplies,Wholesale,Comet Crunch Bars,32,2026-04-06 13:10,Awaiting owl receipt,High,George,Diagon Alley
-HOG-1004,Hogwarts Tour Gift Table,Retail Bulk,Canary Cream Sampler,28,2026-04-06 14:30,Display build,Medium,Fred,Hogsmeade
-PEE-1005,Peeves (Prepaid Somehow),Special Order,Portable Swamp Taffy,12,2026-04-06 16:00,Under supervision,Critical,George,Deliver with caution
+HOG-1001,Honeydukes,Wholesale,Fizzing Whizzbee Ultra,120,2026-04-07,Shipped,High,George,Hogsmeade
+MIN-1002,Ministry Atrium Gift Kiosk,Corporate,Patronus Pop Rocks,200,2026-04-08,Packing,Critical,Fred,London Floo Gate
+ZON-1003,Zonko's Joke Shop,Wholesale,Canary Cream Supremes,80,2026-04-09,Confirmed,Medium,Verity,Hogsmeade
+OWL-1004,Neville Longbottom,Retail,Pygmy Puff Gummies,6,2026-04-10,Shipped,Low,Verity,Owl Post
+MIN-1005,Dept of Magical Games & Sports,Corporate,Comet Crunch Bars,150,2026-04-07,Packing,Critical,Fred,London Floo Gate
+DIA-1006,Flourish & Blotts,Wholesale,Marauder's Map Licorice,50,2026-04-11,Confirmed,Medium,George,Diagon Alley
+OWL-1007,Molly Weasley,Retail,Howler Fudge,4,2026-04-12,Under Review,Low,Fred,Owl Post
+HOG-1008,Three Broomsticks,Wholesale,Moonbeam Meltdrops,90,2026-04-08,Packing,High,George,Hogsmeade
+SPE-1009,Peeves the Poltergeist,Special Order,Portable Swamp Taffy,24,2026-04-13,Under Review,Critical,George,Hogsmeade
+DIA-1010,Wiseacre's Wizarding Equipment,Wholesale,Extendable Ear Buds,40,2026-04-09,Shipped,Medium,Verity,Diagon Alley
+FLO-1011,Hogwarts Staff Room,Corporate,Skiving Snackbox Deluxe,30,2026-04-10,Confirmed,High,Fred,Floo Network
+OWL-1012,Seamus Finnigan,Retail,Wildfire Whiz-Bangs Sampler,12,2026-04-14,Delayed,Low,Verity,Owl Post
+MIN-1013,Auror Office,Corporate,Peruvian Instant Darkness Powder,100,2026-04-08,Packing,Critical,Fred,London Floo Gate
+DIA-1014,Madam Primpernelle's,Wholesale,Ten-Second Pimple Vanisher,60,2026-04-11,Confirmed,Medium,George,Diagon Alley
+FLO-1015,Hogwarts Quidditch Captains,Special Order,Victory Sparkler Gift Box,16,2026-04-15,Delayed,High,Fred,Floo Network

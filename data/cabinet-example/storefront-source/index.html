@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weasleys' Wizard Wheezes — Purveyors of Magical Mischief</title>
+<meta name="description" content="The finest purveyor of magical mischief supplies since 1996. Shop enchanted confections, prank pastries, and more from Diagon Alley.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ══════════════════════════════════════════
+     DESIGN TOKENS
+     ══════════════════════════════════════════ */
+  :root {
+    --color-primary: #FFD700;
+    --color-primary-hover: #FFED4A;
+    --color-secondary: #7C3AED;
+    --color-secondary-light: #A78BFA;
+    --color-accent: #FF6B35;
+    --color-accent-warm: #FF4ECB;
+    --color-success: #22C55E;
+    --color-danger: #EF4444;
+
+    --color-bg: #0F0520;
+    --color-bg-deep: #0A0318;
+    --color-surface: rgba(255,255,255,0.04);
+    --color-surface-elevated: rgba(255,255,255,0.07);
+    --color-surface-hover: rgba(255,255,255,0.10);
+    --color-border: rgba(255,255,255,0.07);
+    --color-border-hover: rgba(255,255,255,0.15);
+
+    --color-text: #F0E6FF;
+    --color-text-muted: #B8A9CC;
+    --color-text-subtle: #6B5B7B;
+    --color-text-inverse: #1A0A2E;
+
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    --radius-full: 9999px;
+
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --space-7: 3rem;
+    --space-8: 4rem;
+
+    --nav-height: 68px;
+    --transition-fast: 0.2s ease;
+    --transition-base: 0.3s ease;
+    --transition-smooth: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* ══════════════════════════════════════════
+     RESET & BASE
+     ══════════════════════════════════════════ */
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-height) + 1rem); }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+    font-size: clamp(0.925rem, 0.9rem + 0.15vw, 1rem);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    opacity: 0;
+    animation: pageIn 0.6s ease-out 0.1s forwards;
+  }
+
+  @keyframes pageIn { to { opacity: 1; } }
+
+  /* Skip link */
+  .skip-link {
+    position: absolute; top: -100px; left: var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-primary); color: var(--color-text-inverse);
+    border-radius: var(--radius-sm); font-weight: 600; font-size: 0.875rem;
+    z-index: 1000; text-decoration: none;
+    transition: top var(--transition-fast);
+  }
+  .skip-link:focus { top: var(--space-4); }
+
+  /* Focus visible */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+  }
+  :focus:not(:focus-visible) { outline: none; }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    html { scroll-behavior: auto; }
+    body { opacity: 1; animation: none; }
+  }
+
+  /* Wand cursor on CTAs */
+  .btn-primary, .btn-cart, .btn-checkout {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 21L14 10l-1-1L2 20l1 1zm8-12l1 1 8-8-1-1-8 8z' fill='%23FFD700'/%3E%3Ccircle cx='20' cy='4' r='2' fill='%23FFD700' opacity='.5'/%3E%3C/svg%3E") 2 22, pointer;
+  }
+
+  /* ══════════════════════════════════════════
+     SPARKLE CANVAS
+     ══════════════════════════════════════════ */
+  #sparkles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+  /* Noise overlay */
+  .noise-overlay {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* ══════════════════════════════════════════
+     NAVIGATION
+     ══════════════════════════════════════════ */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    background: rgba(15, 5, 32, 0.8);
+    border-bottom: 1px solid var(--color-border);
+    height: var(--nav-height);
+    transition: background var(--transition-base), box-shadow var(--transition-base);
+  }
+  .nav.scrolled {
+    background: rgba(15, 5, 32, 0.95);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+  }
+  .nav-progress {
+    position: absolute; bottom: 0; left: 0; height: 2px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+    width: 0%; transition: none;
+  }
+  .nav-inner {
+    max-width: 1280px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 100%; padding: 0 var(--space-6);
+  }
+  .nav-brand {
+    display: flex; align-items: center; gap: var(--space-3);
+    text-decoration: none;
+  }
+  .nav-monogram {
+    width: 38px; height: 38px; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 900; font-size: 1.1rem;
+    color: var(--color-text-inverse); line-height: 1;
+  }
+  .nav-logo {
+    font-weight: 800; font-size: 1.05rem; letter-spacing: 0.01em;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  .nav-links {
+    list-style: none; display: flex; gap: 0; align-items: center;
+  }
+  .nav-links a {
+    display: block; padding: var(--space-2) var(--space-4);
+    color: var(--color-text-muted); text-decoration: none;
+    font-size: 0.875rem; font-weight: 500;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition-fast), background var(--transition-fast);
+  }
+  .nav-links a:hover, .nav-links a:focus-visible {
+    color: var(--color-primary); background: rgba(255,215,0,0.06);
+  }
+
+  .nav-actions { display: flex; align-items: center; gap: var(--space-3); }
+
+  .nav-cart-btn {
+    position: relative; cursor: pointer; background: none; border: none;
+    color: var(--color-text-muted); font-size: 1.2rem;
+    padding: var(--space-2); border-radius: var(--radius-sm);
+    transition: color var(--transition-fast), background var(--transition-fast);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nav-cart-btn:hover { color: var(--color-primary); background: rgba(255,215,0,0.06); }
+  .nav-cart-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .cart-badge {
+    position: absolute; top: 0; right: -2px;
+    background: linear-gradient(135deg, var(--color-accent), #FF4500);
+    color: #fff; font-size: 0.6rem; font-weight: 700;
+    min-width: 18px; height: 18px; border-radius: var(--radius-full);
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+    transform: scale(0); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .cart-badge.visible { transform: scale(1); }
+
+  /* Hamburger */
+  .hamburger {
+    display: none; background: none; border: none; cursor: pointer; padding: var(--space-2);
+    color: var(--color-text-muted); transition: color var(--transition-fast);
+  }
+  .hamburger:hover { color: var(--color-text); }
+  .hamburger svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  /* Mobile menu */
+  .mobile-menu {
+    display: none; position: fixed; top: var(--nav-height); left: 0; right: 0;
+    background: rgba(15, 5, 32, 0.98); backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-4) var(--space-6);
+    transform: translateY(-10px); opacity: 0;
+    transition: transform var(--transition-base), opacity var(--transition-base);
+    z-index: 99;
+  }
+  .mobile-menu.open { display: block; transform: translateY(0); opacity: 1; }
+  .mobile-menu a {
+    display: block; padding: var(--space-3) 0;
+    color: var(--color-text-muted); text-decoration: none;
+    font-size: 1rem; font-weight: 500;
+    border-bottom: 1px solid var(--color-border);
+    transition: color var(--transition-fast);
+  }
+  .mobile-menu a:last-child { border-bottom: none; }
+  .mobile-menu a:hover { color: var(--color-primary); }
+
+  /* ══════════════════════════════════════════
+     LAYOUT
+     ══════════════════════════════════════════ */
+  section { position: relative; z-index: 1; padding: clamp(4rem, 8vw, 7rem) var(--space-6); }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* Section headers */
+  .section-label {
+    text-transform: uppercase; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.15em; color: var(--color-secondary-light);
+    margin-bottom: var(--space-2);
+  }
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4.5vw, 3.2rem); font-weight: 800;
+    line-height: 1.15; margin-bottom: var(--space-3);
+    color: var(--color-text);
+  }
+  .section-subtitle {
+    color: var(--color-text-muted); font-size: clamp(0.95rem, 1vw, 1.1rem);
+    max-width: 600px; line-height: 1.7;
+  }
+  .section-header { text-align: center; margin-bottom: clamp(2.5rem, 5vw, 4rem); }
+  .section-header .section-subtitle { margin-left: auto; margin-right: auto; }
+
+  /* ══════════════════════════════════════════
+     HERO
+     ══════════════════════════════════════════ */
+  .hero {
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding-top: calc(var(--nav-height) + 2rem);
+    position: relative; overflow: hidden;
+  }
+  .hero-bg-glow {
+    position: absolute; width: 600px; height: 600px; border-radius: 50%;
+    filter: blur(120px); opacity: 0.15; pointer-events: none;
+  }
+  .hero-bg-glow.gold { background: var(--color-primary); top: 10%; left: 20%; }
+  .hero-bg-glow.purple { background: var(--color-secondary); bottom: 10%; right: 15%; }
+  .hero-bg-glow.pink { background: var(--color-accent-warm); top: 40%; right: 30%; opacity: 0.08; }
+
+  .hero-monogram {
+    width: 90px; height: 90px; border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 900; font-size: 2.4rem;
+    color: var(--color-text-inverse); line-height: 1;
+    margin-bottom: var(--space-6);
+    box-shadow: 0 8px 40px rgba(255,215,0,0.3), 0 0 80px rgba(255,215,0,0.1);
+    animation: floatBadge 6s ease-in-out infinite, heroIn 0.8s ease-out both;
+    position: relative; z-index: 1;
+  }
+  @keyframes floatBadge {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-8px) rotate(2deg); }
+  }
+
+  .hero-badge {
+    display: inline-block; padding: var(--space-2) var(--space-5);
+    border-radius: var(--radius-full);
+    background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.2);
+    color: var(--color-primary); font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: var(--space-6);
+    animation: heroIn 0.8s ease-out 0.15s both;
+  }
+
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 900; line-height: 1.05; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 30%, var(--color-accent-warm) 60%, var(--color-secondary) 100%);
+    background-size: 300% 300%;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    animation: gradientShift 6s ease-in-out infinite, heroIn 0.8s ease-out 0.2s both;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .hero-subtitle {
+    font-size: clamp(1.05rem, 2.2vw, 1.4rem);
+    color: var(--color-text-muted);
+    margin-top: var(--space-4); font-weight: 400;
+    animation: heroIn 0.8s ease-out 0.3s both;
+  }
+  .hero-subtitle .typed-text {
+    color: var(--color-primary); font-weight: 600;
+    border-right: 2px solid var(--color-primary);
+    padding-right: 2px;
+    animation: blink 0.8s step-end infinite;
+  }
+  @keyframes blink { 0%, 100% { border-color: var(--color-primary); } 50% { border-color: transparent; } }
+
+  /* Stats strip */
+  .hero-stats {
+    display: flex; gap: clamp(1.5rem, 4vw, 3rem); margin-top: var(--space-7);
+    animation: heroIn 0.8s ease-out 0.4s both;
+  }
+  .hero-stat { text-align: center; }
+  .hero-stat-num {
+    font-family: var(--font-display); font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero-stat-label {
+    font-size: 0.75rem; color: var(--color-text-subtle);
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+    margin-top: 2px;
+  }
+  .hero-stat + .hero-stat {
+    padding-left: clamp(1.5rem, 4vw, 3rem);
+    border-left: 1px solid var(--color-border);
+  }
+
+  .hero-cta {
+    margin-top: var(--space-7); display: flex; gap: var(--space-4);
+    flex-wrap: wrap; justify-content: center;
+    animation: heroIn 0.8s ease-out 0.5s both;
+  }
+
+  @keyframes heroIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-scroll {
+    margin-top: var(--space-8); color: var(--color-text-subtle); font-size: 0.8rem;
+    display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+    animation: heroIn 0.8s ease-out 0.6s both;
+  }
+  .hero-scroll-arrow { animation: scrollBounce 2s ease-in-out infinite; }
+  @keyframes scrollBounce {
+    0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); }
+  }
+
+  /* ══════════════════════════════════════════
+     BUTTONS
+     ══════════════════════════════════════════ */
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    padding: 0.85rem 2rem; border-radius: var(--radius-md);
+    font-size: 0.95rem; font-weight: 600; font-family: var(--font-sans);
+    text-decoration: none; cursor: pointer; border: none;
+    transition: transform var(--transition-fast), box-shadow var(--transition-base), background var(--transition-fast);
+    position: relative; overflow: hidden;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    color: var(--color-text-inverse);
+    box-shadow: 0 4px 24px rgba(255,215,0,0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 8px 36px rgba(255,215,0,0.45); }
+
+  .btn-secondary {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+  }
+  .btn-secondary:hover {
+    background: var(--color-surface-hover);
+    box-shadow: 0 4px 24px rgba(124,58,237,0.2);
+    border-color: var(--color-border-hover);
+  }
+
+  /* ══════════════════════════════════════════
+     PRODUCT CARDS
+     ══════════════════════════════════════════ */
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: var(--space-5);
+  }
+
+  .product-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    transition: transform var(--transition-smooth), box-shadow var(--transition-smooth), border-color var(--transition-base);
+    position: relative; overflow: hidden;
+    perspective: 1000px;
+  }
+  .product-card::before {
+    content: ''; position: absolute; inset: 0; border-radius: var(--radius-lg);
+    background: radial-gradient(circle at var(--glow-x, 50%) var(--glow-y, 50%), var(--card-glow) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.4s; pointer-events: none; z-index: 1;
+  }
+  .product-card:hover { transform: translateY(-8px); border-color: var(--color-border-hover); }
+  .product-card:hover::before { opacity: 1; }
+
+  .card-inner {
+    position: relative; z-index: 2; transition: transform 0.6s ease;
+    transform-style: preserve-3d;
+  }
+  .product-card:hover .card-inner { /* flip on hover handled by .flippable */ }
+  .product-card.flipped .card-inner { transform: rotateY(180deg); }
+
+  .card-front, .card-back {
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  }
+  .card-front { padding: var(--space-6); }
+  .card-back {
+    position: absolute; inset: 0; padding: var(--space-6);
+    transform: rotateY(180deg);
+    display: flex; flex-direction: column; justify-content: center;
+    background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(255,215,0,0.06));
+  }
+  .card-back h4 {
+    font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--color-primary); margin-bottom: var(--space-3);
+  }
+  .card-back p {
+    font-size: 0.88rem; color: var(--color-text-muted); line-height: 1.7;
+  }
+  .card-back .flip-hint {
+    margin-top: auto; padding-top: var(--space-4);
+    font-size: 0.78rem; color: var(--color-text-subtle);
+  }
+
+  .card-top-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--space-4);
+  }
+  .product-icon {
+    width: 52px; height: 52px; border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; background: var(--card-bg);
+    box-shadow: 0 4px 16px var(--card-shadow);
+  }
+  .product-badges { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .badge {
+    padding: 3px 10px; border-radius: var(--radius-full);
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .badge-category { background: rgba(124,58,237,0.15); color: var(--color-secondary-light); }
+  .badge-bestseller { background: rgba(255,215,0,0.15); color: var(--color-primary); }
+  .badge-new { background: rgba(34,197,94,0.15); color: var(--color-success); }
+
+  .product-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: var(--space-1); }
+  .product-card .desc { color: var(--color-text-muted); font-size: 0.88rem; margin-bottom: var(--space-4); line-height: 1.6; }
+
+  .product-rating {
+    display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4);
+  }
+  .stars { display: flex; gap: 1px; }
+  .star { color: var(--color-primary); font-size: 0.82rem; }
+  .star.empty { color: var(--color-text-subtle); }
+  .rating-num { font-size: 0.78rem; color: var(--color-text-muted); font-weight: 600; }
+
+  .product-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-4); flex-wrap: wrap;
+  }
+  .product-price {
+    font-size: 1.35rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--color-primary), #FFAA00);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .product-price span {
+    font-size: 0.78rem; font-weight: 500;
+    -webkit-text-fill-color: var(--color-text-subtle);
+  }
+
+  .add-to-cart-group { display: flex; align-items: center; gap: var(--space-2); }
+  .qty-control {
+    display: flex; align-items: center;
+    border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .qty-btn {
+    width: 32px; height: 32px; border: none;
+    background: var(--color-surface); color: var(--color-text);
+    font-size: 1rem; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background var(--transition-fast);
+    font-family: var(--font-sans);
+  }
+  .qty-btn:hover { background: var(--color-surface-hover); }
+  .qty-val {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.82rem; font-weight: 700; color: var(--color-text);
+    background: transparent;
+  }
+
+  .btn-cart {
+    padding: 0.55rem 1.2rem; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    border: none; color: var(--color-text-inverse); font-weight: 700; font-size: 0.82rem;
+    cursor: pointer; transition: all var(--transition-fast);
+    white-space: nowrap; display: flex; align-items: center; gap: var(--space-2);
+    min-width: 100px; justify-content: center;
+    font-family: var(--font-sans);
+  }
+  .btn-cart:hover { box-shadow: 0 4px 20px rgba(255,215,0,0.35); transform: translateY(-1px); }
+  .btn-cart.added {
+    background: linear-gradient(135deg, var(--color-success), #16A34A);
+    color: #fff;
+  }
+  .btn-cart svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+
+  .card-flip-hint {
+    text-align: center; margin-top: var(--space-3);
+    font-size: 0.72rem; color: var(--color-text-subtle);
+    opacity: 0; transition: opacity var(--transition-base);
+  }
+  .product-card:hover .card-flip-hint { opacity: 1; }
+
+  /* Skeleton shimmer */
+  .product-card.skeleton .card-front > * { visibility: hidden; }
+  .product-card.skeleton::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    z-index: 10;
+  }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+  /* ══════════════════════════════════════════
+     WHY WIZARDS CHOOSE US
+     ══════════════════════════════════════════ */
+  .features-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6);
+  }
+  .feature-card {
+    text-align: center; padding: var(--space-7) var(--space-5);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: transform var(--transition-smooth), border-color var(--transition-base);
+  }
+  .feature-card:hover { transform: translateY(-4px); border-color: rgba(168,85,247,0.3); }
+  .feature-icon {
+    width: 64px; height: 64px; border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto var(--space-5);
+    font-size: 1.6rem;
+  }
+  .feature-icon.craft { background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,107,53,0.15)); }
+  .feature-icon.approved { background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(16,185,129,0.15)); }
+  .feature-icon.delivery { background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(99,102,241,0.15)); }
+  .feature-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: var(--space-2); }
+  .feature-card p { color: var(--color-text-muted); font-size: 0.9rem; line-height: 1.6; }
+
+  /* ══════════════════════════════════════════
+     TESTIMONIALS CAROUSEL
+     ══════════════════════════════════════════ */
+  .testimonial-carousel { position: relative; max-width: 1000px; margin: 0 auto; }
+  .testimonial-track {
+    display: flex; gap: var(--space-5); overflow: hidden;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  }
+  .testimonial-card {
+    flex: 0 0 100%; scroll-snap-align: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    backdrop-filter: blur(12px);
+    transition: transform var(--transition-base), border-color var(--transition-base);
+  }
+  .testimonial-card:hover { border-color: rgba(255,215,0,0.2); }
+
+  .testimonial-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-5); }
+  .testimonial-stars { color: var(--color-primary); font-size: 0.9rem; letter-spacing: 0.1em; }
+  .testimonial-quote-mark {
+    font-family: var(--font-display); font-size: 3rem; line-height: 1;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    opacity: 0.4;
+  }
+  .testimonial-card blockquote {
+    font-size: clamp(1rem, 1.2vw, 1.15rem); line-height: 1.8;
+    color: var(--color-text); font-style: italic; margin-bottom: var(--space-5);
+  }
+  .testimonial-author { display: flex; align-items: center; gap: var(--space-3); }
+  .testimonial-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--avatar-from, #a855f7), var(--avatar-to, #6366f1));
+    color: #fff; flex-shrink: 0;
+  }
+  .testimonial-author-name { font-weight: 700; font-size: 0.95rem; }
+  .testimonial-author-title { font-size: 0.78rem; color: var(--color-text-subtle); margin-top: 2px; }
+
+  .carousel-controls {
+    display: flex; align-items: center; justify-content: center;
+    gap: var(--space-4); margin-top: var(--space-7);
+  }
+  .carousel-arrow {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    color: var(--color-text); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition-fast);
+    font-family: var(--font-sans);
+  }
+  .carousel-arrow:hover {
+    background: var(--color-surface-hover); border-color: var(--color-border-hover);
+    color: var(--color-primary);
+  }
+  .carousel-arrow svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .carousel-dots { display: flex; gap: var(--space-2); }
+  .carousel-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--color-text-subtle); border: none; cursor: pointer;
+    transition: all var(--transition-fast); padding: 0;
+  }
+  .carousel-dot.active { background: var(--color-primary); width: 24px; border-radius: 4px; }
+
+  /* Desktop: show 1 card but wider */
+  @media (min-width: 768px) {
+    .testimonial-card { flex: 0 0 100%; }
+  }
+
+  /* ══════════════════════════════════════════
+     VISIT / CONTACT SPLIT
+     ══════════════════════════════════════════ */
+  .visit-split {
+    display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-7);
+    align-items: start;
+  }
+  .visit-info { display: flex; flex-direction: column; gap: var(--space-5); }
+  .visit-item {
+    display: flex; gap: var(--space-4); align-items: flex-start;
+  }
+  .visit-item-icon {
+    width: 48px; height: 48px; border-radius: var(--radius-md); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+  }
+  .visit-item h3 { font-size: 1rem; font-weight: 700; margin-bottom: var(--space-1); }
+  .visit-item p { color: var(--color-text-muted); font-size: 0.9rem; line-height: 1.6; }
+  .visit-item .highlight { color: var(--color-primary); font-weight: 600; }
+
+  /* Contact form */
+  .contact-card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg); padding: var(--space-7);
+  }
+  .contact-card h3 {
+    font-family: var(--font-display); font-size: 1.4rem; font-weight: 800;
+    margin-bottom: var(--space-2);
+  }
+  .contact-card .contact-sub {
+    color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: var(--space-5);
+  }
+  .form-group { margin-bottom: var(--space-4); }
+  .form-group label {
+    display: block; font-size: 0.82rem; font-weight: 600;
+    color: var(--color-text-muted); margin-bottom: var(--space-2);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .form-input, .form-textarea {
+    width: 100%; padding: var(--space-3) var(--space-4);
+    background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm); color: var(--color-text);
+    font-size: 0.9rem; font-family: var(--font-sans);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .form-input:focus, .form-textarea:focus {
+    outline: none; border-color: var(--color-secondary-light);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+  }
+  .form-textarea { resize: vertical; min-height: 100px; }
+  .btn-submit {
+    width: 100%; padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-sm); border: none;
+    background: linear-gradient(135deg, var(--color-secondary), #6D28D9);
+    color: #fff; font-weight: 700; font-size: 0.9rem;
+    cursor: pointer; transition: all var(--transition-fast);
+    font-family: var(--font-sans);
+  }
+  .btn-submit:hover { box-shadow: 0 4px 24px rgba(124,58,237,0.4); transform: translateY(-1px); }
+
+  /* ══════════════════════════════════════════
+     FOOTER
+     ══════════════════════════════════════════ */
+  footer {
+    position: relative; z-index: 1;
+    border-top: 1px solid var(--color-border);
+    padding: clamp(3rem, 6vw, 5rem) var(--space-6) var(--space-6);
+  }
+  .footer-inner { max-width: 1200px; margin: 0 auto; }
+  .footer-grid {
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: clamp(2rem, 4vw, 3rem);
+    margin-bottom: var(--space-7);
+  }
+  .footer-brand .footer-logo {
+    font-family: var(--font-display); font-size: 1.3rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: var(--space-3); display: block;
+  }
+  .footer-brand .footer-tagline {
+    color: var(--color-text-muted); font-size: 0.88rem; font-style: italic;
+    line-height: 1.6; margin-bottom: var(--space-5);
+  }
+  .newsletter-form { display: flex; gap: var(--space-2); }
+  .newsletter-input {
+    flex: 1; padding: var(--space-2) var(--space-3);
+    background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm); color: var(--color-text);
+    font-size: 0.85rem; font-family: var(--font-sans);
+    min-width: 0;
+  }
+  .newsletter-input:focus {
+    outline: none; border-color: var(--color-secondary-light);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+  }
+  .newsletter-input::placeholder { color: var(--color-text-subtle); }
+  .newsletter-btn {
+    padding: var(--space-2) var(--space-4); border: none;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    color: var(--color-text-inverse); font-weight: 700; font-size: 0.82rem;
+    border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap;
+    transition: all var(--transition-fast);
+    font-family: var(--font-sans);
+  }
+  .newsletter-btn:hover { box-shadow: 0 4px 16px rgba(255,215,0,0.3); }
+
+  .footer-col h4 {
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--color-text);
+    margin-bottom: var(--space-4);
+  }
+  .footer-col ul { list-style: none; }
+  .footer-col li { margin-bottom: var(--space-2); }
+  .footer-col a {
+    color: var(--color-text-muted); text-decoration: none; font-size: 0.88rem;
+    transition: color var(--transition-fast);
+  }
+  .footer-col a:hover { color: var(--color-primary); }
+
+  .footer-bottom {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: var(--space-6); border-top: 1px solid var(--color-border);
+    flex-wrap: wrap; gap: var(--space-4);
+  }
+  .footer-copy { color: var(--color-text-subtle); font-size: 0.78rem; }
+  .social-links { display: flex; gap: var(--space-3); }
+  .social-link {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--color-text-muted); text-decoration: none;
+    transition: all var(--transition-fast); font-size: 0.85rem;
+  }
+  .social-link:hover {
+    color: var(--color-primary); border-color: rgba(255,215,0,0.3);
+    background: rgba(255,215,0,0.06);
+  }
+
+  /* ══════════════════════════════════════════
+     CART DRAWER
+     ══════════════════════════════════════════ */
+  .cart-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 200; opacity: 0; pointer-events: none;
+    transition: opacity var(--transition-base);
+  }
+  .cart-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .cart-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: min(420px, 90vw); background: var(--color-bg);
+    border-left: 1px solid var(--color-border);
+    z-index: 201; transform: translateX(100%);
+    transition: transform var(--transition-smooth);
+    display: flex; flex-direction: column;
+  }
+  .cart-drawer.open { transform: translateX(0); }
+
+  .cart-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-5) var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .cart-header h2 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; }
+  .cart-close {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    color: var(--color-text); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition-fast);
+    font-family: var(--font-sans);
+  }
+  .cart-close:hover { background: var(--color-surface-hover); color: var(--color-danger); }
+  .cart-close svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  .cart-items { flex: 1; overflow-y: auto; padding: var(--space-4) var(--space-6); }
+  .cart-empty {
+    text-align: center; padding: var(--space-8) var(--space-4);
+    color: var(--color-text-muted);
+  }
+  .cart-empty-icon { font-size: 3rem; margin-bottom: var(--space-4); opacity: 0.4; }
+  .cart-empty p { font-size: 0.95rem; line-height: 1.6; }
+
+  .cart-item {
+    display: flex; align-items: center; gap: var(--space-4);
+    padding: var(--space-4) 0;
+    border-bottom: 1px solid var(--color-border);
+    animation: slideIn 0.3s ease-out;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  .cart-item-icon {
+    width: 44px; height: 44px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; background: var(--color-surface); flex-shrink: 0;
+  }
+  .cart-item-info { flex: 1; min-width: 0; }
+  .cart-item-name { font-weight: 600; font-size: 0.9rem; }
+  .cart-item-price { font-size: 0.82rem; color: var(--color-primary); font-weight: 700; margin-top: 2px; }
+  .cart-item-qty { font-size: 0.78rem; color: var(--color-text-subtle); }
+  .cart-item-remove {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: none; border: 1px solid var(--color-border);
+    color: var(--color-text-subtle); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition-fast); flex-shrink: 0;
+    font-family: var(--font-sans);
+  }
+  .cart-item-remove:hover { color: var(--color-danger); border-color: var(--color-danger); background: rgba(239,68,68,0.08); }
+  .cart-item-remove svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  .cart-footer {
+    padding: var(--space-5) var(--space-6);
+    border-top: 1px solid var(--color-border);
+  }
+  .cart-total {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--space-4);
+  }
+  .cart-total-label { font-size: 0.9rem; color: var(--color-text-muted); }
+  .cart-total-value {
+    font-family: var(--font-display); font-size: 1.4rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .btn-checkout {
+    width: 100%; padding: var(--space-4); border: none; border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    color: var(--color-text-inverse); font-weight: 800; font-size: 1rem;
+    cursor: pointer; transition: all var(--transition-fast);
+    font-family: var(--font-sans);
+  }
+  .btn-checkout:hover { box-shadow: 0 6px 30px rgba(255,215,0,0.4); transform: translateY(-1px); }
+
+  /* ══════════════════════════════════════════
+     TOAST
+     ══════════════════════════════════════════ */
+  .toast-container {
+    position: fixed; bottom: var(--space-6); right: var(--space-6);
+    z-index: 300; display: flex; flex-direction: column; gap: var(--space-3);
+    pointer-events: none;
+  }
+  .toast {
+    padding: var(--space-3) var(--space-5);
+    background: rgba(15, 5, 32, 0.95); backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,215,0,0.2); border-radius: var(--radius-md);
+    color: var(--color-text); font-size: 0.88rem; font-weight: 500;
+    display: flex; align-items: center; gap: var(--space-3);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    animation: toastIn 0.4s ease-out forwards;
+    pointer-events: auto;
+  }
+  .toast.out { animation: toastOut 0.3s ease-in forwards; }
+  @keyframes toastIn { from { opacity:0; transform: translateY(16px) scale(0.95); } to { opacity:1; transform: translateY(0) scale(1); } }
+  @keyframes toastOut { from { opacity:1; transform: translateY(0) scale(1); } to { opacity:0; transform: translateY(16px) scale(0.95); } }
+  .toast-icon { font-size: 1.1rem; }
+
+  /* ══════════════════════════════════════════
+     SCROLL REVEAL
+     ══════════════════════════════════════════ */
+  .reveal {
+    opacity: 0; transform: translateY(30px);
+    transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+  .reveal-delay-5 { transition-delay: 0.5s; }
+
+  /* ══════════════════════════════════════════
+     RESPONSIVE
+     ══════════════════════════════════════════ */
+  @media (max-width: 1024px) {
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 768px) {
+    section { padding: clamp(3rem, 6vw, 5rem) var(--space-4); }
+    .nav-links { display: none; }
+    .hamburger { display: block; }
+    .products-grid { grid-template-columns: 1fr; }
+    .features-grid { grid-template-columns: 1fr; }
+    .visit-split { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: 1fr; }
+    .footer-bottom { flex-direction: column; text-align: center; }
+    .hero { padding-top: calc(var(--nav-height) + 1rem); }
+    .hero-stats { flex-wrap: wrap; justify-content: center; }
+    .hero h1 { font-size: clamp(2.5rem, 10vw, 4rem); }
+    .hero-monogram { width: 72px; height: 72px; font-size: 2rem; }
+  }
+  @media (max-width: 480px) {
+    .hero-cta { flex-direction: column; align-items: stretch; }
+    .hero-cta .btn { justify-content: center; }
+    .product-footer { flex-direction: column; align-items: stretch; }
+    .add-to-cart-group { justify-content: space-between; }
+    .newsletter-form { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Skip to content -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<!-- Sparkle Canvas -->
+<canvas id="sparkles" aria-hidden="true"></canvas>
+<div class="noise-overlay" aria-hidden="true"></div>
+
+<!-- Navigation -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <div class="nav-progress" id="navProgress" aria-hidden="true"></div>
+  <div class="nav-inner">
+    <a href="#" class="nav-brand" aria-label="Weasleys' Wizard Wheezes home">
+      <div class="nav-monogram" aria-hidden="true">W</div>
+      <span class="nav-logo">Wizard Wheezes</span>
+    </a>
+
+    <ul class="nav-links" role="menubar">
+      <li role="none"><a href="#products" role="menuitem">Shop</a></li>
+      <li role="none"><a href="#why-us" role="menuitem">About</a></li>
+      <li role="none"><a href="#testimonials" role="menuitem">Reviews</a></li>
+      <li role="none"><a href="#visit" role="menuitem">Visit</a></li>
+    </ul>
+
+    <div class="nav-actions">
+      <button class="nav-cart-btn" id="cartBtn" aria-label="Open shopping cart">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span class="cart-badge" id="cartBadge" aria-live="polite">0</span>
+      </button>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile menu -->
+<div class="mobile-menu" id="mobileMenu" role="menu" aria-label="Mobile navigation">
+  <a href="#products" role="menuitem">Shop</a>
+  <a href="#why-us" role="menuitem">About</a>
+  <a href="#testimonials" role="menuitem">Reviews</a>
+  <a href="#visit" role="menuitem">Visit</a>
+</div>
+
+<!-- Hero -->
+<section class="hero" aria-labelledby="hero-heading">
+  <div class="hero-bg-glow gold" aria-hidden="true"></div>
+  <div class="hero-bg-glow purple" aria-hidden="true"></div>
+  <div class="hero-bg-glow pink" aria-hidden="true"></div>
+
+  <div class="hero-monogram" aria-hidden="true">W</div>
+  <span class="hero-badge">Now Open in Diagon Alley</span>
+  <h1 id="hero-heading">Weasleys' Wizard<br>Wheezes</h1>
+  <p class="hero-subtitle">Purveyors of <span class="typed-text" id="typedText"></span></p>
+
+  <div class="hero-stats" aria-label="Store statistics">
+    <div class="hero-stat">
+      <div class="hero-stat-num" data-count="2340">0</div>
+      <div class="hero-stat-label">Happy Wizards</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num" data-count="47">0</div>
+      <div class="hero-stat-label">Products</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num" data-count="1996" data-no-plus="true">0</div>
+      <div class="hero-stat-label">Est.</div>
+    </div>
+  </div>
+
+  <div class="hero-cta">
+    <a href="#products" class="btn btn-primary">Shop the Collection</a>
+    <a href="#visit" class="btn btn-secondary">Visit Our Shop</a>
+  </div>
+
+  <div class="hero-scroll" aria-hidden="true">
+    <span>Scroll to explore</span>
+    <span class="hero-scroll-arrow">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    </span>
+  </div>
+</section>
+
+<!-- Main content -->
+<main id="main-content">
+
+<!-- Products -->
+<section id="products" aria-labelledby="products-heading">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-label">The Collection</div>
+      <h2 class="section-title" id="products-heading">Enchanted Confections</h2>
+      <p class="section-subtitle">Each sweet is hand-crafted with genuine magical ingredients. Ministry-approved (mostly).</p>
+    </div>
+    <div class="products-grid" id="productsGrid">
+
+      <article class="product-card reveal reveal-delay-1 skeleton"
+               style="--card-glow:rgba(192,219,255,.12);--card-bg:linear-gradient(135deg,#1e293b,#334155);--card-shadow:rgba(148,163,184,.15)"
+               data-name="Moonbeam Meltdrops" data-price="3" data-icon="&#127769;" data-category="candy" data-rating="4.9" data-badge="bestseller"
+               data-ingredients="Condensed moonlight, silver dewdrops, powdered starlight, enchanted sugar crystals, a whisper of levitation charm residue.">
+        <div class="card-inner">
+          <div class="card-front">
+            <div class="card-top-row">
+              <div class="product-icon" aria-hidden="true">&#127769;</div>
+              <div class="product-badges">
+                <span class="badge badge-category">Candy</span>
+                <span class="badge badge-bestseller">Best Seller</span>
+              </div>
+            </div>
+            <h3>Moonbeam Meltdrops</h3>
+            <p class="desc">Luminous silver drops that fill your mouth with starlight. Temporary levitation may occur.</p>
+            <div class="product-rating" aria-label="Rated 4.9 out of 5 stars">
+              <div class="stars" aria-hidden="true"><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span></div>
+              <span class="rating-num">4.9</span>
+            </div>
+            <div class="product-footer">
+              <div class="product-price">3 <span>Galleons</span></div>
+              <div class="add-to-cart-group">
+                <div class="qty-control">
+                  <button class="qty-btn qty-minus" aria-label="Decrease quantity">-</button>
+                  <span class="qty-val" aria-label="Quantity">1</span>
+                  <button class="qty-btn qty-plus" aria-label="Increase quantity">+</button>
+                </div>
+                <button class="btn-cart" data-product="Moonbeam Meltdrops" data-price="3">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="card-back">
+            <h4>Ingredients</h4>
+            <p>Condensed moonlight, silver dewdrops, powdered starlight, enchanted sugar crystals, a whisper of levitation charm residue.</p>
+            <div class="flip-hint">Click to flip back</div>
+          </div>
+        </div>
+        <div class="card-flip-hint">Click to see ingredients</div>
+      </article>
+
+      <article class="product-card reveal reveal-delay-2 skeleton"
+               style="--card-glow:rgba(96,165,250,.12);--card-bg:linear-gradient(135deg,#1e3a5f,#2563eb);--card-shadow:rgba(59,130,246,.15)"
+               data-name="Patronus Pop Rocks" data-price="5" data-icon="&#9889;" data-category="candy" data-rating="4.8" data-badge="new"
+               data-ingredients="Crystallized joy essence, silvery-blue spark powder, memory concentrate, carbonated courage extract, ghostly animal fragments.">
+        <div class="card-inner">
+          <div class="card-front">
+            <div class="card-top-row">
+              <div class="product-icon" aria-hidden="true">&#9889;</div>
+              <div class="product-badges">
+                <span class="badge badge-category">Candy</span>
+                <span class="badge badge-new">New</span>
+              </div>
+            </div>
+            <h3>Patronus Pop Rocks</h3>
+            <p class="desc">Explode with silvery-blue energy on your tongue. Each bag conjures a unique ghostly animal.</p>
+            <div class="product-rating" aria-label="Rated 4.8 out of 5 stars">
+              <div class="stars" aria-hidden="true"><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span></div>
+              <span class="rating-num">4.8</span>
+            </div>
+            <div class="product-footer">
+              <div class="product-price">5 <span>Galleons</span></div>
+              <div class="add-to-cart-group">
+                <div class="qty-control">
+                  <button class="qty-btn qty-minus" aria-label="Decrease quantity">-</button>
+                  <span class="qty-val" aria-label="Quantity">1</span>
+                  <button class="qty-btn qty-plus" aria-label="Increase quantity">+</button>
+                </div>
+                <button class="btn-cart" data-product="Patronus Pop Rocks" data-price="5">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="card-back">
+            <h4>Ingredients</h4>
+            <p>Crystallized joy essence, silvery-blue spark powder, memory concentrate, carbonated courage extract, ghostly animal fragments.</p>
+            <div class="flip-hint">Click to flip back</div>
+          </div>
+        </div>
+        <div class="card-flip-hint">Click to see ingredients</div>
+      </article>
+
+      <article class="product-card reveal reveal-delay-3 skeleton"
+               style="--card-glow:rgba(250,204,21,.12);--card-bg:linear-gradient(135deg,#78350f,#b45309);--card-shadow:rgba(245,158,11,.15)"
+               data-name="Canary Cream Supremes" data-price="2" data-icon="&#128038;" data-category="prank" data-rating="4.7" data-badge="bestseller"
+               data-ingredients="Enchanted cream filling, canary feather essence, transfiguration powder (temporary grade), vanilla bean, tickling charm extract.">
+        <div class="card-inner">
+          <div class="card-front">
+            <div class="card-top-row">
+              <div class="product-icon" aria-hidden="true">&#128038;</div>
+              <div class="product-badges">
+                <span class="badge badge-category">Prank</span>
+                <span class="badge badge-bestseller">Best Seller</span>
+              </div>
+            </div>
+            <h3>Canary Cream Supremes</h3>
+            <p class="desc">Our signature prank pastry. One bite and POOF &mdash; instant canary. Wears off in minutes.</p>
+            <div class="product-rating" aria-label="Rated 4.7 out of 5 stars">
+              <div class="stars" aria-hidden="true"><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span></div>
+              <span class="rating-num">4.7</span>
+            </div>
+            <div class="product-footer">
+              <div class="product-price">2 <span>Galleons</span></div>
+              <div class="add-to-cart-group">
+                <div class="qty-control">
+                  <button class="qty-btn qty-minus" aria-label="Decrease quantity">-</button>
+                  <span class="qty-val" aria-label="Quantity">1</span>
+                  <button class="qty-btn qty-plus" aria-label="Increase quantity">+</button>
+                </div>
+                <button class="btn-cart" data-product="Canary Cream Supremes" data-price="2">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="card-back">
+            <h4>Ingredients</h4>
+            <p>Enchanted cream filling, canary feather essence, transfiguration powder (temporary grade), vanilla bean, tickling charm extract.</p>
+            <div class="flip-hint">Click to flip back</div>
+          </div>
+        </div>
+        <div class="card-flip-hint">Click to see ingredients</div>
+      </article>
+
+      <article class="product-card reveal reveal-delay-1 skeleton"
+               style="--card-glow:rgba(34,197,94,.12);--card-bg:linear-gradient(135deg,#064e3b,#059669);--card-shadow:rgba(16,185,129,.15)"
+               data-name="Portable Swamp Taffy" data-price="4" data-icon="&#127793;" data-category="prank" data-rating="4.6"
+               data-ingredients="Swamp water concentrate, enchanted gelatin, bog moss extract, expanding charm residue, sour lily pad flavoring.">
+        <div class="card-inner">
+          <div class="card-front">
+            <div class="card-top-row">
+              <div class="product-icon" aria-hidden="true">&#127793;</div>
+              <div class="product-badges">
+                <span class="badge badge-category">Prank</span>
+              </div>
+            </div>
+            <h3>Portable Swamp Taffy</h3>
+            <p class="desc">Chewy green taffy that sprouts a miniature swamp when unwrapped. Perfect for corridor capers.</p>
+            <div class="product-rating" aria-label="Rated 4.6 out of 5 stars">
+              <div class="stars" aria-hidden="true"><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span></div>
+              <span class="rating-num">4.6</span>
+            </div>
+            <div class="product-footer">
+              <div class="product-price">4 <span>Galleons</span></div>
+              <div class="add-to-cart-group">
+                <div class="qty-control">
+                  <button class="qty-btn qty-minus" aria-label="Decrease quantity">-</button>
+                  <span class="qty-val" aria-label="Quantity">1</span>
+                  <button class="qty-btn qty-plus" aria-label="Increase quantity">+</button>
+                </div>
+                <button class="btn-cart" data-product="Portable Swamp Taffy" data-price="4">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="card-back">
+            <h4>Ingredients</h4>
+            <p>Swamp water concentrate, enchanted gelatin, bog moss extract, expanding charm residue, sour lily pad flavoring.</p>
+            <div class="flip-hint">Click to flip back</div>
+          </div>
+        </div>
+        <div class="card-flip-hint">Click to see ingredients</div>
+      </article>
+
+      <article class="product-card reveal reveal-delay-2 skeleton"
+               style="--card-glow:rgba(239,68,68,.12);--card-bg:linear-gradient(135deg,#7f1d1d,#dc2626);--card-shadow:rgba(220,38,38,.15)"
+               data-name="Howler Fudge" data-price="3" data-icon="&#128140;" data-category="classic" data-rating="4.8" data-badge="bestseller"
+               data-ingredients="Red velvet cocoa, howler parchment flakes, amplification charm essence, Madagascar vanilla, screaming sugar.">
+        <div class="card-inner">
+          <div class="card-front">
+            <div class="card-top-row">
+              <div class="product-icon" aria-hidden="true">&#128140;</div>
+              <div class="product-badges">
+                <span class="badge badge-category">Classic</span>
+                <span class="badge badge-bestseller">Best Seller</span>
+              </div>
+            </div>
+            <h3>Howler Fudge</h3>
+            <p class="desc">Rich red velvet fudge that screams compliments when you bite into it. Delightfully alarming.</p>
+            <div class="product-rating" aria-label="Rated 4.8 out of 5 stars">
+              <div class="stars" aria-hidden="true"><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span></div>
+              <span class="rating-num">4.8</span>
+            </div>
+            <div class="product-footer">
+              <div class="product-price">3 <span>Galleons</span></div>
+              <div class="add-to-cart-group">
+                <div class="qty-control">
+                  <button class="qty-btn qty-minus" aria-label="Decrease quantity">-</button>
+                  <span class="qty-val" aria-label="Quantity">1</span>
+                  <button class="qty-btn qty-plus" aria-label="Increase quantity">+</button>
+                </div>
+                <button class="btn-cart" data-product="Howler Fudge" data-price="3">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="card-back">
+            <h4>Ingredients</h4>
+            <p>Red velvet cocoa, howler parchment flakes, amplification charm essence, Madagascar vanilla, screaming sugar.</p>
+            <div class="flip-hint">Click to flip back</div>
+          </div>
+        </div>
+        <div class="card-flip-hint">Click to see ingredients</div>
+      </article>
+
+      <article class="product-card reveal reveal-delay-3 skeleton"
+               style="--card-glow:rgba(192,132,252,.12);--card-bg:linear-gradient(135deg,#581c87,#c026d3);--card-shadow:rgba(168,85,247,.15)"
+               data-name="Pygmy Puff Gummies" data-price="2" data-icon="&#128054;" data-category="candy" data-rating="4.9" data-badge="new"
+               data-ingredients="Pygmy puff fluff extract, purring charm powder, enchanted gelatin, wildberry medley, colour-shifting dye.">
+        <div class="card-inner">
+          <div class="card-front">
+            <div class="card-top-row">
+              <div class="product-icon" aria-hidden="true">&#128054;</div>
+              <div class="product-badges">
+                <span class="badge badge-category">Candy</span>
+                <span class="badge badge-new">New</span>
+              </div>
+            </div>
+            <h3>Pygmy Puff Gummies</h3>
+            <p class="desc">Fluffy pink-and-purple gummies that purr when you chew. Collect all seven flavours!</p>
+            <div class="product-rating" aria-label="Rated 4.9 out of 5 stars">
+              <div class="stars" aria-hidden="true"><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span></div>
+              <span class="rating-num">4.9</span>
+            </div>
+            <div class="product-footer">
+              <div class="product-price">2 <span>Galleons</span></div>
+              <div class="add-to-cart-group">
+                <div class="qty-control">
+                  <button class="qty-btn qty-minus" aria-label="Decrease quantity">-</button>
+                  <span class="qty-val" aria-label="Quantity">1</span>
+                  <button class="qty-btn qty-plus" aria-label="Increase quantity">+</button>
+                </div>
+                <button class="btn-cart" data-product="Pygmy Puff Gummies" data-price="2">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="card-back">
+            <h4>Ingredients</h4>
+            <p>Pygmy puff fluff extract, purring charm powder, enchanted gelatin, wildberry medley, colour-shifting dye.</p>
+            <div class="flip-hint">Click to flip back</div>
+          </div>
+        </div>
+        <div class="card-flip-hint">Click to see ingredients</div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- Why Wizards Choose Us -->
+<section id="why-us" aria-labelledby="why-heading">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-label">Why Us</div>
+      <h2 class="section-title" id="why-heading">Why Wizards Choose Us</h2>
+      <p class="section-subtitle">Three decades of magical mischief, perfected.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon craft" aria-hidden="true">&#9878;</div>
+        <h3>Handcrafted Magic</h3>
+        <p>Every product is brewed, charmed, and tested by Fred &amp; George themselves. No mass-produced rubbish &mdash; just genuine magical craftsmanship.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon approved" aria-hidden="true">&#9989;</div>
+        <h3>Ministry Approved</h3>
+        <p>All our products meet Ministry of Magic safety standards. Side effects are temporary, entertaining, and entirely intentional.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon delivery" aria-hidden="true">&#129413;</div>
+        <h3>Owl Delivery</h3>
+        <p>Free delivery by owl post on orders over 10 Galleons. Your sweets arrive fresh, usually within 2&ndash;5 business owls.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section id="testimonials" aria-labelledby="testimonials-heading">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-label">Happy Customers</div>
+      <h2 class="section-title" id="testimonials-heading">What Wizards Are Saying</h2>
+      <p class="section-subtitle">Don't take our word for it &mdash; hear from our most loyal mischief-makers.</p>
+    </div>
+    <div class="testimonial-carousel reveal" role="region" aria-label="Customer testimonials" aria-roledescription="carousel">
+
+      <div class="testimonial-track" id="testimonialTrack">
+
+        <div class="testimonial-card" role="group" aria-roledescription="slide" aria-label="Testimonial 1 of 5" style="--avatar-from:#a855f7;--avatar-to:#6366f1">
+          <div class="testimonial-top">
+            <div class="testimonial-stars" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="testimonial-quote-mark" aria-hidden="true">"</div>
+          </div>
+          <blockquote>"The Moonbeam Meltdrops made me float right past a group of Nargles. Terribly useful and absolutely delicious. I bought twelve bags."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" aria-hidden="true">L</div>
+            <div>
+              <div class="testimonial-author-name">Luna Lovegood</div>
+              <div class="testimonial-author-title">Naturalist &amp; Quibbler Correspondent</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card" role="group" aria-roledescription="slide" aria-label="Testimonial 2 of 5" style="--avatar-from:#22c55e;--avatar-to:#16a34a">
+          <div class="testimonial-top">
+            <div class="testimonial-stars" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="testimonial-quote-mark" aria-hidden="true">"</div>
+          </div>
+          <blockquote>"I gave Canary Creams to my entire Herbology study group. Professor Sprout was NOT amused, but honestly, it was the best Tuesday we've ever had."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" aria-hidden="true">N</div>
+            <div>
+              <div class="testimonial-author-name">Neville Longbottom</div>
+              <div class="testimonial-author-title">Herbology Enthusiast</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card" role="group" aria-roledescription="slide" aria-label="Testimonial 3 of 5" style="--avatar-from:#f59e0b;--avatar-to:#ef4444">
+          <div class="testimonial-top">
+            <div class="testimonial-stars" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="testimonial-quote-mark" aria-hidden="true">"</div>
+          </div>
+          <blockquote>"I commentated a whole Quidditch match after eating Howler Fudge. My voice carried across three counties. Fred and George are absolute geniuses."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" aria-hidden="true">L</div>
+            <div>
+              <div class="testimonial-author-name">Lee Jordan</div>
+              <div class="testimonial-author-title">Quidditch Commentator &amp; Radio Host</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card" role="group" aria-roledescription="slide" aria-label="Testimonial 4 of 5" style="--avatar-from:#ec4899;--avatar-to:#f43f5e">
+          <div class="testimonial-top">
+            <div class="testimonial-stars" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="testimonial-quote-mark" aria-hidden="true">"</div>
+          </div>
+          <blockquote>"The Pygmy Puff Gummies are absolutely darling. Arnold tried to eat one and got very confused. I keep a bag in my robes at all times now."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" aria-hidden="true">G</div>
+            <div>
+              <div class="testimonial-author-name">Ginny Weasley</div>
+              <div class="testimonial-author-title">Professional Quidditch Player</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card" role="group" aria-roledescription="slide" aria-label="Testimonial 5 of 5" style="--avatar-from:#6366f1;--avatar-to:#8b5cf6">
+          <div class="testimonial-top">
+            <div class="testimonial-stars" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="testimonial-quote-mark" aria-hidden="true">"</div>
+          </div>
+          <blockquote>"I used the Portable Swamp Taffy during a particularly dull staff meeting. Completely worth the three detentions. Would absolutely do it again."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" aria-hidden="true">S</div>
+            <div>
+              <div class="testimonial-author-name">Seamus Finnigan</div>
+              <div class="testimonial-author-title">Enthusiastic Customer Since 1996</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="carousel-controls">
+        <button class="carousel-arrow" id="carouselPrev" aria-label="Previous testimonial">
+          <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="carousel-dots" id="carouselDots" role="tablist" aria-label="Testimonial navigation">
+          <button class="carousel-dot active" role="tab" aria-selected="true" aria-label="Testimonial 1"></button>
+          <button class="carousel-dot" role="tab" aria-selected="false" aria-label="Testimonial 2"></button>
+          <button class="carousel-dot" role="tab" aria-selected="false" aria-label="Testimonial 3"></button>
+          <button class="carousel-dot" role="tab" aria-selected="false" aria-label="Testimonial 4"></button>
+          <button class="carousel-dot" role="tab" aria-selected="false" aria-label="Testimonial 5"></button>
+        </div>
+        <button class="carousel-arrow" id="carouselNext" aria-label="Next testimonial">
+          <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Visit / Contact -->
+<section id="visit" aria-labelledby="visit-heading">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-label">Find Us</div>
+      <h2 class="section-title" id="visit-heading">Visit Our Shop</h2>
+      <p class="section-subtitle">The brightest (and loudest) storefront on Diagon Alley. You can't miss us.</p>
+    </div>
+    <div class="visit-split">
+      <div class="visit-info reveal">
+        <div class="visit-item">
+          <div class="visit-item-icon" aria-hidden="true">&#128205;</div>
+          <div>
+            <h3>Location</h3>
+            <p><span class="highlight">93 Diagon Alley</span><br>London, Wizarding District<br>Behind the Leaky Cauldron</p>
+          </div>
+        </div>
+        <div class="visit-item">
+          <div class="visit-item-icon" aria-hidden="true">&#128336;</div>
+          <div>
+            <h3>Opening Hours</h3>
+            <p>Monday &ndash; Friday: <span class="highlight">10:00 AM &ndash; 8:00 PM</span><br>Weekends: <span class="highlight">10:00 AM &ndash; Midnight</span></p>
+          </div>
+        </div>
+        <div class="visit-item">
+          <div class="visit-item-icon" aria-hidden="true">&#128230;</div>
+          <div>
+            <h3>Owl Order</h3>
+            <p>Free delivery on orders over <span class="highlight">10 Galleons</span>.<br>Arrival: 2&ndash;5 business owls.</p>
+          </div>
+        </div>
+      </div>
+      <div class="contact-card reveal reveal-delay-2">
+        <h3>Send Us an Owl</h3>
+        <p class="contact-sub">Questions, custom orders, or complaints about unexpected feathers.</p>
+        <form id="contactForm" onsubmit="return false;">
+          <div class="form-group">
+            <label for="contactName">Your Name</label>
+            <input type="text" id="contactName" class="form-input" placeholder="Albus Dumbledore" autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label for="contactOwl">Owl Address</label>
+            <input type="text" id="contactOwl" class="form-input" placeholder="dumbledore@hogwarts.owl" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="contactMsg">Message</label>
+            <textarea id="contactMsg" class="form-textarea" placeholder="I'd like to place a bulk order for the entire Gryffindor common room..." rows="4"></textarea>
+          </div>
+          <button type="submit" class="btn-submit" id="contactSubmit">Send Owl</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Footer -->
+<footer role="contentinfo">
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo">Weasleys' Wizard Wheezes</span>
+        <p class="footer-tagline">"Why are you worrying about You-Know-Who? You should be worrying about U-No-Poo!"</p>
+        <form class="newsletter-form" onsubmit="return false;" aria-label="Newsletter signup">
+          <input type="email" class="newsletter-input" placeholder="your@owl.post" aria-label="Email for newsletter">
+          <button type="submit" class="newsletter-btn" id="newsletterBtn">Subscribe</button>
+        </form>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Press</a></li>
+          <li><a href="#">Blog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#">Owl Post</a></li>
+          <li><a href="#">Returns</a></li>
+          <li><a href="#">Size Guide</a></li>
+          <li><a href="#">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Cookie Policy</a></li>
+          <li><a href="#">Ministry Compliance</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p class="footer-copy">&copy; 1996&ndash;2026 Weasleys' Wizard Wheezes Ltd. &middot; 93 Diagon Alley, London</p>
+      <div class="social-links" aria-label="Social media">
+        <a href="#" class="social-link" aria-label="Owl Post">&#128230;</a>
+        <a href="#" class="social-link" aria-label="Wizarding Wireless">&#128251;</a>
+        <a href="#" class="social-link" aria-label="Crystal Ball">&#128302;</a>
+        <a href="#" class="social-link" aria-label="Floo Network">&#128293;</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- Cart Overlay -->
+<div class="cart-overlay" id="cartOverlay" aria-hidden="true"></div>
+
+<!-- Cart Drawer -->
+<aside class="cart-drawer" id="cartDrawer" role="dialog" aria-label="Shopping cart" aria-hidden="true">
+  <div class="cart-header">
+    <h2>Your Basket</h2>
+    <button class="cart-close" id="cartClose" aria-label="Close cart">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="cart-items" id="cartItems">
+    <div class="cart-empty" id="cartEmpty">
+      <div class="cart-empty-icon" aria-hidden="true">&#128722;</div>
+      <p>Your basket is empty.<br>The sweets won't buy themselves!</p>
+    </div>
+  </div>
+  <div class="cart-footer" id="cartFooter" style="display:none;">
+    <div class="cart-total">
+      <span class="cart-total-label">Total</span>
+      <span class="cart-total-value" id="cartTotal">0 Galleons</span>
+    </div>
+    <button class="btn-checkout" id="checkoutBtn">Proceed to Checkout</button>
+  </div>
+</aside>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="false"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ══════════════════════════════════════════
+     SPARKLE PARTICLES
+     ══════════════════════════════════════════ */
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const canvas = document.getElementById('sparkles');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resizeCanvas() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = document.documentElement.scrollHeight;
+  }
+  window.addEventListener('resize', resizeCanvas, { passive: true });
+  resizeCanvas();
+
+  const COLORS = ['#ffd700','#a855f7','#60a5fa','#f472b6','#34d399','#ffffff'];
+  const PARTICLE_COUNT = prefersReducedMotion ? 0 : 80;
+
+  function createParticle() {
+    return {
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 2 + 0.5,
+      dx: (Math.random() - 0.5) * 0.25,
+      dy: (Math.random() - 0.5) * 0.25,
+      opacity: Math.random() * 0.5 + 0.2,
+      phase: Math.random() * Math.PI * 2,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)]
+    };
+  }
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(createParticle());
+
+  let tick = 0;
+  function animateParticles() {
+    ctx.clearRect(0, 0, W, H);
+    tick += 0.008;
+    for (const p of particles) {
+      p.x += p.dx; p.y += p.dy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      const flicker = 0.5 + 0.5 * Math.sin(tick * 2 + p.phase);
+      ctx.globalAlpha = p.opacity * flicker;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+      ctx.globalAlpha = p.opacity * flicker * 0.12;
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(animateParticles);
+  }
+  if (!prefersReducedMotion) animateParticles();
+
+  new ResizeObserver(function() {
+    canvas.height = document.documentElement.scrollHeight;
+    H = canvas.height;
+  }).observe(document.body);
+
+  /* ══════════════════════════════════════════
+     NAV: SCROLL EFFECTS
+     ══════════════════════════════════════════ */
+  const nav = document.querySelector('.nav');
+  const navProgress = document.getElementById('navProgress');
+
+  function updateNav() {
+    const scrollY = window.scrollY;
+    const docH = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docH > 0 ? (scrollY / docH) * 100 : 0;
+    navProgress.style.width = pct + '%';
+    nav.classList.toggle('scrolled', scrollY > 50);
+  }
+  window.addEventListener('scroll', updateNav, { passive: true });
+  updateNav();
+
+  /* ══════════════════════════════════════════
+     MOBILE MENU
+     ══════════════════════════════════════════ */
+  const hamburger = document.getElementById('hamburgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+
+  hamburger.addEventListener('click', function() {
+    const isOpen = mobileMenu.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', isOpen);
+  });
+
+  mobileMenu.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', function() {
+      mobileMenu.classList.remove('open');
+      hamburger.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  /* ══════════════════════════════════════════
+     SCROLL REVEAL (IntersectionObserver)
+     ══════════════════════════════════════════ */
+  const reveals = document.querySelectorAll('.reveal');
+  const revealObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        // Remove skeleton class
+        if (e.target.classList.contains('skeleton')) {
+          setTimeout(function() { e.target.classList.remove('skeleton'); }, 400);
+        }
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+  reveals.forEach(function(el) { revealObserver.observe(el); });
+
+  /* ══════════════════════════════════════════
+     PRODUCT CARD GLOW FOLLOW
+     ══════════════════════════════════════════ */
+  document.querySelectorAll('.product-card').forEach(function(card) {
+    card.addEventListener('mousemove', function(e) {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--glow-x', ((e.clientX - r.left) / r.width * 100) + '%');
+      card.style.setProperty('--glow-y', ((e.clientY - r.top) / r.height * 100) + '%');
+    }, { passive: true });
+  });
+
+  /* ══════════════════════════════════════════
+     CARD FLIP
+     ══════════════════════════════════════════ */
+  document.querySelectorAll('.product-card').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      // Don't flip if clicking a button
+      if (e.target.closest('button')) return;
+      card.classList.toggle('flipped');
+    });
+  });
+
+  /* ══════════════════════════════════════════
+     QUANTITY CONTROLS
+     ══════════════════════════════════════════ */
+  document.querySelectorAll('.qty-control').forEach(function(ctrl) {
+    const minus = ctrl.querySelector('.qty-minus');
+    const plus = ctrl.querySelector('.qty-plus');
+    const val = ctrl.querySelector('.qty-val');
+
+    minus.addEventListener('click', function(e) {
+      e.stopPropagation();
+      let v = parseInt(val.textContent);
+      if (v > 1) val.textContent = v - 1;
+    });
+    plus.addEventListener('click', function(e) {
+      e.stopPropagation();
+      let v = parseInt(val.textContent);
+      if (v < 99) val.textContent = v + 1;
+    });
+  });
+
+  /* ══════════════════════════════════════════
+     CART STATE
+     ══════════════════════════════════════════ */
+  let cart = []; // { name, price, qty, icon }
+  const cartBadge = document.getElementById('cartBadge');
+  const cartItems = document.getElementById('cartItems');
+  const cartEmpty = document.getElementById('cartEmpty');
+  const cartFooter = document.getElementById('cartFooter');
+  const cartTotalEl = document.getElementById('cartTotal');
+  const cartDrawer = document.getElementById('cartDrawer');
+  const cartOverlay = document.getElementById('cartOverlay');
+
+  function updateCartUI() {
+    const totalItems = cart.reduce(function(s, i) { return s + i.qty; }, 0);
+    const totalPrice = cart.reduce(function(s, i) { return s + i.price * i.qty; }, 0);
+
+    cartBadge.textContent = totalItems;
+    cartBadge.classList.toggle('visible', totalItems > 0);
+    cartTotalEl.textContent = totalPrice + ' Galleons';
+
+    // Render items
+    const existing = cartItems.querySelectorAll('.cart-item');
+    existing.forEach(function(el) { el.remove(); });
+
+    if (cart.length === 0) {
+      cartEmpty.style.display = '';
+      cartFooter.style.display = 'none';
+    } else {
+      cartEmpty.style.display = 'none';
+      cartFooter.style.display = '';
+      cart.forEach(function(item, idx) {
+        const div = document.createElement('div');
+        div.className = 'cart-item';
+        div.innerHTML =
+          '<div class="cart-item-icon">' + item.icon + '</div>' +
+          '<div class="cart-item-info">' +
+            '<div class="cart-item-name">' + item.name + '</div>' +
+            '<div class="cart-item-price">' + item.price + ' Galleons each</div>' +
+            '<div class="cart-item-qty">Qty: ' + item.qty + '</div>' +
+          '</div>' +
+          '<button class="cart-item-remove" data-idx="' + idx + '" aria-label="Remove ' + item.name + '">' +
+            '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+          '</button>';
+        cartItems.appendChild(div);
+      });
+    }
+  }
+
+  // Remove items
+  cartItems.addEventListener('click', function(e) {
+    const btn = e.target.closest('.cart-item-remove');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.idx);
+    const removed = cart.splice(idx, 1)[0];
+    showToast('Removed ' + removed.name);
+    updateCartUI();
+  });
+
+  /* ══════════════════════════════════════════
+     ADD TO CART
+     ══════════════════════════════════════════ */
+  document.querySelectorAll('.btn-cart').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const card = btn.closest('.product-card');
+      const name = btn.dataset.product;
+      const price = parseInt(btn.dataset.price);
+      const qtyEl = card.querySelector('.qty-val');
+      const qty = parseInt(qtyEl.textContent);
+      const icon = card.querySelector('.product-icon').innerHTML;
+
+      // Check if already in cart
+      const existing = cart.find(function(i) { return i.name === name; });
+      if (existing) {
+        existing.qty += qty;
+      } else {
+        cart.push({ name: name, price: price, qty: qty, icon: icon });
+      }
+
+      // Button animation
+      btn.classList.add('added');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5"><polyline points="20 6 9 17 4 12"/></svg> Added!';
+      setTimeout(function() {
+        btn.classList.remove('added');
+        btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg> Add';
+      }, 1200);
+
+      // Reset qty
+      qtyEl.textContent = '1';
+
+      updateCartUI();
+      showToast('Added ' + qty + 'x ' + name + ' to your basket!');
+    });
+  });
+
+  /* ══════════════════════════════════════════
+     CART DRAWER OPEN/CLOSE
+     ══════════════════════════════════════════ */
+  function openCart() {
+    cartDrawer.classList.add('open');
+    cartOverlay.classList.add('open');
+    cartDrawer.setAttribute('aria-hidden', 'false');
+    cartOverlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeCart() {
+    cartDrawer.classList.remove('open');
+    cartOverlay.classList.remove('open');
+    cartDrawer.setAttribute('aria-hidden', 'true');
+    cartOverlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('cartBtn').addEventListener('click', openCart);
+  document.getElementById('cartClose').addEventListener('click', closeCart);
+  cartOverlay.addEventListener('click', closeCart);
+
+  // Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && cartDrawer.classList.contains('open')) closeCart();
+  });
+
+  // Checkout button
+  document.getElementById('checkoutBtn').addEventListener('click', function() {
+    showToast('Checkout coming soon! Owl post orders accepted.');
+  });
+
+  /* ══════════════════════════════════════════
+     TOAST NOTIFICATIONS
+     ══════════════════════════════════════════ */
+  const toastContainer = document.getElementById('toastContainer');
+
+  function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = '<span class="toast-icon">&#9889;</span>' + msg;
+    toastContainer.appendChild(toast);
+    setTimeout(function() {
+      toast.classList.add('out');
+      setTimeout(function() { toast.remove(); }, 300);
+    }, 2500);
+  }
+
+  /* ══════════════════════════════════════════
+     TYPEWRITER EFFECT
+     ══════════════════════════════════════════ */
+  const typedEl = document.getElementById('typedText');
+  const phrases = [
+    'Magical Mischief Since 1996',
+    'Enchanted Confections',
+    'Pranks & Potions',
+    'Delightful Danger'
+  ];
+  let phraseIdx = 0, charIdx = 0, deleting = false;
+
+  function typeLoop() {
+    if (prefersReducedMotion) {
+      typedEl.textContent = phrases[0];
+      typedEl.style.borderRight = 'none';
+      return;
+    }
+    const phrase = phrases[phraseIdx];
+    if (!deleting) {
+      typedEl.textContent = phrase.substring(0, charIdx + 1);
+      charIdx++;
+      if (charIdx >= phrase.length) {
+        setTimeout(function() { deleting = true; typeLoop(); }, 2000);
+        return;
+      }
+      setTimeout(typeLoop, 60 + Math.random() * 40);
+    } else {
+      typedEl.textContent = phrase.substring(0, charIdx);
+      charIdx--;
+      if (charIdx < 0) {
+        deleting = false;
+        charIdx = 0;
+        phraseIdx = (phraseIdx + 1) % phrases.length;
+        setTimeout(typeLoop, 400);
+        return;
+      }
+      setTimeout(typeLoop, 30);
+    }
+  }
+  setTimeout(typeLoop, 800);
+
+  /* ══════════════════════════════════════════
+     NUMBER COUNTER ANIMATION
+     ══════════════════════════════════════════ */
+  const statNums = document.querySelectorAll('.hero-stat-num');
+  let countersStarted = false;
+
+  function animateCounters() {
+    if (countersStarted || prefersReducedMotion) return;
+    countersStarted = true;
+    statNums.forEach(function(el) {
+      const target = parseInt(el.dataset.count);
+      const noPlus = el.dataset.noPlus === 'true';
+      const duration = 2000;
+      const start = performance.now();
+
+      function step(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(eased * target);
+        el.textContent = current.toLocaleString() + (progress >= 1 && !noPlus ? '+' : '');
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  const heroStatObserver = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting) animateCounters();
+  }, { threshold: 0.5 });
+  const statsEl = document.querySelector('.hero-stats');
+  if (statsEl) heroStatObserver.observe(statsEl);
+
+  /* ══════════════════════════════════════════
+     TESTIMONIAL CAROUSEL
+     ══════════════════════════════════════════ */
+  const track = document.getElementById('testimonialTrack');
+  const dots = document.querySelectorAll('.carousel-dot');
+  const prevBtn = document.getElementById('carouselPrev');
+  const nextBtn = document.getElementById('carouselNext');
+  const slides = track.querySelectorAll('.testimonial-card');
+  let currentSlide = 0;
+
+  function goToSlide(idx) {
+    if (idx < 0) idx = slides.length - 1;
+    if (idx >= slides.length) idx = 0;
+    currentSlide = idx;
+    track.style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
+    track.style.transition = 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)';
+    dots.forEach(function(d, i) {
+      d.classList.toggle('active', i === currentSlide);
+      d.setAttribute('aria-selected', i === currentSlide);
+    });
+  }
+
+  prevBtn.addEventListener('click', function() { goToSlide(currentSlide - 1); });
+  nextBtn.addEventListener('click', function() { goToSlide(currentSlide + 1); });
+  dots.forEach(function(dot, i) {
+    dot.addEventListener('click', function() { goToSlide(i); });
+  });
+
+  // Auto-advance
+  let autoSlide;
+  function startAutoSlide() {
+    autoSlide = setInterval(function() { goToSlide(currentSlide + 1); }, 5000);
+  }
+  function stopAutoSlide() { clearInterval(autoSlide); }
+
+  if (!prefersReducedMotion) startAutoSlide();
+  const carousel = document.querySelector('.testimonial-carousel');
+  if (carousel) {
+    carousel.addEventListener('mouseenter', stopAutoSlide);
+    carousel.addEventListener('mouseleave', function() { if (!prefersReducedMotion) startAutoSlide(); });
+  }
+
+  // Keyboard navigation for carousel
+  document.addEventListener('keydown', function(e) {
+    if (!carousel || !carousel.matches(':hover')) return;
+    if (e.key === 'ArrowLeft') { goToSlide(currentSlide - 1); stopAutoSlide(); }
+    if (e.key === 'ArrowRight') { goToSlide(currentSlide + 1); stopAutoSlide(); }
+  });
+
+  /* ══════════════════════════════════════════
+     CONTACT FORM
+     ══════════════════════════════════════════ */
+  document.getElementById('contactSubmit').addEventListener('click', function() {
+    const name = document.getElementById('contactName').value;
+    if (name.trim()) {
+      showToast('Owl dispatched! We\'ll reply soon, ' + name.split(' ')[0] + '.');
+    } else {
+      showToast('Please fill in your name before sending an owl!');
+    }
+  });
+
+  /* ══════════════════════════════════════════
+     NEWSLETTER
+     ══════════════════════════════════════════ */
+  document.getElementById('newsletterBtn').addEventListener('click', function() {
+    const input = document.querySelector('.newsletter-input');
+    if (input.value.includes('@')) {
+      showToast('Subscribed! Watch the skies for our owls.');
+      input.value = '';
+    } else {
+      showToast('Please enter a valid owl address.');
+    }
+  });
+
+  /* ══════════════════════════════════════════
+     SMOOTH SCROLL WITH NAV OFFSET
+     ══════════════════════════════════════════ */
+  document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function(e) {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      const offset = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--nav-height')) + 16;
+      const top = target.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top: top, behavior: 'smooth' });
+    });
+  });
+
+})();
+</script>
+
+</body>
+</html>

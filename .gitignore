@@ -46,6 +46,8 @@ data/**
 !data/
 !data/getting-started/
 !data/getting-started/**
+!data/cabinet-example/
+!data/cabinet-example/**
 !data/CLAUDE.md
 
 # claude code

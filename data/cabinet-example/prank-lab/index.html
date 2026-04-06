@@ -6,101 +6,200 @@
     <title>Prank Lab</title>
     <style>
       :root {
-        --dark: #101512;
-        --slime: #97ff6a;
-        --acid: #d2ff53;
-        --amber: #ffae42;
+        --bg-dark: #08100b;
+        --bg-surface: #111e15;
+        --neon-green: #97ff6a;
+        --neon-acid: #d2ff53;
+        --status-stable: #4ade80;
+        --status-caution: #ffae42;
+        --status-volatile: #ff5f6d;
+        --blue: #6cb4ee;
         --text: #f7ffe8;
         --muted: rgba(247, 255, 232, 0.72);
         --panel: rgba(17, 30, 21, 0.78);
         --line: rgba(151, 255, 106, 0.18);
+        --radius-panel: 24px;
+        --radius-card: 18px;
       }
 
-      * { box-sizing: border-box; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      * { box-sizing: border-box; margin: 0; }
 
       body {
-        margin: 0;
         min-height: 100vh;
         color: var(--text);
-        font-family: "Trebuchet MS", "Avenir Next", sans-serif;
+        font-family: "Inter", "Segoe UI", system-ui, sans-serif;
         background:
-          radial-gradient(circle at 20% 0%, rgba(151,255,106,0.18), transparent 22%),
-          radial-gradient(circle at 80% 0%, rgba(255,174,66,0.16), transparent 20%),
-          linear-gradient(160deg, #08100b 0%, #162019 48%, var(--dark) 100%);
+          radial-gradient(circle at 20% 0%, rgba(151,255,106,0.14), transparent 28%),
+          radial-gradient(circle at 80% 0%, rgba(255,174,66,0.10), transparent 24%),
+          linear-gradient(168deg, #08100b 0%, #162019 48%, var(--bg-dark) 100%);
+        overflow-x: hidden;
+        line-height: 1.5;
       }
 
+      /* Focus visible */
+      :focus-visible {
+        outline: 2px solid var(--neon-green);
+        outline-offset: 2px;
+      }
+
+      button:focus-visible {
+        outline: 2px solid var(--neon-green);
+        outline-offset: 2px;
+        box-shadow: 0 0 12px rgba(151,255,106,0.3);
+      }
+
+      /* ===== HEADER BAR ===== */
+      .header-bar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 24px;
+        background: rgba(8, 16, 11, 0.85);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .header-title {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--neon-green);
+        text-shadow: 0 0 20px rgba(151,255,106,0.5), 0 0 40px rgba(151,255,106,0.2);
+        flex-shrink: 0;
+      }
+
+      .header-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: rgba(151,255,106,0.12);
+        border: 1px solid rgba(151,255,106,0.2);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--neon-green);
+      }
+
+      .header-badge .pulse-dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--neon-green);
+        animation: pulse-dot 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse-dot {
+        0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--neon-green); }
+        50% { opacity: 0.4; box-shadow: none; }
+      }
+
+      .header-spacer { flex: 1; }
+
+      .header-clock {
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+
+      .header-sound-btn {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 12px;
+        color: var(--muted);
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.15s;
+      }
+
+      .header-sound-btn:hover { background: rgba(255,255,255,0.1); }
+      .header-sound-btn.muted { opacity: 0.5; }
+
+      .header-emergency-btn {
+        background: linear-gradient(135deg, rgba(255,95,109,0.25), rgba(255,95,109,0.12));
+        border: 1px solid rgba(255,95,109,0.35);
+        border-radius: 999px;
+        padding: 6px 16px;
+        color: var(--status-volatile);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: box-shadow 0.2s, transform 0.15s;
+      }
+
+      .header-emergency-btn:hover {
+        box-shadow: 0 0 20px rgba(255,95,109,0.3);
+        transform: scale(1.03);
+      }
+
+      /* ===== SHELL ===== */
       .shell {
-        max-width: 1320px;
+        max-width: 1400px;
         margin: 0 auto;
-        padding: 28px 18px 34px;
-      }
-
-      .hero,
-      .grid {
-        display: grid;
-        gap: 18px;
-      }
-
-      .hero {
-        grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
-      }
-
-      .grid {
-        margin-top: 18px;
-        grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+        padding: 24px 20px 40px;
       }
 
       .panel {
-        border-radius: 30px;
+        border-radius: var(--radius-panel);
         border: 1px solid var(--line);
         background: var(--panel);
         backdrop-filter: blur(16px);
-        box-shadow: 0 24px 56px rgba(2, 10, 5, 0.35);
+        box-shadow: 0 20px 50px rgba(2, 10, 5, 0.3);
       }
 
-      .hero-copy,
-      .aside,
-      .section {
-        padding: 24px;
-      }
-
-      .eyebrow {
+      .section-label {
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.22em;
-        color: var(--slime);
+        color: var(--neon-green);
+        margin-bottom: 4px;
       }
 
-      h1 {
-        margin: 12px 0 14px;
+      h1 { font-size: 28px; font-weight: 800; line-height: 1.15; }
+      h2 { font-size: 20px; font-weight: 700; }
+      h3 { font-size: 16px; font-weight: 700; }
+      p { color: var(--muted); line-height: 1.6; }
+
+      /* ===== TOP ROW: Hero + Gauges ===== */
+      .top-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
+      .hero-panel { padding: 28px; }
+
+      .hero-panel h1 {
+        margin: 10px 0 12px;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(42px, 5.8vw, 74px);
-        line-height: 0.92;
+        font-size: clamp(32px, 4vw, 48px);
+        line-height: 1.05;
       }
 
-      p { margin: 0; color: var(--muted); line-height: 1.55; }
-
-      .meter {
-        margin-top: 18px;
-        height: 16px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.08);
-        overflow: hidden;
-        border: 1px solid var(--line);
-      }
-
-      .meter-fill {
-        height: 100%;
-        width: 62%;
-        background: linear-gradient(90deg, var(--slime), var(--amber));
-        transition: width 250ms ease;
-      }
-
-      .actions {
+      .hero-actions {
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
-        margin-top: 18px;
+        margin-top: 20px;
       }
 
       button {
@@ -108,54 +207,718 @@
         border: 1px solid var(--line);
         background: rgba(255,255,255,0.08);
         color: var(--text);
-        padding: 10px 14px;
+        padding: 10px 18px;
         font: inherit;
+        font-size: 14px;
         cursor: pointer;
+        transition: transform 0.15s, box-shadow 0.2s, background 0.15s;
       }
 
-      .cta {
-        background: linear-gradient(135deg, rgba(151,255,106,0.2), rgba(255,174,66,0.2));
+      button:hover { transform: scale(1.03); }
+
+      .cta-btn {
+        background: linear-gradient(135deg, rgba(151,255,106,0.22), rgba(210,255,83,0.15));
+        border-color: rgba(151,255,106,0.3);
+        font-weight: 700;
+        padding: 12px 24px;
+        font-size: 15px;
       }
 
-      .cards,
-      .alerts {
+      .cta-btn:hover {
+        box-shadow: 0 0 24px rgba(151,255,106,0.2);
+      }
+
+      .cta-btn.running {
+        pointer-events: none;
+        opacity: 0.7;
+      }
+
+      .cta-btn .spinner {
+        display: none;
+        width: 14px; height: 14px;
+        border: 2px solid transparent;
+        border-top-color: var(--neon-green);
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        margin-right: 6px;
+      }
+
+      .cta-btn.running .spinner { display: inline-block; }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* ===== GAUGES ===== */
+      .gauges-panel { padding: 24px; }
+
+      .gauges-grid {
         display: grid;
-        gap: 12px;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 14px;
+      }
+
+      .gauge-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .gauge-svg-wrap {
+        position: relative;
+        width: 120px;
+        height: 120px;
+      }
+
+      .gauge-svg {
+        transform: rotate(-90deg);
+        width: 120px;
+        height: 120px;
+      }
+
+      .gauge-bg {
+        fill: none;
+        stroke: rgba(255,255,255,0.06);
+        stroke-width: 10;
+        stroke-linecap: round;
+      }
+
+      .gauge-fill {
+        fill: none;
+        stroke-width: 10;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 1.8s cubic-bezier(0.22, 1, 0.36, 1),
+                    stroke 0.6s ease;
+        filter: drop-shadow(0 0 6px var(--gauge-color, var(--neon-green)));
+      }
+
+      .gauge-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .gauge-icon { font-size: 18px; line-height: 1; }
+
+      .gauge-value {
+        font-size: 26px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+      }
+
+      .gauge-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      /* ===== MIDDLE ROW: Timeline + Experiments ===== */
+      .mid-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
         margin-top: 18px;
       }
 
-      .card,
-      .alert {
-        padding: 16px;
-        border-radius: 22px;
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.06);
+      /* Timeline */
+      .timeline-panel { padding: 24px; }
+
+      .timeline-list {
+        margin-top: 14px;
+        position: relative;
+        max-height: 440px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(151,255,106,0.2) transparent;
       }
 
-      .top {
+      .timeline-list::before {
+        content: '';
+        position: absolute;
+        left: 7px;
+        top: 12px;
+        bottom: 12px;
+        width: 2px;
+        background: var(--line);
+      }
+
+      .tl-entry {
         display: flex;
-        justify-content: space-between;
-        gap: 12px;
+        gap: 14px;
+        padding: 10px 0;
+        position: relative;
+        cursor: pointer;
+      }
+
+      .tl-entry.new-entry {
+        animation: slide-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      @keyframes slide-in {
+        from { opacity: 0; transform: translateX(-16px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .tl-dot {
+        width: 16px; height: 16px;
+        border-radius: 50%;
+        border: 3px solid var(--bg-dark);
+        flex-shrink: 0;
+        z-index: 1;
+        margin-top: 1px;
+        transition: box-shadow 0.2s;
+      }
+
+      .tl-dot.green { background: var(--status-stable); }
+      .tl-dot.amber { background: var(--status-caution); }
+      .tl-dot.red { background: var(--status-volatile); }
+
+      .tl-entry:hover .tl-dot {
+        box-shadow: 0 0 8px currentColor;
+      }
+
+      .tl-body { flex: 1; min-width: 0; }
+
+      .tl-meta {
+        display: flex;
         align-items: center;
+        gap: 8px;
+      }
+
+      .tl-time {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--neon-green);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tl-category {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+
+      .tl-category.candy { background: rgba(151,255,106,0.15); color: var(--neon-green); }
+      .tl-category.prank { background: rgba(255,174,66,0.15); color: var(--status-caution); }
+      .tl-category.safety { background: rgba(255,95,109,0.15); color: var(--status-volatile); }
+      .tl-category.general { background: rgba(108,180,238,0.15); color: var(--blue); }
+
+      .tl-text {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.45;
+        margin-top: 3px;
+      }
+
+      .tl-detail {
+        display: none;
+        margin-top: 6px;
+        padding: 8px 12px;
+        background: rgba(255,255,255,0.04);
+        border-radius: 10px;
+        font-size: 12px;
+        color: rgba(247,255,232,0.55);
+        line-height: 1.5;
+      }
+
+      .tl-entry.expanded .tl-detail { display: block; animation: fade-in 0.3s ease; }
+
+      .tl-load-more {
+        text-align: center;
+        padding: 10px;
+      }
+
+      .tl-load-more button {
+        font-size: 12px;
+        padding: 6px 16px;
+        opacity: 0.6;
+      }
+
+      /* Experiments */
+      .experiments-panel { padding: 24px; }
+
+      .exp-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .exp-card {
+        padding: 18px;
+        border-radius: var(--radius-card);
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.04);
+        cursor: pointer;
+        transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+      }
+
+      .exp-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 32px rgba(2, 10, 5, 0.5);
+      }
+
+      .exp-card:hover.accent-green { border-color: rgba(151,255,106,0.35); }
+      .exp-card:hover.accent-red { border-color: rgba(255,95,109,0.35); }
+      .exp-card:hover.accent-amber { border-color: rgba(255,174,66,0.35); }
+      .exp-card:hover.accent-blue { border-color: rgba(108,180,238,0.35); }
+
+      .exp-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .exp-icon {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+
+      .exp-icon.green-bg { background: rgba(151,255,106,0.12); }
+      .exp-icon.red-bg { background: rgba(255,95,109,0.12); }
+      .exp-icon.amber-bg { background: rgba(255,174,66,0.12); }
+      .exp-icon.blue-bg { background: rgba(108,180,238,0.12); }
+
+      .exp-title-area { flex: 1; min-width: 0; }
+
+      .exp-name {
+        font-size: 14px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .exp-type {
+        font-size: 11px;
+        color: rgba(247,255,232,0.45);
+        margin-top: 1px;
       }
 
       .badge {
         border-radius: 999px;
-        padding: 6px 10px;
+        padding: 3px 10px;
         font-size: 11px;
         font-weight: 700;
+        flex-shrink: 0;
       }
 
-      .stable { background: rgba(151,255,106,0.18); color: #e8ffd7; }
-      .testing { background: rgba(255,174,66,0.18); color: #fff1d2; }
-      .danger { background: rgba(255,95,143,0.18); color: #ffd9e6; }
+      .badge-stable { background: rgba(151,255,106,0.18); color: #e8ffd7; }
+      .badge-testing { background: rgba(255,174,66,0.18); color: #fff1d2; }
+      .badge-volatile { background: rgba(255,95,143,0.18); color: #ffd9e6; }
+      .badge-brewing { background: rgba(108,180,238,0.18); color: #d4edff; }
 
+      .exp-progress-track {
+        margin-top: 12px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.06);
+        overflow: hidden;
+      }
+
+      .exp-progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        transition: width 1s ease;
+      }
+
+      .exp-progress-fill.green { background: var(--status-stable); }
+      .exp-progress-fill.amber { background: var(--status-caution); }
+      .exp-progress-fill.red { background: var(--status-volatile); }
+      .exp-progress-fill.blue { background: var(--blue); }
+
+      .exp-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        font-size: 12px;
+        color: rgba(247,255,232,0.45);
+      }
+
+      .exp-finding {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.4;
+        font-style: italic;
+      }
+
+      .exp-researcher {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .avatar-init {
+        width: 20px; height: 20px;
+        border-radius: 50%;
+        background: rgba(151,255,106,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--neon-green);
+      }
+
+      .exp-expanded-area {
+        display: none;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .exp-card.expanded .exp-expanded-area { display: block; animation: fade-in 0.3s ease; }
+
+      .risk-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        margin-right: 6px;
+      }
+
+      .risk-low { background: rgba(74,222,128,0.15); color: var(--status-stable); }
+      .risk-medium { background: rgba(255,174,66,0.15); color: var(--status-caution); }
+      .risk-high { background: rgba(255,95,109,0.15); color: var(--status-volatile); }
+
+      /* ===== BOTTOM ROW: Environment + Inventory ===== */
+      .bottom-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .env-panel, .inv-panel { padding: 24px; }
+
+      /* Environment Monitor */
+      .env-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .env-item {
+        padding: 14px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--line);
+      }
+
+      .env-item-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: rgba(247,255,232,0.45);
+        margin-bottom: 6px;
+      }
+
+      .env-item-value {
+        font-size: 22px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .env-item-status {
+        font-size: 11px;
+        margin-top: 4px;
+      }
+
+      .env-item-status.ok { color: var(--status-stable); }
+      .env-item-status.warn { color: var(--status-caution); }
+
+      .cauldron-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .cauldron-indicator {
+        flex: 1;
+        padding: 10px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--line);
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .cauldron-indicator .cauldron-dot {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        margin: 0 auto 6px;
+      }
+
+      .cauldron-dot.green { background: var(--status-stable); box-shadow: 0 0 8px var(--status-stable); }
+      .cauldron-dot.amber { background: var(--status-caution); box-shadow: 0 0 8px var(--status-caution); }
+      .cauldron-dot.red { background: var(--status-volatile); box-shadow: 0 0 8px var(--status-volatile); }
+
+      /* Inventory */
+      .inv-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .inv-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--line);
+        font-size: 13px;
+        transition: background 0.15s;
+      }
+
+      .inv-tag .inv-name { font-weight: 600; }
+
+      .inv-tag .inv-qty {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.06);
+      }
+
+      .inv-tag.low {
+        border-color: rgba(255,174,66,0.3);
+        background: rgba(255,174,66,0.06);
+      }
+
+      .inv-tag.low .inv-qty {
+        background: rgba(255,174,66,0.2);
+        color: var(--status-caution);
+      }
+
+      .inv-tag.critical {
+        border-color: rgba(255,95,109,0.3);
+        background: rgba(255,95,109,0.06);
+      }
+
+      .inv-tag.critical .inv-qty {
+        background: rgba(255,95,109,0.2);
+        color: var(--status-volatile);
+      }
+
+      .reorder-btn {
+        margin-top: 14px;
+        font-size: 13px;
+        padding: 8px 16px;
+        background: rgba(108,180,238,0.12);
+        border-color: rgba(108,180,238,0.25);
+        color: var(--blue);
+        font-weight: 600;
+      }
+
+      .reorder-btn:hover {
+        box-shadow: 0 0 16px rgba(108,180,238,0.2);
+      }
+
+      /* ===== RESULT POPUP ===== */
+      .result-popup {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.9);
+        z-index: 80;
+        padding: 32px 40px;
+        border-radius: 24px;
+        text-align: center;
+        max-width: 440px;
+        width: 90%;
+        backdrop-filter: blur(20px);
+        animation: popup-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+
+      .result-popup.visible {
+        display: block;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      @keyframes popup-in {
+        from { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
+        to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
+
+      .result-popup.success {
+        background: linear-gradient(160deg, rgba(17,30,21,0.95), rgba(20,40,25,0.95));
+        border: 2px solid rgba(151,255,106,0.35);
+        box-shadow: 0 0 60px rgba(151,255,106,0.15);
+      }
+
+      .result-popup.warning {
+        background: linear-gradient(160deg, rgba(30,25,17,0.95), rgba(40,32,20,0.95));
+        border: 2px solid rgba(255,174,66,0.35);
+        box-shadow: 0 0 60px rgba(255,174,66,0.15);
+      }
+
+      .result-popup.failure {
+        background: linear-gradient(160deg, rgba(30,17,17,0.95), rgba(40,20,20,0.95));
+        border: 2px solid rgba(255,95,109,0.35);
+        box-shadow: 0 0 60px rgba(255,95,109,0.15);
+      }
+
+      .result-popup h3 {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        margin-bottom: 10px;
+      }
+
+      .result-popup .result-text {
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .result-popup .result-dismiss {
+        margin-top: 18px;
+        padding: 8px 20px;
+        font-size: 13px;
+      }
+
+      /* ===== ALERT OVERLAY (Emergency Shutdown) ===== */
+      .alert-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        justify-content: center;
+        align-items: center;
+        transition: background 0.5s;
+      }
+
+      .alert-overlay.open {
+        display: flex;
+        background: rgba(8, 4, 4, 0.95);
+        backdrop-filter: blur(12px);
+      }
+
+      .alert-overlay.flash-border {
+        box-shadow: inset 0 0 0 6px rgba(255,95,109,0.6);
+        animation: flash-border 0.3s ease 3;
+      }
+
+      @keyframes flash-border {
+        0%, 100% { box-shadow: inset 0 0 0 6px rgba(255,95,109,0.6); }
+        50% { box-shadow: inset 0 0 0 6px rgba(255,95,109,0.1); }
+      }
+
+      .alert-box {
+        background: linear-gradient(160deg, #1a0a0a, #2d1212);
+        border: 2px solid rgba(255,95,109,0.45);
+        border-radius: 28px;
+        padding: 40px;
+        text-align: center;
+        max-width: 460px;
+        width: 90%;
+        box-shadow: 0 0 80px rgba(255,95,109,0.2);
+        animation: shake 0.6s ease;
+      }
+
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        15% { transform: translateX(-10px) rotate(-1deg); }
+        30% { transform: translateX(10px) rotate(1deg); }
+        45% { transform: translateX(-7px); }
+        60% { transform: translateX(7px); }
+        75% { transform: translateX(-3px); }
+      }
+
+      .alert-warning-stripes {
+        height: 6px;
+        background: repeating-linear-gradient(
+          90deg,
+          var(--status-volatile) 0px,
+          var(--status-volatile) 12px,
+          transparent 12px,
+          transparent 24px
+        );
+        border-radius: 999px;
+        margin-bottom: 20px;
+        animation: stripe-move 0.5s linear infinite;
+      }
+
+      @keyframes stripe-move {
+        to { background-position: 24px 0; }
+      }
+
+      .alert-box h2 {
+        color: var(--status-volatile);
+        font-size: 26px;
+        font-family: Georgia, serif;
+      }
+
+      .alert-box p {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .alert-countdown {
+        margin-top: 16px;
+        font-size: 32px;
+        font-weight: 800;
+        color: var(--status-volatile);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .alert-countdown-label {
+        font-size: 12px;
+        color: rgba(255,255,255,0.4);
+        margin-top: 4px;
+      }
+
+      .alert-dismiss-btn {
+        margin-top: 20px;
+        padding: 12px 28px;
+        background: rgba(255,95,109,0.2);
+        border-color: rgba(255,95,109,0.35);
+        font-weight: 700;
+        color: var(--status-volatile);
+      }
+
+      /* ===== CONFETTI ===== */
       #confetti-layer {
         position: fixed;
         inset: 0;
         pointer-events: none;
         overflow: hidden;
-        z-index: 3;
+        z-index: 60;
       }
 
       .confetti {
@@ -172,131 +935,693 @@
         }
       }
 
-      @media (max-width: 980px) {
-        .hero,
-        .grid {
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 1024px) {
+        .top-row, .mid-row, .bottom-row {
           grid-template-columns: 1fr;
         }
+        .exp-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .shell { padding: 14px 12px 30px; }
+        .header-bar { padding: 10px 14px; gap: 10px; }
+        .header-badge, .header-clock { display: none; }
+        .gauges-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+        .exp-grid { grid-template-columns: 1fr; }
+        .env-grid { grid-template-columns: 1fr; }
+        .hero-panel h1 { font-size: 24px; }
       }
     </style>
   </head>
   <body>
     <div id="confetti-layer" aria-hidden="true"></div>
-    <div class="shell">
-      <section class="hero">
-        <div class="panel hero-copy">
-          <div class="eyebrow">Prank R and D</div>
-          <h1>Test the joke. Measure the danger. Respect neither too much.</h1>
-          <p>
-            Internal lab console for tracking new candy effects, prank safety, and
-            whether a product is ready for sale or still best described as "educational smoke."
-          </p>
-          <div class="meter" aria-label="Hilarity meter">
-            <div class="meter-fill" id="meter-fill"></div>
-          </div>
-          <div class="actions">
-            <button class="cta" id="run-trial">🧪 Run trial</button>
-            <button id="raise-chaos">💥 Raise hilarity</button>
-          </div>
-        </div>
 
-        <aside class="panel aside">
-          <div class="eyebrow">Lab Rules</div>
-          <p>
-            1. Do not test on siblings without paperwork.
-            2. Do not bottle swamp weather.
-            3. If Luna says it hums kindly, write that down.
-          </p>
-        </aside>
-      </section>
-
-      <section class="grid">
-        <div class="panel section">
-          <div class="eyebrow">Active experiments</div>
-          <div class="cards" id="experiment-cards"></div>
-        </div>
-
-        <div class="panel section">
-          <div class="eyebrow">Lab alerts</div>
-          <div class="alerts">
-            <div class="alert">
-              <div class="top">
-                <strong>🐥 Canary Cream timing</strong>
-                <span class="badge testing">Tuning</span>
-              </div>
-              <p style="margin-top: 10px;">Still slightly too funny during formal introductions.</p>
-            </div>
-            <div class="alert">
-              <div class="top">
-                <strong>🌫 Portable Swamp Taffy</strong>
-                <span class="badge danger">Volatile</span>
-              </div>
-              <p style="margin-top: 10px;">Beautiful effect. Hallway ethics remain unresolved.</p>
-            </div>
-            <div class="alert">
-              <div class="top">
-                <strong>✨ Moonbeam shimmer blend</strong>
-                <span class="badge stable">Stable</span>
-              </div>
-              <p style="margin-top: 10px;">Premium enough to charge extra and smile while doing it.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    <!-- Result Popup -->
+    <div class="result-popup" id="result-popup" role="alert" aria-live="assertive">
+      <h3 id="result-label">Result</h3>
+      <div class="result-text" id="result-text"></div>
+      <button class="result-dismiss" id="result-dismiss" aria-label="Dismiss result">OK</button>
     </div>
 
-    <script>
-      const experiments = [
-        { name: "Moonbeam Meltdrops shimmer test", lead: "✨ Fred", state: "stable", note: "Elegant sparkle with zero sticky fallout." },
-        { name: "Portable Swamp Taffy puff trial", lead: "💥 George", state: "danger", note: "Great visuals. Questionable hallway rights." },
-        { name: "Patronus Pop Rocks glow blend", lead: "🦁 Hermione", state: "testing", note: "Needs cleaner finish and better crackle pacing." },
-      ];
+    <!-- Emergency Shutdown Overlay -->
+    <div class="alert-overlay" id="alert-overlay" role="dialog" aria-modal="true" aria-labelledby="alert-heading">
+      <div class="alert-box">
+        <div class="alert-warning-stripes" aria-hidden="true"></div>
+        <h2 id="alert-heading">EMERGENCY SHUTDOWN</h2>
+        <p>
+          All cauldrons extinguished. Swamp Taffy contained. Peeves notified (thrilled). Fred is pretending he meant to do that.
+        </p>
+        <p style="margin-top: 6px; color: var(--status-volatile); font-size: 12px;">
+          Estimated restart: whenever George stops laughing.
+        </p>
+        <div class="alert-countdown" id="alert-countdown" aria-live="polite">5</div>
+        <div class="alert-countdown-label">Systems resuming in...</div>
+        <button class="alert-dismiss-btn" id="alert-dismiss" aria-label="Resume lab operations">Resume Operations</button>
+      </div>
+    </div>
 
-      const cardsRoot = document.getElementById("experiment-cards");
-      const confettiLayer = document.getElementById("confetti-layer");
-      const meterFill = document.getElementById("meter-fill");
-      let meter = 62;
+    <!-- ===== HEADER BAR ===== -->
+    <header class="header-bar" role="banner">
+      <span class="header-title" aria-label="Prank Lab">PRANK LAB</span>
+      <span class="header-badge" aria-label="4 experiments running"><span class="pulse-dot" aria-hidden="true"></span> Experiments: 4</span>
+      <div class="header-spacer"></div>
+      <time class="header-clock" id="header-clock" aria-label="Current time"></time>
+      <button class="header-sound-btn muted" id="sound-toggle" aria-label="Toggle sound effects" aria-pressed="false">
+        <span aria-hidden="true">🔇</span> Sound
+      </button>
+      <button class="header-emergency-btn" id="emergency-shutdown" aria-label="Emergency shutdown">
+        <span aria-hidden="true">⚠</span> Shutdown
+      </button>
+    </header>
 
-      function renderCards() {
-        cardsRoot.innerHTML = experiments.map((item) => `
-          <article class="card">
-            <div class="top">
-              <strong>${item.name}</strong>
-              <span class="badge ${item.state}">${item.state}</span>
+    <main class="shell" role="main">
+      <!-- TOP ROW: Hero + Gauges -->
+      <section class="top-row" aria-label="Lab overview">
+        <div class="panel hero-panel">
+          <div class="section-label">Weasley Prank R&amp;D Division</div>
+          <h1>Test the joke. Measure the danger. Respect neither too much.</h1>
+          <p>
+            Internal lab console for tracking candy effects, prank safety ratings,
+            and whether a product is ready for sale or still best described as "educational smoke."
+          </p>
+          <div class="hero-actions">
+            <button class="cta-btn" id="run-experiment" aria-label="Run a new experiment">
+              <span class="spinner" aria-hidden="true"></span>
+              <span id="run-btn-text">Run Experiment</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="panel gauges-panel" aria-label="Lab meters">
+          <div class="section-label">Lab Meters</div>
+          <div class="gauges-grid" role="list">
+            <div class="gauge-item" role="listitem" aria-label="Hilarity Index: 78%">
+              <div class="gauge-svg-wrap">
+                <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="gauge-bg" cx="60" cy="60" r="50" />
+                  <circle class="gauge-fill" id="gauge-hilarity" cx="60" cy="60" r="50"
+                    stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                    data-target="78" style="stroke: var(--status-stable); --gauge-color: var(--status-stable);" />
+                </svg>
+                <div class="gauge-center">
+                  <span class="gauge-icon">😂</span>
+                  <span class="gauge-value" id="gauge-val-hilarity" data-target="78">0</span>
+                </div>
+              </div>
+              <div class="gauge-label">Hilarity Index</div>
             </div>
-            <p style="margin-top: 10px;">Lead: ${item.lead}</p>
-            <p style="margin-top: 6px;">${item.note}</p>
-          </article>
-        `).join("");
+
+            <div class="gauge-item" role="listitem" aria-label="Safety Rating: 62%">
+              <div class="gauge-svg-wrap">
+                <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="gauge-bg" cx="60" cy="60" r="50" />
+                  <circle class="gauge-fill" id="gauge-safety" cx="60" cy="60" r="50"
+                    stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                    data-target="62" style="stroke: var(--status-caution); --gauge-color: var(--status-caution);" />
+                </svg>
+                <div class="gauge-center">
+                  <span class="gauge-icon">🛡️</span>
+                  <span class="gauge-value" id="gauge-val-safety" data-target="62">0</span>
+                </div>
+              </div>
+              <div class="gauge-label">Safety Rating</div>
+            </div>
+
+            <div class="gauge-item" role="listitem" aria-label="Stability: 45%">
+              <div class="gauge-svg-wrap">
+                <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="gauge-bg" cx="60" cy="60" r="50" />
+                  <circle class="gauge-fill" id="gauge-stability" cx="60" cy="60" r="50"
+                    stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                    data-target="45" style="stroke: var(--status-volatile); --gauge-color: var(--status-volatile);" />
+                </svg>
+                <div class="gauge-center">
+                  <span class="gauge-icon">⚗️</span>
+                  <span class="gauge-value" id="gauge-val-stability" data-target="45">0</span>
+                </div>
+              </div>
+              <div class="gauge-label">Stability</div>
+            </div>
+
+            <div class="gauge-item" role="listitem" aria-label="Customer Excitement: 91%">
+              <div class="gauge-svg-wrap">
+                <svg class="gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="gauge-bg" cx="60" cy="60" r="50" />
+                  <circle class="gauge-fill" id="gauge-excitement" cx="60" cy="60" r="50"
+                    stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                    data-target="91" style="stroke: var(--blue); --gauge-color: var(--blue);" />
+                </svg>
+                <div class="gauge-center">
+                  <span class="gauge-icon">🎆</span>
+                  <span class="gauge-value" id="gauge-val-excitement" data-target="91">0</span>
+                </div>
+              </div>
+              <div class="gauge-label">Excitement</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MIDDLE ROW: Timeline + Experiments -->
+      <section class="mid-row" aria-label="Activity and experiments">
+        <div class="panel timeline-panel">
+          <div class="section-label">Experiment Timeline</div>
+          <h2>Lab Log</h2>
+          <div class="timeline-list" id="timeline-list" role="log" aria-label="Experiment log entries"></div>
+          <div class="tl-load-more">
+            <button id="load-more-btn" aria-label="Load older log entries">Load earlier entries</button>
+          </div>
+        </div>
+
+        <div class="panel experiments-panel">
+          <div class="section-label">Active Experiments</div>
+          <h2>Current Projects</h2>
+          <div class="exp-grid" id="exp-grid" role="list" aria-label="Experiment cards"></div>
+        </div>
+      </section>
+
+      <!-- BOTTOM ROW: Environment + Inventory -->
+      <section class="bottom-row" aria-label="Lab environment and inventory">
+        <div class="panel env-panel">
+          <div class="section-label">Lab Environment</div>
+          <h2>Monitor</h2>
+          <div class="env-grid">
+            <div class="env-item">
+              <div class="env-item-label">Temperature</div>
+              <div class="env-item-value" id="env-temp">23°C</div>
+              <div class="env-item-status ok" id="env-temp-status">Optimal</div>
+            </div>
+            <div class="env-item">
+              <div class="env-item-label">Humidity</div>
+              <div class="env-item-value" id="env-humidity">45%</div>
+              <div class="env-item-status ok" id="env-humidity-status">Nominal</div>
+            </div>
+            <div class="env-item">
+              <div class="env-item-label">Air Quality</div>
+              <div class="env-item-value" id="env-air">97%</div>
+              <div class="env-item-status ok" id="env-air-status">Fumes nominal</div>
+            </div>
+            <div class="env-item">
+              <div class="env-item-label">Potion Vapor</div>
+              <div class="env-item-value" id="env-vapor">12 ppm</div>
+              <div class="env-item-status ok" id="env-vapor-status">Within tolerance</div>
+            </div>
+          </div>
+          <h3 style="margin-top: 18px;">Cauldron Bay Status</h3>
+          <div class="cauldron-row" role="list" aria-label="Cauldron statuses">
+            <div class="cauldron-indicator" role="listitem">
+              <div class="cauldron-dot green" id="cauldron-1-dot" aria-hidden="true"></div>
+              Bay 1
+            </div>
+            <div class="cauldron-indicator" role="listitem">
+              <div class="cauldron-dot green" id="cauldron-2-dot" aria-hidden="true"></div>
+              Bay 2
+            </div>
+            <div class="cauldron-indicator" role="listitem">
+              <div class="cauldron-dot amber" id="cauldron-3-dot" aria-hidden="true"></div>
+              Bay 3
+            </div>
+          </div>
+        </div>
+
+        <div class="panel inv-panel">
+          <div class="section-label">Experiment Inventory</div>
+          <h2>Ingredient Stock</h2>
+          <div class="inv-grid" id="inv-grid" role="list" aria-label="Ingredient inventory"></div>
+          <button class="reorder-btn" id="reorder-btn" aria-label="Reorder low-stock ingredients">Reorder Low Stock</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      /* ============================================================
+         PRANK LAB — Weasley R&D Console
+         Self-contained. No external dependencies.
+         ============================================================ */
+
+      // ===== CLOCK =====
+      function updateClock() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('header-clock').textContent = h + ':' + m + ':' + s;
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+
+      // ===== GAUGE ANIMATION =====
+      const CIRC = 2 * Math.PI * 50; // 314.16
+
+      function getGaugeColor(pct) {
+        if (pct >= 70) return 'var(--status-stable)';
+        if (pct >= 40) return 'var(--status-caution)';
+        return 'var(--status-volatile)';
       }
 
-      function burstConfetti() {
-        const symbols = ["🧪", "✨", "💥", "🍬", "🪄"];
-        for (let i = 0; i < 24; i += 1) {
-          const node = document.createElement("span");
-          node.className = "confetti";
-          node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-          node.style.left = `${Math.random() * 100}vw`;
-          node.style.setProperty("--x", `${(Math.random() - 0.5) * 160}px`);
-          confettiLayer.appendChild(node);
-          window.setTimeout(() => node.remove(), 1600);
+      function animateGauges() {
+        document.querySelectorAll('.gauge-fill').forEach(circle => {
+          const target = parseInt(circle.dataset.target);
+          const offset = CIRC - (CIRC * target / 100);
+          circle.style.strokeDashoffset = offset;
+        });
+
+        document.querySelectorAll('.gauge-value').forEach(el => {
+          const target = parseInt(el.dataset.target);
+          const duration = 1800;
+          const start = performance.now();
+          function step(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(eased * target);
+            if (progress < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        });
+      }
+
+      function updateGauge(id, newVal) {
+        newVal = Math.max(0, Math.min(100, newVal));
+        const circle = document.getElementById('gauge-' + id);
+        const valEl = document.getElementById('gauge-val-' + id);
+        if (!circle || !valEl) return;
+
+        circle.dataset.target = newVal;
+        valEl.dataset.target = newVal;
+
+        const offset = CIRC - (CIRC * newVal / 100);
+        circle.style.strokeDashoffset = offset;
+
+        // Update color based on threshold
+        const color = getGaugeColor(newVal);
+        circle.style.stroke = color;
+        circle.style.setProperty('--gauge-color', color);
+
+        // Animate number
+        const current = parseInt(valEl.textContent) || 0;
+        const duration = 800;
+        const start = performance.now();
+        function step(now) {
+          const progress = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          valEl.textContent = Math.round(current + (newVal - current) * eased);
+          if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+
+        // Update aria
+        const item = circle.closest('.gauge-item');
+        if (item) {
+          const label = item.querySelector('.gauge-label').textContent;
+          item.setAttribute('aria-label', label + ': ' + newVal + '%');
         }
       }
 
-      document.getElementById("run-trial").addEventListener("click", () => {
-        burstConfetti();
-        experiments[1].state = "testing";
-        experiments[1].note = "Better containment. Still deeply suspicious.";
-        renderCards();
+      setTimeout(animateGauges, 400);
+
+      // ===== TIMELINE LOG =====
+      const timelineLogs = [
+        { time: "14:32", cat: "candy", text: "Swamp Taffy batch 7: viscosity within tolerance", detail: "Batch passed 3/3 consistency tests. Ready for texture review with Lee Jordan.", dot: "green" },
+        { time: "14:18", cat: "candy", text: "Patronus Pop Rocks: glow duration extended to 4.2s", detail: "Phosphor compound adjusted. Glow color now dynamically matches caster intent. George calls it 'brilliant'.", dot: "green" },
+        { time: "13:55", cat: "candy", text: "Moonbeam Meltdrops shimmer test passed QA review", detail: "Zero sticky fallout across 50 samples. Packaging trial approved.", dot: "green" },
+        { time: "13:41", cat: "prank", text: "Invisible Ink Taffy: tongue reappearance still variable (3-7 min)", detail: "Duration variance too wide for retail. Need to stabilize binding agent. Fred volunteered as test subject again.", dot: "amber" },
+        { time: "13:12", cat: "safety", text: "Lab temperature spike in cauldron bay 3 — auto-vent activated", detail: "Spike reached 47°C before vent engaged. Root cause: unsupervised Swamp Taffy reaction. Bay 3 on amber status.", dot: "red" },
+        { time: "12:48", cat: "general", text: "New batch of Fizzing Whizzbees base solution prepared", detail: "500ml prepared. Levitation compound ratio adjusted per last week's feedback.", dot: "green" },
+      ];
+
+      const archiveLogs = [
+        { time: "12:15", cat: "prank", text: "Decoy Detonator v3: blast radius now configurable via wrapper twist", detail: "Three levels: subtle pop, standard bang, 'George special'. Marketing approved.", dot: "green" },
+        { time: "11:48", cat: "safety", text: "Canary Cream feather density audit completed", detail: "Feather density at 142/cm² — 12% above target. Subjects report 'extra fluffy'. Adjusting down.", dot: "amber" },
+        { time: "11:30", cat: "candy", text: "Skiving Snackbox: new Truancy Toffee flavor passes blind taste test", detail: "8/10 testers preferred it over Nosebleed Nougat. Production greenlit.", dot: "green" },
+        { time: "10:55", cat: "prank", text: "Extendable Ear sensitivity boosted — now picks up whispers at 30m", detail: "Magical acoustic amplifier re-tuned. Filch test scheduled for Thursday.", dot: "green" },
+        { time: "10:22", cat: "safety", text: "Puking Pastille aftertaste formula improved", detail: "Now 'merely unpleasant' per George. Major improvement from 'actively hostile'.", dot: "amber" },
+      ];
+
+      const randomLogPool = [
+        { cat: "candy", text: "Canary Cream feather density increased by 12% — 'extra fluffy'", detail: "Subjects transformed for 4.2s average. Feather softness rated 9/10." },
+        { cat: "prank", text: "Swamp Taffy batch 8: puff radius within acceptable corridor width", detail: "Hallway coverage reduced to 2.1m. Filch avoidance probability: 73%." },
+        { cat: "candy", text: "Patronus Pop Rocks: new crackle rhythm — 'pleasantly startling'", detail: "Rhythm pattern #7 selected. Resembles tiny fireworks. Lee Jordan wants a crate." },
+        { cat: "candy", text: "Moonbeam Meltdrops: shelf stability confirmed at 6 months", detail: "No shimmer degradation detected. Packaging can proceed to production." },
+        { cat: "prank", text: "Invisible Ink Taffy: tongue reappears with faint shimmer effect", detail: "Unintended but delightful side effect. George wants to keep it." },
+        { cat: "safety", text: "Emergency: Fred ate three Canary Creams at once — feathers everywhere", detail: "Full transformation lasted 28 seconds. Lab cleanup took 15 minutes. Fred is fine and laughing." },
+        { cat: "candy", text: "Nosebleed Nougat reformulation: onset time reduced to 2.3 seconds", detail: "Fast enough for classroom use. Recovery candy effectiveness unchanged." },
+        { cat: "prank", text: "Decoy Detonator prototype: explosion radius 15% over spec", detail: "Needs adjustment before retail. Current version reserved for 'special occasions'." },
+        { cat: "general", text: "Ton-Tongue Toffee v3: effect now user-selectable via wrapper color", detail: "Blue = 30s, green = 60s, red = 'surprise me'. Dudley Dursley would not approve." },
+        { cat: "safety", text: "Cauldron bay 2 auto-clean cycle completed successfully", detail: "All residue cleared. Bay 2 back to green status." },
+        { cat: "candy", text: "New shimmer compound tested — 40% brighter with zero toxicity", detail: "Potential upgrade for Moonbeam Meltdrops and Patronus Pop Rocks." },
+        { cat: "prank", text: "Portable Swamp miniature version: fits in a pocket", detail: "1/10 scale. Perfect for 'desk pranks'. Fred is extremely excited." },
+      ];
+
+      const timelineList = document.getElementById('timeline-list');
+
+      function renderTimeline(logs, animate) {
+        timelineList.innerHTML = logs.map((entry, i) => {
+          const isNew = animate && i === 0;
+          return '<div class="tl-entry' + (isNew ? ' new-entry' : '') + '" tabindex="0" role="article" aria-label="' + entry.time + ' — ' + entry.text + '">' +
+            '<div class="tl-dot ' + entry.dot + '" aria-hidden="true"></div>' +
+            '<div class="tl-body">' +
+              '<div class="tl-meta">' +
+                '<span class="tl-time">' + entry.time + '</span>' +
+                '<span class="tl-category ' + entry.cat + '">' + entry.cat + '</span>' +
+              '</div>' +
+              '<div class="tl-text">' + entry.text + '</div>' +
+              '<div class="tl-detail">' + (entry.detail || 'No additional details.') + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        // Expand/collapse on click
+        timelineList.querySelectorAll('.tl-entry').forEach(el => {
+          el.addEventListener('click', () => el.classList.toggle('expanded'));
+          el.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.classList.toggle('expanded'); }
+          });
+        });
+      }
+
+      renderTimeline(timelineLogs, false);
+
+      // Load more
+      let archiveLoaded = false;
+      document.getElementById('load-more-btn').addEventListener('click', () => {
+        if (archiveLoaded) return;
+        archiveLoaded = true;
+        archiveLogs.forEach(log => timelineLogs.push(log));
+        renderTimeline(timelineLogs, false);
+        document.getElementById('load-more-btn').textContent = 'All entries loaded';
+        document.getElementById('load-more-btn').disabled = true;
       });
 
-      document.getElementById("raise-chaos").addEventListener("click", () => {
-        meter = Math.min(100, meter + 9);
-        meterFill.style.width = `${meter}%`;
-        burstConfetti();
+      // ===== EXPERIMENT CARDS =====
+      const experiments = [
+        {
+          name: "Moonbeam Meltdrops", icon: "🌙", type: "Candy / Shimmer Effect",
+          status: "Stable", statusClass: "badge-stable", accent: "accent-green", iconBg: "green-bg",
+          progressColor: "green", progress: 88,
+          finding: "Elegant sparkle with zero sticky fallout. Ready for packaging trial.",
+          researcher: "F", researcherName: "Fred", days: 34,
+          risk: "low", riskLabel: "Low Risk",
+          notes: "Shimmer intensity optimal at 3.2 lux. Consumer testing showed 94% satisfaction. Packaging mockups approved by both twins. Launch target: next Hogsmeade weekend."
+        },
+        {
+          name: "Swamp Taffy v2", icon: "🐊", type: "Prank / Environmental",
+          status: "Volatile", statusClass: "badge-volatile", accent: "accent-red", iconBg: "red-bg",
+          progressColor: "red", progress: 41,
+          finding: "Great visuals. Hallway ethics remain unresolved. Radius reduced 40%.",
+          researcher: "G", researcherName: "George", days: 52,
+          risk: "high", riskLabel: "High Risk",
+          notes: "Radius containment improved but still exceeds safe corridor width in 2/5 tests. Filch incident rate must drop below 15% before retail. Fred suggests we 'just go for it' — motion denied."
+        },
+        {
+          name: "Patronus Pop Rocks", icon: "✨", type: "Candy / Glow Effect",
+          status: "Testing", statusClass: "badge-testing", accent: "accent-amber", iconBg: "amber-bg",
+          progressColor: "amber", progress: 63,
+          finding: "Crackle pacing needs work. Glow now matches caster's Patronus.",
+          researcher: "F", researcherName: "Fred", days: 21,
+          risk: "medium", riskLabel: "Medium Risk",
+          notes: "Glow color calibration is the breakthrough feature. Crackle rhythm pattern #7 selected after 12 iterations. Duration target: 5 seconds. Current: 4.2 seconds. Close enough for beta release."
+        },
+        {
+          name: "Invisible Ink Taffy", icon: "👻", type: "Prank / Stealth",
+          status: "Brewing", statusClass: "badge-brewing", accent: "accent-blue", iconBg: "blue-bg",
+          progressColor: "blue", progress: 28,
+          finding: "Temporary tongue transparency. Duration unpredictable (3-7 min).",
+          researcher: "G", researcherName: "George", days: 14,
+          risk: "medium", riskLabel: "Medium Risk",
+          notes: "Binding agent instability causes duration variance. Three formulation paths under evaluation. Unexpected shimmer-on-reappearance effect discovered — keeping it. George has tested on himself 11 times this week."
+        }
+      ];
+
+      function renderExperiments() {
+        const grid = document.getElementById('exp-grid');
+        grid.innerHTML = experiments.map((exp, i) =>
+          '<div class="exp-card ' + exp.accent + '" role="listitem" tabindex="0" data-idx="' + i + '">' +
+            '<div class="exp-header">' +
+              '<div class="exp-icon ' + exp.iconBg + '" aria-hidden="true">' + exp.icon + '</div>' +
+              '<div class="exp-title-area">' +
+                '<div class="exp-name">' + exp.name + '</div>' +
+                '<div class="exp-type">' + exp.type + '</div>' +
+              '</div>' +
+              '<span class="badge ' + exp.statusClass + '">' + exp.status + '</span>' +
+            '</div>' +
+            '<div class="exp-progress-track"><div class="exp-progress-fill ' + exp.progressColor + '" style="width: ' + exp.progress + '%;"></div></div>' +
+            '<div class="exp-finding">"' + exp.finding + '"</div>' +
+            '<div class="exp-meta">' +
+              '<div class="exp-researcher"><div class="avatar-init">' + exp.researcher + '</div> ' + exp.researcherName + '</div>' +
+              '<div>' + exp.days + ' days active</div>' +
+            '</div>' +
+            '<div class="exp-expanded-area">' +
+              '<div style="margin-bottom:8px;"><span class="risk-badge risk-' + exp.risk + '">' + exp.riskLabel + '</span> Risk Assessment</div>' +
+              '<p style="color:var(--muted);font-size:12px;line-height:1.5;">' + exp.notes + '</p>' +
+            '</div>' +
+          '</div>'
+        ).join('');
+
+        grid.querySelectorAll('.exp-card').forEach(card => {
+          card.addEventListener('click', () => card.classList.toggle('expanded'));
+          card.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.classList.toggle('expanded'); }
+          });
+        });
+      }
+
+      renderExperiments();
+
+      // ===== INVENTORY =====
+      const inventory = [
+        { name: "Phoenix Feather Dust", qty: 12, unit: "units" },
+        { name: "Bundimun Secretion", qty: 8, unit: "vials" },
+        { name: "Billywig Stings", qty: 24, unit: "units" },
+        { name: "Ashwinder Eggs", qty: 3, unit: "units" },
+        { name: "Mooncalf Dung", qty: 18, unit: "scoops" },
+        { name: "Doxy Venom", qty: 5, unit: "drops" },
+        { name: "Fizzing Whizzbee Base", qty: 42, unit: "ml" },
+        { name: "Niffler Glitter", qty: 7, unit: "pinches" },
+        { name: "Streeler Venom", qty: 2, unit: "drops" },
+        { name: "Dragon Claw Powder", qty: 15, unit: "grams" },
+      ];
+
+      function getStockClass(qty) {
+        if (qty <= 3) return 'critical';
+        if (qty <= 7) return 'low';
+        return '';
+      }
+
+      function renderInventory() {
+        const grid = document.getElementById('inv-grid');
+        grid.innerHTML = inventory.map(item => {
+          const cls = getStockClass(item.qty);
+          return '<div class="inv-tag ' + cls + '" role="listitem">' +
+            '<span class="inv-name">' + item.name + '</span>' +
+            '<span class="inv-qty">' + item.qty + ' ' + item.unit + '</span>' +
+          '</div>';
+        }).join('');
+      }
+
+      renderInventory();
+
+      document.getElementById('reorder-btn').addEventListener('click', () => {
+        inventory.forEach(item => {
+          if (item.qty <= 7) item.qty += 10 + Math.floor(Math.random() * 10);
+        });
+        renderInventory();
+        addTimelineEntry("general", "Resupply order placed — low-stock ingredients restocked", "Owl dispatch sent to suppliers. Expected delivery: tomorrow morning.", "green");
       });
 
-      renderCards();
+      // ===== ENVIRONMENT MONITOR =====
+      function fluctuateEnv() {
+        const temp = 22 + Math.random() * 3;
+        const humidity = 42 + Math.random() * 8;
+        const air = 94 + Math.random() * 5;
+        const vapor = 8 + Math.random() * 10;
+
+        document.getElementById('env-temp').textContent = temp.toFixed(1) + '°C';
+        document.getElementById('env-temp-status').textContent = temp > 24 ? 'Slightly warm' : 'Optimal';
+        document.getElementById('env-temp-status').className = 'env-item-status ' + (temp > 24 ? 'warn' : 'ok');
+
+        document.getElementById('env-humidity').textContent = Math.round(humidity) + '%';
+        document.getElementById('env-humidity-status').textContent = humidity > 48 ? 'Elevated' : 'Nominal';
+        document.getElementById('env-humidity-status').className = 'env-item-status ' + (humidity > 48 ? 'warn' : 'ok');
+
+        document.getElementById('env-air').textContent = Math.round(air) + '%';
+        document.getElementById('env-air-status').textContent = air < 95 ? 'Fumes rising' : 'Fumes nominal';
+        document.getElementById('env-air-status').className = 'env-item-status ' + (air < 95 ? 'warn' : 'ok');
+
+        document.getElementById('env-vapor').textContent = Math.round(vapor) + ' ppm';
+        document.getElementById('env-vapor-status').textContent = vapor > 15 ? 'Monitor closely' : 'Within tolerance';
+        document.getElementById('env-vapor-status').className = 'env-item-status ' + (vapor > 15 ? 'warn' : 'ok');
+
+        // Cauldron bays — randomize bay 3 status
+        const bay3rand = Math.random();
+        const bay3dot = document.getElementById('cauldron-3-dot');
+        bay3dot.className = 'cauldron-dot ' + (bay3rand > 0.7 ? 'red' : bay3rand > 0.3 ? 'amber' : 'green');
+      }
+
+      setInterval(fluctuateEnv, 4000);
+
+      // ===== CONFETTI =====
+      const confettiLayer = document.getElementById('confetti-layer');
+
+      function burstConfetti() {
+        const symbols = ["\uD83E\uDDEA", "\u2728", "\uD83D\uDCA5", "\uD83C\uDF6C", "\uD83E\uDE84", "\uD83C\uDF1F"];
+        for (let i = 0; i < 30; i++) {
+          const node = document.createElement('span');
+          node.className = 'confetti';
+          node.setAttribute('aria-hidden', 'true');
+          node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+          node.style.left = (Math.random() * 100) + 'vw';
+          node.style.setProperty('--x', ((Math.random() - 0.5) * 200) + 'px');
+          node.style.animationDelay = (Math.random() * 200) + 'ms';
+          confettiLayer.appendChild(node);
+          setTimeout(() => node.remove(), 1800);
+        }
+      }
+
+      // ===== TIMELINE HELPERS =====
+      function addTimelineEntry(cat, text, detail, dot) {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        timelineLogs.unshift({ time: h + ':' + m, cat: cat, text: text, detail: detail || '', dot: dot || 'green' });
+        if (timelineLogs.length > 20) timelineLogs.pop();
+        renderTimeline(timelineLogs, true);
+        timelineList.scrollTop = 0;
+      }
+
+      // ===== RUN EXPERIMENT =====
+      const experimentOutcomes = [
+        { type: "success", text: "Shimmer intensity: OPTIMAL", icon: "✓" },
+        { type: "success", text: "Crackle rhythm synchronization: PERFECT", icon: "✓" },
+        { type: "success", text: "Flavor profile: approved by both twins", icon: "✓" },
+        { type: "success", text: "Glow duration: exceeded target by 18%", icon: "✓" },
+        { type: "success", text: "Zero side effects detected in trial batch", icon: "✓" },
+        { type: "warning", text: "WARNING: Unexpected color change in batch 4", icon: "⚠" },
+        { type: "warning", text: "WARNING: Fizz intensity 23% above threshold", icon: "⚠" },
+        { type: "warning", text: "WARNING: Slight tongue-tingling side effect", icon: "⚠" },
+        { type: "warning", text: "WARNING: Scent profile shifted to 'burnt caramel'", icon: "⚠" },
+        { type: "failure", text: "CRITICAL: Mild explosion in cauldron 3", icon: "✕" },
+        { type: "failure", text: "CRITICAL: Subject sprouted temporary antlers", icon: "✕" },
+        { type: "failure", text: "CRITICAL: Batch collapsed into sentient goo", icon: "✕" },
+      ];
+
+      const runBtn = document.getElementById('run-experiment');
+      const resultPopup = document.getElementById('result-popup');
+      const resultText = document.getElementById('result-text');
+      const resultLabel = document.getElementById('result-label');
+      let experimentRunning = false;
+
+      runBtn.addEventListener('click', () => {
+        if (experimentRunning) return;
+        experimentRunning = true;
+        runBtn.classList.add('running');
+        document.getElementById('run-btn-text').textContent = 'Running...';
+
+        setTimeout(() => {
+          burstConfetti();
+
+          const outcome = experimentOutcomes[Math.floor(Math.random() * experimentOutcomes.length)];
+
+          // Show result popup
+          resultPopup.className = 'result-popup visible ' + (outcome.type === 'success' ? 'success' : outcome.type === 'warning' ? 'warning' : 'failure');
+          resultLabel.textContent = outcome.type === 'success' ? 'EXPERIMENT RESULT' : outcome.type === 'warning' ? 'EXPERIMENT CAUTION' : 'EXPERIMENT FAILURE';
+          resultText.textContent = outcome.icon + ' ' + outcome.text;
+
+          // Update a random gauge
+          const gaugeIds = ['hilarity', 'safety', 'stability', 'excitement'];
+          const randomGauge = gaugeIds[Math.floor(Math.random() * gaugeIds.length)];
+          const currentVal = parseInt(document.getElementById('gauge-val-' + randomGauge).textContent) || 50;
+          const delta = outcome.type === 'success' ? Math.floor(Math.random() * 12) + 3
+                      : outcome.type === 'warning' ? Math.floor(Math.random() * 8) - 4
+                      : -(Math.floor(Math.random() * 15) + 5);
+          updateGauge(randomGauge, currentVal + delta);
+
+          // Add timeline entry
+          const cat = outcome.type === 'failure' ? 'safety' : outcome.type === 'warning' ? 'prank' : 'candy';
+          const dot = outcome.type === 'failure' ? 'red' : outcome.type === 'warning' ? 'amber' : 'green';
+          const poolEntry = randomLogPool[Math.floor(Math.random() * randomLogPool.length)];
+          addTimelineEntry(cat, poolEntry.text, poolEntry.detail, dot);
+
+          // Reset button
+          runBtn.classList.remove('running');
+          document.getElementById('run-btn-text').textContent = 'Run Experiment';
+          experimentRunning = false;
+        }, 2000);
+      });
+
+      // Dismiss result
+      document.getElementById('result-dismiss').addEventListener('click', () => {
+        resultPopup.className = 'result-popup';
+      });
+
+      // ===== EMERGENCY SHUTDOWN =====
+      const alertOverlay = document.getElementById('alert-overlay');
+      const alertCountdown = document.getElementById('alert-countdown');
+      let shutdownTimer = null;
+
+      document.getElementById('emergency-shutdown').addEventListener('click', () => {
+        // Flash border phase
+        alertOverlay.classList.add('open', 'flash-border');
+
+        setTimeout(() => {
+          alertOverlay.classList.remove('flash-border');
+        }, 1000);
+
+        // Countdown
+        let count = 5;
+        alertCountdown.textContent = count;
+        clearInterval(shutdownTimer);
+        shutdownTimer = setInterval(() => {
+          count--;
+          alertCountdown.textContent = count;
+          if (count <= 0) {
+            clearInterval(shutdownTimer);
+            alertOverlay.classList.remove('open');
+            addTimelineEntry("safety", "Emergency shutdown triggered — all systems paused for 5 seconds", "Full shutdown procedure executed. All cauldrons extinguished. Systems resumed automatically.", "red");
+          }
+        }, 1000);
+      });
+
+      document.getElementById('alert-dismiss').addEventListener('click', () => {
+        clearInterval(shutdownTimer);
+        alertOverlay.classList.remove('open');
+        addTimelineEntry("safety", "Emergency shutdown manually dismissed — operations resumed", "Operator override accepted. All bays returning to active status.", "amber");
+      });
+
+      alertOverlay.addEventListener('click', e => {
+        if (e.target === alertOverlay) {
+          clearInterval(shutdownTimer);
+          alertOverlay.classList.remove('open');
+        }
+      });
+
+      // Keyboard: Escape to dismiss overlays
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          if (alertOverlay.classList.contains('open')) {
+            clearInterval(shutdownTimer);
+            alertOverlay.classList.remove('open');
+          }
+          if (resultPopup.classList.contains('visible')) {
+            resultPopup.className = 'result-popup';
+          }
+        }
+      });
+
+      // ===== SOUND TOGGLE =====
+      const soundBtn = document.getElementById('sound-toggle');
+      let soundOn = false;
+
+      soundBtn.addEventListener('click', () => {
+        soundOn = !soundOn;
+        soundBtn.innerHTML = soundOn
+          ? '<span aria-hidden="true">🔊</span> Sound'
+          : '<span aria-hidden="true">🔇</span> Sound';
+        soundBtn.classList.toggle('muted', !soundOn);
+        soundBtn.setAttribute('aria-pressed', soundOn);
+      });
     </script>
   </body>
 </html>

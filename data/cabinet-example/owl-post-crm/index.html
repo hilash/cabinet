@@ -8,317 +8,2102 @@
       :root {
         --night: #091221;
         --night-2: #12284b;
+        --night-3: #0a1628;
         --gold: #f4c96d;
+        --gold-dim: rgba(244, 201, 109, 0.15);
         --ice: #9ad8ff;
         --lavender: #b7a7ff;
         --text: #edf5ff;
-        --muted: rgba(237, 245, 255, 0.74);
-        --panel: rgba(12, 26, 49, 0.78);
-        --line: rgba(173, 220, 255, 0.18);
+        --muted: rgba(237, 245, 255, 0.6);
+        --panel: rgba(12, 26, 49, 0.82);
+        --line: rgba(173, 220, 255, 0.14);
+        --line-strong: rgba(173, 220, 255, 0.28);
+        --col-cold: #60a5fa;
+        --col-warm: #fbbf24;
+        --col-hot: #f87171;
+        --col-closed: #4ade80;
+        --radius-sm: 10px;
+        --radius-md: 16px;
+        --radius-lg: 24px;
+        --radius-pill: 999px;
+        --shadow-card: 0 4px 16px rgba(0,0,0,0.25);
+        --shadow-card-hover: 0 12px 32px rgba(0,0,0,0.4);
+        --shadow-card-drag: 0 20px 48px rgba(0,0,0,0.5);
+        --transition-fast: 0.15s ease;
+        --transition-med: 0.25s ease;
       }
 
-      * { box-sizing: border-box; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
 
       body {
-        margin: 0;
         min-height: 100vh;
-        font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+        font-family: "Avenir Next", "Inter", "Segoe UI", sans-serif;
         color: var(--text);
-        background:
-          radial-gradient(circle at 20% 10%, rgba(255,255,255,0.2), transparent 20%),
-          radial-gradient(circle at 80% 0%, rgba(154,216,255,0.18), transparent 20%),
-          linear-gradient(160deg, var(--night) 0%, var(--night-2) 100%);
+        background: linear-gradient(160deg, var(--night) 0%, var(--night-2) 50%, var(--night-3) 100%);
         overflow-x: hidden;
+        line-height: 1.5;
       }
 
+      /* Star field */
       .stars {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        opacity: 0.55;
+        position: fixed; inset: 0;
+        pointer-events: none; opacity: 0.45;
         background-image:
-          radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px),
-          radial-gradient(circle, rgba(255,255,255,0.45) 1px, transparent 1px);
-        background-size: 120px 120px, 180px 180px;
-        background-position: 10px 20px, 60px 80px;
+          radial-gradient(circle, rgba(255,255,255,0.9) 1px, transparent 1px),
+          radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px),
+          radial-gradient(circle, rgba(255,255,255,0.3) 0.5px, transparent 0.5px);
+        background-size: 140px 140px, 200px 200px, 80px 80px;
+        background-position: 10px 20px, 60px 80px, 30px 50px;
+        z-index: 0;
       }
+
+      /* Focus visible */
+      :focus-visible {
+        outline: 2px solid var(--gold);
+        outline-offset: 2px;
+      }
+
+      button { font-family: inherit; border: none; cursor: pointer; }
+      input, textarea, select { font-family: inherit; }
 
       .shell {
-        position: relative;
-        z-index: 1;
-        max-width: 1380px;
+        position: relative; z-index: 1;
+        max-width: 1440px;
         margin: 0 auto;
-        padding: 28px 18px 34px;
-      }
-
-      .hero {
-        display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-        gap: 18px;
-      }
-
-      .panel {
-        border-radius: 30px;
-        border: 1px solid var(--line);
-        background: var(--panel);
-        backdrop-filter: blur(20px);
-        box-shadow: 0 22px 54px rgba(4, 10, 20, 0.35);
-      }
-
-      .hero-copy,
-      .hero-side,
-      .board-wrap {
-        padding: 24px;
-      }
-
-      .eyebrow {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.24em;
-        color: var(--ice);
-      }
-
-      h1 {
-        margin: 12px 0 12px;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(42px, 5.8vw, 74px);
-        line-height: 0.92;
-      }
-
-      p { margin: 0; color: var(--muted); line-height: 1.55; }
-
-      .filters {
+        padding: 20px 20px 40px;
         display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 18px;
+        gap: 0;
       }
 
-      .pill,
-      .send-button {
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        padding: 10px 14px;
-        background: rgba(255,255,255,0.06);
+      .main-content {
+        flex: 1;
+        min-width: 0;
+        transition: margin-right var(--transition-med);
+      }
+
+      .main-content.stats-open {
+        margin-right: 16px;
+      }
+
+      /* ── Header ── */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .brand {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--gold);
+        letter-spacing: -0.01em;
+      }
+
+      .brand-sub {
+        font-size: 12px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: var(--radius-pill);
+        padding: 9px 18px;
+        font-size: 13px;
+        font-weight: 600;
         color: var(--text);
-        font: inherit;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid var(--line);
+        transition: all var(--transition-fast);
+      }
+
+      .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+      .btn:active { transform: translateY(0); }
+
+      .btn-primary {
+        background: linear-gradient(135deg, rgba(244,201,109,0.25), rgba(154,216,255,0.18));
+        border-color: rgba(244,201,109,0.3);
+      }
+
+      .btn-primary:hover {
+        background: linear-gradient(135deg, rgba(244,201,109,0.35), rgba(154,216,255,0.25));
+        box-shadow: 0 4px 20px rgba(244,201,109,0.2);
+      }
+
+      .btn-icon {
+        width: 36px; height: 36px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-pill);
+        background: rgba(255,255,255,0.06);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 16px;
+        transition: all var(--transition-fast);
+      }
+
+      .btn-icon:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+      /* ── Quick Stats Bar ── */
+      .quick-stats {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 10px 18px;
+        border-radius: var(--radius-md);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        margin-bottom: 14px;
+        font-size: 13px;
+        flex-wrap: wrap;
+        backdrop-filter: blur(12px);
+      }
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+      }
+
+      .stat-item strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      .stat-divider {
+        width: 1px;
+        height: 16px;
+        background: var(--line);
+      }
+
+      /* ── Search & Filter Bar ── */
+      .filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+
+      .search-box {
+        position: relative;
+        flex: 0 1 260px;
+      }
+
+      .search-box svg {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        pointer-events: none;
+      }
+
+      .search-box input {
+        width: 100%;
+        padding: 9px 14px 9px 36px;
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.05);
+        color: var(--text);
+        font-size: 13px;
+        outline: none;
+        transition: border-color var(--transition-fast);
+      }
+
+      .search-box input::placeholder { color: var(--muted); }
+      .search-box input:focus { border-color: var(--gold); }
+
+      .filter-pills {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
       }
 
       .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--line);
+        padding: 7px 14px;
+        background: rgba(255,255,255,0.04);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
         cursor: pointer;
+        transition: all var(--transition-fast);
       }
 
-      .pill.active {
-        background: rgba(183,167,255,0.22);
+      .pill:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+      .pill.active { background: rgba(183,167,255,0.18); color: var(--lavender); border-color: rgba(183,167,255,0.35); }
+
+      .pill .pill-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        border-radius: var(--radius-pill);
+        background: rgba(255,255,255,0.1);
+        font-size: 10px;
+        font-weight: 700;
+        padding: 0 4px;
       }
 
-      .send-button {
-        margin-top: 18px;
+      .pill.active .pill-count {
+        background: rgba(183,167,255,0.25);
+      }
+
+      .sort-select {
+        padding: 7px 28px 7px 12px;
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.04);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        appearance: none;
         cursor: pointer;
-        background: linear-gradient(135deg, rgba(154,216,255,0.2), rgba(244,201,109,0.2));
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(237,245,255,0.6)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        outline: none;
       }
 
-      .board {
-        margin-top: 18px;
-        display: grid;
+      .sort-select:focus { border-color: var(--gold); }
+
+      .sort-select option {
+        background: var(--night-2);
+        color: var(--text);
+      }
+
+      /* ── Pipeline Funnel ── */
+      .pipeline-funnel {
+        margin-bottom: 14px;
+        border-radius: var(--radius-md);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 14px 18px;
+        backdrop-filter: blur(12px);
+      }
+
+      .funnel-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      .funnel-bar {
+        display: flex;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        background: rgba(255,255,255,0.03);
+      }
+
+      .funnel-seg {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 0;
+        transition: flex-basis 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 11px;
+        font-weight: 700;
+        color: rgba(0,0,0,0.7);
+        padding: 0 8px;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+
+      .funnel-seg[data-stage="cold"] { background: var(--col-cold); }
+      .funnel-seg[data-stage="warm"] { background: var(--col-warm); }
+      .funnel-seg[data-stage="hot"] { background: var(--col-hot); }
+      .funnel-seg[data-stage="closed"] { background: var(--col-closed); }
+
+      .funnel-seg .seg-label { opacity: 1; transition: opacity 0.3s; }
+
+      .funnel-totals {
+        display: flex;
         gap: 16px;
+        margin-top: 8px;
+      }
+
+      .funnel-total-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .funnel-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+      }
+
+      /* ── Kanban Board ── */
+      .board {
+        display: grid;
+        gap: 12px;
         grid-template-columns: repeat(4, minmax(0, 1fr));
       }
 
       .column {
-        border-radius: 26px;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.025);
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        transition: background var(--transition-med), border-color var(--transition-med);
+      }
+
+      .column.drag-over {
+        border-color: var(--lavender);
+      }
+
+      .column[data-stage="cold"].drag-over { background: rgba(96,165,250,0.06); }
+      .column[data-stage="warm"].drag-over { background: rgba(251,191,36,0.06); }
+      .column[data-stage="hot"].drag-over  { background: rgba(248,113,113,0.06); }
+      .column[data-stage="closed"].drag-over { background: rgba(74,222,128,0.06); }
+
+      .col-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .col-dot {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .col-dot[data-stage="cold"] { background: var(--col-cold); }
+      .col-dot[data-stage="warm"] { background: var(--col-warm); }
+      .col-dot[data-stage="hot"]  { background: var(--col-hot); }
+      .col-dot[data-stage="closed"] { background: var(--col-closed); }
+
+      .col-title {
+        font-size: 14px;
+        font-weight: 700;
+        flex: 1;
+      }
+
+      .col-count {
+        font-size: 11px;
+        color: var(--muted);
+        background: rgba(255,255,255,0.08);
+        padding: 2px 8px;
+        border-radius: var(--radius-pill);
+        font-weight: 600;
+      }
+
+      .col-value {
+        font-size: 11px;
+        color: var(--gold);
+        font-weight: 600;
+      }
+
+      .cards-container {
+        flex: 1;
+        padding: 10px;
+        overflow-y: auto;
+        max-height: 520px;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .cards-container::-webkit-scrollbar { width: 4px; }
+      .cards-container::-webkit-scrollbar-track { background: transparent; }
+      .cards-container::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+      .col-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 20px 12px;
+        flex: 1;
+        font-size: 12px;
+        color: var(--muted);
+        font-style: italic;
+        line-height: 1.5;
+      }
+
+      .col-footer {
+        padding: 8px 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .add-lead-btn {
+        width: 100%;
+        padding: 8px;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        border: 1px dashed var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+
+      .add-lead-btn:hover {
+        background: rgba(255,255,255,0.04);
+        border-color: var(--line-strong);
+        color: var(--text);
+      }
+
+      /* ── Lead Cards ── */
+      .card {
+        position: relative;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.055);
+        cursor: grab;
+        transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), border-color var(--transition-fast);
+        user-select: none;
+        overflow: hidden;
+      }
+
+      .card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-card-hover);
+        border-color: var(--line-strong);
+      }
+
+      .card:active { cursor: grabbing; }
+
+      .card.dragging {
+        opacity: 0.35;
+        transform: scale(0.95);
+      }
+
+      .card.kb-focused {
+        outline: 2px solid var(--gold);
+        outline-offset: -2px;
+      }
+
+      .card-stage-stripe {
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 4px;
+      }
+
+      .card-stage-stripe[data-stage="cold"] { background: var(--col-cold); }
+      .card-stage-stripe[data-stage="warm"] { background: var(--col-warm); }
+      .card-stage-stripe[data-stage="hot"]  { background: var(--col-hot); }
+      .card-stage-stripe[data-stage="closed"] { background: var(--col-closed); }
+
+      .card-body {
+        padding: 12px 12px 10px 16px;
+      }
+
+      .card-row-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .card-avatar {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 800;
+        flex-shrink: 0;
+        color: rgba(0,0,0,0.75);
+      }
+
+      .avatar-hogwarts { background: linear-gradient(135deg, #b7a7ff, #9ad8ff); }
+      .avatar-ministry { background: linear-gradient(135deg, #f4c96d, #f0a040); }
+      .avatar-business { background: linear-gradient(135deg, #4ade80, #60a5fa); }
+      .avatar-personal { background: linear-gradient(135deg, #f87171, #fbbf24); }
+
+      .card-name-block {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .card-name {
+        font-weight: 700;
+        font-size: 13px;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .card-affiliation {
+        font-size: 11px;
+        color: var(--ice);
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .card-value {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--gold);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .card-want {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .card-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 8px;
+      }
+
+      .card-timestamp {
+        font-size: 10px;
+        color: var(--muted);
+        opacity: 0.7;
+      }
+
+      .card-actions {
+        display: flex;
+        gap: 2px;
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+      }
+
+      .card:hover .card-actions { opacity: 1; }
+
+      .card-action-btn {
+        width: 26px; height: 26px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        color: var(--muted);
+        font-size: 13px;
+        border: none;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+
+      .card-action-btn:hover {
+        background: rgba(255,255,255,0.1);
+        color: var(--text);
+      }
+
+      .card-action-btn.priority-active {
+        color: var(--gold);
+      }
+
+      /* Card expanded */
+      .card-expanded {
+        display: none;
+        padding: 0 12px 12px 16px;
+        border-top: 1px solid var(--line);
+        margin-top: 0;
+      }
+
+      .card.expanded .card-expanded {
+        display: block;
+      }
+
+      .card-notes-area {
+        width: 100%;
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
         border: 1px solid var(--line);
         background: rgba(255,255,255,0.04);
-        padding: 14px;
+        color: var(--text);
+        font-size: 12px;
+        resize: vertical;
+        min-height: 60px;
+        outline: none;
       }
 
-      .column h2 {
-        margin: 0 0 12px;
-        font-size: 18px;
-      }
+      .card-notes-area:focus { border-color: var(--gold); }
 
-      .cards {
-        display: grid;
-        gap: 12px;
-      }
-
-      .card {
-        padding: 14px;
-        border-radius: 20px;
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.08);
-      }
-
-      .card-top {
+      .card-detail-row {
         display: flex;
         justify-content: space-between;
-        gap: 12px;
-        align-items: center;
+        padding: 6px 0;
+        font-size: 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
       }
 
-      .badge {
-        border-radius: 999px;
-        padding: 5px 9px;
-        font-size: 11px;
-        font-weight: 700;
-        background: rgba(244, 201, 109, 0.16);
-        color: #ffeab9;
-      }
+      .card-detail-label { color: var(--muted); }
+      .card-detail-value { color: var(--text); font-weight: 600; }
 
-      .detail {
-        margin-top: 8px;
+      /* ── Context Menu ── */
+      .context-menu {
+        display: none;
+        position: fixed;
+        z-index: 200;
+        min-width: 180px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(160deg, #0f1f3d, #162850);
+        border: 1px solid var(--line-strong);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+        padding: 4px;
         font-size: 13px;
+      }
+
+      .context-menu.open { display: block; }
+
+      .ctx-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        cursor: pointer;
+        border: none;
+        transition: background var(--transition-fast);
+      }
+
+      .ctx-item:hover { background: rgba(255,255,255,0.08); }
+
+      .ctx-item svg { flex-shrink: 0; }
+
+      .ctx-divider {
+        height: 1px;
+        background: var(--line);
+        margin: 4px 0;
+      }
+
+      .ctx-submenu {
+        position: relative;
+      }
+
+      .ctx-submenu-items {
+        display: none;
+        position: absolute;
+        left: 100%;
+        top: -4px;
+        min-width: 140px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(160deg, #0f1f3d, #162850);
+        border: 1px solid var(--line-strong);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        padding: 4px;
+      }
+
+      .ctx-submenu:hover .ctx-submenu-items { display: block; }
+
+      /* ── Sidebar Stats Panel ── */
+      .stats-panel {
+        width: 0;
+        overflow: hidden;
+        flex-shrink: 0;
+        transition: width var(--transition-med), opacity var(--transition-med);
+        opacity: 0;
+      }
+
+      .stats-panel.open {
+        width: 280px;
+        opacity: 1;
+      }
+
+      .stats-inner {
+        width: 280px;
+        border-radius: var(--radius-lg);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        backdrop-filter: blur(12px);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        height: fit-content;
+        position: sticky;
+        top: 20px;
+      }
+
+      .stats-section-title {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      .stat-big {
+        text-align: center;
+        padding: 12px;
+      }
+
+      .stat-big-value {
+        font-size: 36px;
+        font-weight: 800;
+        font-family: Georgia, serif;
+        color: var(--gold);
+      }
+
+      .stat-big-label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        font-size: 12px;
+      }
+
+      .stat-row-label { color: var(--muted); }
+      .stat-row-value { color: var(--text); font-weight: 700; }
+
+      /* Mini donut chart */
+      .donut-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .donut-chart {
+        width: 72px; height: 72px;
+        flex-shrink: 0;
+      }
+
+      .donut-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .donut-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
         color: var(--muted);
       }
 
-      #confetti-layer {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        overflow: hidden;
-        z-index: 3;
+      .donut-legend-dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
       }
 
-      .confetti {
+      /* Activity feed */
+      .activity-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .activity-item {
+        display: flex;
+        gap: 8px;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--muted);
+      }
+
+      .activity-icon {
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      .activity-time {
+        font-size: 10px;
+        opacity: 0.6;
+      }
+
+      /* ── Compose Owl Modal ── */
+      .modal-overlay {
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(9, 18, 33, 0.88);
+        backdrop-filter: blur(10px);
+        z-index: 100;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal-overlay.open { display: flex; }
+
+      .modal {
+        background: linear-gradient(160deg, #0f1f3d, #162850);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        padding: 28px;
+        width: 92%;
+        max-width: 520px;
+        box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      .modal h2 {
+        font-size: 22px;
+        font-family: Georgia, serif;
+        margin-bottom: 18px;
+        color: var(--gold);
+      }
+
+      .modal-field {
+        margin-bottom: 14px;
+      }
+
+      .modal-field label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--ice);
+        margin-bottom: 5px;
+        font-weight: 600;
+      }
+
+      .modal-field input,
+      .modal-field textarea,
+      .modal-field select {
+        width: 100%;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        padding: 10px 14px;
+        color: var(--text);
+        font-size: 13px;
+        outline: none;
+        transition: border-color var(--transition-fast);
+      }
+
+      .modal-field input:focus,
+      .modal-field textarea:focus,
+      .modal-field select:focus {
+        border-color: var(--gold);
+      }
+
+      .modal-field textarea { resize: vertical; min-height: 100px; }
+
+      .modal-field select option {
+        background: var(--night-2);
+        color: var(--text);
+      }
+
+      .autocomplete-wrap {
+        position: relative;
+      }
+
+      .autocomplete-list {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        background: linear-gradient(160deg, #0f1f3d, #162850);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-sm);
+        max-height: 160px;
+        overflow-y: auto;
+        margin-top: 2px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      }
+
+      .autocomplete-list.open { display: block; }
+
+      .autocomplete-item {
+        padding: 8px 14px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background var(--transition-fast);
+      }
+
+      .autocomplete-item:hover,
+      .autocomplete-item.highlighted {
+        background: rgba(255,255,255,0.08);
+      }
+
+      .char-count {
+        text-align: right;
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+
+      .schedule-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 6px;
+      }
+
+      .schedule-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 12px;
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.04);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+
+      .schedule-option.active {
+        background: rgba(183,167,255,0.18);
+        color: var(--lavender);
+        border-color: rgba(183,167,255,0.35);
+      }
+
+      .schedule-option:hover { background: rgba(255,255,255,0.08); }
+
+      .modal-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      .modal-actions .btn { flex: 1; justify-content: center; padding: 12px; }
+
+      /* Add Lead Modal */
+      .add-lead-modal .modal {
+        max-width: 440px;
+      }
+
+      /* ── Toast System ── */
+      .toast-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 300;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      .toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 18px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(160deg, #0f1f3d, #162850);
+        border: 1px solid var(--line-strong);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        pointer-events: auto;
+        animation: toast-in 0.3s ease forwards;
+        backdrop-filter: blur(12px);
+      }
+
+      .toast.toast-out {
+        animation: toast-out 0.3s ease forwards;
+      }
+
+      .toast-icon { flex-shrink: 0; }
+      .toast.toast-green .toast-icon { color: var(--col-closed); }
+      .toast.toast-gold .toast-icon  { color: var(--gold); }
+      .toast.toast-blue .toast-icon  { color: var(--col-cold); }
+
+      @keyframes toast-in {
+        from { opacity: 0; transform: translateY(12px) scale(0.95); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes toast-out {
+        from { opacity: 1; transform: translateY(0) scale(1); }
+        to   { opacity: 0; transform: translateY(12px) scale(0.95); }
+      }
+
+      /* ── Flying Owl Animation ── */
+      .owl-flight {
+        position: fixed;
+        z-index: 301;
+        font-size: 40px;
+        pointer-events: none;
+        animation: owl-fly 1.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+      }
+
+      @keyframes owl-fly {
+        0%   { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+        40%  { opacity: 1; transform: translate(30vw, -20vh) rotate(-10deg) scale(1.2); }
+        100% { opacity: 0; transform: translate(80vw, -50vh) rotate(-5deg) scale(0.6); }
+      }
+
+      /* ── Feather Animation ── */
+      #confetti-layer {
+        position: fixed; inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 101;
+      }
+
+      .feather {
         position: absolute;
         top: -10vh;
         font-size: 22px;
-        animation: fall 1500ms linear forwards;
+        animation: feather-fall 2200ms ease-out forwards;
       }
 
-      @keyframes fall {
-        to {
-          transform: translate3d(var(--x), 112vh, 0) rotate(540deg);
-          opacity: 0;
-        }
+      @keyframes feather-fall {
+        0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 1; }
+        100% { transform: translate3d(var(--x), 110vh, 0) rotate(var(--rot)); opacity: 0; }
+      }
+
+      /* ── Inline Add Lead Form ── */
+      .inline-add-form {
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        background: rgba(255,255,255,0.04);
+      }
+
+      .inline-add-form.open { display: flex; }
+
+      .inline-add-form input {
+        width: 100%;
+        padding: 7px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.05);
+        color: var(--text);
+        font-size: 12px;
+        outline: none;
+      }
+
+      .inline-add-form input:focus { border-color: var(--gold); }
+
+      .inline-add-actions {
+        display: flex;
+        gap: 4px;
+      }
+
+      .inline-add-actions button {
+        flex: 1;
+        padding: 6px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      /* ── Responsive ── */
+      @media (max-width: 1200px) {
+        .stats-panel.open { width: 240px; }
+        .stats-inner { width: 240px; }
       }
 
       @media (max-width: 1080px) {
-        .hero,
-        .board {
-          grid-template-columns: 1fr;
-        }
+        .board { grid-template-columns: 1fr 1fr; }
+        .stats-panel.open { width: 0; opacity: 0; }
+      }
+
+      @media (max-width: 640px) {
+        .board { grid-template-columns: 1fr; }
+        .shell { padding: 12px; }
+        .header { flex-direction: column; align-items: flex-start; }
+        .quick-stats { flex-direction: column; gap: 8px; }
+        .stat-divider { display: none; }
       }
     </style>
   </head>
   <body>
     <div class="stars" aria-hidden="true"></div>
     <div id="confetti-layer" aria-hidden="true"></div>
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-    <div class="shell">
-      <section class="hero">
-        <div class="panel hero-copy">
-          <div class="eyebrow">Sales Rituals</div>
-          <h1>Send the owl. Charm the lead. Close the galleons.</h1>
-          <p>
-            A dramatic CRM board for Fred and George to track relationships, gift-box
-            opportunities, and which customer needs elegant copy versus full-volume spectacle.
-          </p>
-          <div class="filters" id="filters">
-            <button class="pill active" data-filter="all">All Houses</button>
-            <button class="pill" data-filter="gryffindor">Gryffindor</button>
-            <button class="pill" data-filter="ravenclaw">Ravenclaw</button>
-            <button class="pill" data-filter="slytherin">Slytherin</button>
-            <button class="pill" data-filter="other">Other</button>
+    <!-- Compose Owl Modal -->
+    <div class="modal-overlay" id="modal-compose" role="dialog" aria-modal="true" aria-label="Compose Owl">
+      <div class="modal">
+        <h2>Compose Owl</h2>
+        <div class="modal-field">
+          <label for="owl-to">To</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="owl-to" placeholder="Start typing a lead name..." autocomplete="off" />
+            <div class="autocomplete-list" id="owl-autocomplete" role="listbox"></div>
           </div>
         </div>
+        <div class="modal-field">
+          <label for="owl-template">Template</label>
+          <select id="owl-template">
+            <option value="">-- Select template --</option>
+            <option value="intro">Introduction</option>
+            <option value="followup">Follow-up</option>
+            <option value="offer">Special Offer</option>
+            <option value="thankyou">Thank You</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label for="owl-subject">Subject</label>
+          <input type="text" id="owl-subject" placeholder="e.g. Exclusive preview of Moonbeam Meltdrops" />
+        </div>
+        <div class="modal-field">
+          <label for="owl-message">Message</label>
+          <textarea id="owl-message" placeholder="Write your owl post here..."></textarea>
+          <div class="char-count"><span id="owl-char-count">0</span> / 500</div>
+        </div>
+        <div class="modal-field">
+          <label>Schedule</label>
+          <div class="schedule-row">
+            <button class="schedule-option active" data-schedule="now">Send Now</button>
+            <button class="schedule-option" data-schedule="tomorrow">Tomorrow</button>
+            <button class="schedule-option" data-schedule="custom">Custom</button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" id="modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="modal-send">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            Send Owl
+          </button>
+        </div>
+      </div>
+    </div>
 
-        <aside class="panel hero-side">
-          <div class="eyebrow">Founder Shortlist</div>
-          <p>
-            Luna understands the brand.
-            Hermione respects quality.
-            Lee Jordan can sell chaos on air without even inhaling first.
-          </p>
-          <button class="send-button" id="send-owl">🦉 Send celebratory owl burst</button>
-        </aside>
-      </section>
+    <!-- Add Lead Modal -->
+    <div class="modal-overlay add-lead-modal" id="modal-add-lead" role="dialog" aria-modal="true" aria-label="Add Lead">
+      <div class="modal">
+        <h2>Add New Lead</h2>
+        <div class="modal-field">
+          <label for="new-lead-name">Name</label>
+          <input type="text" id="new-lead-name" placeholder="e.g. Cedric Diggory" />
+        </div>
+        <div class="modal-field">
+          <label for="new-lead-affiliation">Affiliation</label>
+          <input type="text" id="new-lead-affiliation" placeholder="e.g. Hufflepuff House" />
+        </div>
+        <div class="modal-field">
+          <label for="new-lead-category">Category</label>
+          <select id="new-lead-category">
+            <option value="hogwarts">Hogwarts</option>
+            <option value="ministry">Ministry</option>
+            <option value="business">Business</option>
+            <option value="personal">Personal</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label for="new-lead-want">Interest</label>
+          <input type="text" id="new-lead-want" placeholder="e.g. Quidditch care packages" />
+        </div>
+        <div class="modal-field">
+          <label for="new-lead-value">Deal Value (Galleons)</label>
+          <input type="number" id="new-lead-value" placeholder="e.g. 350" min="0" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn" id="add-lead-cancel">Cancel</button>
+          <button class="btn btn-primary" id="add-lead-confirm">Add Lead</button>
+        </div>
+      </div>
+    </div>
 
-      <section class="panel board-wrap">
-        <div class="eyebrow">Pipeline</div>
-        <div class="board" id="board"></div>
-      </section>
+    <!-- Context Menu -->
+    <div class="context-menu" id="context-menu" role="menu">
+      <div class="ctx-submenu">
+        <button class="ctx-item" role="menuitem">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          Move to...
+          <span style="margin-left:auto;opacity:0.5;font-size:10px;">&#9654;</span>
+        </button>
+        <div class="ctx-submenu-items" id="ctx-move-submenu"></div>
+      </div>
+      <button class="ctx-item" role="menuitem" data-action="send-owl">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        Send Owl
+      </button>
+      <button class="ctx-item" role="menuitem" data-action="add-note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Add Note
+      </button>
+      <button class="ctx-item" role="menuitem" data-action="toggle-priority">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Toggle Priority
+      </button>
+      <div class="ctx-divider"></div>
+      <button class="ctx-item" role="menuitem" data-action="archive" style="color: var(--col-hot);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        Archive
+      </button>
+    </div>
+
+    <div class="shell">
+      <div class="main-content" id="main-content">
+        <!-- Header -->
+        <header class="header">
+          <div class="header-left">
+            <div>
+              <div class="brand">Owl Post CRM</div>
+              <div class="brand-sub">Weasleys' Wizard Wheezes</div>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-primary" id="compose-owl">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              Compose Owl
+            </button>
+            <button class="btn-icon" id="toggle-stats" title="Toggle stats panel" aria-label="Toggle statistics panel">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats" id="quick-stats"></div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <div class="search-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="search-input" placeholder="Search leads... ( / )" aria-label="Search leads" />
+          </div>
+          <div class="filter-pills" id="filter-pills"></div>
+          <select class="sort-select" id="sort-select" aria-label="Sort leads">
+            <option value="default">Sort: Default</option>
+            <option value="value-desc">Value: High to Low</option>
+            <option value="value-asc">Value: Low to High</option>
+            <option value="name-asc">Name: A to Z</option>
+            <option value="name-desc">Name: Z to A</option>
+            <option value="contact-asc">Last Contact: Oldest</option>
+            <option value="contact-desc">Last Contact: Newest</option>
+          </select>
+        </div>
+
+        <!-- Pipeline Funnel -->
+        <div class="pipeline-funnel" id="pipeline-funnel">
+          <div class="funnel-label">Pipeline Funnel</div>
+          <div class="funnel-bar" id="funnel-bar"></div>
+          <div class="funnel-totals" id="funnel-totals"></div>
+        </div>
+
+        <!-- Kanban Board -->
+        <div class="board" id="board" role="list" aria-label="Sales pipeline board"></div>
+      </div>
+
+      <!-- Stats Panel -->
+      <aside class="stats-panel" id="stats-panel" aria-label="Statistics panel">
+        <div class="stats-inner" id="stats-inner"></div>
+      </aside>
     </div>
 
     <script>
+    (function() {
+      'use strict';
+
+      // ── Data ──
+      let nextId = 11;
       const leads = [
-        { name: "🦁 Hermione Granger", stage: "qualified", house: "gryffindor", want: "premium gift boxes", note: "Needs facts, quality, and no nonsense", value: "480g" },
-        { name: "🌙 Luna Lovegood", stage: "warm", house: "ravenclaw", want: "dreamy limited editions", note: "Understands surreal packaging instantly", value: "320g" },
-        { name: "🌿 Neville Longbottom", stage: "nurture", house: "gryffindor", want: "greenhouse-safe sweets", note: "Botanical line opportunity", value: "260g" },
-        { name: "🐍 Draco Malfoy", stage: "watch", house: "slytherin", want: "luxury tins", note: "Will judge finish before flavor", value: "520g" },
-        { name: "🎙️ Lee Jordan", stage: "hot", house: "other", want: "on-air prank bundles", note: "Already writing the promo read", value: "610g" },
-        { name: "🏆 Angelina Johnson", stage: "proposal", house: "other", want: "match-day support packs", note: "Fast-moving if event date locks", value: "390g" },
-        { name: "🦅 Cho Chang", stage: "qualified", house: "ravenclaw", want: "elegant sampler boxes", note: "Likes refined tone and clean visuals", value: "210g" },
+        { id: 1,  name: "Hermione Granger",    stage: "warm",   category: "hogwarts",  affiliation: "Hogwarts Prefect",   want: "Premium gift boxes",           value: 480,  lastContact: 2,  priority: false, notes: "Appreciates quality packaging. Send samples first." },
+        { id: 2,  name: "Luna Lovegood",        stage: "warm",   category: "hogwarts",  affiliation: "Ravenclaw House",    want: "Dreamy limited editions",      value: 320,  lastContact: 5,  priority: true,  notes: "Loves the Dirigible Plum drops." },
+        { id: 3,  name: "Neville Longbottom",   stage: "cold",   category: "hogwarts",  affiliation: "Herbology Club",     want: "Greenhouse-safe sweets",       value: 260,  lastContact: 14, priority: false, notes: "" },
+        { id: 4,  name: "Draco Malfoy",         stage: "cold",   category: "hogwarts",  affiliation: "Slytherin House",    want: "Luxury presentation tins",     value: 520,  lastContact: 21, priority: false, notes: "Insists on premium branding. Surprisingly interested." },
+        { id: 5,  name: "Lee Jordan",           stage: "hot",    category: "business",  affiliation: "Wizarding Radio",    want: "On-air prank bundles",         value: 610,  lastContact: 1,  priority: true,  notes: "Ready to sign. Wants exclusive on-air branding." },
+        { id: 6,  name: "Angelina Johnson",     stage: "hot",    category: "business",  affiliation: "Quidditch League",   want: "Match-day support packs",      value: 390,  lastContact: 3,  priority: false, notes: "Needs bulk pricing for league events." },
+        { id: 7,  name: "Cho Chang",            stage: "warm",   category: "hogwarts",  affiliation: "Ravenclaw House",    want: "Elegant sampler boxes",        value: 210,  lastContact: 8,  priority: false, notes: "" },
+        { id: 8,  name: "Arthur Weasley",       stage: "closed", category: "ministry",  affiliation: "Ministry of Magic",  want: "Muggle-themed novelty set",    value: 180,  lastContact: 0,  priority: false, notes: "Delighted with the rubber duck candy. Reorder likely." },
+        { id: 9,  name: "Kingsley Shacklebolt", stage: "cold",   category: "ministry",  affiliation: "Auror Office",       want: "Diplomatic gift bundles",      value: 750,  lastContact: 30, priority: true,  notes: "High-value target. Needs formal proposal." },
+        { id: 10, name: "Madam Rosmerta",       stage: "closed", category: "business",  affiliation: "Three Broomsticks",  want: "Wholesale candy display",      value: 440,  lastContact: 1,  priority: false, notes: "Display installed. Monthly restock scheduled." },
       ];
 
-      const stageOrder = [
-        { key: "watch", title: "Watch" },
-        { key: "warm", title: "Warm" },
-        { key: "qualified", title: "Qualified" },
-        { key: "hot", title: "Hot / Proposal" },
+      const stages = [
+        { key: "cold",   title: "Cold",   color: "var(--col-cold)",   emptyMsg: "No cold leads. Either you're too good at warming them up, or you need to go find some." },
+        { key: "warm",   title: "Warm",   color: "var(--col-warm)",   emptyMsg: "No warm leads. The owls are idle and feeling judged." },
+        { key: "hot",    title: "Hot",    color: "var(--col-hot)",    emptyMsg: "No hot leads. Let's get some deals sizzling." },
+        { key: "closed", title: "Closed", color: "var(--col-closed)", emptyMsg: "No closed deals yet. The Galleons are out there waiting." },
       ];
 
-      const board = document.getElementById("board");
-      const confettiLayer = document.getElementById("confetti-layer");
+      const templates = {
+        intro: { subject: "Introducing Weasleys' Wizard Wheezes", body: "Dear {name},\n\nWe'd love to introduce you to our latest range of magical merchandise. From Skiving Snackboxes to Peruvian Instant Darkness Powder, we've got something for every occasion.\n\nWould you be open to a quick owl exchange this week?\n\nMischief managed,\nFred & George" },
+        followup: { subject: "Following up on our last owl", body: "Dear {name},\n\nJust wanted to check in since our last correspondence. We've been brewing some exciting new products and thought of you immediately.\n\nAny thoughts on the samples we sent over? We'd love your feedback.\n\nCheers,\nFred & George" },
+        offer: { subject: "A special offer just for you", body: "Dear {name},\n\nAs a valued connection, we're extending an exclusive 15% discount on your first bulk order. This offer is valid for the next fortnight.\n\nLet us know if you'd like to proceed, and we'll have the order owled to you faster than a Firebolt.\n\nYours in commerce,\nFred & George" },
+        thankyou: { subject: "Thank you for your business!", body: "Dear {name},\n\nA massive thank you for your recent order! We hope every item brings joy, laughter, and perhaps a bit of controlled chaos.\n\nWe truly value your patronage. Don't hesitate to reach out if you need anything.\n\nWith gratitude,\nFred & George" },
+      };
+
       let currentFilter = "all";
+      let currentSort = "default";
+      let searchTerm = "";
+      let draggedId = null;
+      let contextMenuLeadId = null;
+      let focusedCardId = null;
+      let addLeadStage = null;
+      const activityLog = [];
 
-      function burstConfetti() {
-        const symbols = ["🦉", "✨", "⭐", "💌", "🎉"];
-        for (let i = 0; i < 24; i += 1) {
-          const node = document.createElement("span");
-          node.className = "confetti";
+      // ── DOM refs ──
+      const $board = document.getElementById('board');
+      const $quickStats = document.getElementById('quick-stats');
+      const $filterPills = document.getElementById('filter-pills');
+      const $funnelBar = document.getElementById('funnel-bar');
+      const $funnelTotals = document.getElementById('funnel-totals');
+      const $searchInput = document.getElementById('search-input');
+      const $sortSelect = document.getElementById('sort-select');
+      const $statsPanel = document.getElementById('stats-panel');
+      const $statsInner = document.getElementById('stats-inner');
+      const $mainContent = document.getElementById('main-content');
+      const $contextMenu = document.getElementById('context-menu');
+      const $toastContainer = document.getElementById('toast-container');
+      const $modalCompose = document.getElementById('modal-compose');
+      const $modalAddLead = document.getElementById('modal-add-lead');
+      const $owlTo = document.getElementById('owl-to');
+      const $owlTemplate = document.getElementById('owl-template');
+      const $owlSubject = document.getElementById('owl-subject');
+      const $owlMessage = document.getElementById('owl-message');
+      const $owlAutocomplete = document.getElementById('owl-autocomplete');
+      const $owlCharCount = document.getElementById('owl-char-count');
+
+      // ── Utility ──
+      function formatGalleons(n) { return new Intl.NumberFormat().format(n) + 'g'; }
+
+      function getInitial(name) { return name.split(' ').map(w => w[0]).join('').substring(0, 2); }
+
+      function daysAgoText(days) {
+        if (days === 0) return "Today";
+        if (days === 1) return "Yesterday";
+        return days + " days ago";
+      }
+
+      function logActivity(icon, text) {
+        activityLog.unshift({ icon, text, time: new Date() });
+        if (activityLog.length > 20) activityLog.pop();
+      }
+
+      // ── Toast ──
+      function showToast(message, type) {
+        type = type || 'green';
+        var icons = {
+          green: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+          gold:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
+          blue:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+        };
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + type;
+        toast.innerHTML = '<span class="toast-icon">' + icons[type] + '</span>' + message;
+        $toastContainer.appendChild(toast);
+        setTimeout(function() {
+          toast.classList.add('toast-out');
+          setTimeout(function() { toast.remove(); }, 300);
+        }, 3000);
+      }
+
+      // ── Flying owl animation ──
+      function flyOwl() {
+        var owl = document.createElement('div');
+        owl.className = 'owl-flight';
+        owl.textContent = '\uD83E\uDD89';
+        owl.style.left = '10%';
+        owl.style.top = '60%';
+        document.body.appendChild(owl);
+        setTimeout(function() { owl.remove(); }, 1600);
+      }
+
+      // ── Feather burst ──
+      function burstFeathers() {
+        var layer = document.getElementById('confetti-layer');
+        var symbols = ["\uD83E\uDEB6", "\u2728", "\uD83E\uDEB6", "\u2B50", "\uD83D\uDC8C", "\uD83E\uDEB6"];
+        for (var i = 0; i < 28; i++) {
+          var node = document.createElement('span');
+          node.className = 'feather';
           node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-          node.style.left = `${Math.random() * 100}vw`;
-          node.style.setProperty("--x", `${(Math.random() - 0.5) * 140}px`);
-          confettiLayer.appendChild(node);
-          window.setTimeout(() => node.remove(), 1600);
+          node.style.left = (Math.random() * 100) + 'vw';
+          node.style.setProperty('--x', ((Math.random() - 0.5) * 200) + 'px');
+          node.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+          node.style.animationDelay = (Math.random() * 300) + 'ms';
+          layer.appendChild(node);
+          setTimeout(function(n) { n.remove(); }, 2500, node);
         }
       }
 
-      function stageMatch(lead, stageKey) {
-        if (stageKey === "hot") {
-          return lead.stage === "hot" || lead.stage === "proposal";
-        }
-        return lead.stage === stageKey;
+      // ── Filtering & Sorting ──
+      function getVisibleLeads() {
+        var list = leads.filter(function(l) {
+          if (currentFilter !== "all" && l.category !== currentFilter) return false;
+          if (searchTerm) {
+            var q = searchTerm.toLowerCase();
+            return l.name.toLowerCase().includes(q) || l.affiliation.toLowerCase().includes(q) || l.want.toLowerCase().includes(q);
+          }
+          return true;
+        });
+
+        if (currentSort === "value-desc") list.sort(function(a,b) { return b.value - a.value; });
+        else if (currentSort === "value-asc") list.sort(function(a,b) { return a.value - b.value; });
+        else if (currentSort === "name-asc") list.sort(function(a,b) { return a.name.localeCompare(b.name); });
+        else if (currentSort === "name-desc") list.sort(function(a,b) { return b.name.localeCompare(a.name); });
+        else if (currentSort === "contact-asc") list.sort(function(a,b) { return b.lastContact - a.lastContact; });
+        else if (currentSort === "contact-desc") list.sort(function(a,b) { return a.lastContact - b.lastContact; });
+
+        return list;
       }
 
+      function getCategoryCounts() {
+        var counts = { all: leads.length, hogwarts: 0, ministry: 0, business: 0, personal: 0 };
+        leads.forEach(function(l) { counts[l.category] = (counts[l.category] || 0) + 1; });
+        return counts;
+      }
+
+      function getStageStats() {
+        var stats = {};
+        stages.forEach(function(s) { stats[s.key] = { count: 0, value: 0 }; });
+        leads.forEach(function(l) {
+          stats[l.stage].count++;
+          stats[l.stage].value += l.value;
+        });
+        stats.total = leads.reduce(function(sum, l) { return sum + l.value; }, 0);
+        stats.totalCount = leads.length;
+        return stats;
+      }
+
+      // ── Quick Stats ──
+      function renderQuickStats() {
+        var ss = getStageStats();
+        var readyToClose = ss.hot ? ss.hot.count : 0;
+        $quickStats.innerHTML =
+          '<div class="stat-item"><strong>' + ss.totalCount + '</strong> leads</div>' +
+          '<div class="stat-divider"></div>' +
+          '<div class="stat-item"><strong style="color:var(--gold)">' + formatGalleons(ss.total) + '</strong> pipeline</div>' +
+          '<div class="stat-divider"></div>' +
+          '<div class="stat-item"><strong>' + readyToClose + '</strong> ready to close</div>' +
+          '<div class="stat-divider"></div>' +
+          '<div class="stat-item"><strong style="color:var(--col-closed)">' + formatGalleons(ss.closed ? ss.closed.value : 0) + '</strong> won</div>';
+      }
+
+      // ── Filter Pills ──
+      function renderFilterPills() {
+        var counts = getCategoryCounts();
+        var cats = [
+          { key: "all", label: "All" },
+          { key: "hogwarts", label: "Hogwarts" },
+          { key: "ministry", label: "Ministry" },
+          { key: "business", label: "Business" },
+          { key: "personal", label: "Personal" },
+        ];
+        $filterPills.innerHTML = cats.map(function(c) {
+          return '<button class="pill' + (currentFilter === c.key ? ' active' : '') + '" data-filter="' + c.key + '">' +
+            c.label + ' <span class="pill-count">' + (counts[c.key] || 0) + '</span></button>';
+        }).join('');
+      }
+
+      // ── Pipeline Funnel ──
+      function renderFunnel() {
+        var ss = getStageStats();
+        var total = ss.total || 1;
+
+        $funnelBar.innerHTML = stages.map(function(s) {
+          var pct = Math.max(((ss[s.key].value / total) * 100), ss[s.key].count > 0 ? 8 : 0);
+          return '<div class="funnel-seg" data-stage="' + s.key + '" style="flex-basis:' + pct + '%">' +
+            '<span class="seg-label">' + s.title + ' ' + formatGalleons(ss[s.key].value) + '</span></div>';
+        }).join('');
+
+        $funnelTotals.innerHTML = stages.map(function(s) {
+          return '<div class="funnel-total-item">' +
+            '<span class="funnel-dot" style="background:' + s.color + '"></span>' +
+            s.title + ': ' + ss[s.key].count + ' leads / ' + formatGalleons(ss[s.key].value) +
+          '</div>';
+        }).join('');
+      }
+
+      // ── Build a card HTML ──
+      function buildCardHTML(lead, stage) {
+        var avatarClass = 'avatar-' + lead.category;
+        var priorityClass = lead.priority ? ' priority-active' : '';
+        return '<article class="card' + (focusedCardId === lead.id ? ' expanded' : '') + '" ' +
+          'draggable="true" data-id="' + lead.id + '" role="listitem" tabindex="0" ' +
+          'aria-label="' + lead.name + ', ' + formatGalleons(lead.value) + ', ' + stage.title + '">' +
+          '<div class="card-stage-stripe" data-stage="' + stage.key + '"></div>' +
+          '<div class="card-body">' +
+            '<div class="card-row-top">' +
+              '<div class="card-avatar ' + avatarClass + '">' + getInitial(lead.name) + '</div>' +
+              '<div class="card-name-block">' +
+                '<div class="card-name">' + lead.name + '</div>' +
+                '<div class="card-affiliation">' + lead.affiliation + '</div>' +
+              '</div>' +
+              '<div class="card-value">' + formatGalleons(lead.value) + '</div>' +
+            '</div>' +
+            '<div class="card-want">' + lead.want + '</div>' +
+            '<div class="card-meta">' +
+              '<span class="card-timestamp">Last contact: ' + daysAgoText(lead.lastContact) + '</span>' +
+              '<div class="card-actions">' +
+                '<button class="card-action-btn" data-action="send-owl" title="Send Owl" aria-label="Send owl to ' + lead.name + '">' +
+                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>' +
+                '</button>' +
+                '<button class="card-action-btn' + priorityClass + '" data-action="toggle-priority" title="Toggle Priority" aria-label="Toggle priority for ' + lead.name + '">' +
+                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="' + (lead.priority ? 'var(--gold)' : 'none') + '" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
+                '</button>' +
+                '<button class="card-action-btn" data-action="expand" title="Expand" aria-label="Expand details for ' + lead.name + '">' +
+                  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
+                '</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card-expanded">' +
+            '<div class="card-detail-row"><span class="card-detail-label">Category</span><span class="card-detail-value">' + lead.category.charAt(0).toUpperCase() + lead.category.slice(1) + '</span></div>' +
+            '<div class="card-detail-row"><span class="card-detail-label">Deal Value</span><span class="card-detail-value">' + formatGalleons(lead.value) + '</span></div>' +
+            '<div class="card-detail-row"><span class="card-detail-label">Stage</span><span class="card-detail-value">' + stage.title + '</span></div>' +
+            '<div class="card-detail-row"><span class="card-detail-label">Priority</span><span class="card-detail-value">' + (lead.priority ? 'Yes' : 'No') + '</span></div>' +
+            '<textarea class="card-notes-area" placeholder="Add notes..." data-lead-id="' + lead.id + '">' + (lead.notes || '') + '</textarea>' +
+          '</div>' +
+        '</article>';
+      }
+
+      // ── Render Board ──
       function renderBoard() {
-        const visible = leads.filter((lead) => currentFilter === "all" || lead.house === currentFilter);
-        board.innerHTML = stageOrder.map((stage) => {
-          const cards = visible
-            .filter((lead) => stageMatch(lead, stage.key))
-            .map((lead) => `
-              <article class="card">
-                <div class="card-top">
-                  <strong>${lead.name}</strong>
-                  <span class="badge">${lead.value}</span>
-                </div>
-                <div class="detail">${lead.want}</div>
-                <div class="detail">${lead.note}</div>
-              </article>
-            `)
-            .join("");
+        var visible = getVisibleLeads();
 
-          return `
-            <section class="column">
-              <h2>${stage.title}</h2>
-              <div class="cards">${cards || '<p class="detail">No leads in this moon phase.</p>'}</div>
-            </section>
-          `;
-        }).join("");
+        $board.innerHTML = stages.map(function(stage) {
+          var stageLeads = visible.filter(function(l) { return l.stage === stage.key; });
+          var stageValue = stageLeads.reduce(function(s, l) { return s + l.value; }, 0);
+          var cards = stageLeads.map(function(lead) { return buildCardHTML(lead, stage); }).join('');
+
+          var emptyHTML = stageLeads.length === 0 ?
+            '<div class="col-empty">' + stage.emptyMsg + '</div>' : '';
+
+          return '<section class="column" data-stage="' + stage.key + '" role="list" aria-label="' + stage.title + ' leads">' +
+            '<div class="col-header">' +
+              '<span class="col-dot" data-stage="' + stage.key + '"></span>' +
+              '<span class="col-title">' + stage.title + '</span>' +
+              '<span class="col-value">' + formatGalleons(stageValue) + '</span>' +
+              '<span class="col-count">' + stageLeads.length + '</span>' +
+            '</div>' +
+            '<div class="cards-container" data-stage="' + stage.key + '">' +
+              (cards || emptyHTML) +
+            '</div>' +
+            '<div class="col-footer">' +
+              '<button class="add-lead-btn" data-stage="' + stage.key + '">+ Add Lead</button>' +
+            '</div>' +
+          '</section>';
+        }).join('');
+
+        attachBoardEvents();
       }
 
-      document.querySelectorAll(".pill").forEach((button) => {
-        button.addEventListener("click", () => {
-          document.querySelectorAll(".pill").forEach((item) => item.classList.remove("active"));
-          button.classList.add("active");
-          currentFilter = button.dataset.filter;
+      // ── Board Event Binding ──
+      function attachBoardEvents() {
+        // Drag events on cards
+        document.querySelectorAll('.card[draggable]').forEach(function(card) {
+          card.addEventListener('dragstart', function(e) {
+            draggedId = parseInt(card.dataset.id);
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', card.dataset.id);
+          });
+          card.addEventListener('dragend', function() {
+            card.classList.remove('dragging');
+            draggedId = null;
+            document.querySelectorAll('.column').forEach(function(col) { col.classList.remove('drag-over'); });
+          });
+        });
+
+        // Drop events on columns
+        document.querySelectorAll('.cards-container').forEach(function(container) {
+          var col = container.closest('.column');
+          container.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            col.classList.add('drag-over');
+          });
+          container.addEventListener('dragleave', function(e) {
+            if (!container.contains(e.relatedTarget)) col.classList.remove('drag-over');
+          });
+          container.addEventListener('drop', function(e) {
+            e.preventDefault();
+            col.classList.remove('drag-over');
+            if (draggedId !== null) {
+              var lead = leads.find(function(l) { return l.id === draggedId; });
+              var newStage = container.dataset.stage;
+              if (lead && lead.stage !== newStage) {
+                var oldStage = lead.stage;
+                lead.stage = newStage;
+                logActivity('\u2192', lead.name + ' moved from ' + oldStage + ' to ' + newStage);
+                showToast('Lead moved to ' + newStage.charAt(0).toUpperCase() + newStage.slice(1), 'green');
+                fullRender();
+              }
+            }
+          });
+        });
+
+        // Card click actions
+        document.querySelectorAll('.card-action-btn').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var card = btn.closest('.card');
+            var leadId = parseInt(card.dataset.id);
+            var action = btn.dataset.action;
+            handleCardAction(leadId, action);
+          });
+        });
+
+        // Card click to expand
+        document.querySelectorAll('.card').forEach(function(card) {
+          card.addEventListener('click', function(e) {
+            if (e.target.closest('.card-action-btn') || e.target.closest('.card-notes-area')) return;
+            var leadId = parseInt(card.dataset.id);
+            focusedCardId = focusedCardId === leadId ? null : leadId;
+            renderBoard();
+          });
+
+          // Context menu
+          card.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            contextMenuLeadId = parseInt(card.dataset.id);
+            showContextMenu(e.clientX, e.clientY);
+          });
+        });
+
+        // Notes change
+        document.querySelectorAll('.card-notes-area').forEach(function(ta) {
+          ta.addEventListener('input', function() {
+            var lead = leads.find(function(l) { return l.id === parseInt(ta.dataset.leadId); });
+            if (lead) lead.notes = ta.value;
+          });
+        });
+
+        // Add lead buttons
+        document.querySelectorAll('.add-lead-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            addLeadStage = btn.dataset.stage;
+            openAddLeadModal();
+          });
+        });
+      }
+
+      // ── Card Actions ──
+      function handleCardAction(leadId, action) {
+        var lead = leads.find(function(l) { return l.id === leadId; });
+        if (!lead) return;
+
+        if (action === 'send-owl') {
+          openComposeModal(lead.name);
+        } else if (action === 'toggle-priority') {
+          lead.priority = !lead.priority;
+          showToast(lead.name + (lead.priority ? ' marked as priority' : ' unmarked'), lead.priority ? 'gold' : 'blue');
+          logActivity(lead.priority ? '\u2605' : '\u2606', lead.name + ' priority ' + (lead.priority ? 'set' : 'removed'));
+          fullRender();
+        } else if (action === 'expand') {
+          focusedCardId = focusedCardId === leadId ? null : leadId;
           renderBoard();
+        }
+      }
+
+      // ── Context Menu ──
+      function showContextMenu(x, y) {
+        // Build move-to submenu
+        var submenu = document.getElementById('ctx-move-submenu');
+        submenu.innerHTML = stages.map(function(s) {
+          return '<button class="ctx-item" data-action="move-to" data-stage="' + s.key + '" role="menuitem">' +
+            '<span class="funnel-dot" style="background:' + s.color + ';display:inline-block"></span> ' + s.title + '</button>';
+        }).join('');
+
+        // Position
+        $contextMenu.style.left = Math.min(x, window.innerWidth - 200) + 'px';
+        $contextMenu.style.top = Math.min(y, window.innerHeight - 300) + 'px';
+        $contextMenu.classList.add('open');
+      }
+
+      function hideContextMenu() {
+        $contextMenu.classList.remove('open');
+        contextMenuLeadId = null;
+      }
+
+      $contextMenu.addEventListener('click', function(e) {
+        var btn = e.target.closest('.ctx-item');
+        if (!btn || contextMenuLeadId === null) return;
+
+        var lead = leads.find(function(l) { return l.id === contextMenuLeadId; });
+        if (!lead) { hideContextMenu(); return; }
+
+        var action = btn.dataset.action;
+        if (action === 'move-to') {
+          var newStage = btn.dataset.stage;
+          if (lead.stage !== newStage) {
+            lead.stage = newStage;
+            logActivity('\u2192', lead.name + ' moved to ' + newStage);
+            showToast('Lead moved to ' + newStage.charAt(0).toUpperCase() + newStage.slice(1), 'green');
+            fullRender();
+          }
+        } else if (action === 'send-owl') {
+          openComposeModal(lead.name);
+        } else if (action === 'add-note') {
+          focusedCardId = lead.id;
+          renderBoard();
+          setTimeout(function() {
+            var ta = document.querySelector('.card-notes-area[data-lead-id="' + lead.id + '"]');
+            if (ta) ta.focus();
+          }, 100);
+        } else if (action === 'toggle-priority') {
+          lead.priority = !lead.priority;
+          showToast(lead.name + (lead.priority ? ' marked as priority' : ' unmarked'), lead.priority ? 'gold' : 'blue');
+          fullRender();
+        } else if (action === 'archive') {
+          var idx = leads.findIndex(function(l) { return l.id === lead.id; });
+          if (idx > -1) {
+            leads.splice(idx, 1);
+            logActivity('\uD83D\uDDD1', lead.name + ' archived');
+            showToast(lead.name + ' archived', 'blue');
+            fullRender();
+          }
+        }
+        hideContextMenu();
+      });
+
+      document.addEventListener('click', function(e) {
+        if (!$contextMenu.contains(e.target)) hideContextMenu();
+      });
+
+      // ── Compose Modal ──
+      function openComposeModal(toName) {
+        $owlTo.value = toName || '';
+        $owlTemplate.value = '';
+        $owlSubject.value = '';
+        $owlMessage.value = '';
+        updateCharCount();
+        $modalCompose.classList.add('open');
+        setTimeout(function() { (toName ? $owlSubject : $owlTo).focus(); }, 100);
+      }
+
+      function closeComposeModal() {
+        $modalCompose.classList.remove('open');
+        $owlAutocomplete.classList.remove('open');
+      }
+
+      document.getElementById('compose-owl').addEventListener('click', function() { openComposeModal(); });
+      document.getElementById('modal-cancel').addEventListener('click', closeComposeModal);
+      $modalCompose.addEventListener('click', function(e) { if (e.target === $modalCompose) closeComposeModal(); });
+
+      // Autocomplete
+      $owlTo.addEventListener('input', function() {
+        var val = $owlTo.value.toLowerCase().trim();
+        if (!val) { $owlAutocomplete.classList.remove('open'); return; }
+        var matches = leads.filter(function(l) { return l.name.toLowerCase().includes(val); });
+        if (matches.length === 0) { $owlAutocomplete.classList.remove('open'); return; }
+        $owlAutocomplete.innerHTML = matches.map(function(l) {
+          return '<div class="autocomplete-item" data-name="' + l.name + '" role="option">' + l.name + ' <span style="color:var(--muted);font-size:11px">(' + l.affiliation + ')</span></div>';
+        }).join('');
+        $owlAutocomplete.classList.add('open');
+      });
+
+      $owlAutocomplete.addEventListener('click', function(e) {
+        var item = e.target.closest('.autocomplete-item');
+        if (item) {
+          $owlTo.value = item.dataset.name;
+          $owlAutocomplete.classList.remove('open');
+          // Update template if set
+          if ($owlTemplate.value) applyTemplate();
+        }
+      });
+
+      // Template selection
+      $owlTemplate.addEventListener('change', applyTemplate);
+
+      function applyTemplate() {
+        var tpl = templates[$owlTemplate.value];
+        if (tpl) {
+          var name = $owlTo.value || '{name}';
+          $owlSubject.value = tpl.subject;
+          $owlMessage.value = tpl.body.replace(/\{name\}/g, name);
+          updateCharCount();
+        }
+      }
+
+      // Character count
+      $owlMessage.addEventListener('input', updateCharCount);
+      function updateCharCount() {
+        $owlCharCount.textContent = $owlMessage.value.length;
+      }
+
+      // Schedule options
+      document.querySelectorAll('.schedule-option').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.schedule-option').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
         });
       });
 
-      document.getElementById("send-owl").addEventListener("click", burstConfetti);
-      renderBoard();
+      // Send
+      document.getElementById('modal-send').addEventListener('click', function() {
+        var to = $owlTo.value.trim();
+        if (!to) { $owlTo.focus(); return; }
+        closeComposeModal();
+        flyOwl();
+        burstFeathers();
+        var schedule = document.querySelector('.schedule-option.active');
+        var scheduleText = schedule ? schedule.dataset.schedule : 'now';
+        var suffix = scheduleText === 'tomorrow' ? ' (scheduled for tomorrow)' : scheduleText === 'custom' ? ' (scheduled)' : '';
+        showToast('Owl dispatched to ' + to + '!' + suffix, 'gold');
+        logActivity('\uD83D\uDCE8', 'Owl sent to ' + to);
+        // Update last contact for matching lead
+        var lead = leads.find(function(l) { return l.name.toLowerCase() === to.toLowerCase(); });
+        if (lead) lead.lastContact = 0;
+        fullRender();
+      });
+
+      // ── Add Lead Modal ──
+      function openAddLeadModal() {
+        document.getElementById('new-lead-name').value = '';
+        document.getElementById('new-lead-affiliation').value = '';
+        document.getElementById('new-lead-want').value = '';
+        document.getElementById('new-lead-value').value = '';
+        $modalAddLead.classList.add('open');
+        setTimeout(function() { document.getElementById('new-lead-name').focus(); }, 100);
+      }
+
+      function closeAddLeadModal() {
+        $modalAddLead.classList.remove('open');
+        addLeadStage = null;
+      }
+
+      document.getElementById('add-lead-cancel').addEventListener('click', closeAddLeadModal);
+      $modalAddLead.addEventListener('click', function(e) { if (e.target === $modalAddLead) closeAddLeadModal(); });
+
+      document.getElementById('add-lead-confirm').addEventListener('click', function() {
+        var name = document.getElementById('new-lead-name').value.trim();
+        var affiliation = document.getElementById('new-lead-affiliation').value.trim();
+        var category = document.getElementById('new-lead-category').value;
+        var want = document.getElementById('new-lead-want').value.trim();
+        var value = parseInt(document.getElementById('new-lead-value').value) || 0;
+
+        if (!name) { document.getElementById('new-lead-name').focus(); return; }
+
+        leads.push({
+          id: nextId++,
+          name: name,
+          stage: addLeadStage || 'cold',
+          category: category,
+          affiliation: affiliation || 'Unknown',
+          want: want || 'TBD',
+          value: value,
+          lastContact: 0,
+          priority: false,
+          notes: ''
+        });
+
+        logActivity('\u2795', name + ' added to ' + (addLeadStage || 'cold'));
+        showToast(name + ' added!', 'green');
+        closeAddLeadModal();
+        fullRender();
+      });
+
+      // ── Stats Panel ──
+      function renderStatsPanel() {
+        var ss = getStageStats();
+        var closedCount = ss.closed ? ss.closed.count : 0;
+        var totalCount = ss.totalCount || 1;
+        var winRate = Math.round((closedCount / totalCount) * 100);
+        var avgDeal = Math.round(ss.total / totalCount);
+
+        // Donut chart SVG
+        var counts = getCategoryCounts();
+        var cats = [
+          { key: 'hogwarts', label: 'Hogwarts', color: '#b7a7ff' },
+          { key: 'ministry', label: 'Ministry', color: '#f4c96d' },
+          { key: 'business', label: 'Business', color: '#4ade80' },
+          { key: 'personal', label: 'Personal', color: '#f87171' },
+        ];
+
+        var total = leads.length || 1;
+        var offset = 0;
+        var circumference = 2 * Math.PI * 28;
+        var donutPaths = cats.map(function(c) {
+          var count = counts[c.key] || 0;
+          var pct = count / total;
+          var dash = circumference * pct;
+          var gap = circumference - dash;
+          var rot = (offset * 360) - 90;
+          offset += pct;
+          if (count === 0) return '';
+          return '<circle cx="36" cy="36" r="28" fill="none" stroke="' + c.color + '" stroke-width="8" ' +
+            'stroke-dasharray="' + dash + ' ' + gap + '" ' +
+            'transform="rotate(' + rot + ' 36 36)" />';
+        }).join('');
+
+        var donutSvg = '<svg class="donut-chart" viewBox="0 0 72 72">' + donutPaths +
+          '<text x="36" y="36" text-anchor="middle" dominant-baseline="central" fill="var(--text)" font-size="14" font-weight="800">' + total + '</text></svg>';
+
+        var donutLegend = cats.map(function(c) {
+          return '<div class="donut-legend-item"><span class="donut-legend-dot" style="background:' + c.color + '"></span>' + c.label + ': ' + (counts[c.key] || 0) + '</div>';
+        }).join('');
+
+        var activityHTML = activityLog.length === 0 ?
+          '<div style="font-size:12px;color:var(--muted);font-style:italic">No activity yet. Start moving leads around!</div>' :
+          activityLog.slice(0, 8).map(function(a) {
+            return '<div class="activity-item"><span class="activity-icon">' + a.icon + '</span><div>' + a.text + '</div></div>';
+          }).join('');
+
+        $statsInner.innerHTML =
+          '<div class="stat-big">' +
+            '<div class="stat-big-value">' + winRate + '%</div>' +
+            '<div class="stat-big-label">Win Rate</div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="stat-row"><span class="stat-row-label">Average Deal</span><span class="stat-row-value">' + formatGalleons(avgDeal) + '</span></div>' +
+            '<div class="stat-row"><span class="stat-row-label">Total Pipeline</span><span class="stat-row-value">' + formatGalleons(ss.total) + '</span></div>' +
+            '<div class="stat-row"><span class="stat-row-label">Closed Deals</span><span class="stat-row-value">' + closedCount + '</span></div>' +
+            '<div class="stat-row"><span class="stat-row-label">Priority Leads</span><span class="stat-row-value">' + leads.filter(function(l) { return l.priority; }).length + '</span></div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="stats-section-title">Leads by Source</div>' +
+            '<div class="donut-wrap">' + donutSvg + '<div class="donut-legend">' + donutLegend + '</div></div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="stats-section-title">Recent Activity</div>' +
+            '<div class="activity-feed">' + activityHTML + '</div>' +
+          '</div>';
+      }
+
+      // Toggle stats panel
+      document.getElementById('toggle-stats').addEventListener('click', function() {
+        $statsPanel.classList.toggle('open');
+        $mainContent.classList.toggle('stats-open');
+      });
+
+      // ── Search ──
+      $searchInput.addEventListener('input', function() {
+        searchTerm = $searchInput.value;
+        renderBoard();
+      });
+
+      // ── Sort ──
+      $sortSelect.addEventListener('change', function() {
+        currentSort = $sortSelect.value;
+        renderBoard();
+      });
+
+      // ── Filter Pills ──
+      $filterPills.addEventListener('click', function(e) {
+        var pill = e.target.closest('.pill');
+        if (pill) {
+          currentFilter = pill.dataset.filter;
+          renderFilterPills();
+          renderBoard();
+        }
+      });
+
+      // ── Keyboard Navigation ──
+      document.addEventListener('keydown', function(e) {
+        // "/" to focus search
+        if (e.key === '/' && !e.target.closest('input, textarea, select')) {
+          e.preventDefault();
+          $searchInput.focus();
+        }
+
+        // Escape to close modals/panels
+        if (e.key === 'Escape') {
+          if ($modalCompose.classList.contains('open')) { closeComposeModal(); return; }
+          if ($modalAddLead.classList.contains('open')) { closeAddLeadModal(); return; }
+          if ($contextMenu.classList.contains('open')) { hideContextMenu(); return; }
+          if (focusedCardId !== null) { focusedCardId = null; renderBoard(); return; }
+        }
+
+        // Arrow keys for card navigation between columns
+        if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && document.activeElement && document.activeElement.classList.contains('card')) {
+          var activeCard = document.activeElement;
+          var leadId = parseInt(activeCard.dataset.id);
+          var lead = leads.find(function(l) { return l.id === leadId; });
+          if (!lead) return;
+
+          var stageKeys = stages.map(function(s) { return s.key; });
+          var currentIdx = stageKeys.indexOf(lead.stage);
+          var newIdx = e.key === 'ArrowLeft' ? currentIdx - 1 : currentIdx + 1;
+
+          if (newIdx >= 0 && newIdx < stageKeys.length) {
+            e.preventDefault();
+            var oldStage = lead.stage;
+            lead.stage = stageKeys[newIdx];
+            logActivity('\u2192', lead.name + ' moved from ' + oldStage + ' to ' + lead.stage);
+            showToast('Lead moved to ' + lead.stage.charAt(0).toUpperCase() + lead.stage.slice(1), 'green');
+            focusedCardId = leadId;
+            fullRender();
+            // Refocus the card
+            setTimeout(function() {
+              var newCard = document.querySelector('.card[data-id="' + leadId + '"]');
+              if (newCard) newCard.focus();
+            }, 50);
+          }
+        }
+
+        // Enter to expand focused card
+        if (e.key === 'Enter' && document.activeElement && document.activeElement.classList.contains('card')) {
+          var cardId = parseInt(document.activeElement.dataset.id);
+          focusedCardId = focusedCardId === cardId ? null : cardId;
+          renderBoard();
+          setTimeout(function() {
+            var c = document.querySelector('.card[data-id="' + cardId + '"]');
+            if (c) c.focus();
+          }, 50);
+        }
+      });
+
+      // ── Full Render ──
+      function fullRender() {
+        renderQuickStats();
+        renderFilterPills();
+        renderFunnel();
+        renderBoard();
+        renderStatsPanel();
+      }
+
+      // ── Init ──
+      logActivity('\uD83D\uDE80', 'Owl Post CRM initialized');
+      fullRender();
+
+    })();
     </script>
   </body>
 </html>
