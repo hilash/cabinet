@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, X, Bot, GripHorizontal } from "lucide-react";
+import { Plus, X, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
@@ -56,7 +56,7 @@ export function TerminalTabs() {
   return (
     <div
       ref={containerRef}
-      className="flex flex-col border-t border-border bg-[#0a0a0a]"
+      className="flex flex-col border-t border-border bg-background"
       style={{ height: `${height}px` }}
     >
       {/* Resize handle */}
@@ -64,11 +64,11 @@ export function TerminalTabs() {
         className="flex items-center justify-center h-1.5 cursor-row-resize hover:bg-primary/20 transition-colors group"
         onMouseDown={handleMouseDown}
       >
-        <div className="w-8 h-0.5 rounded-full bg-[#ffffff15] group-hover:bg-primary/50 transition-colors" />
+        <div className="h-0.5 w-8 rounded-full bg-border/70 transition-colors group-hover:bg-primary/50" />
       </div>
 
       {/* Tab bar */}
-      <div className="flex items-center bg-[#141414] border-b border-[#ffffff10] px-1 shrink-0">
+      <div className="flex items-center border-b border-border bg-card px-1 shrink-0">
         {terminalTabs.map((tab) => (
           <div
             key={tab.id}
@@ -125,6 +125,7 @@ export function TerminalTabs() {
             <WebTerminal
               sessionId={tab.id}
               prompt={tab.prompt}
+              themeSurface="page"
               onClose={() => removeTerminalTab(tab.id)}
             />
           </div>

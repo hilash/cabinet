@@ -535,11 +535,21 @@ export function AIPanel() {
                     </span>
                   </button>
                   {expandedPast.has(session.id) && (
-                    <div className="border-t border-[#ffffff08] bg-[#0a0a0a]">
-                      <pre className="text-[11px] text-muted-foreground p-3 whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto font-mono leading-relaxed">
+                    <div
+                      className="border-t"
+                      style={{
+                        borderColor: "var(--border)",
+                        backgroundColor: "var(--background)",
+                        color: "var(--foreground)",
+                      }}
+                    >
+                      <pre className="max-h-[300px] overflow-y-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-foreground/85">
                         {pastSessionDetails[session.id] || session.summary || "(No output captured)"}
                       </pre>
-                      <div className="px-3 py-1.5 border-t border-[#ffffff08] flex items-center gap-3 text-[10px] text-muted-foreground/50">
+                      <div
+                        className="flex items-center gap-3 border-t px-3 py-1.5 text-[10px] text-muted-foreground/60"
+                        style={{ borderColor: "var(--border)" }}
+                      >
                         {session.duration !== undefined && (
                           <span>
                             <Clock className="h-2.5 w-2.5 inline mr-1" />
@@ -579,14 +589,13 @@ export function AIPanel() {
                 </button>
               </div>
 
-              <div
-                className="rounded-lg overflow-hidden border border-[#ffffff10] flex-1 min-h-[200px]"
-              >
+              <div className="flex-1 min-h-[200px] overflow-hidden rounded-lg border border-border/70 bg-background">
                 <WebTerminal
                   sessionId={session.sessionId}
                   prompt={session.prompt}
                   displayPrompt={session.userMessage}
                   reconnect={session.reconnect}
+                  themeSurface="page"
                   onClose={() => handleSessionEnd(session.sessionId)}
                 />
               </div>
@@ -608,6 +617,7 @@ export function AIPanel() {
               prompt={session.prompt}
               displayPrompt={session.userMessage}
               reconnect={session.reconnect}
+              themeSurface="page"
               onClose={() => handleSessionEnd(session.sessionId)}
             />
           </div>

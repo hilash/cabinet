@@ -2,6 +2,7 @@
 
 [2026-04-06] The agents conversation terminal now inherits the active Cabinet theme instead of forcing a black console. Added shared terminal color tokens in `globals.css`, updated `WebTerminal` to read and live-refresh xterm colors from the root theme vars, and restyled completed conversation transcripts to use the same themed terminal surface.
 
+[2026-04-06] Extended terminal theming across the rest of the app: bottom terminal tabs, AI panel sessions, jobs conversations, and agent session panels now use theme-driven surfaces for both live terminals and ended transcripts.
 [2026-04-03] Rebuilt the agents experience around durable filesystem-backed conversations. Added a shared conversation store (`data/.agents/.conversations/*`), moved manual sessions/jobs/heartbeats onto the daemon PTY runtime, added conversations APIs, and replaced the old agent list/detail split with a three-pane agents workspace focused on live and replayable Claude sessions. Also added `scripts/launch-chrome-debug.sh` plus `npm run debug:chrome` for CDP-based Chrome debugging on port 9222.
 
 [2026-04-03] Major agent system refactor — removed "Plays" concept entirely: deleted play-manager.ts, trigger-engine.ts, api/plays/ routes, playbook-catalog.tsx, webhook/[slug] and triggers API routes. Unified all Claude invocations to use PTY via the cabinet daemon (heartbeat.ts runHeartbeat, daemon executeJob). Cleaned up all play references from 15+ components/types/API routes. Build passes clean with no play routes.
