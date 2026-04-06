@@ -50,6 +50,7 @@ export interface AgentPersona {
   goals: GoalMetric[];
   channels: string[];     // Agent Slack channels
   workspace: string;      // relative path under data/.agents/{slug}/
+  setupComplete: boolean; // false until agent settings are saved for the first time
   // Computed
   slug: string;
   body: string; // markdown body (persona instructions)
@@ -194,6 +195,7 @@ export async function readPersona(slug: string): Promise<AgentPersona | null> {
     goals: (data.goals as AgentPersona["goals"]) || [],
     channels: (data.channels as string[]) || ["general"],
     workspace: (data.workspace as string) || `workspace`,
+    setupComplete: data.setupComplete === true,
     slug,
     body: content.trim(),
   };
@@ -257,6 +259,7 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
     department: merged.department || "general",
     type: merged.type || "specialist",
     workspace: merged.workspace || "workspace",
+    setupComplete: merged.setupComplete === true,
     ...(merged.goals && merged.goals.length > 0 ? { goals: merged.goals } : {}),
     ...(merged.channels && merged.channels.length > 0 ? { channels: merged.channels } : {}),
   };
