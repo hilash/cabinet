@@ -1325,22 +1325,22 @@ export function AgentsWorkspace({
                 className={cn(
                   "group relative w-full max-w-lg overflow-hidden rounded-[26px] px-4 py-4 text-left transition",
                   chiefAgent
-                    ? "bg-card hover:-translate-y-0.5"
+                    ? "bg-primary/[0.08] hover:-translate-y-0.5 hover:bg-primary/[0.11]"
                     : "bg-card"
                 )}
               >
                 <div className="absolute right-3 top-3 flex items-center gap-2">
                   <ActivityBeacon active={isAgentWorking(orgRoot)} />
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/12 text-primary">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-background/70 text-primary">
                     <Crown className="h-5 w-5" />
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-[26px]">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-background/75 text-[26px]">
                     {orgRoot.emoji || "👑"}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-primary/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-primary">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-background/72 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-primary">
                       <Crown className="h-3 w-3" />
                       CEO
                     </div>
@@ -1353,15 +1353,21 @@ export function AgentsWorkspace({
                   </div>
                 </div>
                 <div className="mt-4">
-                  <span className="inline-flex items-center rounded-full bg-primary/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+                  <span className="inline-flex items-center rounded-full bg-background/72 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
                     {startCase(orgRoot.type, "Lead")}
                   </span>
                 </div>
               </button>
 
               <div className="mt-3 hidden h-12 w-full max-w-4xl md:block">
-                <div className="mx-auto h-7 w-px bg-border" />
-                <div className="mx-auto h-px w-[82%] bg-border" />
+                <div className="relative mx-auto h-7 w-px overflow-visible">
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-b from-primary/[0.03] via-primary/[0.11] to-primary/[0.025]" />
+                  <div className="absolute inset-x-[-3px] inset-y-0 rounded-full bg-gradient-to-b from-primary/0 via-primary/[0.07] to-primary/0 blur-[4px]" />
+                </div>
+                <div className="relative mx-auto h-px w-[82%] overflow-visible rounded-full">
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/0 via-primary/[0.11] to-primary/0" />
+                  <div className="absolute inset-x-[10%] inset-y-[-3px] rounded-full bg-gradient-to-r from-transparent via-primary/[0.06] to-transparent blur-[5px]" />
+                </div>
               </div>
             </div>
 
@@ -1372,8 +1378,11 @@ export function AgentsWorkspace({
 
                   return (
                     <div key={group.department} className="relative pt-3">
-                      <div className="absolute left-1/2 top-0 hidden h-3 w-px -translate-x-1/2 bg-border md:block" />
-                      <section className="relative h-full rounded-[26px] bg-muted/45 p-4">
+                      <div className="absolute left-1/2 top-0 hidden h-3 w-px -translate-x-1/2 overflow-visible md:block">
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-b from-primary/[0.03] via-primary/[0.1] to-primary/[0.025]" />
+                        <div className="absolute inset-x-[-3px] inset-y-0 rounded-full bg-gradient-to-b from-primary/0 via-primary/[0.06] to-primary/0 blur-[4px]" />
+                      </div>
+                      <section className="relative h-full rounded-[26px] bg-primary/[0.08] p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <h5 className="text-[16px] font-semibold tracking-[-0.03em] text-foreground">
@@ -1384,7 +1393,7 @@ export function AgentsWorkspace({
                             </p>
                           </div>
                           {leadCount > 0 ? (
-                            <div className="rounded-full bg-primary/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-primary">
+                            <div className="rounded-full bg-background/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-primary">
                               {`${leadCount} lead`}
                             </div>
                           ) : null}
@@ -1396,10 +1405,10 @@ export function AgentsWorkspace({
                               key={agent.slug}
                               type="button"
                               onClick={() => openAgentWorkspace(agent.slug)}
-                              className="group w-full rounded-2xl bg-background/95 p-3 text-left transition hover:-translate-y-0.5 hover:bg-card"
+                              className="group w-full rounded-2xl bg-background/72 p-3 text-left transition hover:-translate-y-0.5 hover:bg-background/84"
                             >
                               <div className="flex items-start gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-muted text-[22px]">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-background/78 text-[22px]">
                                   {agent.emoji || "🤖"}
                                 </div>
                                 <div className="min-w-0 flex-1">
@@ -1418,7 +1427,7 @@ export function AgentsWorkspace({
                                   </div>
 
                                   <div className="mt-3">
-                                    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                    <span className="inline-flex items-center rounded-full bg-background/76 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                                       {startCase(agent.type, "Specialist")}
                                     </span>
                                   </div>
