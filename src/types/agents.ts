@@ -52,6 +52,7 @@ export interface AgentListItem {
   slug: string;
   emoji: string;
   role: string;
+  provider?: string;
   active: boolean;
   type?: AgentType | string;
   department?: string;
