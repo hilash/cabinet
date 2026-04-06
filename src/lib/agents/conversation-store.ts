@@ -452,11 +452,16 @@ export function formatConversationTranscriptForDisplay(
   return filtered.join("\n").trim();
 }
 
-function transcriptShowsCompletedRun(transcript: string): boolean {
-  const plain = stripAnsiText(transcript).replace(/\r/g, "\n");
+function transcriptShowsCompletedRun(transcript: string, prompt?: string): boolean {
+  // Keep this prompt-aware. A looser regex here will treat the echoed prompt's
+  // cabinet instructions as a finished run and force the UI out of streaming mode.
+  const parsed = parseCabinetBlock(transcript, prompt);
+  if (parsed.summary || parsed.artifactPaths.length > 0) {
+    return true;
+  }
+
+  const plain = cleanConversationOutputForParsing(transcript, prompt);
   return (
-    /(?:^|\n)SUMMARY:\s*\S+/m.test(plain) ||
-    /(?:^|\n)ARTIFACT:\s*\S+/m.test(plain) ||
     /(?:^|\n)[❯>]\s*$/.test(plain)
   );
 }
@@ -467,13 +472,12 @@ async function maybeResolveCompletedConversation(
   if (!meta) return meta;
 
   const transcript = await readConversationTranscript(meta.id);
-  if (meta.status === "running" && !transcriptShowsCompletedRun(transcript)) {
-    return meta;
-  }
-
   const prompt = (await fileExists(promptPathFs(meta.id)))
     ? await readFileContent(promptPathFs(meta.id))
     : "";
+  if (meta.status === "running" && !transcriptShowsCompletedRun(transcript, prompt)) {
+    return meta;
+  }
   const parsed = parseCabinetBlock(transcript, prompt);
   const needsRepair =
     meta.status === "running" ||
@@ -511,14 +515,6 @@ export async function appendConversationTranscript(
   await fs.appendFile(transcriptPathFs(id), chunk, "utf-8");
 }
 
-export async function writeConversationTranscript(
-  id: string,
-  transcript: string
-): Promise<void> {
-  await ensureDirectory(conversationDir(id));
-  await writeFileContent(transcriptPathFs(id), transcript);
-}
-
 export async function replaceConversationArtifacts(
   id: string,
   artifacts: ConversationArtifact[]
@@ -545,7 +541,6 @@ export async function finalizeConversation(
   ]);
   const cleanedOutput = cleanConversationOutputForParsing(output, prompt);
   const parsed = parseCabinetBlock(cleanedOutput, prompt);
-  const displayTranscript = formatConversationTranscriptForDisplay(cleanedOutput, prompt);
   const artifacts = parsed.artifactPaths.map((artifactPath) => ({
     path: artifactPath,
   }));
@@ -564,7 +559,6 @@ export async function finalizeConversation(
   await Promise.all([
     writeConversationMeta(meta),
     replaceConversationArtifacts(id, artifacts),
-    writeConversationTranscript(id, displayTranscript),
   ]);
 
   return meta;

@@ -22,7 +22,9 @@ import { execSync } from "child_process";
 import matter from "gray-matter";
 import { getDb, closeDb } from "./db";
 import {
+  appendConversationTranscript,
   finalizeConversation,
+  parseCabinetBlock,
   readConversationMeta,
   readConversationTranscript,
 } from "../src/lib/agents/conversation-store";
@@ -170,11 +172,17 @@ function claudeIdlePromptVisible(output: string): boolean {
   return /(?:^|\n)[❯>]\s*$/.test(plain);
 }
 
-function transcriptShowsCompletedRun(output: string): boolean {
+function transcriptShowsCompletedRun(output: string, prompt?: string): boolean {
+  // Keep this prompt-aware. If we count placeholder SUMMARY/ARTIFACT lines from
+  // the echoed startup prompt as "completed", the UI flips out of live terminal
+  // mode after a few seconds and the session appears corrupted.
+  const parsed = parseCabinetBlock(output, prompt);
+  if (parsed.summary || parsed.artifactPaths.length > 0) {
+    return true;
+  }
+
   const plain = stripAnsi(output).replace(/\r/g, "\n");
   return (
-    /(?:^|\n)SUMMARY:\s*\S+/m.test(plain) ||
-    /(?:^|\n)ARTIFACT:\s*\S+/m.test(plain) ||
     claudeIdlePromptVisible(plain)
   );
 }
@@ -193,6 +201,14 @@ function submitInitialPrompt(session: PtySession): void {
 
   session.pty.write(session.initialPrompt);
   session.pty.write("\r");
+}
+
+async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
+  const meta = await readConversationMeta(sessionId);
+  if (!meta) return;
+  const plainChunk = stripAnsi(chunk);
+  if (!plainChunk) return;
+  await appendConversationTranscript(sessionId, plainChunk);
 }
 
 function maybeAutoExitClaudeSession(session: PtySession): void {
@@ -428,6 +444,7 @@ function createDetachedSession(input: {
       submitInitialPrompt(session);
     }
     maybeAutoExitClaudeSession(session);
+    void syncConversationChunk(input.sessionId, data).catch(() => {});
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
       session.ws.send(data);
     }
@@ -712,9 +729,16 @@ const server = http.createServer(async (req, res) => {
     if (conversationMeta) {
       const transcript = await readConversationTranscript(sessionId).catch(() => "");
       const plainTranscript = stripAnsi(transcript);
+      let prompt = "";
+      if (conversationMeta.promptPath) {
+        const promptPath = path.join(DATA_DIR, conversationMeta.promptPath);
+        if (fs.existsSync(promptPath)) {
+          prompt = fs.readFileSync(promptPath, "utf8");
+        }
+      }
       if (
         conversationMeta.status === "running" &&
-        transcriptShowsCompletedRun(plainTranscript)
+        transcriptShowsCompletedRun(plainTranscript, prompt)
       ) {
         await finalizeConversation(sessionId, {
           status: "completed",
