@@ -8,7 +8,6 @@ import {
   ROOT_INSTALL_METADATA_PATH,
 } from "@/lib/storage/path-utils";
 import {
-  isDockerRuntime,
   isElectronRuntime,
   PROJECT_ROOT,
 } from "@/lib/runtime/runtime-config";
@@ -47,13 +46,11 @@ export async function writeInstallMetadata(metadata: InstallMetadata): Promise<v
 }
 
 export function detectInstallKind(metadata: InstallMetadata | null): InstallKind {
-  if (process.env.CABINET_INSTALL_KIND === "docker") return "docker";
   if (process.env.CABINET_INSTALL_KIND === "electron-macos") return "electron-macos";
   if (process.env.CABINET_INSTALL_KIND === "source-managed") return "source-managed";
   if (process.env.CABINET_INSTALL_KIND === "source-custom") return "source-custom";
 
   if (isElectronRuntime()) return "electron-macos";
-  if (isDockerRuntime()) return "docker";
   if (metadata?.installKind === "source-managed" && metadata.managed) {
     return "source-managed";
   }
@@ -97,6 +94,6 @@ export async function detectInstallState(): Promise<{
     installKind,
     metadata,
     dirtyAppFiles,
-    managed: metadata?.managed === true || installKind === "docker" || installKind === "electron-macos",
+    managed: metadata?.managed === true || installKind === "electron-macos",
   };
 }

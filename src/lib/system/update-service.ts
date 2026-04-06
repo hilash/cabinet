@@ -11,14 +11,6 @@ function buildInstructions(installKind: InstallKind, updateAvailable: boolean, d
     return ["You already have the latest Cabinet release this install can see."];
   }
 
-  if (installKind === "docker") {
-    return [
-      "Run `docker compose pull` to fetch the new image.",
-      "Then run `docker compose up -d` to restart Cabinet on the new version.",
-      "Your mounted `data/` directory stays in place across image updates.",
-    ];
-  }
-
   if (installKind === "electron-macos") {
     return [
       "Electron downloads supported updates in the background.",
@@ -82,4 +74,3 @@ export async function getUpdateCheckResult(): Promise<UpdateCheckResult> {
     updateStatus,
   };
 }
-

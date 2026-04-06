@@ -1,7 +1,6 @@
 export type InstallKind =
   | "source-managed"
   | "source-custom"
-  | "docker"
   | "electron-macos";
 
 export type UpdateState =
@@ -90,4 +89,3 @@ export interface DataMigration {
   description: string;
   runSync: () => void;
 }
-
