@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
 
 interface WebTerminalProps {
   sessionId?: string;
@@ -13,6 +12,41 @@ interface WebTerminalProps {
 
 interface DaemonAuthPayload {
   token: string;
+}
+
+function readRootVar(name: string, fallback: string) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function getTerminalTheme() {
+  const background = readRootVar("--terminal-bg", "#0a0a0a");
+  const foreground = readRootVar("--terminal-fg", "#e5e5e5");
+
+  return {
+    background,
+    foreground,
+    cursor: readRootVar("--terminal-cursor", foreground),
+    cursorAccent: background,
+    selectionBackground: readRootVar("--terminal-selection", "#ffffff30"),
+    selectionForeground: foreground,
+    black: readRootVar("--terminal-ansi-black", "#1a1a2e"),
+    red: readRootVar("--terminal-ansi-red", "#ff6b6b"),
+    green: readRootVar("--terminal-ansi-green", "#51cf66"),
+    yellow: readRootVar("--terminal-ansi-yellow", "#ffd43b"),
+    blue: readRootVar("--terminal-ansi-blue", "#74c0fc"),
+    magenta: readRootVar("--terminal-ansi-magenta", "#cc5de8"),
+    cyan: readRootVar("--terminal-ansi-cyan", "#66d9e8"),
+    white: readRootVar("--terminal-ansi-white", foreground),
+    brightBlack: readRootVar("--terminal-ansi-bright-black", "#555570"),
+    brightRed: readRootVar("--terminal-ansi-bright-red", "#ff8787"),
+    brightGreen: readRootVar("--terminal-ansi-bright-green", "#69db7c"),
+    brightYellow: readRootVar("--terminal-ansi-bright-yellow", "#ffe066"),
+    brightBlue: readRootVar("--terminal-ansi-bright-blue", "#91d5ff"),
+    brightMagenta: readRootVar("--terminal-ansi-bright-magenta", "#da77f2"),
+    brightCyan: readRootVar("--terminal-ansi-bright-cyan", "#99e9f2"),
+    brightWhite: readRootVar("--terminal-ansi-bright-white", "#ffffff"),
+  };
 }
 
 function replacePastedTextNotice(output: string, displayPrompt?: string): string {
@@ -31,13 +65,18 @@ export function WebTerminal({
   const wsRef = useRef<WebSocket | null>(null);
   const xtermRef = useRef<import("@xterm/xterm").Terminal | null>(null);
   const fitAddonRef = useRef<import("@xterm/addon-fit").FitAddon | null>(null);
-  const [connected, setConnected] = useState(false);
+  const onCloseRef = useRef(onClose);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     let terminal: import("@xterm/xterm").Terminal | null = null;
     let ws: WebSocket | null = null;
     let resizeObserver: ResizeObserver | null = null;
+    let themeObserver: MutationObserver | null = null;
     let disposed = false;
 
     const init = async () => {
@@ -59,31 +98,7 @@ export function WebTerminal({
           "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
         lineHeight: 1.2,
         letterSpacing: 0,
-        theme: {
-          background: "#0a0a0a",
-          foreground: "#e5e5e5",
-          cursor: "#e5e5e5",
-          cursorAccent: "#0a0a0a",
-          selectionBackground: "#ffffff30",
-          selectionForeground: "#ffffff",
-          // ANSI colors - rich palette for Claude Code output
-          black: "#1a1a2e",
-          red: "#ff6b6b",
-          green: "#51cf66",
-          yellow: "#ffd43b",
-          blue: "#74c0fc",
-          magenta: "#cc5de8",
-          cyan: "#66d9e8",
-          white: "#e5e5e5",
-          brightBlack: "#555570",
-          brightRed: "#ff8787",
-          brightGreen: "#69db7c",
-          brightYellow: "#ffe066",
-          brightBlue: "#91d5ff",
-          brightMagenta: "#da77f2",
-          brightCyan: "#99e9f2",
-          brightWhite: "#ffffff",
-        },
+        theme: getTerminalTheme(),
         scrollback: 10000,
         allowProposedApi: true,
         convertEol: false,
@@ -107,7 +122,29 @@ export function WebTerminal({
       xtermRef.current = terminal;
 
       if (termRef.current) {
+        const applyTheme = () => {
+          if (!terminal) return;
+          const nextTheme = getTerminalTheme();
+          terminal.options.theme = nextTheme;
+          termRef.current?.style.setProperty("background-color", nextTheme.background);
+          termRef.current?.style.setProperty("color", nextTheme.foreground);
+        };
+
+        applyTheme();
         terminal.open(termRef.current);
+        applyTheme();
+
+        themeObserver = new MutationObserver(() => {
+          requestAnimationFrame(() => {
+            if (!disposed) {
+              applyTheme();
+            }
+          });
+        });
+        themeObserver.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["class", "style", "data-custom-theme"],
+        });
 
         // Initial fit after a tick (ensures DOM is ready)
         requestAnimationFrame(() => {
@@ -173,7 +210,6 @@ export function WebTerminal({
 
             ws.onopen = () => {
               if (disposed) return;
-              setConnected(true);
               setError(null);
               if (terminal) {
                 ws?.send(
@@ -205,9 +241,8 @@ export function WebTerminal({
 
             ws.onclose = () => {
               if (disposed) return;
-              setConnected(false);
               terminal?.write("\r\n\x1b[90m[Session ended]\x1b[0m\r\n");
-              onClose?.();
+              onCloseRef.current?.();
             };
           } catch {
             setError("Connection failed. Is the daemon running?");
@@ -230,6 +265,7 @@ export function WebTerminal({
     return () => {
       disposed = true;
       resizeObserver?.disconnect();
+      themeObserver?.disconnect();
       ws?.close();
       terminal?.dispose();
       wsRef.current = null;
@@ -239,7 +275,13 @@ export function WebTerminal({
   }, [sessionId, prompt, displayPrompt, reconnect]);
 
   return (
-    <div className="h-full w-full relative overflow-hidden bg-[#0a0a0a]">
+    <div
+      className="relative h-full w-full overflow-hidden"
+      style={{
+        backgroundColor: "var(--terminal-bg)",
+        color: "var(--terminal-fg)",
+      }}
+    >
       {error && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-1 bg-destructive/90 text-destructive-foreground text-xs rounded-md">
           {error}

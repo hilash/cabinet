@@ -1287,8 +1287,14 @@ export function AgentsWorkspace({
                   }}
                 />
               ) : selectedConversation ? (
-                <ScrollArea className="h-full bg-[#0a0a0a]">
-                  <pre className="min-h-full whitespace-pre-wrap p-5 font-mono text-[12px] leading-relaxed text-neutral-200">
+                <ScrollArea
+                  className="h-full"
+                  style={{
+                    backgroundColor: "var(--terminal-bg)",
+                    color: "var(--terminal-fg)",
+                  }}
+                >
+                  <pre className="min-h-full whitespace-pre-wrap p-5 font-mono text-[12px] leading-relaxed">
                     {replacePastedTextNotice(
                       selectedConversation.transcript || "No transcript captured.",
                       selectedConversationMeta.title
