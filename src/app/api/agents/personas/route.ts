@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { ensureDirectory } from "@/lib/storage/fs-operations";
 import {
   listPersonas,
   writePersona,
 } from "@/lib/agents/persona-manager";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
+import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 
 // Initialize heartbeats on first request
 let initialized = false;
@@ -43,9 +43,8 @@ export async function POST(req: NextRequest) {
 
   await writePersona(slug, personaData);
 
-  // Create workspace directory for the agent
-  const wsDir = path.join(DATA_DIR, ".agents", slug, "workspace");
-  await ensureDirectory(wsDir);
+  const agentDir = path.join(DATA_DIR, ".agents", slug);
+  await ensureAgentScaffold(agentDir);
 
   await reloadDaemonSchedules().catch(() => {});
 

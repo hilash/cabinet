@@ -221,6 +221,18 @@ function statusFromFilter(filter: StatusFilter): ConversationMeta["status"] | un
   return filter;
 }
 
+async function readErrorMessage(
+  response: Response,
+  fallback: string
+): Promise<string> {
+  try {
+    const data = (await response.json()) as { error?: string; message?: string };
+    return data.error || data.message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function makePageContextLabel(path: string, pages: { path: string; title: string }[]): string {
   return pages.find((page) => page.path === path)?.title || path;
 }
@@ -332,6 +344,8 @@ export function AgentsWorkspace({
   const [libraryTemplates, setLibraryTemplates] = useState<JobLibraryTemplate[]>([]);
   const [addAgentDialogOpen, setAddAgentDialogOpen] = useState(false);
   const [agentTemplates, setAgentTemplates] = useState<AgentTemplate[]>([]);
+  const [agentFlowError, setAgentFlowError] = useState<string | null>(null);
+  const [loadingAgentTemplates, setLoadingAgentTemplates] = useState(false);
   const [addingAgentSlug, setAddingAgentSlug] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingJob, setSavingJob] = useState(false);
@@ -631,6 +645,9 @@ export function AgentsWorkspace({
 
   function handleSettingsEditorOpenChange(open: boolean) {
     setSettingsEditorOpen(open);
+    if (open) {
+      setAgentFlowError(null);
+    }
     if (!open) {
       // Mark setupComplete on close so the dialog doesn't auto-open again
       if (settingsAgentSlug && settingsAgentSlug !== "general" && settingsPersona && !settingsPersona.setupComplete) {
@@ -652,29 +669,48 @@ export function AgentsWorkspace({
     setCustomAgentDialogOpen(open);
     if (!open) {
       setNewAgentDraft(DEFAULT_NEW_AGENT);
+      setAgentFlowError(null);
     }
   }
 
   function openCustomAgentDialog() {
     setAddAgentDialogOpen(false);
     setNewAgentDraft(DEFAULT_NEW_AGENT);
+    setAgentFlowError(null);
     setCustomAgentDialogOpen(true);
   }
 
   async function openAddAgentDialog() {
+    setAgentFlowError(null);
+    if (mode !== "settings") {
+      setMode("settings");
+      if (!settingsTarget) {
+        setSettingsTarget("directory");
+      }
+    }
     setAddAgentDialogOpen(true);
     if (agentTemplates.length === 0) {
+      setLoadingAgentTemplates(true);
       try {
         const res = await fetch("/api/agents/library");
-        if (res.ok) {
-          const data = await res.json();
-          setAgentTemplates(data.templates || []);
+        if (!res.ok) {
+          setAgentFlowError(
+            await readErrorMessage(res, "Unable to load the agent library right now.")
+          );
+          return;
         }
-      } catch { /* ignore */ }
+        const data = await res.json();
+        setAgentTemplates(data.templates || []);
+      } catch {
+        setAgentFlowError("Unable to load the agent library right now.");
+      } finally {
+        setLoadingAgentTemplates(false);
+      }
     }
   }
 
   async function addAgentFromTemplate(template: AgentTemplate) {
+    setAgentFlowError(null);
     setAddingAgentSlug(template.slug);
     try {
       const res = await fetch(`/api/agents/library/${template.slug}/add`, { method: "POST" });
@@ -683,19 +719,26 @@ export function AgentsWorkspace({
           // Agent already exists — just open its settings
           setAddAgentDialogOpen(false);
           await refreshAgents();
+          setSection({ type: "agent", slug: template.slug });
           openAgentSettings(template.slug);
           await refreshSettings(template.slug);
           handleSettingsEditorOpenChange(true);
           return;
         }
+        setAgentFlowError(
+          await readErrorMessage(res, `Unable to add ${template.name} right now.`)
+        );
         return;
       }
       setAddAgentDialogOpen(false);
       await refreshAgents();
+      setSection({ type: "agent", slug: template.slug });
       openAgentSettings(template.slug);
       await refreshSettings(template.slug);
       handleSettingsEditorOpenChange(true);
-    } catch { /* ignore */ } finally {
+    } catch {
+      setAgentFlowError(`Unable to add ${template.name} right now.`);
+    } finally {
       setAddingAgentSlug(null);
     }
   }
@@ -773,6 +816,7 @@ export function AgentsWorkspace({
       return;
     }
 
+    setAgentFlowError(null);
     const nextSnapshot = JSON.stringify({
       name: settingsEditorDraft.name || "",
       emoji: settingsEditorDraft.emoji || "",
@@ -783,30 +827,38 @@ export function AgentsWorkspace({
       workspace: settingsEditorDraft.workspace || "",
       body: settingsEditorBody,
     });
-
-    if (nextSnapshot === lastSavedSettingsRef.current) {
-      setSettingsPersona({ ...settingsEditorDraft });
-      setSettingsBody(settingsEditorBody);
-      handleSettingsEditorOpenChange(false);
-      return;
-    }
+    const needsSetupCompletion = settingsEditorDraft.setupComplete !== true;
 
     setSavingSettings(true);
     try {
-      const payload = JSON.parse(nextSnapshot);
-      payload.setupComplete = true;
+      const payload =
+        nextSnapshot === lastSavedSettingsRef.current
+          ? { setupComplete: true }
+          : {
+              ...JSON.parse(nextSnapshot),
+              setupComplete: true,
+            };
       const response = await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) return;
-      lastSavedSettingsRef.current = nextSnapshot;
+      if (!response.ok) {
+        setAgentFlowError(
+          await readErrorMessage(response, "Unable to save this agent right now.")
+        );
+        return;
+      }
+      if (!needsSetupCompletion || nextSnapshot !== lastSavedSettingsRef.current) {
+        lastSavedSettingsRef.current = nextSnapshot;
+      }
       setSettingsPersona({ ...settingsEditorDraft, setupComplete: true });
       setSettingsBody(settingsEditorBody);
       await refreshAgents();
       await refreshSettings(settingsAgentSlug, { resetJobEditor: false });
       handleSettingsEditorOpenChange(false);
+    } catch {
+      setAgentFlowError("Unable to save this agent right now.");
     } finally {
       setSavingSettings(false);
     }
@@ -962,8 +1014,10 @@ export function AgentsWorkspace({
     const slug = slugify(newAgentDraft.slug || newAgentDraft.name);
     if (!newAgentDraft.name.trim() || !newAgentDraft.role.trim() || !slug) return;
 
+    setAgentFlowError(null);
     if (agents.some((agent) => agent.slug === slug)) {
       handleCustomAgentDialogOpenChange(false);
+      setSection({ type: "agent", slug });
       openAgentSettings(slug);
       await refreshSettings(slug);
       handleSettingsEditorOpenChange(true);
@@ -1000,13 +1054,20 @@ export function AgentsWorkspace({
         }),
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        setAgentFlowError(
+          await readErrorMessage(response, "Unable to create this agent right now.")
+        );
+        return;
+      }
       handleCustomAgentDialogOpenChange(false);
       await refreshAgents();
       setSection({ type: "agent", slug });
       openAgentSettings(slug);
       await refreshSettings(slug);
       handleSettingsEditorOpenChange(true);
+    } catch {
+      setAgentFlowError("Unable to create this agent right now.");
     } finally {
       setCreatingAgent(false);
     }
@@ -1090,6 +1151,9 @@ export function AgentsWorkspace({
     workspace: settingsEditorDraft.workspace || "",
     body: settingsEditorBody,
   }) !== lastSavedSettingsRef.current;
+  const canSaveSettings = !!settingsEditorDraft && (
+    settingsDirty || settingsEditorDraft.setupComplete !== true
+  );
 
   function renderSettingsComposerPanel(agentSlug: string) {
     const panelAgent = agents.find((agent) => agent.slug === agentSlug) || null;
@@ -1482,10 +1546,20 @@ export function AgentsWorkspace({
                       Edit your own agent
                     </Button>
                   </div>
+                  {agentFlowError ? (
+                    <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      {agentFlowError}
+                    </p>
+                  ) : null}
                 </DialogHeader>
                 <ScrollArea className="max-h-[70vh]">
                   <div className="flex flex-col gap-6 pr-2">
-                    {groupedAgentTemplates.length > 0 ? (
+                    {loadingAgentTemplates ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading the agent library...
+                      </div>
+                    ) : groupedAgentTemplates.length > 0 ? (
                       groupedAgentTemplates.map(([department, templates]) => (
                         <div key={department} className="flex flex-col gap-3">
                           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1530,7 +1604,8 @@ export function AgentsWorkspace({
                       ))
                     ) : (
                       <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
-                        No predefined agents are available right now. Use "Edit your own agent" to create one from scratch.
+                        No predefined agents are available right now. Use &ldquo;Edit your own
+                        agent&rdquo; to create one from scratch.
                       </div>
                     )}
                   </div>
@@ -1545,6 +1620,11 @@ export function AgentsWorkspace({
                   <DialogDescription>
                     Create a custom agent from scratch, then fine-tune it in the same popup flow.
                   </DialogDescription>
+                  {agentFlowError ? (
+                    <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      {agentFlowError}
+                    </p>
+                  ) : null}
                 </DialogHeader>
                 <ScrollArea className="max-h-[70vh]">
                   <div className="grid gap-4 pr-2 md:grid-cols-2">
@@ -1808,6 +1888,11 @@ export function AgentsWorkspace({
                       <DialogDescription>
                         Review the live agent, make your changes here, and save when you are ready.
                       </DialogDescription>
+                      {agentFlowError ? (
+                        <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                          {agentFlowError}
+                        </p>
+                      ) : null}
                     </DialogHeader>
                     {settingsEditorDraft ? (
                     <div className="space-y-3">
@@ -1969,10 +2054,10 @@ export function AgentsWorkspace({
                           size="sm"
                           className="h-8 gap-1 text-xs"
                           onClick={() => void saveAgentSettings()}
-                          disabled={savingSettings || deletingAgent || !settingsDirty}
+                          disabled={savingSettings || deletingAgent || !canSaveSettings}
                         >
                           <Save className="h-3.5 w-3.5" />
-                          {savingSettings ? "Saving..." : "Save"}
+                          {savingSettings ? "Saving..." : settingsEditorDraft.setupComplete ? "Save" : "Continue"}
                         </Button>
                       </div>
                     </div>

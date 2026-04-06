@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 
 const LIBRARY_DIR = path.join(DATA_DIR, ".agents", ".library");
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
@@ -41,10 +42,7 @@ export async function POST(
     // Copy template directory to active agents
     await copyDir(templateDir, targetDir);
 
-    // Create standard subdirectories
-    for (const subdir of ["jobs", "skills", "sessions", "memory"]) {
-      await fs.mkdir(path.join(targetDir, subdir), { recursive: true });
-    }
+    await ensureAgentScaffold(targetDir);
 
     return NextResponse.json({ ok: true, slug }, { status: 201 });
   } catch (error) {
