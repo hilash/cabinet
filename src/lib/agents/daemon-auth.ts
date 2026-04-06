@@ -2,6 +2,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDaemonUrl as getConfiguredDaemonUrl } from "@/lib/runtime/runtime-config";
 
 const DAEMON_RUNTIME_DIR = path.join(DATA_DIR, ".agents", ".runtime");
 const DAEMON_TOKEN_PATH = path.join(DAEMON_RUNTIME_DIR, "daemon-token");
@@ -9,7 +10,7 @@ const DAEMON_TOKEN_PATH = path.join(DAEMON_RUNTIME_DIR, "daemon-token");
 let cachedToken: string | null = null;
 
 export function getDaemonUrl(): string {
-  return process.env.CABINET_DAEMON_URL || "http://127.0.0.1:3001";
+  return getConfiguredDaemonUrl();
 }
 
 function safeEqual(left: string, right: string): boolean {

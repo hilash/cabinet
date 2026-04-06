@@ -1,8 +1,10 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { DATA_DIR } from "@/lib/storage/path-utils";
+import { runFileMigrationsSync } from "@/lib/system/file-migrations";
+import { runSqlMigrations } from "@/lib/system/sql-migrations";
 
-const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, ".cabinet.db");
 const MIGRATIONS_DIR = path.join(process.cwd(), "server", "migrations");
 
@@ -19,6 +21,8 @@ export function getDb(): Database.Database {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
+  runFileMigrationsSync();
+
   _db = new Database(DB_PATH);
 
   _db.pragma("journal_mode = WAL");
@@ -30,39 +34,7 @@ export function getDb(): Database.Database {
 }
 
 function runMigrations(db: Database.Database): void {
-  const hasVersionTable = db
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
-    )
-    .get();
-
-  let currentVersion = 0;
-  if (hasVersionTable) {
-    const row = db
-      .prepare("SELECT MAX(version) as version FROM schema_version")
-      .get() as { version: number | null } | undefined;
-    currentVersion = row?.version ?? 0;
-  }
-
-  if (!fs.existsSync(MIGRATIONS_DIR)) {
-    return;
-  }
-
-  const migrationFiles = fs
-    .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
-
-  for (const file of migrationFiles) {
-    const versionMatch = file.match(/^(\d+)/);
-    if (!versionMatch) continue;
-
-    const version = parseInt(versionMatch[1], 10);
-    if (version <= currentVersion) continue;
-
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
-    db.exec(sql);
-  }
+  runSqlMigrations(db, MIGRATIONS_DIR);
 }
 
 export function closeDb(): void {

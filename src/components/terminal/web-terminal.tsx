@@ -13,6 +13,7 @@ interface WebTerminalProps {
 
 interface DaemonAuthPayload {
   token: string;
+  wsOrigin?: string;
 }
 
 function readRootVar(name: string, fallback: string) {
@@ -196,17 +197,12 @@ export function WebTerminal({
             const params = new URLSearchParams({ id, token: auth.token });
             if (prompt && !reconnect) params.set("prompt", prompt);
 
-            const isLocalDev =
-              (window.location.hostname === "localhost" ||
-                window.location.hostname === "127.0.0.1") &&
-              window.location.port === "3000";
-            const protocol = isLocalDev
-              ? "ws"
-              : window.location.protocol === "https:"
-                ? "wss"
-                : "ws";
-            const host = isLocalDev ? "127.0.0.1:3001" : window.location.host;
-            const wsUrl = `${protocol}://${host}/api/daemon/pty?${params.toString()}`;
+            const wsOrigin =
+              auth.wsOrigin ||
+              (window.location.protocol === "https:"
+                ? `wss://${window.location.host}`
+                : `ws://${window.location.host}`);
+            const wsUrl = `${wsOrigin}/api/daemon/pty?${params.toString()}`;
 
             ws = new WebSocket(wsUrl);
             wsRef.current = ws;

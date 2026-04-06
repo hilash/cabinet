@@ -1,9 +1,9 @@
 {
   "name": "create-cabinet",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Create a new Cabinet project — AI-first knowledge base and startup OS",
   "bin": {
-    "create-cabinet": "./index.js"
+    "create-cabinet": "./index.cjs"
   },
   "keywords": [
     "ai",

@@ -11,6 +11,11 @@ import {
 } from "@/lib/storage/fs-operations";
 import { startJobConversation } from "@/lib/agents/conversation-runner";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import {
+  jobIdMatches,
+  normalizeJobConfig,
+  normalizeJobId,
+} from "@/lib/jobs/job-normalization";
 
 const JOBS_DIR = path.join(DATA_DIR, ".jobs");
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
@@ -18,27 +23,53 @@ const HISTORY_DIR = path.join(JOBS_DIR, ".history");
 
 const runHistory = new Map<string, JobRun>();
 
+async function loadNormalizedJobFile(
+  filePath: string,
+  agentSlug?: string
+): Promise<JobConfig | null> {
+  const raw = await readFileContent(filePath);
+  const parsed = yaml.load(raw) as Partial<JobConfig> | null;
+  if (!parsed) return null;
+
+  const normalized = normalizeJobConfig(
+    parsed,
+    agentSlug,
+    normalizeJobId(path.basename(filePath, ".yaml"), parsed.name)
+  );
+  const nextRaw = yaml.dump(normalized, { lineWidth: -1, noRefs: true });
+  const nextPath = path.join(path.dirname(filePath), `${normalized.id}.yaml`);
+
+  if (nextPath !== filePath || nextRaw !== raw) {
+    await writeFileContent(nextPath, nextRaw);
+    if (nextPath !== filePath) {
+      const fs = await import("fs/promises");
+      await fs.rm(filePath, { force: true });
+    }
+  }
+
+  return normalized;
+}
+
 /** Load jobs from the legacy /data/.jobs/ directory */
 async function loadLegacyJobs(): Promise<JobConfig[]> {
   await ensureDirectory(JOBS_DIR);
   const entries = await listDirectory(JOBS_DIR);
-  const jobs: JobConfig[] = [];
+  const jobs = new Map<string, JobConfig>();
 
   for (const entry of entries) {
     if (entry.name.endsWith(".yaml") && !entry.isDirectory) {
       try {
-        const raw = await readFileContent(path.join(JOBS_DIR, entry.name));
-        const config = yaml.load(raw) as JobConfig;
-        if (config && config.id) jobs.push(config);
+        const config = await loadNormalizedJobFile(path.join(JOBS_DIR, entry.name));
+        if (config?.id) jobs.set(config.id, config);
       } catch { /* skip */ }
     }
   }
-  return jobs;
+  return Array.from(jobs.values());
 }
 
 /** Load jobs from /data/.agents/{slug}/jobs/ directories */
 async function loadAgentJobs(): Promise<JobConfig[]> {
-  const jobs: JobConfig[] = [];
+  const jobs = new Map<string, JobConfig>();
   try {
     const entries = await listDirectory(AGENTS_DIR);
     for (const entry of entries) {
@@ -50,17 +81,16 @@ async function loadAgentJobs(): Promise<JobConfig[]> {
       for (const jf of jobFiles) {
         if (!jf.name.endsWith(".yaml") || jf.isDirectory) continue;
         try {
-          const raw = await readFileContent(path.join(agentJobsDir, jf.name));
-          const config = yaml.load(raw) as JobConfig;
-          if (config && config.id) {
-            config.agentSlug = entry.name;
-            jobs.push(config);
-          }
+          const config = await loadNormalizedJobFile(
+            path.join(agentJobsDir, jf.name),
+            entry.name
+          );
+          if (config?.id) jobs.set(`${entry.name}/${config.id}`, config);
         } catch { /* skip */ }
       }
     }
   } catch { /* agents dir may not exist */ }
-  return jobs;
+  return Array.from(jobs.values());
 }
 
 /** Load all jobs from both legacy and agent-scoped directories */
@@ -79,57 +109,104 @@ export async function loadAgentJobsBySlug(agentSlug: string): Promise<JobConfig[
   if (!(await fileExists(agentJobsDir))) return [];
 
   const entries = await listDirectory(agentJobsDir);
-  const jobs: JobConfig[] = [];
+  const jobs = new Map<string, JobConfig>();
 
   for (const entry of entries) {
     if (!entry.name.endsWith(".yaml") || entry.isDirectory) continue;
     try {
-      const raw = await readFileContent(path.join(agentJobsDir, entry.name));
-      const config = yaml.load(raw) as JobConfig;
-      if (config && config.id) {
-        config.agentSlug = agentSlug;
-        jobs.push(config);
-      }
+      const config = await loadNormalizedJobFile(
+        path.join(agentJobsDir, entry.name),
+        agentSlug
+      );
+      if (config?.id) jobs.set(config.id, config);
     } catch { /* skip */ }
   }
-  return jobs;
+  return Array.from(jobs.values());
 }
 
 /** Save a job to the appropriate directory based on agentSlug */
 export async function saveAgentJob(agentSlug: string, job: JobConfig): Promise<void> {
   const agentJobsDir = path.join(AGENTS_DIR, agentSlug, "jobs");
   await ensureDirectory(agentJobsDir);
-  job.agentSlug = agentSlug;
-  const filePath = path.join(agentJobsDir, `${job.id}.yaml`);
-  const raw = yaml.dump(job, { lineWidth: -1, noRefs: true });
+  const normalized = normalizeJobConfig(
+    job,
+    agentSlug,
+    normalizeJobId(job.id, job.name)
+  );
+  const filePath = path.join(agentJobsDir, `${normalized.id}.yaml`);
+  const raw = yaml.dump(normalized, { lineWidth: -1, noRefs: true });
   await writeFileContent(filePath, raw);
+
+  if (typeof job.id === "string" && job.id !== normalized.id) {
+    const fs = await import("fs/promises");
+    await fs.rm(path.join(agentJobsDir, `${job.id}.yaml`), { force: true });
+  }
 }
 
 /** Delete a job from the agent's jobs directory */
 export async function deleteAgentJob(agentSlug: string, jobId: string): Promise<void> {
-  const filePath = path.join(AGENTS_DIR, agentSlug, "jobs", `${jobId}.yaml`);
   const fs = await import("fs/promises");
-  await fs.rm(filePath, { force: true });
+  const jobsDir = path.join(AGENTS_DIR, agentSlug, "jobs");
+  if (!(await fileExists(jobsDir))) return;
+
+  const normalizedJobId = normalizeJobId(jobId);
+  const entries = await listDirectory(jobsDir);
+  await Promise.all(
+    entries
+      .filter((entry) => entry.name.endsWith(".yaml") && !entry.isDirectory)
+      .filter((entry) =>
+        jobIdMatches(path.basename(entry.name, ".yaml"), normalizedJobId)
+      )
+      .map((entry) => fs.rm(path.join(jobsDir, entry.name), { force: true }))
+  );
 }
 
 export async function getJob(id: string): Promise<JobConfig | null> {
-  const filePath = path.join(JOBS_DIR, `${id}.yaml`);
-  if (!(await fileExists(filePath))) return null;
-  const raw = await readFileContent(filePath);
-  return yaml.load(raw) as JobConfig;
+  const normalizedId = normalizeJobId(id);
+  const filePath = path.join(JOBS_DIR, `${normalizedId}.yaml`);
+  if (await fileExists(filePath)) {
+    return loadNormalizedJobFile(filePath);
+  }
+
+  const entries = await listDirectory(JOBS_DIR);
+  for (const entry of entries) {
+    if (!entry.name.endsWith(".yaml") || entry.isDirectory) continue;
+    if (!jobIdMatches(path.basename(entry.name, ".yaml"), normalizedId)) continue;
+    return loadNormalizedJobFile(path.join(JOBS_DIR, entry.name));
+  }
+
+  return null;
 }
 
 export async function saveJob(job: JobConfig): Promise<void> {
   await ensureDirectory(JOBS_DIR);
-  const filePath = path.join(JOBS_DIR, `${job.id}.yaml`);
-  const raw = yaml.dump(job, { lineWidth: -1, noRefs: true });
+  const normalized = normalizeJobConfig(
+    job,
+    job.agentSlug,
+    normalizeJobId(job.id, job.name)
+  );
+  const filePath = path.join(JOBS_DIR, `${normalized.id}.yaml`);
+  const raw = yaml.dump(normalized, { lineWidth: -1, noRefs: true });
   await writeFileContent(filePath, raw);
+
+  if (typeof job.id === "string" && job.id !== normalized.id) {
+    const fs = await import("fs/promises");
+    await fs.rm(path.join(JOBS_DIR, `${job.id}.yaml`), { force: true });
+  }
 }
 
 export async function deleteJob(id: string): Promise<void> {
-  const filePath = path.join(JOBS_DIR, `${id}.yaml`);
   const fs = await import("fs/promises");
-  await fs.rm(filePath, { force: true });
+  const normalizedId = normalizeJobId(id);
+  const entries = await listDirectory(JOBS_DIR);
+  await Promise.all(
+    entries
+      .filter((entry) => entry.name.endsWith(".yaml") && !entry.isDirectory)
+      .filter((entry) =>
+        jobIdMatches(path.basename(entry.name, ".yaml"), normalizedId)
+      )
+      .map((entry) => fs.rm(path.join(JOBS_DIR, entry.name), { force: true }))
+  );
 }
 
 export async function toggleJob(id: string): Promise<JobConfig | null> {
