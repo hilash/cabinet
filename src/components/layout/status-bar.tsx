@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { GitBranch, RefreshCw, Check, CloudDownload, Star } from "lucide-react";
+import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
+import { useAppStore } from "@/stores/app-store";
 
 const DISCORD_SUPPORT_URL = "https://discord.com/invite/rxd8BYnN";
 const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
@@ -43,11 +45,13 @@ function formatGithubStars(stars: number) {
 export function StatusBar() {
   const { saveStatus, currentPath } = useEditorStore();
   const loadTree = useTreeStore((s) => s.loadTree);
+  const setSection = useAppStore((s) => s.setSection);
   const [uncommitted, setUncommitted] = useState(0);
   const [pullStatus, setPullStatus] = useState<"idle" | "pulling" | "pulled" | "up-to-date" | "error">("idle");
   const [pulling, setPulling] = useState(false);
   const [githubStars, setGithubStars] = useState(GITHUB_STARS_FALLBACK);
   const didAutoPullRef = useRef(false);
+  const { update } = useCabinetUpdate();
 
   const fetchGitStatus = async () => {
     try {
@@ -181,6 +185,26 @@ export function StatusBar() {
           <span className="flex items-center gap-1 text-red-400">
             Pull failed
           </span>
+        )}
+        {update?.updateStatus.state === "restart-required" && (
+          <button
+            onClick={() => setSection({ type: "settings" })}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-amber-600 hover:bg-muted hover:text-foreground transition-colors"
+            title="Open Settings to review the installed update"
+          >
+            <CloudDownload className="h-3 w-3" />
+            Restart to finish update
+          </button>
+        )}
+        {update?.updateAvailable && update?.updateStatus.state !== "restart-required" && update.latest && (
+          <button
+            onClick={() => setSection({ type: "settings" })}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-blue-500 hover:bg-muted hover:text-foreground transition-colors"
+            title={`Cabinet ${update.latest.version} is available`}
+          >
+            <CloudDownload className="h-3 w-3" />
+            Update {update.latest.version} available
+          </button>
         )}
         <span className="flex items-center gap-1">
           <GitBranch className="h-3 w-3" />

@@ -1,7 +1,7 @@
 ---
 title: Getting Started
 created: '2026-03-21T00:00:00.000Z'
-modified: '2026-04-06T12:09:31.061Z'
+modified: '2026-04-06T12:36:51.000Z'
 tags:
   - guide
   - onboarding
@@ -59,6 +59,18 @@ We have 2 parts:
 -   **Embedded Apps** — Directories with `index.html` render as embedded websites. Add a `.app` marker for full-screen mode (sidebar auto-collapses)
     
 -   **Linked Repos** — Add `.repo.yaml` to link a KB directory to a Git repo. AI agents use this to read source code in context
+
+## Import Your Repos
+
+You can import your existing repos into Cabinet.
+
+Open the Knowledge Base menu in the left sidebar and choose `Add Symlink`. Cabinet will:
+
+-   create a KB folder for the repo
+-   add a `source` symlink that points to your local repo
+-   create a `.repo.yaml` file so agents understand the repo context
+
+If the linked repo has an `index.html`, Cabinet will show that folder as an embedded website inside the Knowledge Base.
     
 
 ## Sidebar Icons

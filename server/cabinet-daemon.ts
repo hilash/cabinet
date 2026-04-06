@@ -21,6 +21,11 @@ import chokidar from "chokidar";
 import { execSync } from "child_process";
 import matter from "gray-matter";
 import { getDb, closeDb } from "./db";
+import { DATA_DIR } from "../src/lib/storage/path-utils";
+import {
+  getAppOrigin,
+  getDaemonPort,
+} from "../src/lib/runtime/runtime-config";
 import {
   appendConversationTranscript,
   finalizeConversation,
@@ -32,14 +37,16 @@ import {
   getTokenFromAuthorizationHeader,
   isDaemonTokenValid,
 } from "../src/lib/agents/daemon-auth";
+import {
+  normalizeJobConfig,
+  normalizeJobId,
+} from "../src/lib/jobs/job-normalization";
 
-const PORT = 3001;
-const DATA_DIR = path.join(process.cwd(), "data");
+const PORT = getDaemonPort();
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 const ALLOWED_BROWSER_ORIGINS = new Set(
   [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    getAppOrigin(),
     ...(process.env.CABINET_APP_ORIGIN
       ? process.env.CABINET_APP_ORIGIN.split(",").map((value) => value.trim()).filter(Boolean)
       : []),
@@ -577,6 +584,8 @@ function stopScheduledTasks(): void {
 
 function scheduleJob(job: JobConfig): void {
   const key = `${job.agentSlug}/${job.id}`;
+  const existingTask = scheduledJobs.get(key);
+  if (existingTask) existingTask.stop();
 
   if (!cron.validate(job.schedule)) {
     console.warn(`Invalid cron schedule for job ${key}: ${job.schedule}`);
@@ -585,7 +594,7 @@ function scheduleJob(job: JobConfig): void {
 
   const task = cron.schedule(job.schedule, () => {
     console.log(`Triggering scheduled job ${key}`);
-    void putJson(`http://localhost:3000/api/agents/${job.agentSlug}/jobs/${job.id}`, {
+    void putJson(`${getAppOrigin()}/api/agents/${job.agentSlug}/jobs/${job.id}`, {
       action: "run",
       source: "scheduler",
     }).catch((error) => {
@@ -605,7 +614,7 @@ function scheduleHeartbeat(slug: string, cronExpr: string): void {
 
   const task = cron.schedule(cronExpr, () => {
     console.log(`Triggering heartbeat ${slug}`);
-    void putJson(`http://localhost:3000/api/agents/personas/${slug}`, {
+    void putJson(`${getAppOrigin()}/api/agents/personas/${slug}`, {
       action: "run",
       source: "scheduler",
     }).catch((error) => {
@@ -654,9 +663,15 @@ async function reloadSchedules(): Promise<void> {
 
       try {
         const raw = fs.readFileSync(path.join(jobsDir, jf), "utf-8");
-        const config = yaml.load(raw) as JobConfig;
-        if (config && config.id && config.enabled && config.schedule) {
-          config.agentSlug = entry.name;
+        const config: JobConfig = {
+          ...normalizeJobConfig(
+            yaml.load(raw) as Partial<JobConfig>,
+            entry.name,
+            normalizeJobId(path.basename(jf, ".yaml"))
+          ),
+          agentSlug: entry.name,
+        };
+        if (config.id && config.enabled && config.schedule) {
           scheduleJob(config);
           jobCount++;
         }

@@ -3,9 +3,10 @@ import * as pty from "node-pty";
 import path from "path";
 import http from "http";
 import { execSync } from "child_process";
+import { DATA_DIR } from "../src/lib/storage/path-utils";
+import { getDaemonPort } from "../src/lib/runtime/runtime-config";
 
-const PORT = 3001;
-const DATA_DIR = path.join(process.cwd(), "data");
+const PORT = getDaemonPort();
 
 interface Session {
   id: string;
