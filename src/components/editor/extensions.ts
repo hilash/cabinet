@@ -9,6 +9,7 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
+import Link from "@tiptap/extension-link";
 import { WikiLink } from "./wiki-link-extension";
 import { CalloutExtension } from "./callout-extension";
 
@@ -50,6 +51,21 @@ export const editorExtensions = [
   }),
   TaskItem.configure({
     nested: true,
+  }),
+  Link.configure({
+    openOnClick: false, // we handle clicks ourselves in the editor
+    HTMLAttributes: {
+      class: "text-primary underline cursor-pointer",
+    },
+  }).extend({
+    // Exclude wiki-links from the Link mark — they have their own extension
+    parseHTML() {
+      return [
+        {
+          tag: 'a[href]:not([data-wiki-link="true"])',
+        },
+      ];
+    },
   }),
   WikiLink,
   CalloutExtension,
