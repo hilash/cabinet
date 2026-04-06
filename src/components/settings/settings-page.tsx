@@ -15,9 +15,22 @@ import {
   Save,
   Loader2,
   Clock,
+  CloudDownload,
+  Palette,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { UpdateSummary } from "@/components/system/update-summary";
+import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
+import { useTheme } from "next-themes";
+import {
+  THEMES,
+  applyTheme,
+  getStoredThemeName,
+  storeThemeName,
+  type ThemeDefinition,
+} from "@/lib/themes";
 import { cn } from "@/lib/utils";
 
 interface ProviderInfo {
@@ -55,7 +68,7 @@ interface IntegrationConfig {
   };
 }
 
-type Tab = "providers" | "integrations" | "notifications";
+type Tab = "providers" | "integrations" | "notifications" | "appearance" | "updates";
 
 export function SettingsPage() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -67,6 +80,36 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
+  const [activeThemeName, setActiveThemeName] = useState<string | null>(null);
+  const { setTheme: setNextTheme } = useTheme();
+  const {
+    update,
+    loading: updateLoading,
+    refreshing: updateRefreshing,
+    applyPending,
+    backupPending,
+    backupPath,
+    actionError,
+    refresh: refreshUpdate,
+    createBackup,
+    openDataDir,
+    applyUpdate,
+  } = useCabinetUpdate();
+
+  // Sync active theme name on mount
+  useEffect(() => {
+    setActiveThemeName(getStoredThemeName() || "paper");
+  }, []);
+
+  const selectTheme = (themeDef: ThemeDefinition) => {
+    applyTheme(themeDef);
+    setActiveThemeName(themeDef.name);
+    storeThemeName(themeDef.name);
+    setNextTheme(themeDef.type);
+  };
+
+  const darkThemes = THEMES.filter((t) => t.type === "dark");
+  const lightThemes = THEMES.filter((t) => t.type === "light");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -179,6 +222,8 @@ export function SettingsPage() {
     { id: "providers", label: "Providers", icon: <Cpu className="h-3.5 w-3.5" /> },
     { id: "integrations", label: "Integrations", icon: <Plug className="h-3.5 w-3.5" /> },
     { id: "notifications", label: "Notifications", icon: <Bell className="h-3.5 w-3.5" /> },
+    { id: "appearance", label: "Appearance", icon: <Palette className="h-3.5 w-3.5" /> },
+    { id: "updates", label: "Updates", icon: <CloudDownload className="h-3.5 w-3.5" /> },
   ];
 
   return (
@@ -242,6 +287,115 @@ export function SettingsPage() {
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6 max-w-2xl">
+          {/* Appearance Tab */}
+          {tab === "appearance" && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-[13px] font-semibold mb-1">Theme</h3>
+                <p className="text-[12px] text-muted-foreground mb-4">
+                  Choose a theme for the interface.
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">Light Themes</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {lightThemes.map((t) => (
+                        <button
+                          key={t.name}
+                          onClick={() => selectTheme(t)}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg border p-3 text-left transition-all",
+                            activeThemeName === t.name
+                              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                              : "border-border hover:border-primary/30"
+                          )}
+                        >
+                          <div
+                            className="h-4 w-4 rounded-full shrink-0 border border-[#00000015]"
+                            style={{ backgroundColor: t.accent }}
+                          />
+                          <span
+                            className={cn(
+                              "text-[12px]",
+                              t.name === "paper" ? "italic" : "font-medium"
+                            )}
+                            style={{
+                              fontFamily: t.name === "paper"
+                                ? "var(--font-logo), Georgia, serif"
+                                : (t.headingFont || t.font),
+                            }}
+                          >
+                            {t.label}
+                          </span>
+                          {activeThemeName === t.name && (
+                            <Check className="h-3 w-3 text-primary ml-auto shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">Dark Themes</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {darkThemes.map((t) => (
+                        <button
+                          key={t.name}
+                          onClick={() => selectTheme(t)}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg border p-3 text-left transition-all",
+                            activeThemeName === t.name
+                              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                              : "border-border hover:border-primary/30"
+                          )}
+                        >
+                          <div
+                            className="h-4 w-4 rounded-full shrink-0 border border-[#ffffff20]"
+                            style={{ backgroundColor: t.accent }}
+                          />
+                          <span
+                            className="text-[12px] font-medium"
+                            style={{ fontFamily: t.headingFont || t.font }}
+                          >
+                            {t.label}
+                          </span>
+                          {activeThemeName === t.name && (
+                            <Check className="h-3 w-3 text-primary ml-auto shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "updates" && update && (
+            <UpdateSummary
+              update={update}
+              loading={updateLoading}
+              refreshing={updateRefreshing}
+              applyPending={applyPending}
+              backupPending={backupPending}
+              backupPath={backupPath}
+              actionError={actionError}
+              onRefresh={() => {
+                void refreshUpdate();
+              }}
+              onApply={applyUpdate}
+              onCreateBackup={async () => {
+                await createBackup("data");
+              }}
+              onOpenDataDir={openDataDir}
+            />
+          )}
+
+          {tab === "updates" && !update && updateLoading && (
+            <p className="text-[13px] text-muted-foreground">Checking for Cabinet updates...</p>
+          )}
+
           {/* Providers Tab */}
           {tab === "providers" && (
             <>

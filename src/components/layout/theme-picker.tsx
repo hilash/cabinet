@@ -25,25 +25,10 @@ export function ThemePicker() {
 
   useEffect(() => {
     setMounted(true);
-
-    // Load Google Fonts for all themes via <link> injected into <head>
-    if (!document.getElementById("theme-fonts-link")) {
-      const link = document.createElement("link");
-      link.id = "theme-fonts-link";
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Bitter:wght@400;600;700&family=Bricolage+Grotesque:wght@400;600;700&family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Libre+Baskerville:wght@400;700&family=Merriweather+Sans:wght@400;500;600;700&family=Montserrat:wght@400;600;700&family=Nunito:wght@400;500;600;700&family=Orbitron:wght@400;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&family=Sora:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Spectral:wght@400;600;700&family=Syne:wght@400;600;700&family=Unbounded:wght@400;600;700&display=swap";
-      document.head.appendChild(link);
-    }
-
-    // Restore custom theme
+    // Sync local state with whatever ThemeInitializer already applied
     const stored = getStoredThemeName();
     if (stored) {
-      const themeDef = THEMES.find((t) => t.name === stored);
-      if (themeDef) {
-        applyTheme(themeDef);
-        setActiveCustomTheme(stored);
-      }
+      setActiveCustomTheme(stored);
     }
   }, []);
 
@@ -205,8 +190,15 @@ export function ThemePicker() {
                 style={{ backgroundColor: t.accent }}
               />
               <span
-                className="flex-1 text-left font-semibold text-[13px]"
-                style={{ fontFamily: t.headingFont || t.font }}
+                className={cn(
+                  "flex-1 text-left text-[13px]",
+                  t.name === "paper" ? "italic" : "font-semibold"
+                )}
+                style={{
+                  fontFamily: t.name === "paper"
+                    ? "var(--font-logo), Georgia, serif"
+                    : (t.headingFont || t.font),
+                }}
               >
                 {t.label}
               </span>

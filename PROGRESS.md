@@ -1,5 +1,11 @@
 # Progress
 
+[2026-04-06] Fixed theme consistency across panels by moving theme initialization from ThemePicker into a dedicated ThemeInitializer component mounted at the layout root. Added Appearance tab to Settings with full theme selection grid (light + dark themes).
+
+[2026-04-06] Renamed Paper theme to "Cabinet" in the theme picker menu (internal name stays "paper"). Replaced the sidebar logo image with Instrument Serif italic wordmark matching runcabinet.com style, using `text-foreground` so it adapts across all themes.
+
+[2026-04-06] Made Paper the default theme for all users including first-time/onboarding visitors. Updated Paper theme to match runcabinet.com aesthetic: clean white/black with Inter body font and Source Serif 4 + Instrument Serif headings. Changed defaultTheme from dark to light.
+
 [2026-04-06] Cleaned up agent detail panel: removed the instructions preview (markdown body) from the main view, keeping only the labeled metadata chips (Role, Department, Type, Heartbeat, Workspace) in a compact flex-wrap layout. Instructions remain fully accessible via the Edit Agent dialog. Added `setupComplete` flag to agent personas — when an agent is opened in the panel for the first time (flag is false), the Edit Agent dialog auto-opens. Saving settings sets the flag to true so it won't auto-open again.
 
 [2026-04-06] Redesigned "Add agent" flow: button now opens a browser dialog showing library templates + "Start from scratch" option. Selecting a template creates the agent and opens the Edit Agent dialog for customization. Added Save button to Edit Agent dialog. Replaced raw cron inputs with SchedulePicker in both the New Job dialog and Job editor panel.
