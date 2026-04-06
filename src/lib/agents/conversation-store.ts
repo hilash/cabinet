@@ -265,6 +265,87 @@ function stripAnsiText(str: string): string {
     .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "");
 }
 
+export function formatConversationTranscriptForDisplay(transcript: string): string {
+  const cleaned = stripAnsiText(transcript)
+    .replace(/\u00A0/g, " ")
+    .replace(/\r+/g, "\n");
+  const normalized = cleaned
+    .replace(/[─-]{8,}/g, "\n")
+    .replace(/\s*(SUMMARY:|CONTEXT:|ARTIFACT:)\s*/g, "\n$1")
+    .replace(/❯\s*(?=(?:SUMMARY|CONTEXT|ARTIFACT):)/g, "\n");
+
+  function isTerminalNoise(trimmed: string): boolean {
+    return (
+      !trimmed ||
+      /^[─-]{8,}$/.test(trimmed) ||
+      /^[❯>]\s*$/.test(trimmed) ||
+      /^⏵⏵/.test(trimmed) ||
+      /^◐\s+\w+\s+·\s+\/effort/.test(trimmed) ||
+      /\/effort\b/.test(trimmed) ||
+      /^\d+\s+MCP server failed\b/.test(trimmed) ||
+      /^[✢✳✶✻✽·]\s*$/.test(trimmed) ||
+      /(?:^|[\s·])(?:Orbiting|Sublimating)…?(?:\s+\(thinking\))?$/.test(trimmed) ||
+      /\(thinking\)/.test(trimmed) ||
+      trimmed.includes("ClaudeCodev") ||
+      trimmed.includes("Sonnet4.6") ||
+      trimmed.includes("~/Development/cabinet") ||
+      trimmed.includes("bypasspermissionson") ||
+      trimmed.includes("[Pastedtext#")
+    );
+  }
+
+  const lines = normalized
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+$/g, ""));
+
+  const filtered: string[] = [];
+  let blankCount = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (isTerminalNoise(trimmed)) {
+      if (!trimmed) {
+        blankCount += 1;
+        if (blankCount <= 1) {
+          filtered.push("");
+        }
+      }
+      continue;
+    }
+
+    blankCount = 0;
+    filtered.push(line);
+  }
+
+  const summaryIndex = filtered.findLastIndex((line) => line.trim().startsWith("SUMMARY:"));
+  if (summaryIndex !== -1) {
+    let start = summaryIndex;
+    for (let index = summaryIndex - 1; index >= 0; index -= 1) {
+      const trimmed = filtered[index].trim();
+      if (!trimmed) {
+        if (start < summaryIndex) break;
+        continue;
+      }
+      if (isTerminalNoise(trimmed)) continue;
+      start = index;
+      break;
+    }
+
+    let end = filtered.length;
+    for (let index = summaryIndex + 1; index < filtered.length; index += 1) {
+      const trimmed = filtered[index].trim();
+      if (!trimmed) continue;
+      if (/^(?:CONTEXT|ARTIFACT):/.test(trimmed)) continue;
+      end = index;
+      break;
+    }
+
+    return filtered.slice(start, end).join("\n").trim();
+  }
+
+  return filtered.join("\n").trim();
+}
+
 function transcriptShowsCompletedRun(transcript: string): boolean {
   const plain = stripAnsiText(transcript).replace(/\r/g, "\n");
   return (
@@ -390,7 +471,7 @@ export async function readConversationDetail(
   return {
     meta,
     prompt,
-    transcript,
+    transcript: formatConversationTranscriptForDisplay(transcript),
     mentions,
     artifacts,
   };

@@ -94,7 +94,7 @@ const TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
 
 function replacePastedTextNotice(output: string, displayPrompt?: string): string {
   if (!displayPrompt) return output;
-  return output.replace(/\[Pasted text #\d+(?: \+\d+ lines)?\]/g, displayPrompt);
+  return output.replace(/\[Pasted\s*text\s*#\d+(?:\s*\+\s*\d+\s*lines)?\]/gi, displayPrompt);
 }
 
 const AGENT_EMOJI_OPTIONS = [
