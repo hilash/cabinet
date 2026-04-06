@@ -1,4 +1,3 @@
-import fs from "fs";
 import os from "os";
 import path from "path";
 
@@ -40,18 +39,6 @@ export function getCabinetRuntime(): "source" | "electron" {
 
 export function isElectronRuntime(): boolean {
   return getCabinetRuntime() === "electron";
-}
-
-export function isDockerRuntime(): boolean {
-  if (process.env.CABINET_INSTALL_KIND === "docker" || process.env.CABINET_DOCKER === "1") {
-    return true;
-  }
-
-  try {
-    return fs.existsSync("/.dockerenv");
-  } catch {
-    return false;
-  }
 }
 
 export function getManagedDataDir(): string {
@@ -107,4 +94,3 @@ export function getReleaseManifestUrl(): string {
     DEFAULT_RELEASE_MANIFEST_URL
   );
 }
-
