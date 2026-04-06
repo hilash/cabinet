@@ -25,34 +25,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { cn } from "@/lib/utils";
+import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona-manager";
+import { cronToHuman } from "@/lib/agents/cron-utils";
+import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 
 type TabId = "definition" | "jobs" | "sessions";
-
-interface AgentPersona {
-  name: string;
-  slug: string;
-  emoji: string;
-  type: string;
-  department: string;
-  role: string;
-  active: boolean;
-  heartbeat: string;
-  body: string;
-  workspace: string;
-  tags: string[];
-  focus: string[];
-  heartbeatsUsed?: number;
-  lastHeartbeat?: string;
-  nextHeartbeat?: string;
-}
-
-interface HeartbeatRecord {
-  agentSlug: string;
-  timestamp: string;
-  duration: number;
-  status: "completed" | "failed";
-  summary: string;
-}
 
 const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
   { id: "definition", label: "Definition", icon: FileText },
@@ -60,105 +37,6 @@ const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
   { id: "sessions", label: "Sessions", icon: Clock },
 ];
 
-/* ─── Cron Presets ─── */
-const CRON_PRESETS = [
-  { label: "Every hour", cron: "0 * * * *" },
-  { label: "Every 2 hours", cron: "0 */2 * * *" },
-  { label: "Every 4 hours", cron: "0 */4 * * *" },
-  { label: "Every 6 hours", cron: "0 */6 * * *" },
-  { label: "Every day at 9am", cron: "0 9 * * *" },
-  { label: "Every day at noon", cron: "0 12 * * *" },
-  { label: "Every day at 6pm", cron: "0 18 * * *" },
-  { label: "Weekdays at 9am", cron: "0 9 * * 1-5" },
-  { label: "Weekdays at 8am & 2pm", cron: "0 8,14 * * 1-5" },
-  { label: "Monday at 9am", cron: "0 9 * * 1" },
-  { label: "Mon, Wed, Fri at 9am", cron: "0 9 * * 1,3,5" },
-  { label: "Every 15 minutes", cron: "*/15 * * * *" },
-  { label: "Every 30 minutes", cron: "*/30 * * * *" },
-  { label: "Twice daily (9am & 5pm)", cron: "0 9,17 * * *" },
-  { label: "Weekly on Sunday", cron: "0 9 * * 0" },
-];
-
-function cronToHuman(cron: string): string {
-  const preset = CRON_PRESETS.find((p) => p.cron === cron);
-  if (preset) return preset.label;
-  return cron;
-}
-
-function CronPicker({
-  value,
-  onChange,
-  onDone,
-  compact,
-}: {
-  value: string;
-  onChange: (cron: string) => void;
-  onDone?: () => void;
-  compact?: boolean;
-}) {
-  const [showCustom, setShowCustom] = useState(false);
-  const [custom, setCustom] = useState(value);
-  const isPreset = CRON_PRESETS.some((p) => p.cron === value);
-
-  return (
-    <div className={cn("space-y-1", compact ? "" : "space-y-1.5")}>
-      <div className="flex flex-wrap gap-1">
-        {CRON_PRESETS.map((p) => (
-          <button
-            key={p.cron}
-            onClick={() => { onChange(p.cron); setShowCustom(false); onDone?.(); }}
-            className={cn(
-              "px-2 py-0.5 rounded text-[10px] transition-colors border",
-              value === p.cron
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/60 hover:text-foreground"
-            )}
-          >
-            {p.label}
-          </button>
-        ))}
-        <button
-          onClick={() => { setShowCustom(!showCustom); setCustom(value); }}
-          className={cn(
-            "px-2 py-0.5 rounded text-[10px] transition-colors border",
-            showCustom || (!isPreset && value)
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/60 hover:text-foreground"
-          )}
-        >
-          Custom
-        </button>
-      </div>
-      {(showCustom || (!isPreset && value)) && (
-        <div className="flex items-center gap-1">
-          <input
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") { onChange(custom); onDone?.(); }
-              if (e.key === "Escape") { setShowCustom(false); onDone?.(); }
-            }}
-            className="flex-1 bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-primary/50"
-            placeholder="e.g. 0 9 * * 1-5"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5"
-            onClick={() => { onChange(custom); onDone?.(); }}
-          >
-            <Save className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-      {value && (
-        <p className="text-[10px] text-muted-foreground/60 font-mono">
-          {value} {isPreset ? "" : `— ${value}`}
-        </p>
-      )}
-    </div>
-  );
-}
 
 /* ─── Editable Field ─── */
 function EditableField({
@@ -212,7 +90,7 @@ function EditableField({
   );
 }
 
-/* ─── Heartbeat Field (uses CronPicker) ─── */
+/* ─── Heartbeat Field (uses SchedulePicker) ─── */
 function HeartbeatField({
   value,
   onSave,
@@ -233,7 +111,7 @@ function HeartbeatField({
       </p>
       {editing ? (
         <div onClick={(e) => e.stopPropagation()}>
-          <CronPicker
+          <SchedulePicker
             value={value}
             onChange={(v) => { onSave(v); setEditing(false); }}
             onDone={() => setEditing(false)}
@@ -241,8 +119,7 @@ function HeartbeatField({
         </div>
       ) : (
         <div>
-          <p className="text-[13px] font-medium font-mono">{value}</p>
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5">{cronToHuman(value)}</p>
+          <p className="text-[13px] font-medium">{cronToHuman(value)}</p>
         </div>
       )}
     </div>
@@ -537,7 +414,7 @@ function JobsTab({ slug }: { slug: string }) {
           />
           <div>
             <p className="text-[10px] text-muted-foreground mb-1.5">Schedule</p>
-            <CronPicker value={newCron} onChange={setNewCron} />
+            <SchedulePicker value={newCron} onChange={setNewCron} />
           </div>
           <div>
             <p className="text-[10px] text-muted-foreground mb-1.5">Prompt</p>
@@ -626,10 +503,9 @@ function JobsTab({ slug }: { slug: string }) {
             <div className="mt-2 pt-2 border-t border-border space-y-3">
               <div>
                 <p className="text-[10px] text-muted-foreground mb-1.5">Schedule</p>
-                <CronPicker
+                <SchedulePicker
                   value={editCron}
                   onChange={(v) => setEditCron(v)}
-                  compact
                 />
               </div>
               <div>

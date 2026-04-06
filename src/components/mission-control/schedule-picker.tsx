@@ -8,6 +8,7 @@ import { cronToHuman } from "@/lib/agents/cron-utils";
 interface SchedulePickerProps {
   value: string; // cron expression
   onChange: (cron: string) => void;
+  onDone?: () => void;
   label?: string;
 }
 
@@ -59,7 +60,7 @@ function getNextRuns(cron: string, count = 3): string[] {
   return runs;
 }
 
-export function SchedulePicker({ value, onChange, label }: SchedulePickerProps) {
+export function SchedulePicker({ value, onChange, onDone, label }: SchedulePickerProps) {
   const [showCron, setShowCron] = useState(false);
   const [customInput, setCustomInput] = useState("");
 
@@ -81,7 +82,7 @@ export function SchedulePicker({ value, onChange, label }: SchedulePickerProps) 
           <button
             key={preset.cron}
             type="button"
-            onClick={() => onChange(preset.cron)}
+            onClick={() => { onChange(preset.cron); onDone?.(); }}
             className={cn(
               "text-[11px] px-2 py-1 rounded-md border transition-colors",
               value === preset.cron

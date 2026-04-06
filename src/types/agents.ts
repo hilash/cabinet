@@ -45,6 +45,23 @@ export interface AgentTask {
 }
 
 export type AgentType = "lead" | "specialist" | "support";
+
+/** Lightweight agent summary used in list/card views */
+export interface AgentListItem {
+  name: string;
+  slug: string;
+  emoji: string;
+  role: string;
+  active: boolean;
+  type?: AgentType | string;
+  department?: string;
+  heartbeat?: string;
+  workspace?: string;
+  body?: string;
+  jobCount?: number;
+  runningCount?: number;
+  status?: "active" | "running" | "idle";
+}
 export type AgentRuntime = "heartbeat" | "on-demand";
 
 export interface Department {

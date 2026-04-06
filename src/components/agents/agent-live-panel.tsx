@@ -21,26 +21,7 @@ import {
   useAIPanelStore,
   type AgentLiveSession,
 } from "@/stores/ai-panel-store";
-
-interface AgentPersona {
-  name: string;
-  role: string;
-  slug: string;
-  heartbeat: string;
-  budget: number;
-  active: boolean;
-  heartbeatsUsed?: number;
-  lastHeartbeat?: string;
-  emoji?: string;
-}
-
-interface HeartbeatRecord {
-  agentSlug: string;
-  timestamp: string;
-  duration: number;
-  status: "completed" | "failed";
-  summary: string;
-}
+import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona-manager";
 
 interface AgentLivePanelProps {
   persona: AgentPersona;
