@@ -812,6 +812,7 @@ function SessionsTab({
               <WebTerminal
                 sessionId={liveSession.id}
                 prompt={liveSession.prompt}
+                themeSurface="page"
                 onClose={handleSessionEnd}
               />
             </div>
@@ -840,7 +841,13 @@ function SessionsTab({
                 })}
               </span>
             </div>
-            <ScrollArea className="flex-1">
+            <ScrollArea
+              className="flex-1"
+              style={{
+                backgroundColor: "var(--background)",
+                color: "var(--foreground)",
+              }}
+            >
               <div className="p-4">
                 <pre className="text-[12px] font-mono whitespace-pre-wrap leading-relaxed text-foreground/90">
                   {selectedSession.summary || "No output captured for this session."}

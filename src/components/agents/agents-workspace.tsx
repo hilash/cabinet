@@ -943,7 +943,7 @@ export function AgentsWorkspace({
     const panelAgent = agents.find((agent) => agent.slug === agentSlug) || null;
 
     return (
-      <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-4">
+      <div className="relative z-20 flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h4 className="text-[13px] font-semibold">Chat</h4>
@@ -953,7 +953,7 @@ export function AgentsWorkspace({
           </div>
           <p className="text-[11px] text-muted-foreground">Cmd/Ctrl + Enter to send</p>
         </div>
-        <div className="relative flex min-h-0 flex-1 flex-col rounded-xl bg-muted/20 p-3">
+        <div className="relative flex min-h-0 flex-1 flex-col pt-1">
           <textarea
             value={composerInput}
             onChange={(event) =>
@@ -988,7 +988,7 @@ export function AgentsWorkspace({
               }
             }}
             placeholder={`Ask ${panelAgent?.name || agentSlug} to work on something...`}
-            className="min-h-0 flex-1 resize-none bg-transparent text-[13px] outline-none"
+            className="pointer-events-auto min-h-0 w-full flex-1 resize-none rounded-lg border border-border/60 bg-background px-3 py-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/70 focus:border-ring/50"
           />
           {mentionedPaths.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -1006,7 +1006,7 @@ export function AgentsWorkspace({
             </div>
           ) : null}
           {showMentions && filteredMentions.length > 0 ? (
-            <div className="absolute inset-x-3 bottom-14 z-20 rounded-xl border border-border bg-popover p-1 shadow-lg">
+            <div className="absolute inset-x-0 bottom-11 z-20 rounded-xl border border-border bg-popover p-1 shadow-lg">
               {filteredMentions.slice(0, 6).map((page, index) => (
                 <button
                   key={page.path}
@@ -1282,6 +1282,7 @@ export function AgentsWorkspace({
                   sessionId={selectedConversationMeta.id}
                   displayPrompt={selectedConversationMeta.title}
                   reconnect
+                  themeSurface="page"
                   onClose={() => {
                     void refreshConversations();
                   }}
@@ -1290,8 +1291,8 @@ export function AgentsWorkspace({
                 <ScrollArea
                   className="h-full"
                   style={{
-                    backgroundColor: "var(--terminal-bg)",
-                    color: "var(--terminal-fg)",
+                    backgroundColor: "var(--background)",
+                    color: "var(--foreground)",
                   }}
                 >
                   <pre className="min-h-full whitespace-pre-wrap p-5 font-mono text-[12px] leading-relaxed">
@@ -1341,7 +1342,7 @@ export function AgentsWorkspace({
             ) : null}
             {settingsPersona ? (
               <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-                <div className="flex min-h-0 basis-[30%] flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+                <div className="flex min-h-0 basis-[30%] flex-col gap-3 overflow-hidden">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{settingsAgent?.emoji || "🤖"}</span>
@@ -1370,55 +1371,53 @@ export function AgentsWorkspace({
                     </div>
                   </div>
 
-                  <div className="min-h-0 rounded-xl bg-muted/20 p-3">
-                    <div className="flex h-full min-h-0 gap-3">
-                      <div className="min-w-0 flex-[3]">
-                        <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden">
-                          {settingsBodyHtml ? (
-                            <div
-                              className="prose prose-sm max-w-none opacity-90 prose-headings:mb-1 prose-headings:font-semibold prose-h1:text-sm prose-h2:text-[12px] prose-h3:text-[12px] prose-p:my-1 prose-p:text-[12px] prose-li:my-0 prose-li:text-[12px] prose-code:text-[11px] prose-code:bg-background prose-code:px-1 prose-code:rounded prose-pre:bg-background prose-pre:border-0 prose-strong:text-foreground"
-                              dangerouslySetInnerHTML={{ __html: settingsBodyHtml }}
-                            />
-                          ) : settingsBody.trim() ? (
-                            <pre className="whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
-                              {settingsBody}
-                            </pre>
-                          ) : (
-                            <div className="text-[12px] text-muted-foreground">
-                              No instructions yet.
-                            </div>
-                          )}
-                        </div>
+                  <div className="flex min-h-0 h-full gap-3">
+                    <div className="min-w-0 flex-[3]">
+                      <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden">
+                        {settingsBodyHtml ? (
+                          <div
+                            className="prose prose-sm prose-invert max-w-none opacity-95 prose-headings:mb-1 prose-headings:font-semibold prose-headings:text-foreground prose-h1:text-sm prose-h2:text-[12px] prose-h3:text-[12px] prose-p:my-1 prose-p:text-[12px] prose-p:text-foreground/85 prose-li:my-0 prose-li:text-[12px] prose-li:text-foreground/85 prose-a:text-foreground prose-strong:text-foreground prose-code:text-[11px] prose-code:text-foreground prose-code:bg-background prose-code:px-1 prose-code:rounded prose-pre:bg-background prose-pre:border-0 prose-pre:text-foreground"
+                            dangerouslySetInnerHTML={{ __html: settingsBodyHtml }}
+                          />
+                        ) : settingsBody.trim() ? (
+                          <pre className="whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
+                            {settingsBody}
+                          </pre>
+                        ) : (
+                          <div className="text-[12px] text-muted-foreground">
+                            No instructions yet.
+                          </div>
+                        )}
                       </div>
-                      <div className="flex min-w-0 flex-[2] flex-col justify-between gap-2">
-                        <div className="flex min-w-0 flex-1 gap-2">
-                          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                            <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-3">
-                              {settingsPersona.role || "Not set"}
-                            </div>
-                          </div>
-                          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                            <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-3">
-                              {settingsPersona.heartbeat || "Not set"}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex min-w-0 flex-1 gap-2">
-                          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                            <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
-                              {settingsPersona.department || "Not set"}
-                            </div>
-                          </div>
-                          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                            <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
-                              {settingsPersona.type || "Not set"}
-                            </div>
+                    </div>
+                    <div className="flex min-w-0 flex-[2] flex-col justify-between gap-2">
+                      <div className="flex min-w-0 flex-1 gap-2">
+                        <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                          <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-3">
+                            {settingsPersona.role || "Not set"}
                           </div>
                         </div>
                         <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                          <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-2">
-                            {settingsPersona.workspace || "Not set"}
+                          <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-3">
+                            {settingsPersona.heartbeat || "Not set"}
                           </div>
+                        </div>
+                      </div>
+                      <div className="flex min-w-0 flex-1 gap-2">
+                        <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                          <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
+                            {settingsPersona.department || "Not set"}
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                          <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
+                            {settingsPersona.type || "Not set"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
+                        <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-2">
+                          {settingsPersona.workspace || "Not set"}
                         </div>
                       </div>
                     </div>
@@ -1475,7 +1474,7 @@ export function AgentsWorkspace({
                             <div className="h-[60vh] overflow-auto rounded-lg bg-muted/60 px-3 py-3">
                               {settingsBodyHtml ? (
                                 <div
-                                  className="prose prose-sm max-w-none prose-headings:font-semibold prose-h1:text-base prose-h2:text-[13px] prose-h3:text-[12px] prose-p:text-[12px] prose-li:text-[12px] prose-code:text-[11px] prose-code:bg-background prose-code:px-1 prose-code:rounded prose-pre:bg-background prose-pre:border-0 prose-strong:text-foreground"
+                                  className="prose prose-sm prose-invert max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-h1:text-base prose-h2:text-[13px] prose-h3:text-[12px] prose-p:text-[12px] prose-p:text-foreground/85 prose-li:text-[12px] prose-li:text-foreground/85 prose-a:text-foreground prose-code:text-[11px] prose-code:text-foreground prose-code:bg-background prose-code:px-1 prose-code:rounded prose-pre:bg-background prose-pre:border-0 prose-pre:text-foreground prose-strong:text-foreground"
                                   dangerouslySetInnerHTML={{ __html: settingsBodyHtml }}
                                 />
                               ) : settingsBody.trim() ? (
@@ -1731,7 +1730,7 @@ export function AgentsWorkspace({
                   </DialogContent>
                 </Dialog>
 
-                <div className="min-h-0 basis-1/2">
+                <div className="min-h-0 basis-1/2 overflow-hidden">
                   <div className="flex h-full min-h-0">
                     <div
                       className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-l-xl rounded-r-none border border-r-0 border-border"
@@ -2030,7 +2029,7 @@ export function AgentsWorkspace({
                 </div>
 
                 <div className="min-h-0 basis-[20%]">
-                  {renderSettingsComposerPanel(settingsAgentSlug)}
+                  {settingsAgentSlug ? renderSettingsComposerPanel(settingsAgentSlug) : null}
                 </div>
               </div>
             ) : (
