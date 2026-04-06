@@ -498,3 +498,17 @@ html[data-custom-theme] .font-logo,
 .tiptap pre code .hljs-class {
   color: oklch(0.75 0.12 80);
 }
+
+/* Electron macOS: hidden title bar drag region + traffic light clearance */
+.electron-desktop header {
+  -webkit-app-region: drag;
+}
+.electron-desktop header button,
+.electron-desktop header a,
+.electron-desktop header input,
+.electron-desktop header [role="button"] {
+  -webkit-app-region: no-drag;
+}
+.electron-desktop .sidebar-header {
+  padding-left: 80px;
+}

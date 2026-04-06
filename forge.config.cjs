@@ -6,6 +6,11 @@ const { PublisherGithub } = require("@electron-forge/publisher-github");
 
 module.exports = {
   packagerConfig: {
+    name: "Cabinet",
+    icon: "./electron/assets/cabinet-icon",
+    appBundleId: "com.runcabinet.cabinet",
+    appCopyright: "© 2026 Hila Shmuel",
+    appCategoryType: "public.app-category.productivity",
     asar: true,
     osxSign: process.env.APPLE_ID
       ? {
@@ -24,6 +29,7 @@ module.exports = {
     new MakerZIP({}, ["darwin"]),
     new MakerDMG({
       format: "ULFO",
+      icon: "./electron/assets/cabinet-icon.icns",
     }),
   ],
   plugins: [new AutoUnpackNativesPlugin({})],

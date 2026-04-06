@@ -40,6 +40,9 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} ${instrumentSerif.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `if(window.CabinetDesktop)document.documentElement.classList.add("electron-desktop")` }} />
+      </head>
       <body className="min-h-full flex flex-col font-sans">
         <ThemeProvider
           attribute="class"
