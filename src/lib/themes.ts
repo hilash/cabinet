@@ -424,9 +424,11 @@ export function applyTheme(theme: ThemeDefinition | null) {
     root.removeAttribute("data-custom-theme");
     root.style.removeProperty("--font-theme");
     root.style.removeProperty("--font-heading-theme");
-    THEMES[0] && Object.keys(THEMES[0].vars).forEach((key) => {
-      root.style.removeProperty(key);
-    });
+    if (THEMES[0]) {
+      Object.keys(THEMES[0].vars).forEach((key) => {
+        root.style.removeProperty(key);
+      });
+    }
     return;
   }
 

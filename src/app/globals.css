@@ -82,6 +82,26 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --terminal-bg: color-mix(in oklch, var(--card) 94%, black 6%);
+  --terminal-fg: var(--foreground);
+  --terminal-cursor: var(--primary);
+  --terminal-selection: color-mix(in srgb, var(--primary) 26%, transparent);
+  --terminal-ansi-black: color-mix(in oklch, var(--background) 78%, black 22%);
+  --terminal-ansi-red: color-mix(in oklch, var(--destructive) 82%, var(--foreground) 18%);
+  --terminal-ansi-green: color-mix(in oklch, var(--primary) 55%, oklch(0.72 0.16 150) 45%);
+  --terminal-ansi-yellow: color-mix(in oklch, var(--primary) 28%, oklch(0.84 0.16 95) 72%);
+  --terminal-ansi-blue: color-mix(in oklch, var(--primary) 30%, oklch(0.69 0.14 255) 70%);
+  --terminal-ansi-magenta: color-mix(in oklch, var(--primary) 48%, oklch(0.68 0.18 320) 52%);
+  --terminal-ansi-cyan: color-mix(in oklch, var(--primary) 24%, oklch(0.78 0.12 210) 76%);
+  --terminal-ansi-white: var(--foreground);
+  --terminal-ansi-bright-black: color-mix(in oklch, var(--muted-foreground) 82%, var(--background) 18%);
+  --terminal-ansi-bright-red: color-mix(in oklch, var(--terminal-ansi-red) 84%, white 16%);
+  --terminal-ansi-bright-green: color-mix(in oklch, var(--terminal-ansi-green) 84%, white 16%);
+  --terminal-ansi-bright-yellow: color-mix(in oklch, var(--terminal-ansi-yellow) 88%, white 12%);
+  --terminal-ansi-bright-blue: color-mix(in oklch, var(--terminal-ansi-blue) 84%, white 16%);
+  --terminal-ansi-bright-magenta: color-mix(in oklch, var(--terminal-ansi-magenta) 84%, white 16%);
+  --terminal-ansi-bright-cyan: color-mix(in oklch, var(--terminal-ansi-cyan) 84%, white 16%);
+  --terminal-ansi-bright-white: color-mix(in oklch, var(--foreground) 92%, white 8%);
 }
 
 .dark {
