@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weasleys' Wizard Wheezes — Where Magic Meets Mischief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #1A0533;
+  --bg-dark: #0F0320;
+  --orange: #FF6B2B;
+  --orange-bright: #FF8A50;
+  --purple: #8B5CF6;
+  --purple-deep: #6D28D9;
+  --magenta: #EC4899;
+  --gold: #F59E0B;
+  --teal: #0D9488;
+  --teal-dark: #0A1E2C;
+  --white: #FFFFFF;
+  --white-dim: rgba(255,255,255,0.7);
+  --white-faint: rgba(255,255,255,0.15);
+  --shadow-orange: rgba(255,107,43,0.35);
+  --shadow-purple: rgba(139,92,246,0.35);
+  --shadow-magenta: rgba(236,72,153,0.35);
+  --shadow-gold: rgba(245,158,11,0.35);
+}
+
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-deep);
+  color: var(--white);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Skip to content */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  background: var(--orange);
+  color: var(--white);
+  padding: 8px 16px;
+  border-radius: 0 0 8px 8px;
+  z-index: 10000;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip-link:focus { top: 0; }
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+/* Noise texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+img { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+ul { list-style: none; }
+
+/* Scroll reveal base */
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  padding: 16px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.3s, backdrop-filter 0.3s, box-shadow 0.3s;
+}
+.nav.scrolled {
+  background: rgba(26, 5, 51, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 1px 0 var(--white-faint);
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.nav-logo-mark {
+  background: linear-gradient(135deg, var(--orange), var(--magenta));
+  color: var(--white);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.nav-logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+.nav-logo-text span:first-child { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--white-dim); font-weight: 500; }
+.nav-logo-text span:last-child { font-size: 1rem; }
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.nav-links a {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--white-dim);
+  transition: color 0.2s;
+  position: relative;
+}
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 0;
+  width: 0; height: 2px;
+  background: var(--orange);
+  transition: width 0.3s;
+}
+.nav-links a:hover { color: var(--white); }
+.nav-links a:hover::after { width: 100%; }
+
+.cart-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--white-faint);
+  padding: 8px 16px;
+  border-radius: 99px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--white);
+  transition: background 0.2s;
+}
+.cart-btn:hover { background: rgba(255,255,255,0.2); }
+.cart-btn svg { width: 18px; height: 18px; }
+.cart-badge {
+  background: var(--orange);
+  color: var(--white);
+  font-size: 0.65rem;
+  font-weight: 700;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: -4px; right: -4px;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cart-badge.bounce {
+  animation: cartBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes cartBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+}
+
+/* Mobile hamburger */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px;
+  z-index: 1002;
+}
+.hamburger span {
+  display: block;
+  width: 24px; height: 2px;
+  background: var(--white);
+  border-radius: 2px;
+  transition: transform 0.3s, opacity 0.3s;
+}
+.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; }
+.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Mobile overlay */
+.mobile-menu {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 3, 32, 0.97);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.mobile-menu.open { opacity: 1; pointer-events: auto; }
+.mobile-menu a {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--white);
+  transition: color 0.2s;
+}
+.mobile-menu a:hover { color: var(--orange); }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 120px 40px 80px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 50%, rgba(139, 92, 246, 0.2), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 30%, rgba(255, 107, 43, 0.15), transparent),
+    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(15, 3, 32, 0.9), transparent),
+    var(--bg-deep);
+}
+
+.hero-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.hero-text { position: relative; z-index: 2; }
+
+.hero-eyebrow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 20px;
+}
+
+.hero-headline {
+  font-size: clamp(2.8rem, 5.5vw, 5rem);
+  font-weight: 900;
+  line-height: 1.05;
+  margin-bottom: 24px;
+}
+.hero-headline .light { font-weight: 300; }
+.hero-headline .orange { color: var(--orange); }
+
+.hero-body {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: var(--white-dim);
+  max-width: 520px;
+  margin-bottom: 32px;
+}
+
+.hero-ctas {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+
+.btn-primary {
+  background: var(--orange);
+  color: var(--white);
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--shadow-orange);
+  background: var(--orange-bright);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--white);
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: 2px solid var(--white-faint);
+  transition: transform 0.2s, border-color 0.2s, background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-outline:hover {
+  transform: translateY(-2px);
+  border-color: var(--white-dim);
+  background: var(--white-faint);
+}
+
+.hero-trust {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.hero-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--white-dim);
+  font-weight: 500;
+}
+.hero-trust-icon {
+  font-size: 1rem;
+}
+
+/* Hero image */
+.hero-visual { position: relative; z-index: 2; }
+.hero-image-frame {
+  position: relative;
+  transform: rotate(3deg);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 4px solid var(--purple);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px var(--white-faint);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hero-image-frame:hover { transform: rotate(0deg) scale(1.02); }
+.hero-image-frame img {
+  width: 100%;
+  aspect-ratio: 4/5;
+  object-fit: cover;
+}
+.hero-badge {
+  position: absolute;
+  padding: 8px 16px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+.hero-badge-new {
+  top: 16px; right: -8px;
+  background: var(--magenta);
+  color: var(--white);
+}
+.hero-badge-est {
+  bottom: 24px; left: -12px;
+  background: var(--gold);
+  color: #1a1a1a;
+}
+
+/* ============================================================
+   MARQUEE
+   ============================================================ */
+.marquee-section {
+  background: var(--orange);
+  padding: 16px 0;
+  transform: rotate(-2deg) scale(1.04);
+  margin: -20px 0;
+  position: relative;
+  z-index: 5;
+  overflow: hidden;
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marqueeScroll 30s linear infinite;
+}
+.marquee-track:hover { animation-play-state: paused; }
+.marquee-content {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--white);
+  padding-right: 0;
+}
+.marquee-content span {
+  padding: 0 24px;
+}
+.marquee-dot {
+  display: inline-block;
+  font-size: 0.7rem;
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ============================================================
+   PRODUCTS
+   ============================================================ */
+.products-section {
+  padding: 120px 40px;
+  position: relative;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(139, 92, 246, 0.12), transparent),
+    radial-gradient(ellipse 50% 50% at 20% 80%, rgba(255, 107, 43, 0.08), transparent),
+    var(--bg-deep);
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+.section-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 16px;
+}
+.section-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+.section-subtitle {
+  font-size: 1.1rem;
+  color: var(--white-dim);
+  font-weight: 400;
+}
+.section-line {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--orange), var(--magenta));
+  margin: 20px auto 0;
+  border-radius: 3px;
+}
+
+.products-grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.product-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--white-faint);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s;
+  position: relative;
+}
+.product-card[data-accent="orange"]:hover { box-shadow: 0 20px 60px var(--shadow-orange); transform: translateY(-8px); }
+.product-card[data-accent="purple"]:hover { box-shadow: 0 20px 60px var(--shadow-purple); transform: translateY(-8px); }
+.product-card[data-accent="magenta"]:hover { box-shadow: 0 20px 60px var(--shadow-magenta); transform: translateY(-8px); }
+.product-card[data-accent="gold"]:hover { box-shadow: 0 20px 60px var(--shadow-gold); transform: translateY(-8px); }
+
+.product-image-wrap {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+}
+.product-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.product-card:hover .product-image-wrap img { transform: scale(1.08); }
+
+.product-info {
+  padding: 24px;
+}
+.product-pill {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  margin-bottom: 12px;
+}
+.product-card[data-accent="orange"] .product-pill { background: rgba(255,107,43,0.15); color: var(--orange); }
+.product-card[data-accent="purple"] .product-pill { background: rgba(139,92,246,0.15); color: var(--purple); }
+.product-card[data-accent="magenta"] .product-pill { background: rgba(236,72,153,0.15); color: var(--magenta); }
+.product-card[data-accent="gold"] .product-pill { background: rgba(245,158,11,0.15); color: var(--gold); }
+
+.product-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.product-desc {
+  font-size: 0.9rem;
+  color: var(--white-dim);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.product-price {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.product-price .currency {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--white-dim);
+  margin-left: 4px;
+}
+
+.add-to-cart-btn {
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--white);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.add-to-cart-btn:hover { transform: translateY(-2px); }
+.product-card[data-accent="orange"] .add-to-cart-btn { background: var(--orange); }
+.product-card[data-accent="orange"] .add-to-cart-btn:hover { box-shadow: 0 6px 20px var(--shadow-orange); }
+.product-card[data-accent="purple"] .add-to-cart-btn { background: var(--purple); }
+.product-card[data-accent="purple"] .add-to-cart-btn:hover { box-shadow: 0 6px 20px var(--shadow-purple); }
+.product-card[data-accent="magenta"] .add-to-cart-btn { background: var(--magenta); }
+.product-card[data-accent="magenta"] .add-to-cart-btn:hover { box-shadow: 0 6px 20px var(--shadow-magenta); }
+.product-card[data-accent="gold"] .add-to-cart-btn { background: var(--gold); color: #1a1a1a; }
+.product-card[data-accent="gold"] .add-to-cart-btn:hover { box-shadow: 0 6px 20px var(--shadow-gold); }
+
+.add-to-cart-btn.added {
+  animation: addedPulse 0.4s ease;
+}
+@keyframes addedPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.92); }
+}
+
+/* ============================================================
+   ABOUT
+   ============================================================ */
+.about-section {
+  padding: 120px 40px;
+  position: relative;
+  background:
+    linear-gradient(170deg, var(--bg-deep) 0%, #0A1C2B 50%, #0D2A2A 100%);
+  clip-path: polygon(0 40px, 100% 0, 100% calc(100% - 40px), 0 100%);
+  margin: -40px 0;
+  z-index: 3;
+}
+.about-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+  padding: 40px 0;
+}
+.about-image-frame {
+  border-radius: 24px;
+  overflow: hidden;
+  border: 3px solid rgba(13, 148, 136, 0.3);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  transform: rotate(-2deg);
+  transition: transform 0.4s;
+}
+.about-image-frame:hover { transform: rotate(0deg); }
+.about-image-frame img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+}
+
+.about-text h2 {
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  font-weight: 800;
+  margin-bottom: 20px;
+  line-height: 1.15;
+}
+.about-text h2 .orange { color: var(--orange); }
+.about-text p {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--white-dim);
+  margin-bottom: 36px;
+}
+
+.about-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.about-stat {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--white-faint);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  transition: transform 0.2s, background 0.2s;
+}
+.about-stat:hover { transform: translateY(-4px); background: rgba(255,255,255,0.08); }
+.about-stat-number {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--teal);
+  margin-bottom: 4px;
+}
+.about-stat-label {
+  font-size: 0.8rem;
+  color: var(--white-dim);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ============================================================
+   TESTIMONIALS
+   ============================================================ */
+.testimonials-section {
+  padding: 120px 40px;
+  position: relative;
+  background:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.2), transparent),
+    radial-gradient(1px 1px at 60% 20%, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1px 1px at 80% 60%, rgba(255,255,255,0.15), transparent),
+    radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.2), transparent),
+    radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 50% 50%, rgba(255,255,255,0.2), transparent),
+    radial-gradient(1px 1px at 30% 90%, rgba(255,255,255,0.15), transparent),
+    radial-gradient(1px 1px at 70% 40%, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1px 1px at 15% 55%, rgba(255,255,255,0.18), transparent),
+    radial-gradient(1px 1px at 85% 85%, rgba(255,255,255,0.22), transparent),
+    radial-gradient(1px 1px at 45% 15%, rgba(255,255,255,0.2), transparent),
+    var(--bg-dark);
+  background-size:
+    200px 200px, 300px 250px, 250px 300px, 180px 220px,
+    350px 280px, 270px 310px, 320px 190px, 290px 340px,
+    210px 260px, 240px 230px, 280px 300px, 330px 270px,
+    100% 100%;
+}
+
+.testimonials-grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.testimonial-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--white-faint);
+  border-radius: 20px;
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s;
+}
+.testimonial-card:hover { transform: translateY(-4px); }
+.testimonial-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+}
+.testimonial-card[data-color="orange"]::before { background: var(--orange); }
+.testimonial-card[data-color="purple"]::before { background: var(--purple); }
+.testimonial-card[data-color="magenta"]::before { background: var(--magenta); }
+
+.testimonial-quote {
+  font-size: 1rem;
+  font-style: italic;
+  line-height: 1.7;
+  color: var(--white-dim);
+  margin-bottom: 24px;
+}
+.testimonial-quote::before {
+  content: '\201C';
+  font-size: 3rem;
+  font-style: normal;
+  line-height: 0;
+  position: relative;
+  top: 16px;
+  margin-right: 4px;
+  color: var(--white-faint);
+  font-weight: 800;
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.testimonial-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--white);
+  flex-shrink: 0;
+}
+.testimonial-card[data-color="orange"] .testimonial-avatar { background: var(--orange); }
+.testimonial-card[data-color="purple"] .testimonial-avatar { background: var(--purple); }
+.testimonial-card[data-color="magenta"] .testimonial-avatar { background: var(--magenta); }
+
+.testimonial-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.testimonial-title {
+  font-size: 0.8rem;
+  color: var(--white-dim);
+}
+
+/* ============================================================
+   VISIT / CTA
+   ============================================================ */
+.visit-section {
+  padding: 120px 40px;
+  text-align: center;
+  position: relative;
+  background: linear-gradient(135deg, var(--orange) 0%, var(--magenta) 40%, var(--purple-deep) 100%);
+}
+
+.visit-inner {
+  max-width: 700px;
+  margin: 0 auto;
+}
+.visit-section h2 {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 900;
+  margin-bottom: 20px;
+}
+.visit-address {
+  font-size: 1.15rem;
+  color: rgba(255,255,255,0.85);
+  margin-bottom: 12px;
+}
+.visit-hours {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 40px;
+}
+.visit-cta-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--white);
+  color: var(--bg-deep);
+  padding: 16px 36px;
+  border-radius: 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-bottom: 16px;
+}
+.visit-cta-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.visit-secondary {
+  display: block;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.visit-secondary:hover { color: var(--white); }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.site-footer {
+  background: var(--bg-dark);
+  padding: 64px 40px 32px;
+  border-top: 1px solid var(--white-faint);
+}
+.footer-grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 48px;
+  margin-bottom: 48px;
+}
+.footer-brand h3 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.footer-brand p {
+  color: var(--white-dim);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 320px;
+}
+.footer-col h4 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--white-dim);
+  margin-bottom: 16px;
+}
+.footer-col ul { display: flex; flex-direction: column; gap: 10px; }
+.footer-col a {
+  font-size: 0.9rem;
+  color: var(--white-dim);
+  transition: color 0.2s;
+}
+.footer-col a:hover { color: var(--orange); }
+
+.footer-bottom {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-top: 24px;
+  border-top: 1px solid var(--white-faint);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.footer-copy {
+  font-size: 0.8rem;
+  color: var(--white-dim);
+}
+.footer-tagline {
+  font-size: 0.8rem;
+  color: var(--white-dim);
+  font-style: italic;
+}
+
+/* ============================================================
+   CART DRAWER
+   ============================================================ */
+.cart-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.cart-overlay.open { opacity: 1; pointer-events: auto; }
+
+.cart-drawer {
+  position: fixed;
+  top: 0; right: 0;
+  width: 420px;
+  max-width: 90vw;
+  height: 100vh;
+  background: #1E1034;
+  z-index: 2001;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 40px rgba(0,0,0,0.3);
+}
+.cart-drawer.open { transform: translateX(0); }
+
+.cart-header {
+  padding: 24px;
+  border-bottom: 1px solid var(--white-faint);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cart-header h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.cart-close {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--white-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-size: 1.2rem;
+  transition: background 0.2s;
+}
+.cart-close:hover { background: rgba(255,255,255,0.2); }
+
+.cart-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+.cart-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--white-dim);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.cart-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.cart-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--white-faint);
+  align-items: center;
+}
+.cart-item-info { flex: 1; }
+.cart-item-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+.cart-item-price {
+  font-size: 0.85rem;
+  color: var(--white-dim);
+}
+.cart-item-qty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cart-item-qty button {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--white-faint);
+  color: var(--white);
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.cart-item-qty button:hover { background: rgba(255,255,255,0.2); }
+.cart-item-qty span { font-weight: 600; min-width: 20px; text-align: center; }
+.cart-item-remove {
+  color: var(--white-dim);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  font-family: inherit;
+  padding: 4px 0;
+}
+.cart-item-remove:hover { color: var(--magenta); }
+
+.cart-footer {
+  padding: 24px;
+  border-top: 1px solid var(--white-faint);
+}
+.cart-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+.cart-checkout {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--orange);
+  color: var(--white);
+  font-size: 1rem;
+  font-weight: 700;
+  transition: background 0.2s, transform 0.2s;
+}
+.cart-checkout:hover { background: var(--orange-bright); transform: translateY(-1px); }
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; }
+  .marquee-track { animation: none; }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+  .hero-visual { order: -1; max-width: 400px; margin: 0 auto; }
+  .hero-image-frame { transform: rotate(2deg); }
+  .hero { padding: 100px 24px 60px; min-height: auto; }
+  .about-inner { grid-template-columns: 1fr; gap: 40px; }
+  .about-image-frame { max-width: 500px; margin: 0 auto; }
+  .testimonials-grid { grid-template-columns: 1fr; max-width: 500px; }
+  .footer-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .nav { padding: 12px 20px; }
+  .nav-links { display: none; }
+  .hamburger { display: flex; }
+  .hero { padding: 80px 20px 40px; }
+  .hero-headline { font-size: 2.2rem; }
+  .hero-body { font-size: 1rem; }
+  .hero-ctas { flex-direction: column; }
+  .hero-ctas a { text-align: center; justify-content: center; }
+  .hero-trust { flex-direction: column; gap: 8px; }
+  .products-section { padding: 80px 20px; }
+  .products-grid { grid-template-columns: 1fr; }
+  .about-section { padding: 80px 20px; clip-path: polygon(0 20px, 100% 0, 100% calc(100% - 20px), 0 100%); }
+  .about-stats { grid-template-columns: 1fr 1fr; }
+  .testimonials-section { padding: 80px 20px; }
+  .visit-section { padding: 80px 20px; }
+  .site-footer { padding: 40px 20px 24px; }
+  .footer-bottom { flex-direction: column; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .hero-headline { font-size: 1.8rem; }
+  .about-stats { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<a href="#main" class="skip-link">Skip to content</a>
+
+<!-- ============================================================
+     NAVIGATION
+     ============================================================ -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <a href="#" class="nav-logo" aria-label="Weasleys' Wizard Wheezes home">
+    <span class="nav-logo-mark">WWW</span>
+    <span class="nav-logo-text">
+      <span>Est. 1996</span>
+      <span>Weasleys' Wizard Wheezes</span>
+    </span>
+  </a>
+
+  <div class="nav-links">
+    <a href="#products">Shop</a>
+    <a href="#about">About</a>
+    <a href="#reviews">Reviews</a>
+    <a href="#visit">Visit</a>
+    <button class="cart-btn" aria-label="Open shopping cart" id="cartToggle">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Cart
+      <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
+    </button>
+  </div>
+
+  <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- Mobile Menu -->
+<div class="mobile-menu" id="mobileMenu" role="dialog" aria-label="Mobile navigation">
+  <a href="#products" class="mobile-menu-link">Shop</a>
+  <a href="#about" class="mobile-menu-link">About</a>
+  <a href="#reviews" class="mobile-menu-link">Reviews</a>
+  <a href="#visit" class="mobile-menu-link">Visit</a>
+  <button class="cart-btn" style="font-size:1.2rem; padding: 12px 28px;" aria-label="Open shopping cart" onclick="openCart(); closeMobileMenu();">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+    Cart
+  </button>
+</div>
+
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero" id="main">
+  <div class="hero-inner">
+    <div class="hero-text">
+      <p class="hero-eyebrow reveal">EST. 1996 &mdash; DIAGON ALLEY</p>
+      <h1 class="hero-headline reveal reveal-delay-1">
+        Where <span class="orange">Magic</span><br>Meets <span class="light">Mischief</span>
+      </h1>
+      <p class="hero-body reveal reveal-delay-2">
+        Enchanted sweets, legendary pranks, and the most fun you'll have without a wand.
+      </p>
+      <div class="hero-ctas reveal reveal-delay-3">
+        <a href="#products" class="btn-primary">Shop the Collection
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+        <a href="#visit" class="btn-outline">Visit Our Shop</a>
+      </div>
+      <div class="hero-trust reveal reveal-delay-4">
+        <div class="hero-trust-item"><span class="hero-trust-icon" aria-hidden="true">&#x1F6E1;</span> Ministry Approved</div>
+        <div class="hero-trust-item"><span class="hero-trust-icon" aria-hidden="true">&#x1F989;</span> Owl Delivery</div>
+        <div class="hero-trust-item"><span class="hero-trust-icon" aria-hidden="true">&#x2B50;</span> 2,340+ Happy Wizards</div>
+      </div>
+    </div>
+
+    <div class="hero-visual reveal">
+      <div class="hero-image-frame">
+        <img src="/api/assets/cabinet-example/shop-hero.webp" alt="The vibrant storefront of Weasleys' Wizard Wheezes on Diagon Alley, bursting with color and magical products" loading="eager">
+        <span class="hero-badge hero-badge-new">NEW</span>
+        <span class="hero-badge hero-badge-est">Since 1996</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MARQUEE
+     ============================================================ -->
+<div class="marquee-section" aria-hidden="true">
+  <div class="marquee-track" id="marqueeTrack">
+    <div class="marquee-content">
+      <span>MOONBEAM MELTDROPS</span><span class="marquee-dot">&#x2726;</span>
+      <span>PATRONUS POP ROCKS</span><span class="marquee-dot">&#x2726;</span>
+      <span>CANARY CREAM SUPREMES</span><span class="marquee-dot">&#x2726;</span>
+      <span>PORTABLE SWAMP TAFFY</span><span class="marquee-dot">&#x2726;</span>
+      <span>HOWLER FUDGE</span><span class="marquee-dot">&#x2726;</span>
+      <span>PYGMY PUFF GUMMIES</span><span class="marquee-dot">&#x2726;</span>
+    </div>
+    <div class="marquee-content">
+      <span>MOONBEAM MELTDROPS</span><span class="marquee-dot">&#x2726;</span>
+      <span>PATRONUS POP ROCKS</span><span class="marquee-dot">&#x2726;</span>
+      <span>CANARY CREAM SUPREMES</span><span class="marquee-dot">&#x2726;</span>
+      <span>PORTABLE SWAMP TAFFY</span><span class="marquee-dot">&#x2726;</span>
+      <span>HOWLER FUDGE</span><span class="marquee-dot">&#x2726;</span>
+      <span>PYGMY PUFF GUMMIES</span><span class="marquee-dot">&#x2726;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     PRODUCTS
+     ============================================================ -->
+<section class="products-section" id="products">
+  <div class="section-header reveal">
+    <p class="section-label">The Collection</p>
+    <h2 class="section-title">Featured Confections</h2>
+    <p class="section-subtitle">Hand-crafted with genuine magical ingredients</p>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="products-grid">
+    <!-- Moonbeam Meltdrops -->
+    <article class="product-card reveal" data-accent="orange">
+      <div class="product-image-wrap">
+        <img src="/api/assets/cabinet-example/product/candy-catalog/moonbeam-meltdrops/moonbeam-hero.webp" alt="Moonbeam Meltdrops: luminous candy drops that shimmer with captured moonlight" loading="lazy">
+      </div>
+      <div class="product-info">
+        <span class="product-pill">Luminous</span>
+        <h3 class="product-name">Moonbeam Meltdrops</h3>
+        <p class="product-desc">Luminous drops that make your tongue glow like starlight</p>
+        <div class="product-footer">
+          <span class="product-price">5<span class="currency">Galleons</span></span>
+          <button class="add-to-cart-btn" data-product="Moonbeam Meltdrops" data-price="5" aria-label="Add Moonbeam Meltdrops to cart">Add to Cart</button>
+        </div>
+      </div>
+    </article>
+
+    <!-- Patronus Pop Rocks -->
+    <article class="product-card reveal reveal-delay-1" data-accent="purple">
+      <div class="product-image-wrap">
+        <img src="/api/assets/cabinet-example/product/candy-catalog/patronus-pop-rocks/patronus-hero.webp" alt="Patronus Pop Rocks: sparkling blue crystals that conjure miniature spirit animals" loading="lazy">
+      </div>
+      <div class="product-info">
+        <span class="product-pill">Enchanted</span>
+        <h3 class="product-name">Patronus Pop Rocks</h3>
+        <p class="product-desc">Blue crystals that conjure a tiny ghostly animal</p>
+        <div class="product-footer">
+          <span class="product-price">3<span class="currency">Galleons</span></span>
+          <button class="add-to-cart-btn" data-product="Patronus Pop Rocks" data-price="3" aria-label="Add Patronus Pop Rocks to cart">Add to Cart</button>
+        </div>
+      </div>
+    </article>
+
+    <!-- Canary Cream Supremes -->
+    <article class="product-card reveal reveal-delay-2" data-accent="magenta">
+      <div class="product-image-wrap">
+        <img src="/api/assets/cabinet-example/product/candy-catalog/canary-cream-supremes/canary-hero.webp" alt="Canary Cream Supremes: golden pastries that temporarily transform you into a canary" loading="lazy">
+      </div>
+      <div class="product-info">
+        <span class="product-pill">Classic</span>
+        <h3 class="product-name">Canary Cream Supremes</h3>
+        <p class="product-desc">One bite. Full canary. 30 seconds of flight.</p>
+        <div class="product-footer">
+          <span class="product-price">2<span class="currency">Galleons</span></span>
+          <button class="add-to-cart-btn" data-product="Canary Cream Supremes" data-price="2" aria-label="Add Canary Cream Supremes to cart">Add to Cart</button>
+        </div>
+      </div>
+    </article>
+
+    <!-- Portable Swamp Taffy -->
+    <article class="product-card reveal reveal-delay-3" data-accent="gold">
+      <div class="product-image-wrap">
+        <img src="/api/assets/cabinet-example/product/candy-catalog/portable-swamp-taffy/swamp-hero.webp" alt="Portable Swamp Taffy: green taffy that creates a miniature swamp when unwrapped" loading="lazy">
+      </div>
+      <div class="product-info">
+        <span class="product-pill">Legendary</span>
+        <h3 class="product-name">Portable Swamp Taffy</h3>
+        <p class="product-desc">Creates a miniature swamp. Nearly controlled.</p>
+        <div class="product-footer">
+          <span class="product-price">7<span class="currency">Galleons</span></span>
+          <button class="add-to-cart-btn" data-product="Portable Swamp Taffy" data-price="7" aria-label="Add Portable Swamp Taffy to cart">Add to Cart</button>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============================================================
+     ABOUT
+     ============================================================ -->
+<section class="about-section" id="about">
+  <div class="about-inner">
+    <div class="about-image-frame reveal">
+      <img src="/api/assets/cabinet-example/operations/operations-hero.webp" alt="Behind the scenes at Weasleys' Wizard Wheezes: the bustling workshop where magical products are crafted" loading="lazy">
+    </div>
+    <div class="about-text">
+      <h2 class="reveal">Born from Hogwarts,<br>Built for <span class="orange">Mischief</span></h2>
+      <p class="reveal reveal-delay-1">
+        What started as a trunk full of trick sweets in a Hogwarts dormitory became the most talked-about shop on Diagon Alley. Fred and George Weasley turned their genius for mischief into a magical empire &mdash; proving that laughter is the most powerful magic of all.
+      </p>
+      <div class="about-stats reveal reveal-delay-2">
+        <div class="about-stat">
+          <div class="about-stat-number">30+</div>
+          <div class="about-stat-label">Products</div>
+        </div>
+        <div class="about-stat">
+          <div class="about-stat-number">2,340+</div>
+          <div class="about-stat-label">Customers</div>
+        </div>
+        <div class="about-stat">
+          <div class="about-stat-number">1996</div>
+          <div class="about-stat-label">Established</div>
+        </div>
+        <div class="about-stat">
+          <div class="about-stat-number">93</div>
+          <div class="about-stat-label">Diagon Alley</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     TESTIMONIALS
+     ============================================================ -->
+<section class="testimonials-section" id="reviews">
+  <div class="section-header reveal">
+    <p class="section-label">Testimonials</p>
+    <h2 class="section-title">What Wizards Are Saying</h2>
+    <p class="section-subtitle">Real reviews from real magical folk</p>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="testimonials-grid">
+    <div class="testimonial-card reveal" data-color="orange">
+      <p class="testimonial-quote">The Patronus Pop Rocks are extraordinary. I ate an entire bag and my dormitory was filled with tiny silver hares for an hour. Absolutely worth the detention.</p>
+      <div class="testimonial-author">
+        <div class="testimonial-avatar" aria-hidden="true">L</div>
+        <div>
+          <div class="testimonial-name">Luna Lovegood</div>
+          <div class="testimonial-title">Magizoologist & Loyal Customer</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="testimonial-card reveal reveal-delay-1" data-color="purple">
+      <p class="testimonial-quote">I gave Canary Creams to my entire Herbology class. Professor Sprout wasn't pleased, but watching fifteen canaries try to pot Mandrakes was the highlight of my year.</p>
+      <div class="testimonial-author">
+        <div class="testimonial-avatar" aria-hidden="true">N</div>
+        <div>
+          <div class="testimonial-name">Neville Longbottom</div>
+          <div class="testimonial-title">Herbology Professor, Hogwarts</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="testimonial-card reveal reveal-delay-2" data-color="magenta">
+      <p class="testimonial-quote">As the official commentator of all things brilliant, I can confirm: Weasleys' Wizard Wheezes is the single greatest contribution to wizarding society since the Marauder's Map.</p>
+      <div class="testimonial-author">
+        <div class="testimonial-avatar" aria-hidden="true">L</div>
+        <div>
+          <div class="testimonial-name">Lee Jordan</div>
+          <div class="testimonial-title">Radio Host & Original Investor</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     VISIT / CTA
+     ============================================================ -->
+<section class="visit-section" id="visit">
+  <div class="visit-inner reveal">
+    <h2>Come Find Us</h2>
+    <p class="visit-address">93 Diagon Alley, London &mdash; Behind the Leaky Cauldron</p>
+    <p class="visit-hours">Open daily: 9am &ndash; 9pm &bull; Sundays: 10am &ndash; 6pm</p>
+    <a href="#" class="visit-cta-primary">
+      Get Directions (Floo or Apparition)
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+    <a href="#" class="visit-secondary">Or send us an owl</a>
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <h3>Weasleys' Wizard Wheezes</h3>
+      <p>Purveyors of magical mischief since 1996. Making the wizarding world a funnier (and slightly more dangerous) place, one sweet at a time.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Quick Links</h4>
+      <ul>
+        <li><a href="#products">Shop</a></li>
+        <li><a href="#about">Our Story</a></li>
+        <li><a href="#reviews">Reviews</a></li>
+        <li><a href="#visit">Visit Us</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Contact</h4>
+      <ul>
+        <li><a href="#">owl@weasleys.wiz</a></li>
+        <li><a href="#">Floo: WEASLEY-WHEEZES</a></li>
+        <li><a href="#">93 Diagon Alley</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p class="footer-copy">&copy; 1996&ndash;2026 Weasleys' Wizard Wheezes Ltd.</p>
+    <p class="footer-tagline">"Why worry about You-Know-Who? Worry about U-No-Poo!"</p>
+  </div>
+</footer>
+
+<!-- ============================================================
+     CART DRAWER
+     ============================================================ -->
+<div class="cart-overlay" id="cartOverlay" aria-hidden="true"></div>
+<aside class="cart-drawer" id="cartDrawer" role="dialog" aria-label="Shopping cart" aria-hidden="true">
+  <div class="cart-header">
+    <h3>Your Basket</h3>
+    <button class="cart-close" id="cartClose" aria-label="Close cart">&times;</button>
+  </div>
+  <div class="cart-items" id="cartItems">
+    <div class="cart-empty" id="cartEmpty">
+      <div class="cart-empty-icon" aria-hidden="true">&#x1F9F9;</div>
+      <p>Your basket awaits.<br>The sweets won't buy themselves.</p>
+    </div>
+  </div>
+  <div class="cart-footer" id="cartFooter" style="display:none;">
+    <div class="cart-total">
+      <span>Total</span>
+      <span id="cartTotal">0 Galleons</span>
+    </div>
+    <button class="cart-checkout">Checkout</button>
+  </div>
+</aside>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // ---- NAV SCROLL ----
+  const nav = document.querySelector('.nav');
+  let lastScroll = 0;
+  function onScroll() {
+    const y = window.scrollY;
+    nav.classList.toggle('scrolled', y > 40);
+    lastScroll = y;
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // ---- HAMBURGER / MOBILE MENU ----
+  const hamburger = document.getElementById('hamburgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+
+  function closeMobileMenu() {
+    hamburger.classList.remove('open');
+    hamburger.setAttribute('aria-expanded', 'false');
+    mobileMenu.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  window.closeMobileMenu = closeMobileMenu;
+
+  hamburger.addEventListener('click', () => {
+    const isOpen = hamburger.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', String(isOpen));
+    mobileMenu.classList.toggle('open', isOpen);
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  });
+
+  mobileMenu.querySelectorAll('.mobile-menu-link').forEach(link => {
+    link.addEventListener('click', closeMobileMenu);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMobileMenu();
+      closeCart();
+    }
+  });
+
+  // ---- CART STATE ----
+  let cart = [];
+  const badge = document.getElementById('cartBadge');
+  const cartOverlay = document.getElementById('cartOverlay');
+  const cartDrawer = document.getElementById('cartDrawer');
+  const cartItems = document.getElementById('cartItems');
+  const cartEmpty = document.getElementById('cartEmpty');
+  const cartFooter = document.getElementById('cartFooter');
+  const cartTotal = document.getElementById('cartTotal');
+
+  function updateCartUI() {
+    const count = cart.reduce((s, i) => s + i.qty, 0);
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'flex' : 'none';
+
+    if (cart.length === 0) {
+      cartEmpty.style.display = 'block';
+      cartFooter.style.display = 'none';
+      // Clear any item elements
+      cartItems.querySelectorAll('.cart-item').forEach(el => el.remove());
+    } else {
+      cartEmpty.style.display = 'none';
+      cartFooter.style.display = 'block';
+
+      // Re-render items
+      cartItems.querySelectorAll('.cart-item').forEach(el => el.remove());
+      cart.forEach((item, idx) => {
+        const el = document.createElement('div');
+        el.className = 'cart-item';
+        el.innerHTML = `
+          <div class="cart-item-info">
+            <div class="cart-item-name">${item.name}</div>
+            <div class="cart-item-price">${item.price} Galleons each</div>
+            <button class="cart-item-remove" data-idx="${idx}" aria-label="Remove ${item.name}">Remove</button>
+          </div>
+          <div class="cart-item-qty">
+            <button data-action="dec" data-idx="${idx}" aria-label="Decrease quantity">−</button>
+            <span>${item.qty}</span>
+            <button data-action="inc" data-idx="${idx}" aria-label="Increase quantity">+</button>
+          </div>
+        `;
+        cartItems.appendChild(el);
+      });
+
+      const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+      cartTotal.textContent = total + ' Galleons';
+    }
+  }
+
+  function addToCart(name, price) {
+    const existing = cart.find(i => i.name === name);
+    if (existing) {
+      existing.qty++;
+    } else {
+      cart.push({ name, price, qty: 1 });
+    }
+    updateCartUI();
+    // Bounce badge
+    badge.classList.remove('bounce');
+    void badge.offsetWidth;
+    badge.classList.add('bounce');
+  }
+
+  // Cart item interactions (delegation)
+  cartItems.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.idx);
+    if (btn.classList.contains('cart-item-remove')) {
+      cart.splice(idx, 1);
+    } else if (btn.dataset.action === 'inc') {
+      cart[idx].qty++;
+    } else if (btn.dataset.action === 'dec') {
+      cart[idx].qty--;
+      if (cart[idx].qty <= 0) cart.splice(idx, 1);
+    }
+    updateCartUI();
+  });
+
+  // Add to cart buttons
+  document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.product;
+      const price = parseInt(btn.dataset.price);
+      addToCart(name, price);
+      btn.classList.add('added');
+      const orig = btn.textContent;
+      btn.textContent = 'Added!';
+      setTimeout(() => {
+        btn.classList.remove('added');
+        btn.textContent = orig;
+      }, 800);
+    });
+  });
+
+  // Cart open/close
+  function openCart() {
+    cartOverlay.classList.add('open');
+    cartDrawer.classList.add('open');
+    cartDrawer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    // Focus the close button
+    document.getElementById('cartClose').focus();
+  }
+  window.openCart = openCart;
+
+  function closeCart() {
+    cartOverlay.classList.remove('open');
+    cartDrawer.classList.remove('open');
+    cartDrawer.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  window.closeCart = closeCart;
+
+  document.getElementById('cartToggle').addEventListener('click', openCart);
+  document.getElementById('cartClose').addEventListener('click', closeCart);
+  cartOverlay.addEventListener('click', closeCart);
+
+  // Trap focus in cart drawer when open
+  cartDrawer.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      const focusable = cartDrawer.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+  });
+
+  // ---- SCROLL REVEAL (IntersectionObserver) ----
+  const revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          obs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    revealEls.forEach(el => obs.observe(el));
+  } else {
+    // Fallback: show everything
+    revealEls.forEach(el => el.classList.add('visible'));
+  }
+
+  // ---- SMOOTH SCROLL FOR ANCHOR LINKS ----
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+})();
+</script>
+</body>
+</html>

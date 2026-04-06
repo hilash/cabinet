@@ -1,5 +1,5 @@
 name: Weasleys Wizard Wheezes Storefront
-local: /Users/mybiblepath/Development/cabinet/data/cabinet-example/storefront-source
+local: /Users/mybiblepath/Development/cabinet/data/cabinet-example/storefront/source
 source: local
 branch: main
-description: The public-facing storefront website for Weasleys' Wizard Wheezes — magical e-commerce landing page
+description: The public-facing storefront website for Weasleys' Wizard Wheezes
