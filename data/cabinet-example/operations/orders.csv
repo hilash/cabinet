@@ -1,0 +1,6 @@
+Order ID,Customer,Channel,Product,Units,Ship By,Status,Priority,Owner,Delivery Route
+HOG-1001,Honeydukes Overflow Counter,Wholesale,Fizzing Whizzbees Deluxe,60,2026-04-06 10:15,Packing,Critical,George,Hogsmeade
+MIN-1002,Ministry Hospitality Desk,Corporate,Patronus Pop Rocks,45,2026-04-06 11:40,Labeling,High,Fred,London Floo Gate
+QUI-1003,Quality Quidditch Supplies,Wholesale,Comet Crunch Bars,32,2026-04-06 13:10,Awaiting owl receipt,High,George,Diagon Alley
+HOG-1004,Hogwarts Tour Gift Table,Retail Bulk,Canary Cream Sampler,28,2026-04-06 14:30,Display build,Medium,Fred,Hogsmeade
+PEE-1005,Peeves (Prepaid Somehow),Special Order,Portable Swamp Taffy,12,2026-04-06 16:00,Under supervision,Critical,George,Deliver with caution

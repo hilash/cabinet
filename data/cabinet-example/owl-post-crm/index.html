@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Owl Post CRM</title>
+    <style>
+      :root {
+        --night: #091221;
+        --night-2: #12284b;
+        --gold: #f4c96d;
+        --ice: #9ad8ff;
+        --lavender: #b7a7ff;
+        --text: #edf5ff;
+        --muted: rgba(237, 245, 255, 0.74);
+        --panel: rgba(12, 26, 49, 0.78);
+        --line: rgba(173, 220, 255, 0.18);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 20% 10%, rgba(255,255,255,0.2), transparent 20%),
+          radial-gradient(circle at 80% 0%, rgba(154,216,255,0.18), transparent 20%),
+          linear-gradient(160deg, var(--night) 0%, var(--night-2) 100%);
+        overflow-x: hidden;
+      }
+
+      .stars {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.55;
+        background-image:
+          radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px),
+          radial-gradient(circle, rgba(255,255,255,0.45) 1px, transparent 1px);
+        background-size: 120px 120px, 180px 180px;
+        background-position: 10px 20px, 60px 80px;
+      }
+
+      .shell {
+        position: relative;
+        z-index: 1;
+        max-width: 1380px;
+        margin: 0 auto;
+        padding: 28px 18px 34px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: 18px;
+      }
+
+      .panel {
+        border-radius: 30px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 22px 54px rgba(4, 10, 20, 0.35);
+      }
+
+      .hero-copy,
+      .hero-side,
+      .board-wrap {
+        padding: 24px;
+      }
+
+      .eyebrow {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.24em;
+        color: var(--ice);
+      }
+
+      h1 {
+        margin: 12px 0 12px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(42px, 5.8vw, 74px);
+        line-height: 0.92;
+      }
+
+      p { margin: 0; color: var(--muted); line-height: 1.55; }
+
+      .filters {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+      }
+
+      .pill,
+      .send-button {
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        padding: 10px 14px;
+        background: rgba(255,255,255,0.06);
+        color: var(--text);
+        font: inherit;
+      }
+
+      .pill {
+        cursor: pointer;
+      }
+
+      .pill.active {
+        background: rgba(183,167,255,0.22);
+      }
+
+      .send-button {
+        margin-top: 18px;
+        cursor: pointer;
+        background: linear-gradient(135deg, rgba(154,216,255,0.2), rgba(244,201,109,0.2));
+      }
+
+      .board {
+        margin-top: 18px;
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .column {
+        border-radius: 26px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.04);
+        padding: 14px;
+      }
+
+      .column h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      .cards {
+        display: grid;
+        gap: 12px;
+      }
+
+      .card {
+        padding: 14px;
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.08);
+      }
+
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .badge {
+        border-radius: 999px;
+        padding: 5px 9px;
+        font-size: 11px;
+        font-weight: 700;
+        background: rgba(244, 201, 109, 0.16);
+        color: #ffeab9;
+      }
+
+      .detail {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      #confetti-layer {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 3;
+      }
+
+      .confetti {
+        position: absolute;
+        top: -10vh;
+        font-size: 22px;
+        animation: fall 1500ms linear forwards;
+      }
+
+      @keyframes fall {
+        to {
+          transform: translate3d(var(--x), 112vh, 0) rotate(540deg);
+          opacity: 0;
+        }
+      }
+
+      @media (max-width: 1080px) {
+        .hero,
+        .board {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stars" aria-hidden="true"></div>
+    <div id="confetti-layer" aria-hidden="true"></div>
+
+    <div class="shell">
+      <section class="hero">
+        <div class="panel hero-copy">
+          <div class="eyebrow">Sales Rituals</div>
+          <h1>Send the owl. Charm the lead. Close the galleons.</h1>
+          <p>
+            A dramatic CRM board for Fred and George to track relationships, gift-box
+            opportunities, and which customer needs elegant copy versus full-volume spectacle.
+          </p>
+          <div class="filters" id="filters">
+            <button class="pill active" data-filter="all">All Houses</button>
+            <button class="pill" data-filter="gryffindor">Gryffindor</button>
+            <button class="pill" data-filter="ravenclaw">Ravenclaw</button>
+            <button class="pill" data-filter="slytherin">Slytherin</button>
+            <button class="pill" data-filter="other">Other</button>
+          </div>
+        </div>
+
+        <aside class="panel hero-side">
+          <div class="eyebrow">Founder Shortlist</div>
+          <p>
+            Luna understands the brand.
+            Hermione respects quality.
+            Lee Jordan can sell chaos on air without even inhaling first.
+          </p>
+          <button class="send-button" id="send-owl">🦉 Send celebratory owl burst</button>
+        </aside>
+      </section>
+
+      <section class="panel board-wrap">
+        <div class="eyebrow">Pipeline</div>
+        <div class="board" id="board"></div>
+      </section>
+    </div>
+
+    <script>
+      const leads = [
+        { name: "🦁 Hermione Granger", stage: "qualified", house: "gryffindor", want: "premium gift boxes", note: "Needs facts, quality, and no nonsense", value: "480g" },
+        { name: "🌙 Luna Lovegood", stage: "warm", house: "ravenclaw", want: "dreamy limited editions", note: "Understands surreal packaging instantly", value: "320g" },
+        { name: "🌿 Neville Longbottom", stage: "nurture", house: "gryffindor", want: "greenhouse-safe sweets", note: "Botanical line opportunity", value: "260g" },
+        { name: "🐍 Draco Malfoy", stage: "watch", house: "slytherin", want: "luxury tins", note: "Will judge finish before flavor", value: "520g" },
+        { name: "🎙️ Lee Jordan", stage: "hot", house: "other", want: "on-air prank bundles", note: "Already writing the promo read", value: "610g" },
+        { name: "🏆 Angelina Johnson", stage: "proposal", house: "other", want: "match-day support packs", note: "Fast-moving if event date locks", value: "390g" },
+        { name: "🦅 Cho Chang", stage: "qualified", house: "ravenclaw", want: "elegant sampler boxes", note: "Likes refined tone and clean visuals", value: "210g" },
+      ];
+
+      const stageOrder = [
+        { key: "watch", title: "Watch" },
+        { key: "warm", title: "Warm" },
+        { key: "qualified", title: "Qualified" },
+        { key: "hot", title: "Hot / Proposal" },
+      ];
+
+      const board = document.getElementById("board");
+      const confettiLayer = document.getElementById("confetti-layer");
+      let currentFilter = "all";
+
+      function burstConfetti() {
+        const symbols = ["🦉", "✨", "⭐", "💌", "🎉"];
+        for (let i = 0; i < 24; i += 1) {
+          const node = document.createElement("span");
+          node.className = "confetti";
+          node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+          node.style.left = `${Math.random() * 100}vw`;
+          node.style.setProperty("--x", `${(Math.random() - 0.5) * 140}px`);
+          confettiLayer.appendChild(node);
+          window.setTimeout(() => node.remove(), 1600);
+        }
+      }
+
+      function stageMatch(lead, stageKey) {
+        if (stageKey === "hot") {
+          return lead.stage === "hot" || lead.stage === "proposal";
+        }
+        return lead.stage === stageKey;
+      }
+
+      function renderBoard() {
+        const visible = leads.filter((lead) => currentFilter === "all" || lead.house === currentFilter);
+        board.innerHTML = stageOrder.map((stage) => {
+          const cards = visible
+            .filter((lead) => stageMatch(lead, stage.key))
+            .map((lead) => `
+              <article class="card">
+                <div class="card-top">
+                  <strong>${lead.name}</strong>
+                  <span class="badge">${lead.value}</span>
+                </div>
+                <div class="detail">${lead.want}</div>
+                <div class="detail">${lead.note}</div>
+              </article>
+            `)
+            .join("");
+
+          return `
+            <section class="column">
+              <h2>${stage.title}</h2>
+              <div class="cards">${cards || '<p class="detail">No leads in this moon phase.</p>'}</div>
+            </section>
+          `;
+        }).join("");
+      }
+
+      document.querySelectorAll(".pill").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".pill").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          currentFilter = button.dataset.filter;
+          renderBoard();
+        });
+      });
+
+      document.getElementById("send-owl").addEventListener("click", burstConfetti);
+      renderBoard();
+    </script>
+  </body>
+</html>

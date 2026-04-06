@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prank Lab</title>
+    <style>
+      :root {
+        --dark: #101512;
+        --slime: #97ff6a;
+        --acid: #d2ff53;
+        --amber: #ffae42;
+        --text: #f7ffe8;
+        --muted: rgba(247, 255, 232, 0.72);
+        --panel: rgba(17, 30, 21, 0.78);
+        --line: rgba(151, 255, 106, 0.18);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        font-family: "Trebuchet MS", "Avenir Next", sans-serif;
+        background:
+          radial-gradient(circle at 20% 0%, rgba(151,255,106,0.18), transparent 22%),
+          radial-gradient(circle at 80% 0%, rgba(255,174,66,0.16), transparent 20%),
+          linear-gradient(160deg, #08100b 0%, #162019 48%, var(--dark) 100%);
+      }
+
+      .shell {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 28px 18px 34px;
+      }
+
+      .hero,
+      .grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .hero {
+        grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+      }
+
+      .grid {
+        margin-top: 18px;
+        grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+      }
+
+      .panel {
+        border-radius: 30px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 24px 56px rgba(2, 10, 5, 0.35);
+      }
+
+      .hero-copy,
+      .aside,
+      .section {
+        padding: 24px;
+      }
+
+      .eyebrow {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        color: var(--slime);
+      }
+
+      h1 {
+        margin: 12px 0 14px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(42px, 5.8vw, 74px);
+        line-height: 0.92;
+      }
+
+      p { margin: 0; color: var(--muted); line-height: 1.55; }
+
+      .meter {
+        margin-top: 18px;
+        height: 16px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        overflow: hidden;
+        border: 1px solid var(--line);
+      }
+
+      .meter-fill {
+        height: 100%;
+        width: 62%;
+        background: linear-gradient(90deg, var(--slime), var(--amber));
+        transition: width 250ms ease;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+      }
+
+      button {
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+        padding: 10px 14px;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .cta {
+        background: linear-gradient(135deg, rgba(151,255,106,0.2), rgba(255,174,66,0.2));
+      }
+
+      .cards,
+      .alerts {
+        display: grid;
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .card,
+      .alert {
+        padding: 16px;
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.06);
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .badge {
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .stable { background: rgba(151,255,106,0.18); color: #e8ffd7; }
+      .testing { background: rgba(255,174,66,0.18); color: #fff1d2; }
+      .danger { background: rgba(255,95,143,0.18); color: #ffd9e6; }
+
+      #confetti-layer {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 3;
+      }
+
+      .confetti {
+        position: absolute;
+        top: -10vh;
+        font-size: 22px;
+        animation: fall 1500ms linear forwards;
+      }
+
+      @keyframes fall {
+        to {
+          transform: translate3d(var(--x), 112vh, 0) rotate(620deg);
+          opacity: 0;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .hero,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="confetti-layer" aria-hidden="true"></div>
+    <div class="shell">
+      <section class="hero">
+        <div class="panel hero-copy">
+          <div class="eyebrow">Prank R and D</div>
+          <h1>Test the joke. Measure the danger. Respect neither too much.</h1>
+          <p>
+            Internal lab console for tracking new candy effects, prank safety, and
+            whether a product is ready for sale or still best described as "educational smoke."
+          </p>
+          <div class="meter" aria-label="Hilarity meter">
+            <div class="meter-fill" id="meter-fill"></div>
+          </div>
+          <div class="actions">
+            <button class="cta" id="run-trial">🧪 Run trial</button>
+            <button id="raise-chaos">💥 Raise hilarity</button>
+          </div>
+        </div>
+
+        <aside class="panel aside">
+          <div class="eyebrow">Lab Rules</div>
+          <p>
+            1. Do not test on siblings without paperwork.
+            2. Do not bottle swamp weather.
+            3. If Luna says it hums kindly, write that down.
+          </p>
+        </aside>
+      </section>
+
+      <section class="grid">
+        <div class="panel section">
+          <div class="eyebrow">Active experiments</div>
+          <div class="cards" id="experiment-cards"></div>
+        </div>
+
+        <div class="panel section">
+          <div class="eyebrow">Lab alerts</div>
+          <div class="alerts">
+            <div class="alert">
+              <div class="top">
+                <strong>🐥 Canary Cream timing</strong>
+                <span class="badge testing">Tuning</span>
+              </div>
+              <p style="margin-top: 10px;">Still slightly too funny during formal introductions.</p>
+            </div>
+            <div class="alert">
+              <div class="top">
+                <strong>🌫 Portable Swamp Taffy</strong>
+                <span class="badge danger">Volatile</span>
+              </div>
+              <p style="margin-top: 10px;">Beautiful effect. Hallway ethics remain unresolved.</p>
+            </div>
+            <div class="alert">
+              <div class="top">
+                <strong>✨ Moonbeam shimmer blend</strong>
+                <span class="badge stable">Stable</span>
+              </div>
+              <p style="margin-top: 10px;">Premium enough to charge extra and smile while doing it.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const experiments = [
+        { name: "Moonbeam Meltdrops shimmer test", lead: "✨ Fred", state: "stable", note: "Elegant sparkle with zero sticky fallout." },
+        { name: "Portable Swamp Taffy puff trial", lead: "💥 George", state: "danger", note: "Great visuals. Questionable hallway rights." },
+        { name: "Patronus Pop Rocks glow blend", lead: "🦁 Hermione", state: "testing", note: "Needs cleaner finish and better crackle pacing." },
+      ];
+
+      const cardsRoot = document.getElementById("experiment-cards");
+      const confettiLayer = document.getElementById("confetti-layer");
+      const meterFill = document.getElementById("meter-fill");
+      let meter = 62;
+
+      function renderCards() {
+        cardsRoot.innerHTML = experiments.map((item) => `
+          <article class="card">
+            <div class="top">
+              <strong>${item.name}</strong>
+              <span class="badge ${item.state}">${item.state}</span>
+            </div>
+            <p style="margin-top: 10px;">Lead: ${item.lead}</p>
+            <p style="margin-top: 6px;">${item.note}</p>
+          </article>
+        `).join("");
+      }
+
+      function burstConfetti() {
+        const symbols = ["🧪", "✨", "💥", "🍬", "🪄"];
+        for (let i = 0; i < 24; i += 1) {
+          const node = document.createElement("span");
+          node.className = "confetti";
+          node.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+          node.style.left = `${Math.random() * 100}vw`;
+          node.style.setProperty("--x", `${(Math.random() - 0.5) * 160}px`);
+          confettiLayer.appendChild(node);
+          window.setTimeout(() => node.remove(), 1600);
+        }
+      }
+
+      document.getElementById("run-trial").addEventListener("click", () => {
+        burstConfetti();
+        experiments[1].state = "testing";
+        experiments[1].note = "Better containment. Still deeply suspicious.";
+        renderCards();
+      });
+
+      document.getElementById("raise-chaos").addEventListener("click", () => {
+        meter = Math.min(100, meter + 9);
+        meterFill.style.width = `${meter}%`;
+        burstConfetti();
+      });
+
+      renderCards();
+    </script>
+  </body>
+</html>
