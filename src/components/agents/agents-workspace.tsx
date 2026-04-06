@@ -1463,7 +1463,17 @@ export function AgentsWorkspace({
                 }}>
                   <DialogContent className="sm:max-w-3xl">
                     <DialogHeader>
-                      <DialogTitle>New Job</DialogTitle>
+                      <div className="flex items-center justify-between gap-3">
+                        <DialogTitle>New Job</DialogTitle>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => setLibraryDialogOpen(true)}
+                        >
+                          Starter library
+                        </Button>
+                      </div>
                     </DialogHeader>
                     {jobDraft ? (
                       <div className="space-y-4">
@@ -1631,25 +1641,15 @@ export function AgentsWorkspace({
                             Jobs
                           </h4>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1 text-xs"
-                            onClick={() => setLibraryDialogOpen(true)}
-                          >
-                            Starter library
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1 text-xs"
-                            onClick={startNewJobDraft}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            New job
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 text-xs"
+                          onClick={startNewJobDraft}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          New job
+                        </Button>
                       </div>
                       <ScrollArea className="min-h-0 flex-1">
                         <div className="space-y-2 p-3">
@@ -1755,17 +1755,6 @@ export function AgentsWorkspace({
                                 </p>
                               </div>
                               <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 gap-1 text-xs"
-                                  onClick={() => {
-                                    setSelectedJobId(null);
-                                    setJobDraft(null);
-                                  }}
-                                >
-                                  Done
-                                </Button>
                                 {selectedJobId && selectedJobId !== "__new__" ? (
                                   <>
                                     <Button
@@ -1904,7 +1893,7 @@ export function AgentsWorkspace({
                           <div className="max-w-sm space-y-3 px-6 text-center">
                             <h4 className="text-[13px] font-semibold">Select a job to edit</h4>
                             <p className="text-[12px] text-muted-foreground">
-                              Existing jobs open here. Create a new job or browse the starter library in a popup.
+                              Existing jobs open here. Create a new job to start from scratch or choose a template inside the popup.
                             </p>
                             <div className="flex justify-center gap-2">
                               <Button
@@ -1913,7 +1902,7 @@ export function AgentsWorkspace({
                                 className="h-8 text-xs"
                                 onClick={() => setLibraryDialogOpen(true)}
                               >
-                                Starter library
+                                Library
                               </Button>
                               <Button
                                 size="sm"
