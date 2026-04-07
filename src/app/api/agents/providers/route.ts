@@ -25,6 +25,8 @@ export async function GET() {
           name: p.name,
           type: p.type,
           icon: p.icon,
+          installMessage: p.installMessage,
+          installSteps: p.installSteps,
           enabled: isProviderEnabled(p.id, settings),
           usage: usage[p.id] || {
             agentSlugs: [],

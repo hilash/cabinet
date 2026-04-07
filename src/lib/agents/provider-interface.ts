@@ -18,6 +18,7 @@ export interface AgentProvider {
   type: "cli" | "api";
   icon: string;
   installMessage?: string;
+  installSteps?: Array<{ title: string; detail: string; link?: { label: string; url: string } }>;
 
   // CLI providers
   command?: string;

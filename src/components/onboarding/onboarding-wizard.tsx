@@ -11,12 +11,17 @@ import {
   ExternalLink,
   Loader2,
   Rocket,
+  Bot,
+  ChevronDown,
+  ChevronRight,
+  RefreshCw,
   Sparkles,
   Star,
   Terminal,
   XCircle,
   Zap,
 } from "lucide-react";
+import type { ProviderInfo } from "@/types/agents";
 
 interface OnboardingAnswers {
   companyName: string;
@@ -207,13 +212,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[]>([]);
   const [launching, setLaunching] = useState(false);
   const [githubStars, setGithubStars] = useState(GITHUB_STARS_FALLBACK);
-  const [providerStatus, setProviderStatus] = useState<{
-    checking: boolean;
-    available: boolean;
-    authenticated: boolean;
-    version?: string;
-    error?: string;
-  }>({ checking: true, available: false, authenticated: false });
+  const [providersLoading, setProvidersLoading] = useState(true);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+  const anyProviderReady = providers.some((p) => p.available && p.authenticated);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -240,37 +242,19 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   }, []);
 
   const checkProvider = useCallback(async () => {
-    setProviderStatus((s) => ({ ...s, checking: true }));
+    setProvidersLoading(true);
     try {
       const res = await fetch("/api/agents/providers");
       if (!res.ok) throw new Error("Failed to check providers");
       const data = await res.json();
-      const claude = data.providers?.find(
-        (p: { id: string }) => p.id === "claude-code"
+      const cliProviders: ProviderInfo[] = (data.providers ?? []).filter(
+        (p: ProviderInfo) => p.type === "cli"
       );
-      if (claude) {
-        setProviderStatus({
-          checking: false,
-          available: claude.available,
-          authenticated: claude.authenticated,
-          version: claude.version,
-          error: claude.error,
-        });
-      } else {
-        setProviderStatus({
-          checking: false,
-          available: false,
-          authenticated: false,
-          error: "Claude Code provider not found",
-        });
-      }
+      setProviders(cliProviders);
     } catch {
-      setProviderStatus({
-        checking: false,
-        available: false,
-        authenticated: false,
-        error: "Could not check provider status",
-      });
+      setProviders([]);
+    } finally {
+      setProvidersLoading(false);
     }
   }, []);
 
@@ -782,137 +766,123 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </p>
               </div>
 
-              {/* Claude Code CLI — primary provider */}
-              <div
-                className="rounded-2xl p-6 space-y-4"
-                style={{
-                  background: WEB.bgCard,
-                  border: `1px solid ${providerStatus.available && providerStatus.authenticated ? WEB.accent : WEB.border}`,
-                  boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex size-10 items-center justify-center rounded-xl"
-                    style={{ background: WEB.accentBg, color: WEB.accent }}
-                  >
-                    <Terminal className="size-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: WEB.text }}>
-                      Claude Code CLI
-                    </p>
-                    <p className="text-xs" style={{ color: WEB.textSecondary }}>
-                      Recommended &middot; Runs agents via terminal
-                    </p>
-                  </div>
-                  {providerStatus.checking ? (
-                    <Loader2 className="size-5 animate-spin" style={{ color: WEB.textTertiary }} />
-                  ) : providerStatus.available && providerStatus.authenticated ? (
-                    <CheckCircle2 className="size-5" style={{ color: "#16a34a" }} />
-                  ) : (
-                    <XCircle className="size-5" style={{ color: "#dc2626" }} />
-                  )}
+              {/* Registered CLI providers */}
+              {providersLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="size-6 animate-spin" style={{ color: WEB.textTertiary }} />
                 </div>
-
-                {!providerStatus.checking && providerStatus.available && providerStatus.authenticated && (
-                  <div
-                    className="rounded-xl px-4 py-3 text-sm"
-                    style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d" }}
-                  >
-                    Claude Code is installed and ready.
-                    {providerStatus.version && (
-                      <span style={{ color: "#16a34a" }}> ({providerStatus.version})</span>
-                    )}
-                  </div>
-                )}
-
-                {!providerStatus.checking && !providerStatus.available && (
-                  <div className="space-y-3">
-                    <div
-                      className="rounded-xl px-4 py-3 text-sm"
-                      style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}
-                    >
-                      Claude Code CLI not found. Follow these steps to get started:
-                    </div>
-
-                    <div
-                      className="rounded-xl p-4 space-y-3"
-                      style={{ background: WEB.bgWarm, border: `1px solid ${WEB.borderLight}` }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                          style={{ background: WEB.accent, color: "white" }}
-                        >
-                          1
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium" style={{ color: WEB.text }}>
-                            Get a Claude subscription
-                          </p>
-                          <p className="text-xs mt-0.5" style={{ color: WEB.textSecondary }}>
-                            You need a Claude Max or Team plan to use Claude Code.
-                          </p>
-                          <a
-                            href="https://claude.ai/settings/billing"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-medium mt-1"
-                            style={{ color: WEB.accent }}
+              ) : (
+                <div className="space-y-3">
+                  {providers.map((p) => {
+                    const isReady = !!(p.available && p.authenticated);
+                    const isExpanded = expandedProvider === p.id;
+                    const ProviderIcon = p.icon === "sparkles" ? Sparkles : p.icon === "bot" ? Bot : Terminal;
+                    return (
+                      <div
+                        key={p.id}
+                        className="rounded-2xl p-6 space-y-4"
+                        style={{
+                          background: WEB.bgCard,
+                          border: `1px solid ${isReady ? WEB.accent : WEB.border}`,
+                          boxShadow: "0 1px 3px rgba(59, 47, 47, 0.04), 0 8px 30px rgba(59, 47, 47, 0.04)",
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="flex size-10 items-center justify-center rounded-xl"
+                            style={{ background: WEB.accentBg, color: WEB.accent }}
                           >
-                            Open Claude billing
-                            <ExternalLink className="size-3" />
-                          </a>
+                            <ProviderIcon className="size-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold" style={{ color: WEB.text }}>
+                              {p.name}
+                            </p>
+                            <p className="text-xs" style={{ color: isReady ? "#16a34a" : WEB.textTertiary }}>
+                              {isReady ? "Installed and ready" : "Not found"}
+                              {isReady && p.version && ` (${p.version})`}
+                            </p>
+                          </div>
+                          {isReady ? (
+                            <CheckCircle2 className="size-5" style={{ color: "#16a34a" }} />
+                          ) : (
+                            <button
+                              onClick={() => setExpandedProvider(isExpanded ? null : p.id)}
+                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+                              style={{ background: WEB.accentBg, border: `1px solid ${WEB.border}`, color: WEB.accent }}
+                            >
+                              Install instructions
+                              {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                            </button>
+                          )}
                         </div>
-                      </div>
 
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                          style={{ background: WEB.accent, color: "white" }}
-                        >
-                          2
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium" style={{ color: WEB.text }}>
-                            Install Claude Code
-                          </p>
-                          <p className="text-xs mt-0.5 font-mono" style={{ color: WEB.textSecondary }}>
-                            npm install -g @anthropic-ai/claude-code
-                          </p>
-                        </div>
-                      </div>
+                        {!isReady && isExpanded && (
+                          <div className="space-y-3">
+                            {p.installSteps && p.installSteps.length > 0 ? (
+                              <div
+                                className="rounded-xl p-4 space-y-3"
+                                style={{ background: WEB.bgWarm, border: `1px solid ${WEB.borderLight}` }}
+                              >
+                                {p.installSteps.map((installStep, i) => (
+                                  <div key={i} className="flex items-start gap-3">
+                                    <span
+                                      className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                                      style={{ background: WEB.accent, color: "white" }}
+                                    >
+                                      {i + 1}
+                                    </span>
+                                    <div>
+                                      <p className="text-sm font-medium" style={{ color: WEB.text }}>
+                                        {installStep.title}
+                                      </p>
+                                      <p className="text-xs mt-0.5" style={{ color: WEB.textSecondary }}>
+                                        {installStep.detail}
+                                      </p>
+                                      {installStep.link && (
+                                        <a
+                                          href={installStep.link.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 text-xs font-medium mt-1"
+                                          style={{ color: WEB.accent }}
+                                        >
+                                          {installStep.link.label}
+                                          <ExternalLink className="size-3" />
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : p.installMessage ? (
+                              <div
+                                className="rounded-xl px-4 py-3 text-sm"
+                                style={{ background: WEB.bgWarm, border: `1px solid ${WEB.borderLight}`, color: WEB.text }}
+                              >
+                                {p.installMessage}
+                              </div>
+                            ) : null}
 
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                          style={{ background: WEB.accent, color: "white" }}
-                        >
-                          3
-                        </span>
-                        <div>
-                          <p className="text-sm font-medium" style={{ color: WEB.text }}>
-                            Log in
-                          </p>
-                          <p className="text-xs mt-0.5" style={{ color: WEB.textSecondary }}>
-                            Run <span className="font-mono">claude</span> in your terminal and follow the login prompts.
-                          </p>
-                        </div>
+                            <p className="text-xs" style={{ color: WEB.textTertiary }}>
+                              After installing, click Re-check below. If the provider was installed while Cabinet was running, you may need to restart the app.
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    );
+                  })}
 
-                    <button
-                      onClick={checkProvider}
-                      className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5"
-                      style={{ background: WEB.accentBg, border: `1px solid ${WEB.border}`, color: WEB.accent }}
-                    >
-                      <Loader2 className="size-3.5" />
-                      Re-check
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <button
+                    onClick={checkProvider}
+                    className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5"
+                    style={{ background: WEB.accentBg, border: `1px solid ${WEB.border}`, color: WEB.accent }}
+                  >
+                    <RefreshCw className="size-3.5" />
+                    Re-check providers
+                  </button>
+                </div>
+              )}
 
               {/* Coming soon providers */}
               <div className="space-y-2">
@@ -922,7 +892,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[
                     { name: "Gemini CLI", type: "CLI", icon: "terminal" },
-                    { name: "Codex CLI", type: "CLI", icon: "terminal" },
                     { name: "Anthropic API", type: "API", icon: "api" },
                     { name: "OpenAI API", type: "API", icon: "api" },
                     { name: "Google AI API", type: "API", icon: "api" },
@@ -972,7 +941,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5"
                   style={{ background: WEB.accent }}
                 >
-                  {providerStatus.available ? "Next" : "Skip for now"}
+                  {anyProviderReady ? "Next" : "Skip for now"}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

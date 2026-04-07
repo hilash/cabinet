@@ -74,6 +74,8 @@ export interface ProviderInfo {
   authenticated?: boolean;
   version?: string;
   error?: string;
+  installMessage?: string;
+  installSteps?: Array<{ title: string; detail: string; link?: { label: string; url: string } }>;
   usage?: {
     agentSlugs: string[];
     jobs: Array<{

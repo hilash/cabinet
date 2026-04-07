@@ -7,6 +7,11 @@ export const codexCliProvider: AgentProvider = {
   type: "cli",
   icon: "bot",
   installMessage: "Codex CLI not found. Install with: npm install -g @openai/codex or brew install --cask codex",
+  installSteps: [
+    { title: "Get an OpenAI API key", detail: "You need an OpenAI account with API access.", link: { label: "OpenAI API keys", url: "https://platform.openai.com/api-keys" } },
+    { title: "Set API key", detail: "export OPENAI_API_KEY=sk-..." },
+    { title: "Install Codex CLI", detail: "npm install -g @openai/codex" },
+  ],
   command: "codex",
   commandCandidates: [
     `${process.env.HOME || ""}/.local/bin/codex`,

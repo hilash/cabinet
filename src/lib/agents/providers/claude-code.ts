@@ -7,6 +7,11 @@ export const claudeCodeProvider: AgentProvider = {
   type: "cli",
   icon: "sparkles",
   installMessage: "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code",
+  installSteps: [
+    { title: "Get a Claude subscription", detail: "You need a Claude Max or Team plan to use Claude Code.", link: { label: "Open Claude billing", url: "https://claude.ai/settings/billing" } },
+    { title: "Install Claude Code", detail: "npm install -g @anthropic-ai/claude-code" },
+    { title: "Log in", detail: "Run claude in your terminal and follow the login prompts." },
+  ],
   command: "claude",
   commandCandidates: [
     `${process.env.HOME || ""}/.local/bin/claude`,
