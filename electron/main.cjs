@@ -10,6 +10,11 @@ if (require("electron-squirrel-startup")) {
   app.quit();
 }
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
+
 const isDev = !app.isPackaged;
 const managedDataDir = path.join(app.getPath("userData"), "cabinet-data");
 const updateStatusPath = path.join(managedDataDir, ".cabinet", "update-status.json");
@@ -65,8 +70,34 @@ function spawnBackend(command, args, env) {
   return child;
 }
 
-function packagedPath(...parts) {
-  return path.join(process.resourcesPath, ...parts);
+function spawnNodeBackend(args, env) {
+  if (isDev) {
+    return spawnBackend(process.execPath, args, env);
+  }
+
+  const bundledNodePath = path.join(
+    process.resourcesPath,
+    "app.asar.unpacked",
+    ".next",
+    "standalone",
+    "bin",
+    "node"
+  );
+
+  if (fs.existsSync(bundledNodePath)) {
+    return spawnBackend(bundledNodePath, args, env);
+  }
+
+  return spawnBackend(process.execPath, args, {
+    ...env,
+    // Fallback for older packages that do not yet bundle a standalone Node
+    // runtime alongside the embedded Next.js server.
+    ELECTRON_RUN_AS_NODE: "1",
+  });
+}
+
+function packagedStandalonePath(...parts) {
+  return path.join(process.resourcesPath, "app.asar.unpacked", ".next", "standalone", ...parts);
 }
 
 async function maybeImportExistingData() {
@@ -134,12 +165,11 @@ async function startEmbeddedCabinet() {
     CABINET_PUBLIC_DAEMON_ORIGIN: daemonWsOrigin,
   };
 
-  const serverEntry = packagedPath(".next", "standalone", "server.js");
-  const daemonEntry = packagedPath("server", "cabinet-daemon.ts");
-  const tsxEntry = packagedPath("node_modules", "tsx", "dist", "cli.mjs");
+  const serverEntry = packagedStandalonePath("server.js");
+  const daemonEntry = packagedStandalonePath("server", "cabinet-daemon.cjs");
 
-  spawnBackend(process.execPath, [serverEntry], env);
-  spawnBackend(process.execPath, [tsxEntry, daemonEntry], env);
+  spawnNodeBackend([serverEntry], env);
+  spawnNodeBackend([daemonEntry], env);
 
   await waitForHealth(`${appOrigin}/api/health`);
   return { appUrl: appOrigin };
@@ -265,6 +295,17 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   cleanupBackends();
+});
+
+app.on("second-instance", () => {
+  if (!mainWindow) {
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.focus();
 });
 
 app.whenReady().then(async () => {

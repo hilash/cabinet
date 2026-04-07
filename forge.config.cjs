@@ -1,8 +1,111 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+const fs = require("fs/promises");
+const path = require("path");
 const { MakerZIP } = require("@electron-forge/maker-zip");
 const { MakerDMG } = require("@electron-forge/maker-dmg");
 const { AutoUnpackNativesPlugin } = require("@electron-forge/plugin-auto-unpack-natives");
 const { PublisherGithub } = require("@electron-forge/publisher-github");
+
+const PACKAGER_IGNORE = [
+  /^\/\.git(?:\/|$)/,
+  /^\/\.github(?:\/|$)/,
+  /^\/\.claude(?:\/|$)/,
+  /^\/\.agents(?:\/|$)/,
+  /^\/coverage(?:\/|$)/,
+  /^\/out(?:\/|$)/,
+  /^\/test(?:\/|$)/,
+  /^\/scripts(?:\/|$)/,
+  /^\/assets(?:\/|$)/,
+  /^\/cli(?:\/|$)/,
+  /^\/public(?:\/|$)/,
+  /^\/electron\/(?!main\.cjs$|preload\.cjs$).*/,
+  /^\/server(?:\/|$)/,
+  /^\/src(?:\/|$)/,
+  /^\/data(?:\/|$)/,
+  /^\/\.next\/(?!standalone(?:\/|$)).*/,
+  /^\/node_modules\/(?!update-electron-app(?:\/|$)|github-url-to-object(?:\/|$)|is-url(?:\/|$)|ms(?:\/|$)|electron-squirrel-startup(?:\/|$)|debug(?:\/|$)).*/,
+  /^\/(?:AI-claude-editor\.md|CLAUDE\.md|PRD\.md|PROGRESS\.md|README\.md|LICENSE\.md|package-lock\.json|eslint\.config\.mjs|forge\.config\.cjs|next\.config\.ts|next-env\.d\.ts|postcss\.config\.mjs|run-agent\.sh|skills-lock\.json|tsconfig\.json|tsconfig\.tsbuildinfo|\.env\.example|\.env\.local|\.dockerignore|\.gitignore|components\.json)$/i,
+];
+
+const MACOS_LOCALES_TO_KEEP = new Set(["en.lproj", "en_GB.lproj", "he.lproj"]);
+
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function collectAppBundles(rootPath, depth = 0, appBundles = []) {
+  if (path.extname(rootPath) === ".app") {
+    appBundles.push(rootPath);
+    return appBundles;
+  }
+
+  if (depth >= 3 || !(await pathExists(rootPath))) {
+    return appBundles;
+  }
+
+  const entries = await fs.readdir(rootPath, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    await collectAppBundles(path.join(rootPath, entry.name), depth + 1, appBundles);
+  }
+
+  return appBundles;
+}
+
+async function pruneLocaleDirectory(resourceDir) {
+  if (!(await pathExists(resourceDir))) {
+    return;
+  }
+
+  const entries = await fs.readdir(resourceDir, { withFileTypes: true });
+  await Promise.all(
+    entries
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          entry.name.endsWith(".lproj") &&
+          !MACOS_LOCALES_TO_KEEP.has(entry.name)
+      )
+      .map((entry) => fs.rm(path.join(resourceDir, entry.name), { recursive: true, force: true }))
+  );
+}
+
+function pruneMacLocales(buildPath, electronVersion, platform, arch, done) {
+  void (async () => {
+    if (platform !== "darwin" || process.env.APPLE_ID) {
+      done();
+      return;
+    }
+
+    const appBundles = await collectAppBundles(buildPath);
+    await Promise.all(
+      appBundles.flatMap((appPath) => [
+        pruneLocaleDirectory(path.join(appPath, "Contents", "Resources")),
+        pruneLocaleDirectory(
+          path.join(
+            appPath,
+            "Contents",
+            "Frameworks",
+            "Electron Framework.framework",
+            "Versions",
+            "A",
+            "Resources"
+          )
+        ),
+      ])
+    );
+
+    done();
+  })().catch(done);
+}
 
 module.exports = {
   packagerConfig: {
@@ -11,7 +114,12 @@ module.exports = {
     appBundleId: "com.runcabinet.cabinet",
     appCopyright: "© 2026 Hila Shmuel",
     appCategoryType: "public.app-category.productivity",
-    asar: true,
+    asar: {
+      unpackDir: ".next/standalone",
+    },
+    prune: true,
+    ignore: PACKAGER_IGNORE,
+    afterComplete: [pruneMacLocales],
     osxSign: process.env.APPLE_ID
       ? {
           identity: process.env.APPLE_SIGN_IDENTITY,
