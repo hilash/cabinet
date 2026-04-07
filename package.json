@@ -1,6 +1,6 @@
 {
   "name": "cabinet",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -10,13 +10,14 @@
     "dev:all": "npm run dev & npm run dev:daemon",
     "debug:chrome": "bash scripts/launch-chrome-debug.sh",
     "build": "next build",
+    "electron:prep": "node scripts/prepare-electron-package.mjs",
     "release:manifest": "node scripts/generate-release-manifest.mjs",
     "start": "npm run start:next & npm run start:daemon",
     "start:next": "next start",
     "start:daemon": "tsx server/cabinet-daemon.ts",
     "electron:start": "electron-forge start",
-    "electron:package": "npm run build && electron-forge package",
-    "electron:make": "npm run build && electron-forge make",
+    "electron:package": "npm run build && npm run electron:prep && electron-forge package",
+    "electron:make": "npm run build && npm run electron:prep && electron-forge make",
     "lint": "eslint",
     "test:unit": "tsx --test test/update-system.test.ts",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null; xattr -d com.apple.provenance node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null; xattr -d com.apple.provenance node_modules/node-pty/prebuilds/darwin-arm64/pty.node 2>/dev/null; true"

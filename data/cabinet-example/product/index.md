@@ -26,6 +26,7 @@ Fred and George co-own the product vision, but the division is clear: Fred dream
 | Patronus Pop Rocks | Final testing | May 5 | George |
 | Canary Cream Supremes | Phase 3 trials | May 19 | Fred |
 | Portable Swamp Taffy | R&D (experimental) | TBD | George |
+| Love Potions | R&D (formula finalized) | TBD | George |
 
 Full product data is tracked in `candy-roadmap.csv`.
 
