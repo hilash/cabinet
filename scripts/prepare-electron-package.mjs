@@ -1,4 +1,5 @@
 import { build as bundle } from "esbuild";
+import { execFileSync } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 
@@ -11,7 +12,8 @@ const standaloneNodeModulesDir = path.join(standaloneDir, "node_modules");
 const standaloneBinDir = path.join(standaloneDir, "bin");
 const daemonBundlePath = path.join(standaloneServerDir, "cabinet-daemon.cjs");
 const daemonMigrationsDir = path.join(standaloneServerDir, "migrations");
-const bundledNodePtyDir = path.join(standaloneNodeModulesDir, "node-pty");
+const stagedNativeDir = path.join(standaloneDir, ".native");
+const stagedNodePtyDir = path.join(stagedNativeDir, "node-pty");
 const bundledNodeBinaryPath = path.join(standaloneBinDir, "node");
 const rootNodePtyDir = path.join(projectRoot, "node_modules", "node-pty");
 
@@ -107,23 +109,29 @@ async function stageDaemonRuntime() {
   await Promise.all([
     removePath(daemonBundlePath),
     removePath(daemonMigrationsDir),
-    removePath(bundledNodePtyDir),
+    removePath(stagedNativeDir),
     removePath(bundledNodeBinaryPath),
+    // Remove any node-pty from node_modules so the daemon can only find
+    // it via NODE_PATH (pointing outside the .app bundle at runtime).
+    removePath(path.join(standaloneNodeModulesDir, "node-pty")),
   ]);
 
   await bundleDaemon();
   await copyDirectory(path.join(projectRoot, "server", "migrations"), daemonMigrationsDir);
 
+  // Stage node-pty into .native/ (NOT node_modules/) so it ships inside the
+  // app bundle but is not resolvable by require().  At runtime, main.cjs
+  // copies it to userData where macOS allows execution.
   await Promise.all([
-    copyDirectory(path.join(rootNodePtyDir, "lib"), path.join(bundledNodePtyDir, "lib")),
+    copyDirectory(path.join(rootNodePtyDir, "lib"), path.join(stagedNodePtyDir, "lib")),
     copyDirectory(
       path.join(rootNodePtyDir, "prebuilds", "darwin-arm64"),
-      path.join(bundledNodePtyDir, "prebuilds", "darwin-arm64")
+      path.join(stagedNodePtyDir, "prebuilds", "darwin-arm64")
     ),
-    copyFile(path.join(rootNodePtyDir, "package.json"), path.join(bundledNodePtyDir, "package.json")),
+    copyFile(path.join(rootNodePtyDir, "package.json"), path.join(stagedNodePtyDir, "package.json")),
   ]);
 
-  await fs.chmod(path.join(bundledNodePtyDir, "prebuilds", "darwin-arm64", "spawn-helper"), 0o755);
+  await fs.chmod(path.join(stagedNodePtyDir, "prebuilds", "darwin-arm64", "spawn-helper"), 0o755);
 }
 
 async function stageBundledNodeRuntime() {

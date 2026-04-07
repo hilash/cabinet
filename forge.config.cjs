@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+const { execFileSync } = require("child_process");
 const fs = require("fs/promises");
 const path = require("path");
 const { MakerZIP } = require("@electron-forge/maker-zip");
@@ -78,6 +79,38 @@ async function pruneLocaleDirectory(resourceDir) {
   );
 }
 
+function codesignNativeBinaries(buildPath, electronVersion, platform, arch, done) {
+  if (platform !== "darwin" || process.env.APPLE_ID) {
+    done();
+    return;
+  }
+
+  // Ad-hoc codesign the bundled Node binary so macOS allows execution.
+  // node-pty is extracted outside the .app bundle at runtime (see main.cjs).
+  const bundledNode = path.join(
+    buildPath,
+    "Cabinet.app",
+    "Contents",
+    "Resources",
+    "app.asar.unpacked",
+    ".next",
+    "standalone",
+    "bin",
+    "node"
+  );
+
+  try {
+    execFileSync("codesign", ["--force", "--sign", "-", bundledNode]);
+  } catch {}
+
+  const appPath = path.join(buildPath, "Cabinet.app");
+  try {
+    execFileSync("codesign", ["--force", "--deep", "--sign", "-", appPath]);
+  } catch {}
+
+  done();
+}
+
 function pruneMacLocales(buildPath, electronVersion, platform, arch, done) {
   void (async () => {
     if (platform !== "darwin" || process.env.APPLE_ID) {
@@ -119,7 +152,7 @@ module.exports = {
     },
     prune: true,
     ignore: PACKAGER_IGNORE,
-    afterComplete: [pruneMacLocales],
+    afterComplete: [codesignNativeBinaries, pruneMacLocales],
     osxSign: process.env.APPLE_ID
       ? {
           identity: process.env.APPLE_SIGN_IDENTITY,

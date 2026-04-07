@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const net = require("net");
@@ -100,6 +101,47 @@ function packagedStandalonePath(...parts) {
   return path.join(process.resourcesPath, "app.asar.unpacked", ".next", "standalone", ...parts);
 }
 
+/**
+ * macOS Sequoia+ blocks execution of native binaries inside .app bundles.
+ * Copy node-pty to a writable location outside the bundle so spawn-helper
+ * can execute, and return the external node_modules path for NODE_PATH.
+ */
+function extractNativeModules() {
+  const externalModulesDir = path.join(app.getPath("userData"), "native-modules");
+  const externalNodePty = path.join(externalModulesDir, "node-pty");
+  const bundledNodePty = packagedStandalonePath(".native", "node-pty");
+
+  // Check if bundled version has changed (by comparing package.json mtime)
+  const bundledPkgPath = path.join(bundledNodePty, "package.json");
+  const externalPkgPath = path.join(externalNodePty, "package.json");
+  let needsCopy = true;
+
+  if (fs.existsSync(externalPkgPath) && fs.existsSync(bundledPkgPath)) {
+    const bundledMtime = fs.statSync(bundledPkgPath).mtimeMs;
+    const externalMtime = fs.statSync(externalPkgPath).mtimeMs;
+    needsCopy = bundledMtime > externalMtime;
+  }
+
+  if (needsCopy) {
+    fs.rmSync(externalNodePty, { recursive: true, force: true });
+    fs.mkdirSync(externalModulesDir, { recursive: true });
+    fs.cpSync(bundledNodePty, externalNodePty, { recursive: true });
+
+    // Ad-hoc codesign native binaries so macOS allows execution
+    const prebuildsDir = path.join(externalNodePty, "prebuilds", "darwin-arm64");
+    for (const name of ["spawn-helper", "pty.node"]) {
+      const target = path.join(prebuildsDir, name);
+      if (fs.existsSync(target)) {
+        try {
+          execFileSync("codesign", ["--force", "--sign", "-", target]);
+        } catch {}
+      }
+    }
+  }
+
+  return externalModulesDir;
+}
+
 async function maybeImportExistingData() {
   fs.mkdirSync(managedDataDir, { recursive: true });
   const visibleEntries = fs
@@ -146,6 +188,7 @@ async function startEmbeddedCabinet() {
 
   await maybeImportExistingData();
 
+  const externalModulesDir = extractNativeModules();
   const [appPort, daemonPort] = await Promise.all([getFreePort(), getFreePort()]);
   const appOrigin = `http://127.0.0.1:${appPort}`;
   const daemonOrigin = `http://127.0.0.1:${daemonPort}`;
@@ -168,8 +211,14 @@ async function startEmbeddedCabinet() {
   const serverEntry = packagedStandalonePath("server.js");
   const daemonEntry = packagedStandalonePath("server", "cabinet-daemon.cjs");
 
+  // Daemon needs NODE_PATH to find node-pty outside the .app bundle
+  const daemonEnv = {
+    ...env,
+    NODE_PATH: [externalModulesDir, env.NODE_PATH].filter(Boolean).join(path.delimiter),
+  };
+
   spawnNodeBackend([serverEntry], env);
-  spawnNodeBackend([daemonEntry], env);
+  spawnNodeBackend([daemonEntry], daemonEnv);
 
   await waitForHealth(`${appOrigin}/api/health`);
   return { appUrl: appOrigin };
