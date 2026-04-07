@@ -142,13 +142,44 @@ function extractNativeModules() {
   return externalModulesDir;
 }
 
+/**
+ * Copy bundled seed content (default pages, agent library, playbooks) into the
+ * managed data directory.  Merges non-destructively: existing files are never
+ * overwritten so user edits survive app updates.
+ */
+function seedDefaultContent() {
+  const seedDir = packagedStandalonePath(".seed");
+  if (!fs.existsSync(seedDir)) {
+    return;
+  }
+
+  const copyRecursive = (src, dest) => {
+    const stat = fs.statSync(src);
+    if (stat.isDirectory()) {
+      fs.mkdirSync(dest, { recursive: true });
+      for (const entry of fs.readdirSync(src)) {
+        copyRecursive(path.join(src, entry), path.join(dest, entry));
+      }
+    } else if (!fs.existsSync(dest)) {
+      // Only copy if the destination file doesn't already exist
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(src, dest);
+    }
+  };
+
+  copyRecursive(seedDir, managedDataDir);
+}
+
 async function maybeImportExistingData() {
   fs.mkdirSync(managedDataDir, { recursive: true });
   const visibleEntries = fs
     .readdirSync(managedDataDir, { withFileTypes: true })
-    .filter((entry) => entry.name !== ".cabinet");
+    .filter((entry) => !entry.name.startsWith("."));
 
   if (visibleEntries.length > 0) {
+    // Data directory has content — still seed hidden dirs (.agents/.library,
+    // .playbooks/catalog) in case a new app version ships new templates.
+    seedDefaultContent();
     return;
   }
 
@@ -163,20 +194,20 @@ async function maybeImportExistingData() {
       "Cabinet stores desktop data outside the app bundle so updates never replace user content.",
   });
 
-  if (prompt.response !== 1) {
-    return;
+  if (prompt.response === 1) {
+    const selection = await dialog.showOpenDialog({
+      title: "Pick an existing Cabinet data directory",
+      properties: ["openDirectory"],
+    });
+
+    if (!selection.canceled && selection.filePaths.length > 0) {
+      fs.cpSync(selection.filePaths[0], managedDataDir, { recursive: true, force: true });
+    }
   }
 
-  const selection = await dialog.showOpenDialog({
-    title: "Pick an existing Cabinet data directory",
-    properties: ["openDirectory"],
-  });
-
-  if (selection.canceled || selection.filePaths.length === 0) {
-    return;
-  }
-
-  fs.cpSync(selection.filePaths[0], managedDataDir, { recursive: true, force: true });
+  // Seed default content (pages, agent library, playbooks).
+  // Non-destructive: never overwrites existing files.
+  seedDefaultContent();
 }
 
 async function startEmbeddedCabinet() {

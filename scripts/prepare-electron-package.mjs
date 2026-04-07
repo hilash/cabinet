@@ -14,8 +14,10 @@ const daemonBundlePath = path.join(standaloneServerDir, "cabinet-daemon.cjs");
 const daemonMigrationsDir = path.join(standaloneServerDir, "migrations");
 const stagedNativeDir = path.join(standaloneDir, ".native");
 const stagedNodePtyDir = path.join(stagedNativeDir, "node-pty");
+const stagedSeedDir = path.join(standaloneDir, ".seed");
 const bundledNodeBinaryPath = path.join(standaloneBinDir, "node");
 const rootNodePtyDir = path.join(projectRoot, "node_modules", "node-pty");
+const dataDir = path.join(projectRoot, "data");
 
 const STANDALONE_PRUNE_PATHS = [
   ".agents",
@@ -139,6 +141,42 @@ async function stageBundledNodeRuntime() {
   await fs.chmod(bundledNodeBinaryPath, 0o755);
 }
 
+async function stageSeedContent() {
+  await removePath(stagedSeedDir);
+
+  // Default pages
+  await Promise.all([
+    copyDirectory(path.join(dataDir, "cabinet-example"), path.join(stagedSeedDir, "cabinet-example")),
+    copyDirectory(path.join(dataDir, "getting-started"), path.join(stagedSeedDir, "getting-started")),
+    copyFile(path.join(dataDir, "CLAUDE.md"), path.join(stagedSeedDir, "CLAUDE.md")),
+  ]);
+
+  // Agent library templates
+  await copyDirectory(
+    path.join(dataDir, ".agents", ".library"),
+    path.join(stagedSeedDir, ".agents", ".library")
+  );
+
+  // Playbook catalog
+  if (await pathExists(path.join(dataDir, ".playbooks", "catalog"))) {
+    await copyDirectory(
+      path.join(dataDir, ".playbooks", "catalog"),
+      path.join(stagedSeedDir, ".playbooks", "catalog")
+    );
+  }
+
+  // Remove .DS_Store files
+  const walk = async (dir) => {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) await walk(fullPath);
+      else if (entry.name === ".DS_Store") await removePath(fullPath);
+    }
+  };
+  await walk(stagedSeedDir);
+}
+
 async function main() {
   if (!(await pathExists(standaloneDir))) {
     throw new Error("Expected .next/standalone to exist. Run `npm run build` first.");
@@ -161,6 +199,7 @@ async function main() {
   await copyDirectory(path.join(nextDir, "static"), path.join(standaloneDir, ".next", "static"));
   await stageDaemonRuntime();
   await stageBundledNodeRuntime();
+  await stageSeedContent();
 }
 
 await main();
