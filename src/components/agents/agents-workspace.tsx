@@ -1746,51 +1746,55 @@ export function AgentsWorkspace({
                 </div>
               </DialogContent>
             </Dialog>
-            <div className="border-b border-border px-5 py-4">
-              <div className="flex items-center gap-2">
+            <div className="border-b border-border px-5 py-3">
+              <div className="flex items-center gap-3">
                 <span className="text-lg">
                   {agents.find((agent) => agent.slug === selectedConversationMeta.agentSlug)?.emoji || "🤖"}
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h3 className="truncate text-[15px] font-semibold">{selectedConversationMeta.title}</h3>
                   <p className="text-[11px] text-muted-foreground">
                     {selectedConversationMeta.agentSlug} · {TRIGGER_LABELS[selectedConversationMeta.trigger]} ·{" "}
                     {selectedConversationMeta.status}
                   </p>
                 </div>
-                <div className="ml-auto flex gap-2">
+                <div className="flex shrink-0 gap-1.5">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-8 gap-1 text-xs"
+                    className="h-7 gap-1 text-[11px] text-muted-foreground"
                     onClick={() => setConversationDetailsOpen(true)}
                   >
-                    <Copy className="h-3.5 w-3.5" />
-                    Job details
+                    <Copy className="h-3 w-3" />
+                    Details
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-8 gap-1 text-xs"
+                    className="h-7 gap-1 text-[11px] text-muted-foreground"
                     onClick={() => openAgentSettings(selectedConversationMeta.agentSlug)}
                   >
-                    <Settings className="h-3.5 w-3.5" />
+                    <Settings className="h-3 w-3" />
                     Settings
                   </Button>
-                  {selectedConversation?.artifacts?.map((artifact) => (
+                </div>
+              </div>
+              {selectedConversation?.artifacts && selectedConversation.artifacts.length > 0 && (
+                <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+                  {selectedConversation.artifacts.map((artifact) => (
                     <button
                       key={artifact.path}
                       onClick={() => {
                         selectPage(artifact.path);
                         setSection({ type: "page" });
                       }}
-                      className="rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      className="shrink-0 rounded-md border border-border bg-muted/30 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
                     >
-                      {artifact.label || artifact.path}
+                      {artifact.label || artifact.path.split("/").pop()}
                     </button>
                   ))}
                 </div>
-              </div>
+              )}
             </div>
             <div className="flex-1 overflow-hidden">
               {selectedConversationMeta.status === "running" ? (
