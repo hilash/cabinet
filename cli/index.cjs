@@ -163,12 +163,18 @@ function ensureEnvLocal(targetDir) {
   }
 }
 
-function copyReleaseTree(sourceRoot, targetDir) {
+function copyReleaseTree(sourceRoot, targetDir, { isUpgrade = false } = {}) {
   const entries = fs.readdirSync(sourceRoot, { withFileTypes: true });
 
   for (const entry of entries) {
     const name = entry.name;
-    if (PRESERVED_TOP_LEVEL.has(name)) continue;
+    if (PRESERVED_TOP_LEVEL.has(name)) {
+      if (isUpgrade) continue;
+      // On fresh init, only copy preserved entries that exist in the source
+      // and don't already exist in the target
+      const targetPath = path.join(targetDir, name);
+      if (fs.existsSync(targetPath)) continue;
+    }
 
     const sourcePath = path.join(sourceRoot, name);
     const targetPath = path.join(targetDir, name);
@@ -317,7 +323,7 @@ async function upgradeProject({ targetDir, version, tarballUrl, manifestUrl }) {
     };
     writeUpdateStatus(absoluteTarget, applyState);
 
-    copyReleaseTree(sourceRoot, absoluteTarget);
+    copyReleaseTree(sourceRoot, absoluteTarget, { isUpgrade: true });
     ensureEnvLocal(absoluteTarget);
 
     run(npmCommand(), ["install"], { cwd: absoluteTarget });
