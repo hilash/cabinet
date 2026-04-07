@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "child_process";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getOneShotLaunchSpec } from "./provider-runtime";
 
 export interface AgentSession {
   id: string;
@@ -64,7 +65,8 @@ export async function runAgent(
   taskTitle: string,
   prompt: string,
   taskId?: string,
-  workdir?: string
+  workdir?: string,
+  providerId?: string
 ): Promise<string> {
   const id = `agent-${Date.now()}`;
 
@@ -78,10 +80,18 @@ export async function runAgent(
   };
 
   const cwd = workdir ? path.join(DATA_DIR, workdir) : DATA_DIR;
-  const proc = spawn("claude", ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"], {
+  const launch = getOneShotLaunchSpec({
+    providerId,
+    prompt,
+    workdir: cwd,
+  });
+  const proc = spawn(launch.command, launch.args, {
     cwd,
-    env: { ...process.env },
-    stdio: ["pipe", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      PATH: `${process.env.HOME || ""}/.local/bin:${process.env.PATH || ""}`,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
   });
 
   session.process = proc;

@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { writePersona } from "@/lib/agents/persona-manager";
+import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
 
 async function ensureDir(dir: string) {
   try { await fs.mkdir(dir, { recursive: true }); } catch { /* exists */ }
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     await writePersona(slug, {
       name: fm.name || slug,
       role: fm.role || "",
-      provider: fm.provider || "claude-code",
+      provider: fm.provider || getDefaultProviderId(),
       heartbeat: fm.heartbeat || "0 8 * * *",
       budget: fm.budget || 100,
       active: false,

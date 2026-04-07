@@ -24,6 +24,15 @@ interface GoalInput {
   floor?: number;
 }
 
+interface ProviderInfo {
+  id: string;
+  name: string;
+  type: "cli" | "api";
+  enabled: boolean;
+  available: boolean;
+  error?: string;
+}
+
 interface EditAgentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,6 +55,9 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
   const [department, setDepartment] = useState("general");
   const [type, setType] = useState<"specialist" | "lead">("specialist");
   const [heartbeat, setHeartbeat] = useState("0 */4 * * *");
+  const [provider, setProvider] = useState("claude-code");
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [defaultProvider, setDefaultProvider] = useState("claude-code");
   const [goals, setGoals] = useState<GoalInput[]>([]);
   const [channels, setChannels] = useState<string[]>([]);
   const [body, setBody] = useState("");
@@ -59,6 +71,14 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
     setLoading(true);
     setDirty(false);
 
+    fetch("/api/agents/providers")
+      .then((r) => r.json())
+      .then((data) => {
+        setProviders((data.providers || []).filter((entry: ProviderInfo) => entry.type === "cli" && entry.enabled));
+        setDefaultProvider(data.defaultProvider || "claude-code");
+      })
+      .catch(() => {});
+
     fetch(`/api/agents/personas/${slug}`)
       .then((r) => r.json())
       .then((agentData) => {
@@ -69,6 +89,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
         setDepartment(p.department || "general");
         setType(p.type || "specialist");
         setHeartbeat(p.heartbeat || "0 */4 * * *");
+        setProvider(p.provider || defaultProvider);
         setChannels(p.channels || ["general"]);
         setBody(p.body || "");
         setGoals(
@@ -83,7 +104,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [open, slug]);
+  }, [open, slug, defaultProvider]);
 
   const markDirty = () => setDirty(true);
 
@@ -108,6 +129,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
         department,
         type,
         heartbeat,
+        provider,
         goals: goalsFmt,
         channels,
         body,
@@ -258,6 +280,24 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
                   <option value="lead">Department Lead</option>
                 </select>
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[12px] font-medium">Provider</label>
+              <select
+                value={provider}
+                onChange={(e) => { setProvider(e.target.value); markDirty(); }}
+                className="w-full h-8 text-[12px] rounded-md border border-input bg-background px-2"
+              >
+                {(providers.length > 0
+                  ? providers
+                  : [{ id: defaultProvider, name: defaultProvider, type: "cli", available: true } as ProviderInfo]
+                ).map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}{entry.available ? "" : " (not installed)"}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

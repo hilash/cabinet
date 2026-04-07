@@ -5,15 +5,26 @@ export interface ProviderStatus {
   error?: string;
 }
 
+export interface CliProviderInvocation {
+  command: string;
+  args: string[];
+  initialPrompt?: string;
+  readyStrategy?: "claude";
+}
+
 export interface AgentProvider {
   id: string;
   name: string;
   type: "cli" | "api";
   icon: string;
+  installMessage?: string;
 
   // CLI providers
   command?: string;
+  commandCandidates?: string[];
   buildArgs?(prompt: string, workdir: string): string[];
+  buildOneShotInvocation?(prompt: string, workdir: string): CliProviderInvocation;
+  buildSessionInvocation?(prompt: string | undefined, workdir: string): CliProviderInvocation;
 
   // API providers
   apiKeyEnvVar?: string;

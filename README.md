@@ -84,7 +84,7 @@ Cabinet is built around a few principles that we think matter deeply for the fut
 | **AI Agents** | Each has goals, skills, scheduled jobs. Watch them work like a real team. |
 | **Scheduled Jobs** | Cron-based agent automation. Reddit scout every 6 hours. Weekly reports on Monday. |
 | **Embedded HTML Apps** | Drop an `index.html` in any folder — it renders as an iframe. Full-screen mode. |
-| **Web Terminal** | Full Claude Code terminal in the browser. xterm.js + node-pty. |
+| **Web Terminal** | Full local AI CLI terminal in the browser. xterm.js + node-pty. |
 | **File-Based Everything** | No database. Markdown on disk. Your data is always yours, always portable. |
 | **Git-Backed History** | Every save auto-commits. Full diff viewer. Restore any page to any point in time. |
 | **Missions & Tasks** | Break goals into missions. Track progress with Kanban boards. |
@@ -164,7 +164,9 @@ cabinet/
 ## Requirements
 
 - **Node.js** 20+
-- **Claude Code CLI** (`npm install -g @anthropic-ai/claude-code`)
+- At least one supported CLI provider:
+  - **Claude Code CLI** (`npm install -g @anthropic-ai/claude-code`)
+  - **Codex CLI** (`npm install -g @openai/codex` or `brew install --cask codex`)
 - macOS or Linux (Windows via WSL)
 
 ## Configuration

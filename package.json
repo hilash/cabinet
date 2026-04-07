@@ -20,6 +20,7 @@
     "electron:make": "npm run build && npm run electron:prep && electron-forge make",
     "lint": "eslint",
     "test:unit": "tsx --test test/update-system.test.ts",
+    "test": "tsx --test src/lib/agents/**/*.test.ts",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null; xattr -d com.apple.provenance node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null; xattr -d com.apple.provenance node_modules/node-pty/prebuilds/darwin-arm64/pty.node 2>/dev/null; true"
   },
   "dependencies": {

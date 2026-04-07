@@ -8,6 +8,7 @@ import {
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
+import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
 
 // Initialize heartbeats on first request
 let initialized = false;
@@ -41,7 +42,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "slug is required" }, { status: 400 });
   }
 
-  await writePersona(slug, personaData);
+  await writePersona(slug, {
+    provider: personaData.provider || getDefaultProviderId(),
+    ...personaData,
+  });
 
   const agentDir = path.join(DATA_DIR, ".agents", slug);
   await ensureAgentScaffold(agentDir);

@@ -12,6 +12,8 @@ import {
 import { runHeartbeat } from "./heartbeat";
 import { getGoalState } from "./goal-manager";
 import type { GoalMetric, AgentType } from "@/types/agents";
+import { getDefaultProviderId } from "./provider-runtime";
+import { resolveEnabledProviderId } from "./provider-settings";
 
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 const MEMORY_DIR = path.join(AGENTS_DIR, ".memory");
@@ -181,7 +183,9 @@ export async function readPersona(slug: string): Promise<AgentPersona | null> {
   const persona: AgentPersona = {
     name: (data.name as string) || slug,
     role: (data.role as string) || "",
-    provider: (data.provider as string) || "claude-code",
+    provider: resolveEnabledProviderId(
+      typeof data.provider === "string" ? data.provider : getDefaultProviderId()
+    ),
     heartbeat: (data.heartbeat as string) || "0 8 * * *",
     budget: (data.budget as number) || 100,
     active: data.active !== false,
@@ -247,7 +251,7 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
   const frontmatter: Record<string, unknown> = {
     name: merged.name,
     role: merged.role,
-    provider: merged.provider,
+    provider: resolveEnabledProviderId(merged.provider),
     heartbeat: merged.heartbeat,
     budget: merged.budget,
     active: merged.active,
