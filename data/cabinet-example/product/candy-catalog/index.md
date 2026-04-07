@@ -22,6 +22,7 @@ This is the master product catalog for Weasleys' Wizard Wheezes candy line. Ever
 | [[Patronus Pop Rocks]] | Novelty / Student | Final Testing | 3 | George |
 | [[Canary Cream Supremes]] | Classic / Prank | Phase 3 Trials | 5 | Fred |
 | [[Portable Swamp Taffy]] | Experimental / Chaos | R&D | TBD | George |
+| [[Love Potions]] | Romantic / Premium | R&D | 9 | George |
 
 ## Product Categories
 
