@@ -64,6 +64,29 @@ export interface AgentListItem {
   runningCount?: number;
   status?: "active" | "running" | "idle";
 }
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  type: "cli" | "api";
+  icon?: string;
+  enabled?: boolean;
+  available: boolean;
+  authenticated?: boolean;
+  version?: string;
+  error?: string;
+  usage?: {
+    agentSlugs: string[];
+    jobs: Array<{
+      agentSlug: string;
+      jobId: string;
+      jobName: string;
+    }>;
+    agentCount: number;
+    jobCount: number;
+    totalCount: number;
+  };
+}
+
 export type AgentRuntime = "heartbeat" | "on-demand";
 
 export interface Department {

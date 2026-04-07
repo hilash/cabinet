@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { SchedulePicker } from "./schedule-picker";
 import { cn } from "@/lib/utils";
 import { Plus, X, Save, Trash2 } from "lucide-react";
-import type { GoalMetric } from "@/types/agents";
+import type { GoalMetric, ProviderInfo } from "@/types/agents";
 
 interface GoalInput {
   metric: string;
@@ -22,15 +22,6 @@ interface GoalInput {
   unit: string;
   period: string;
   floor?: number;
-}
-
-interface ProviderInfo {
-  id: string;
-  name: string;
-  type: "cli" | "api";
-  enabled: boolean;
-  available: boolean;
-  error?: string;
 }
 
 interface EditAgentDialogProps {

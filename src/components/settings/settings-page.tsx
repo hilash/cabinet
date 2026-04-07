@@ -32,29 +32,7 @@ import {
   type ThemeDefinition,
 } from "@/lib/themes";
 import { cn } from "@/lib/utils";
-
-interface ProviderInfo {
-  id: string;
-  name: string;
-  type: "cli" | "api";
-  icon: string;
-  enabled: boolean;
-  usage: {
-    agentSlugs: string[];
-    jobs: Array<{
-      agentSlug: string;
-      jobId: string;
-      jobName: string;
-    }>;
-    agentCount: number;
-    jobCount: number;
-    totalCount: number;
-  };
-  available: boolean;
-  authenticated: boolean;
-  version?: string;
-  error?: string;
-}
+import type { ProviderInfo } from "@/types/agents";
 
 interface McpServer {
   name: string;
@@ -186,11 +164,11 @@ export function SettingsPage() {
 
   const describeProviderUsage = (provider: ProviderInfo) => {
     const parts: string[] = [];
-    if (provider.usage.agentCount > 0) {
-      parts.push(`${provider.usage.agentCount} agent${provider.usage.agentCount === 1 ? "" : "s"}`);
+    if ((provider.usage?.agentCount ?? 0) > 0) {
+      parts.push(`${provider.usage!.agentCount} agent${provider.usage!.agentCount === 1 ? "" : "s"}`);
     }
-    if (provider.usage.jobCount > 0) {
-      parts.push(`${provider.usage.jobCount} job${provider.usage.jobCount === 1 ? "" : "s"}`);
+    if ((provider.usage?.jobCount ?? 0) > 0) {
+      parts.push(`${provider.usage!.jobCount} job${provider.usage!.jobCount === 1 ? "" : "s"}`);
     }
     return parts.join(", ");
   };
@@ -528,7 +506,7 @@ export function SettingsPage() {
                                   <p className="text-[11px] text-muted-foreground">
                                     {provider.available ? provider.version || "Ready" : provider.error || "Not installed"}
                                   </p>
-                                  {provider.usage.totalCount > 0 && (
+                                  {(provider.usage?.totalCount ?? 0) > 0 && (
                                     <p className="text-[11px] text-muted-foreground">
                                       In use by {describeProviderUsage(provider)}
                                     </p>
@@ -567,11 +545,11 @@ export function SettingsPage() {
                                         ? enabledAfterToggle[0]?.id || defaultProvider
                                         : defaultProvider;
                                     const migrations =
-                                      provider.enabled && provider.usage.totalCount > 0
+                                      provider.enabled && (provider.usage?.totalCount ?? 0) > 0
                                         ? [{ fromProviderId: provider.id, toProviderId: nextDefault }]
                                         : [];
 
-                                    if (provider.enabled && provider.usage.totalCount > 0) {
+                                    if (provider.enabled && (provider.usage?.totalCount ?? 0) > 0) {
                                       const confirmed = window.confirm(
                                         `Disable ${provider.name} and migrate ${describeProviderUsage(provider)} to ${getProviderName(nextDefault)}?`
                                       );

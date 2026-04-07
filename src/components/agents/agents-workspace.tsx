@@ -41,7 +41,7 @@ import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
 import type { TreeNode } from "@/types";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
 import type { JobConfig } from "@/types/jobs";
-import type { AgentListItem } from "@/types/agents";
+import type { AgentListItem, ProviderInfo } from "@/types/agents";
 
 type TriggerFilter = "all" | "manual" | "job" | "heartbeat";
 type StatusFilter = "all" | "running" | "completed" | "failed";
@@ -60,16 +60,6 @@ interface AgentTemplate {
   department: string;
   role: string;
   description: string;
-}
-
-interface ProviderInfo {
-  id: string;
-  name: string;
-  type: "cli" | "api";
-  enabled: boolean;
-  available: boolean;
-  version?: string;
-  error?: string;
 }
 
 interface NewAgentDraft {
@@ -91,7 +81,6 @@ const GENERAL_AGENT: AgentListItem = {
   slug: "general",
   emoji: "🤖",
   role: "Manual Cabinet assistant",
-  provider: "claude-code",
   active: true,
   runningCount: 0,
   department: "general",

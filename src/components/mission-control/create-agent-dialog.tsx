@@ -14,22 +14,13 @@ import { Input } from "@/components/ui/input";
 import { SchedulePicker } from "./schedule-picker";
 import { cn } from "@/lib/utils";
 import { Plus, X } from "lucide-react";
-
+import type { ProviderInfo } from "@/types/agents";
 
 interface GoalInput {
   metric: string;
   target: number;
   unit: string;
   period: string;
-}
-
-interface ProviderInfo {
-  id: string;
-  name: string;
-  type: "cli" | "api";
-  enabled: boolean;
-  available: boolean;
-  error?: string;
 }
 
 interface CreateAgentDialogProps {
