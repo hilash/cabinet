@@ -9,6 +9,7 @@ import { writeProviderSettings } from "./provider-settings";
 import {
   createProviderSession,
   getDefaultProviderId,
+  getInteractiveProviderLaunchSpec,
   resolveProviderId,
   resolveProviderOrThrow,
   runOneShotProviderPrompt,
@@ -143,6 +144,58 @@ test("provider runtime falls back to the enabled default when the requested prov
 
     assert.equal(resolveProviderId("claude-code"), "codex-cli");
   });
+});
+
+test("getInteractiveProviderLaunchSpec uses provider-specific interactive CLI settings", async (t) => {
+  const previousDefaultProvider = providerRegistry.defaultProvider;
+  const scriptPath = await fs.mkdtemp(path.join(os.tmpdir(), "cabinet-provider-runtime-"))
+    .then(async (dir) => {
+      const filePath = path.join(dir, "interactive-provider.sh");
+      await fs.writeFile(filePath, "#!/bin/sh\nexit 0\n", "utf8");
+      await fs.chmod(filePath, 0o755);
+      t.after(async () => {
+        await fs.rm(dir, { recursive: true, force: true });
+      });
+      return filePath;
+    });
+  const provider: AgentProvider = {
+    id: "test-interactive-provider",
+    name: "Interactive Test Provider",
+    type: "cli",
+    runtime: "acp",
+    adapterKind: "adapter",
+    icon: "bot",
+    command: "unused-acp-adapter",
+    commandCandidates: ["unused-acp-adapter"],
+    commandArgs: [],
+    interactiveCommand: scriptPath,
+    interactiveCommandCandidates: [scriptPath],
+    buildInteractiveArgs(workdir: string) {
+      return ["--cwd", workdir];
+    },
+    async isAvailable() {
+      return true;
+    },
+    async healthCheck() {
+      return {
+        available: true,
+        authenticated: true,
+        version: "test",
+        runtime: "acp",
+        adapterKind: "adapter",
+      };
+    },
+  };
+  registerTestProvider(provider, t, previousDefaultProvider);
+
+  const launch = getInteractiveProviderLaunchSpec({
+    providerId: provider.id,
+    workdir: process.cwd(),
+  });
+
+  assert.equal(launch.providerId, provider.id);
+  assert.equal(launch.command, scriptPath);
+  assert.deepEqual(launch.args, ["--cwd", process.cwd()]);
 });
 
 test("runOneShotProviderPrompt executes an ACP provider and returns streamed output", async (t) => {

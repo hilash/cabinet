@@ -37,6 +37,10 @@ export interface AgentProvider {
   command: string;
   commandCandidates?: string[];
   commandArgs?: string[];
+  interactiveInstallMessage?: string;
+  interactiveCommand?: string;
+  interactiveCommandCandidates?: string[];
+  buildInteractiveArgs?: (workdir: string) => string[];
   isAvailable(): Promise<boolean>;
   healthCheck(): Promise<ProviderStatus>;
 }

@@ -1,4 +1,5 @@
 import type { AgentProvider } from "./provider-interface";
+import { resolveCliCommand } from "./provider-cli";
 import { providerRegistry } from "./provider-registry";
 import {
   startAcpSession,
@@ -36,6 +37,37 @@ export function resolveProviderId(providerId?: string): string {
 export interface ProviderPromptRun {
   result: Promise<string>;
   cancel: () => void;
+}
+
+export interface ProviderInteractiveLaunchSpec {
+  providerId: string;
+  providerName: string;
+  installMessage?: string;
+  command: string;
+  args: string[];
+}
+
+export function getInteractiveProviderLaunchSpec(input: {
+  providerId?: string;
+  workdir: string;
+}): ProviderInteractiveLaunchSpec {
+  const provider = resolveProviderOrThrow(input.providerId);
+  const command = provider.interactiveCommand;
+  if (!command) {
+    throw new Error(`Provider ${provider.id} does not support interactive terminal sessions`);
+  }
+
+  return {
+    providerId: provider.id,
+    providerName: provider.name,
+    installMessage: provider.interactiveInstallMessage || provider.installMessage,
+    command: resolveCliCommand({
+      ...provider,
+      command,
+      commandCandidates: provider.interactiveCommandCandidates || [command],
+    }),
+    args: provider.buildInteractiveArgs?.(input.workdir) || [],
+  };
 }
 
 export function startOneShotProviderPrompt(input: {

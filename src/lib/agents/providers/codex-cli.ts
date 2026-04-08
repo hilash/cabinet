@@ -34,6 +34,17 @@ export const codexCliProvider: AgentProvider = {
     "codex-acp",
   ],
   commandArgs: [],
+  interactiveInstallMessage: "Codex CLI not found. Install with: npm install -g @openai/codex or brew install --cask codex",
+  interactiveCommand: "codex",
+  interactiveCommandCandidates: [
+    `${process.env.HOME || ""}/.local/bin/codex`,
+    "/usr/local/bin/codex",
+    "/opt/homebrew/bin/codex",
+    "codex",
+  ],
+  buildInteractiveArgs() {
+    return [];
+  },
 
   async isAvailable(): Promise<boolean> {
     return checkCliProviderAvailable(this);

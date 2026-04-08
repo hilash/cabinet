@@ -27,6 +27,7 @@ import {
 } from "../src/lib/runtime/runtime-config";
 import {
   createProviderSession,
+  getInteractiveProviderLaunchSpec,
   resolveProviderId,
 } from "../src/lib/agents/provider-runtime";
 import { formatAcpSessionUpdate } from "../src/lib/agents/acp-runtime";
@@ -73,7 +74,7 @@ const enrichedPath = [
 interface PtySession {
   id: string;
   providerId: string;
-  kind: "shell" | "acp";
+  kind: "shell" | "acp" | "provider";
   pty?: pty.IPty;
   acpClose?: () => Promise<void>;
   acpKill?: () => void;
@@ -308,6 +309,9 @@ function createDetachedSession(input: {
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
 }): PtySession {
+  if (input.providerId && !input.prompt?.trim()) {
+    return createInteractiveProviderDetachedSession(input);
+  }
   if (input.providerId || input.prompt?.trim()) {
     return createAcpDetachedSession(input);
   }
@@ -496,6 +500,88 @@ function createAcpDetachedSession(input: {
     appendOutput(`\n${message}\n`);
     await finalizeAcpSession("failed", message);
   });
+
+  return session;
+}
+
+function createInteractiveProviderDetachedSession(input: {
+  sessionId: string;
+  providerId?: string;
+  prompt?: string;
+  cwd?: string;
+  allowedRoots?: string[];
+  timeoutSeconds?: number;
+  onData?: (chunk: string) => void;
+}): PtySession {
+  const cwd = resolveSessionCwd(input.cwd);
+  const launch = getInteractiveProviderLaunchSpec({
+    providerId: input.providerId,
+    workdir: cwd,
+  });
+  const term = pty.spawn(launch.command, launch.args, {
+    name: "xterm-256color",
+    cols: 120,
+    rows: 30,
+    cwd,
+    env: {
+      ...(process.env as Record<string, string>),
+      PATH: enrichedPath,
+      TERM: "xterm-256color",
+      COLORTERM: "truecolor",
+      FORCE_COLOR: "3",
+      LANG: "en_US.UTF-8",
+    },
+  });
+
+  const session: PtySession = {
+    id: input.sessionId,
+    providerId: launch.providerId,
+    kind: "provider",
+    pty: term,
+    ws: null,
+    createdAt: new Date(),
+    output: [],
+    exited: false,
+    exitCode: null,
+  };
+  sessions.set(input.sessionId, session);
+
+  term.onData((data: string) => {
+    session.output.push(data);
+    void syncConversationChunk(input.sessionId, data).catch(() => {});
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      session.ws.send(data);
+    }
+    input.onData?.(data);
+  });
+
+  term.onExit(({ exitCode }) => {
+    console.log(`Session ${input.sessionId} provider exited with code ${exitCode}`);
+    session.exited = true;
+    session.exitCode = exitCode;
+    if (session.timeoutHandle) {
+      clearTimeout(session.timeoutHandle);
+      delete session.timeoutHandle;
+    }
+
+    const plain = stripAnsi(session.output.join(""));
+    completedOutput.set(input.sessionId, { output: plain, completedAt: Date.now() });
+    void finalizeSessionConversation(session).catch(() => {});
+
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      sessions.delete(input.sessionId);
+      session.ws.close();
+    }
+  });
+
+  if (input.timeoutSeconds && input.timeoutSeconds > 0) {
+    session.timeoutHandle = setTimeout(() => {
+      console.warn(`Session ${input.sessionId} timed out after ${input.timeoutSeconds}s`);
+      try {
+        term.kill();
+      } catch {}
+    }, input.timeoutSeconds * 1000);
+  }
 
   return session;
 }
