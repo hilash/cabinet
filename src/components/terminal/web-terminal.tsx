@@ -9,6 +9,7 @@ interface WebTerminalProps {
   reconnect?: boolean; // If true, connect without sending prompt (session already exists on server)
   themeSurface?: "terminal" | "page";
   providerId?: string;
+  readOnly?: boolean;
   onClose: () => void;
 }
 
@@ -64,6 +65,7 @@ export function WebTerminal({
   prompt,
   displayPrompt,
   providerId,
+  readOnly = false,
   reconnect,
   themeSurface = "terminal",
   onClose,
@@ -98,7 +100,7 @@ export function WebTerminal({
       if (disposed) return;
 
       terminal = new Terminal({
-        cursorBlink: true,
+        cursorBlink: !readOnly,
         cursorStyle: "bar",
         fontSize: 13,
         fontFamily:
@@ -112,6 +114,7 @@ export function WebTerminal({
         altClickMovesCursor: true,
         drawBoldTextInBrightColors: true,
         minimumContrastRatio: 1,
+        disableStdin: readOnly,
       });
 
       const fitAddon = new FitAddon();
@@ -167,7 +170,7 @@ export function WebTerminal({
             requestAnimationFrame(() => {
               if (!disposed) {
                 fitAddon.fit();
-                if (ws?.readyState === WebSocket.OPEN && terminal) {
+                if (!readOnly && ws?.readyState === WebSocket.OPEN && terminal) {
                   ws.send(
                     JSON.stringify({
                       type: "resize",
@@ -214,7 +217,7 @@ export function WebTerminal({
             ws.onopen = () => {
               if (disposed) return;
               setError(null);
-              if (terminal) {
+              if (!readOnly && terminal) {
                 ws?.send(
                   JSON.stringify({
                     type: "resize",
@@ -255,11 +258,13 @@ export function WebTerminal({
           }
         })();
 
-        terminal.onData((data) => {
-          if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(data);
-          }
-        });
+        if (!readOnly) {
+          terminal.onData((data) => {
+            if (ws?.readyState === WebSocket.OPEN) {
+              ws.send(data);
+            }
+          });
+        }
       }
     };
 
@@ -275,7 +280,7 @@ export function WebTerminal({
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sessionId, prompt, displayPrompt, providerId, reconnect, themeSurface]);
+  }, [sessionId, prompt, displayPrompt, providerId, readOnly, reconnect, themeSurface]);
 
   const surfaceBackground = themeSurface === "page" ? "var(--background)" : "var(--terminal-bg)";
   const surfaceForeground = themeSurface === "page" ? "var(--foreground)" : "var(--terminal-fg)";
@@ -291,6 +296,11 @@ export function WebTerminal({
       {error && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-1 bg-destructive/90 text-destructive-foreground text-xs rounded-md">
           {error}
+        </div>
+      )}
+      {readOnly && (
+        <div className="absolute top-2 right-2 z-10 rounded-md border border-border/70 bg-background/85 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground backdrop-blur">
+          Read-only
         </div>
       )}
       <div

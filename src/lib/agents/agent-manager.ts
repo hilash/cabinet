@@ -1,7 +1,10 @@
 import { spawn } from "child_process";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { runOneShotProviderPrompt } from "./provider-runtime";
+import {
+  startOneShotProviderPrompt,
+  type ProviderPromptRun,
+} from "./provider-runtime";
 
 export interface AgentSession {
   id: string;
@@ -13,12 +16,24 @@ export interface AgentSession {
   output: string;
 }
 
+interface ManagedAgentSession extends AgentSession {
+  liveRun?: ProviderPromptRun;
+}
+
 // In-memory session store
-const sessions = new Map<string, AgentSession>();
+const sessions = new Map<string, ManagedAgentSession>();
+
+let startAgentRun = startOneShotProviderPrompt;
+
+function toPublicSession(session: ManagedAgentSession): AgentSession {
+  const { liveRun: _liveRun, ...publicSession } = session;
+  return publicSession;
+}
 
 export function getActiveSessions(): AgentSession[] {
   return Array.from(sessions.values())
-    .filter((s) => s.status === "running");
+    .filter((s) => s.status === "running")
+    .map(toPublicSession);
 }
 
 export function getRecentSessions(limit = 10): AgentSession[] {
@@ -29,11 +44,13 @@ export function getRecentSessions(limit = 10): AgentSession[] {
         new Date(b.completedAt || b.startedAt).getTime() -
         new Date(a.completedAt || a.startedAt).getTime()
     )
-    .slice(0, limit);
+    .slice(0, limit)
+    .map(toPublicSession);
 }
 
 export function getSession(id: string): AgentSession | undefined {
-  return sessions.get(id);
+  const session = sessions.get(id);
+  return session ? toPublicSession(session) : undefined;
 }
 
 export function getAgentStats(): {
@@ -64,7 +81,7 @@ export async function runAgent(
 ): Promise<string> {
   const id = `agent-${Date.now()}`;
 
-  const session: AgentSession = {
+  const session: ManagedAgentSession = {
     id,
     taskId,
     taskTitle,
@@ -74,14 +91,17 @@ export async function runAgent(
   };
 
   const cwd = workdir ? path.join(DATA_DIR, workdir) : DATA_DIR;
-  sessions.set(id, session);
-
-  void runOneShotProviderPrompt({
+  const run = startAgentRun({
     providerId,
     prompt,
     cwd,
     timeoutMs: 120_000,
-  }).then((output) => {
+  });
+  session.liveRun = run;
+  sessions.set(id, session);
+
+  void run.result.then((output) => {
+    if (session.status !== "running") return;
     session.output = output;
     session.status = "completed";
     session.completedAt = new Date().toISOString();
@@ -89,9 +109,14 @@ export async function runAgent(
       void autoSummarize(session);
     }
   }).catch((error) => {
+    if (session.status !== "running") return;
     session.output = error instanceof Error ? error.message : String(error);
     session.status = "failed";
     session.completedAt = new Date().toISOString();
+  }).finally(() => {
+    if (session.liveRun === run) {
+      delete session.liveRun;
+    }
   });
 
   return id;
@@ -119,8 +144,20 @@ async function autoSummarize(session: AgentSession): Promise<void> {
 
 export function stopAgent(id: string): boolean {
   const session = sessions.get(id);
-  if (!session || session.status !== "running") return false;
+  if (!session || session.status !== "running" || !session.liveRun) return false;
+  session.liveRun.cancel();
   session.status = "failed";
   session.completedAt = new Date().toISOString();
   return true;
+}
+
+export function installAgentRunStarterForTests(
+  starter: typeof startOneShotProviderPrompt
+): void {
+  startAgentRun = starter;
+}
+
+export function resetAgentManagerForTests(): void {
+  sessions.clear();
+  startAgentRun = startOneShotProviderPrompt;
 }
