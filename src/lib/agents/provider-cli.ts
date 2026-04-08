@@ -55,7 +55,8 @@ export async function checkCliProviderAvailable(provider: AgentProvider): Promis
       return;
     }
 
-    const proc = spawn(command, ["--version"], {
+    const availabilityArgs = provider.runtime === "acp" ? ["--help"] : ["--version"];
+    const proc = spawn(command, availabilityArgs, {
       env: {
         ...process.env,
         PATH: RUNTIME_PATH,

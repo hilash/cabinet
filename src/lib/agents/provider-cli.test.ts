@@ -71,3 +71,39 @@ test("checkCliProviderAvailable uses resolved command candidates", async () => {
 
   assert.equal(await checkCliProviderAvailable(provider), true);
 });
+
+test("checkCliProviderAvailable accepts ACP adapters that support --help but not --version", async () => {
+  const scriptPath = await createExecutableScript(`#!/bin/sh
+if [ "$1" = "--help" ]; then
+  exit 0
+fi
+if [ "$1" = "--version" ]; then
+  exit 2
+fi
+exit 1
+`);
+  const provider: AgentProvider = {
+    id: "test-acp-provider",
+    name: "Test ACP Provider",
+    type: "cli",
+    runtime: "acp",
+    adapterKind: "adapter",
+    icon: "bot",
+    command: scriptPath,
+    commandArgs: [],
+    async isAvailable() {
+      return true;
+    },
+    async healthCheck() {
+      return {
+        available: true,
+        authenticated: true,
+        version: "test",
+        runtime: "acp",
+        adapterKind: "adapter",
+      };
+    },
+  };
+
+  assert.equal(await checkCliProviderAvailable(provider), true);
+});
