@@ -289,6 +289,7 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
                 <WebTerminal
                   sessionId={session.sessionId}
                   reconnect={session.reconnect ?? true}
+                  readOnly
                   themeSurface="page"
                   onClose={() => handleSessionEnd(session.sessionId)}
                 />
@@ -307,6 +308,7 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
           <WebTerminal
             sessionId={session.sessionId}
             reconnect={true}
+            readOnly
             themeSurface="page"
             onClose={() => markAgentSessionCompleted(session.sessionId)}
           />

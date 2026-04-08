@@ -594,6 +594,7 @@ export function AIPanel() {
                   sessionId={session.sessionId}
                   prompt={session.prompt}
                   displayPrompt={session.userMessage}
+                  readOnly
                   reconnect={session.reconnect}
                   themeSurface="page"
                   onClose={() => handleSessionEnd(session.sessionId)}
@@ -616,6 +617,7 @@ export function AIPanel() {
               sessionId={session.sessionId}
               prompt={session.prompt}
               displayPrompt={session.userMessage}
+              readOnly
               reconnect={session.reconnect}
               themeSurface="page"
               onClose={() => handleSessionEnd(session.sessionId)}

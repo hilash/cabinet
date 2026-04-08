@@ -125,6 +125,7 @@ export function TerminalTabs() {
             <WebTerminal
               sessionId={tab.id}
               prompt={tab.prompt}
+              readOnly={!!tab.prompt}
               themeSurface="page"
               onClose={() => removeTerminalTab(tab.id)}
             />

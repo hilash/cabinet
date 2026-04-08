@@ -695,6 +695,7 @@ function SessionsTab({
                 prompt={liveSession.prompt}
                 themeSurface="page"
                 providerId={liveSession.providerId}
+                readOnly
                 onClose={handleSessionEnd}
               />
             </div>

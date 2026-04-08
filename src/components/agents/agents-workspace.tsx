@@ -1861,6 +1861,7 @@ export function AgentsWorkspace({
                   sessionId={selectedConversationMeta.id}
                   displayPrompt={selectedConversationMeta.title}
                   reconnect
+                  readOnly
                   themeSurface="page"
                   onClose={() => {
                     void refreshConversations();

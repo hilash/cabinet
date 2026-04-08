@@ -1,7 +1,6 @@
 import type { AgentProvider } from "./provider-interface";
 import { providerRegistry } from "./provider-registry";
 import {
-  runAcpOneShotPrompt,
   startAcpSession,
   type AcpRunSession,
 } from "./acp-runtime";
@@ -34,18 +33,74 @@ export function resolveProviderId(providerId?: string): string {
   return resolveProviderOrThrow(providerId).id;
 }
 
+export interface ProviderPromptRun {
+  result: Promise<string>;
+  cancel: () => void;
+}
+
+export function startOneShotProviderPrompt(input: {
+  providerId?: string;
+  prompt: string;
+  cwd: string;
+  timeoutMs?: number;
+}): ProviderPromptRun {
+  let session: AcpRunSession | undefined;
+  let cancelled = false;
+
+  const result = (async () => {
+    let assistantOutput = "";
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    try {
+      session = await createProviderSession({
+        providerId: input.providerId,
+        cwd: input.cwd,
+        onSessionUpdate(params) {
+          const update = params.update;
+          if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text") {
+            assistantOutput += update.content.text;
+          }
+        },
+      });
+
+      if (cancelled) {
+        session.kill();
+      }
+
+      timeoutHandle = setTimeout(() => {
+        session?.kill();
+      }, input.timeoutMs || 120_000);
+
+      await session.prompt(input.prompt);
+      return assistantOutput.trim();
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+      if (session) {
+        await session.close();
+      }
+    }
+  })();
+
+  return {
+    result,
+    cancel() {
+      cancelled = true;
+      try {
+        session?.kill();
+      } catch {}
+    },
+  };
+}
+
 export async function runOneShotProviderPrompt(input: {
   providerId?: string;
   prompt: string;
   cwd: string;
   timeoutMs?: number;
 }): Promise<string> {
-  const provider = resolveProviderOrThrow(input.providerId);
-  return runAcpOneShotPrompt(provider, {
-    cwd: input.cwd,
-    prompt: input.prompt,
-    timeoutMs: input.timeoutMs,
-  });
+  return startOneShotProviderPrompt(input).result;
 }
 
 export async function createProviderSession(input: {
