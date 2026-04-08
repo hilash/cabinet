@@ -36,10 +36,21 @@ interface StartConversationInput {
 
 function buildCabinetEpilogueInstructions(): string {
   return [
-    "At the end of your response, include a ```cabinet block with these fields:",
-    "SUMMARY: one short summary line",
+    "Finish in two parts:",
+    "1. Give the user a short plain-English answer.",
+    "2. End with this exact block format:",
+    "```cabinet",
+    "SUMMARY: specific one-line outcome, not a placeholder",
     "CONTEXT: optional lightweight memory/context summary",
-    "ARTIFACT: relative/path/to/file for every KB file you created or updated",
+    "ARTIFACT: relative/path/to/file you created or updated",
+    "ARTIFACT: another/relative/path.md",
+    "```",
+    "Rules:",
+    "- Use real values, not the example text above.",
+    "- Keep every field on a single line.",
+    "- Repeat `ARTIFACT:` once per KB file you created or updated.",
+    "- Use KB-relative paths under /data such as `marketing/example/index.md`.",
+    "- If you did not create or update a KB file, omit `ARTIFACT:` lines.",
   ].join("\n");
 }
 

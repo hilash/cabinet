@@ -130,13 +130,16 @@ TASK_CREATE [target-agent-slug] [priority 1-5]: title | description (optional â€
 TASK_COMPLETE [task-id]: result summary (mark a pending task as completed)
 \`\`\`
 
-Also include a second block at the very end:
+Also include a second block at the very end using this exact format:
 
 \`\`\`cabinet
-SUMMARY: One short summary line of what happened.
+SUMMARY: Specific one-line outcome, not a placeholder.
 CONTEXT: Optional lightweight context summary to remember later.
 ARTIFACT: relative/path/to/created-or-updated-kb-file
+ARTIFACT: another/relative/path.md
 \`\`\`
+
+Use real values, keep each field on a single line, repeat ARTIFACT once per KB file you changed, and omit ARTIFACT lines if nothing changed.
 
 Now execute your heartbeat. Check your focus areas, process inbox, review goals, and take action.`;
 

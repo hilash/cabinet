@@ -128,9 +128,11 @@ function stripAnsi(str: string): string {
   return str
     .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, "")
     .replace(/\u001B[P^_][\s\S]*?\u001B\\/g, "")
+    .replace(/\u001B\[\d*[CGHID]/g, " ")
     .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "")
     .replace(/\u001B[@-_]/g, "")
-    .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "");
+    .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "")
+    .replace(/ {2,}/g, " ");
 }
 
 function claudeIdlePromptVisible(output: string): boolean {
@@ -333,7 +335,7 @@ function createShellDetachedSession(input: {
   const shell = process.env.SHELL || "/bin/zsh";
   const term = pty.spawn(shell, [], {
     name: "xterm-256color",
-    cols: 120,
+    cols: 240,
     rows: 30,
     cwd,
     env: {
@@ -525,7 +527,7 @@ function createInteractiveProviderDetachedSession(input: {
   });
   const term = pty.spawn(launch.command, launch.args, {
     name: "xterm-256color",
-    cols: 120,
+    cols: 240,
     rows: 30,
     cwd,
     env: {
