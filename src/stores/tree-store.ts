@@ -7,6 +7,7 @@ import {
   movePageApi,
   renamePageApi,
 } from "@/lib/api/client";
+import { canonicalizeVirtualPagePath } from "@/lib/storage/path-utils";
 
 interface TreeState {
   nodes: TreeNode[];
@@ -59,7 +60,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   },
 
   selectPage: (path: string) => {
-    set({ selectedPath: path });
+    set({ selectedPath: canonicalizeVirtualPagePath(path) });
   },
 
   toggleExpand: (path: string) => {

@@ -17,8 +17,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
 import { cronToHuman } from "@/lib/agents/cron-utils";
+import { openKnowledgeBasePage } from "@/lib/navigation/open-page";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { useEditorStore } from "@/stores/editor-store";
 import { cn } from "@/lib/utils";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
 import type { JobConfig } from "@/types/jobs";
@@ -135,7 +137,19 @@ export function JobsManager() {
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const selectPage = useTreeStore((state) => state.selectPage);
+  const expandPath = useTreeStore((state) => state.expandPath);
   const setSection = useAppStore((state) => state.setSection);
+  const loadPage = useEditorStore((state) => state.loadPage);
+
+  function openArtifactPage(rawPath: string) {
+    openKnowledgeBasePage({
+      rawPath,
+      expandPath,
+      selectPage,
+      setPageSection: () => setSection({ type: "page" }),
+      loadPage,
+    });
+  }
 
   async function refreshAgents() {
     setLoadingAgents(true);
@@ -576,10 +590,7 @@ export function JobsManager() {
                   {selectedConversation?.artifacts?.map((artifact) => (
                     <button
                       key={artifact.path}
-                      onClick={() => {
-                        selectPage(artifact.path);
-                        setSection({ type: "page" });
-                      }}
+                      onClick={() => openArtifactPage(artifact.path)}
                       className="rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
                     >
                       {artifact.label || artifact.path}
@@ -603,10 +614,7 @@ export function JobsManager() {
               ) : selectedConversation ? (
                 <ConversationResultView
                   detail={selectedConversation}
-                  onOpenArtifact={(artifactPath) => {
-                    selectPage(artifactPath);
-                    setSection({ type: "page" });
-                  }}
+                  onOpenArtifact={openArtifactPage}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
