@@ -84,7 +84,7 @@ Cabinet is built around a few principles that we think matter deeply for the fut
 | **AI Agents** | Each has goals, skills, scheduled jobs. Watch them work like a real team. |
 | **Scheduled Jobs** | Cron-based agent automation. Reddit scout every 6 hours. Weekly reports on Monday. |
 | **Embedded HTML Apps** | Drop an `index.html` in any folder — it renders as an iframe. Full-screen mode. |
-| **Web Terminal** | Full local AI CLI terminal in the browser. xterm.js + node-pty. |
+| **Web Terminal** | Browser-based agent sessions and shell terminals powered by ACP + xterm.js. |
 | **File-Based Everything** | No database. Markdown on disk. Your data is always yours, always portable. |
 | **Git-Backed History** | Every save auto-commits. Full diff viewer. Restore any page to any point in time. |
 | **Missions & Tasks** | Break goals into missions. Track progress with Kanban boards. |
@@ -151,7 +151,7 @@ cabinet/
     stores/          -> Zustand state management
     lib/             -> Storage, markdown, git, agents, jobs
   server/
-    cabinet-daemon.ts -> WebSocket + job scheduler + agent executor
+    cabinet-daemon.ts -> WebSocket + ACP session host + job scheduler
   data/
     .agents/.library/ -> 20 pre-built agent templates
     getting-started/  -> Default KB page
@@ -164,9 +164,10 @@ cabinet/
 ## Requirements
 
 - **Node.js** 20+
-- At least one supported CLI provider:
-  - **Claude Code CLI** (`npm install -g @anthropic-ai/claude-code`)
-  - **Codex CLI** (`npm install -g @openai/codex` or `brew install --cask codex`)
+- Cabinet dependencies installed with `npm install` so the bundled ACP adapters are available
+- At least one supported agent auth path configured:
+  - **Codex ACP adapter** via ChatGPT subscription auth, `CODEX_API_KEY`, or `OPENAI_API_KEY`
+  - **Claude ACP adapter** via Anthropic / Claude auth supported by the adapter
 - macOS or Linux (Windows via WSL)
 
 ## Configuration
@@ -184,7 +185,7 @@ cp .env.example .env.local
 
 ```bash
 npm run dev          # Next.js dev server (port 3000)
-npm run dev:daemon   # Terminal + job scheduler (port 3001)
+npm run dev:daemon   # Cabinet daemon: ACP sessions, shell terminals, jobs (port 3001)
 npm run dev:all      # Both servers
 npm run build        # Production build
 npm run start        # Production mode (both servers)

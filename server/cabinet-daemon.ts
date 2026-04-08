@@ -25,7 +25,11 @@ import {
   getAppOrigin,
   getDaemonPort,
 } from "../src/lib/runtime/runtime-config";
-import { getSessionLaunchSpec, resolveProviderId } from "../src/lib/agents/provider-runtime";
+import {
+  createProviderSession,
+  resolveProviderId,
+} from "../src/lib/agents/provider-runtime";
+import { formatAcpSessionUpdate } from "../src/lib/agents/acp-runtime";
 import {
   appendConversationTranscript,
   finalizeConversation,
@@ -69,22 +73,18 @@ const enrichedPath = [
 interface PtySession {
   id: string;
   providerId: string;
-  pty: pty.IPty;
+  kind: "shell" | "acp";
+  pty?: pty.IPty;
+  acpClose?: () => Promise<void>;
+  acpKill?: () => void;
   ws: WebSocket | null;
   createdAt: Date;
   output: string[];
   exited: boolean;
   exitCode: number | null;
   timeoutHandle?: NodeJS.Timeout;
-  initialPrompt?: string;
-  initialPromptSent?: boolean;
-  initialPromptTimer?: NodeJS.Timeout;
-  promptSubmittedOutputLength?: number;
-  autoExitRequested?: boolean;
-  autoExitFallbackTimer?: NodeJS.Timeout;
   resolvedStatus?: "completed" | "failed";
   resolvingStatus?: boolean;
-  readyStrategy?: "claude";
 }
 
 const sessions = new Map<string, PtySession>();
@@ -132,48 +132,17 @@ function stripAnsi(str: string): string {
     .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "");
 }
 
-function claudePromptReady(output: string): boolean {
-  const plain = stripAnsi(output).replace(/\r/g, "\n");
-  return (
-    plain.includes("shift+tab to cycle") ||
-    /(?:^|\n)[❯>]\s*$/.test(plain)
-  );
-}
-
 function claudeIdlePromptVisible(output: string): boolean {
   const plain = stripAnsi(output).replace(/\r/g, "\n");
   return /(?:^|\n)[❯>]\s*$/.test(plain);
 }
 
 function transcriptShowsCompletedRun(output: string, prompt?: string): boolean {
-  // Keep this prompt-aware. If we count placeholder SUMMARY/ARTIFACT lines from
-  // the echoed startup prompt as "completed", the UI flips out of live terminal
-  // mode after a few seconds and the session appears corrupted.
   const parsed = parseCabinetBlock(output, prompt);
   if (parsed.summary || parsed.artifactPaths.length > 0) {
     return true;
   }
-
-  const plain = stripAnsi(output).replace(/\r/g, "\n");
-  return (
-    claudeIdlePromptVisible(plain)
-  );
-}
-
-function submitInitialPrompt(session: PtySession): void {
-  if (!session.initialPrompt || session.initialPromptSent || session.exited) {
-    return;
-  }
-
-  session.initialPromptSent = true;
-  session.promptSubmittedOutputLength = session.output.join("").length;
-  if (session.initialPromptTimer) {
-    clearTimeout(session.initialPromptTimer);
-    delete session.initialPromptTimer;
-  }
-
-  session.pty.write(session.initialPrompt);
-  session.pty.write("\r");
+  return claudeIdlePromptVisible(output);
 }
 
 async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
@@ -182,45 +151,6 @@ async function syncConversationChunk(sessionId: string, chunk: string): Promise<
   const plainChunk = stripAnsi(chunk);
   if (!plainChunk) return;
   await appendConversationTranscript(sessionId, plainChunk);
-}
-
-function maybeAutoExitClaudeSession(session: PtySession): void {
-  if (
-    !session.initialPrompt ||
-    !session.initialPromptSent ||
-    session.exited ||
-    session.autoExitRequested ||
-    session.resolvedStatus
-  ) {
-    return;
-  }
-
-  const submittedLength = session.promptSubmittedOutputLength ?? 0;
-  const currentOutput = session.output.join("");
-  if (currentOutput.length <= submittedLength) return;
-
-  const outputSincePrompt = currentOutput.slice(submittedLength);
-  if (!claudeIdlePromptVisible(outputSincePrompt)) return;
-
-  session.resolvedStatus = "completed";
-  session.resolvingStatus = true;
-  session.autoExitRequested = true;
-  const plain = stripAnsi(currentOutput);
-  completedOutput.set(session.id, { output: plain, completedAt: Date.now() });
-  void finalizeConversation(session.id, {
-    status: "completed",
-    exitCode: 0,
-    output: plain,
-  }).finally(() => {
-    session.resolvingStatus = false;
-  });
-  session.pty.write("/exit\r");
-  session.autoExitFallbackTimer = setTimeout(() => {
-    if (session.exited) return;
-    try {
-      session.pty.kill();
-    } catch {}
-  }, 1500);
 }
 
 async function finalizeSessionConversation(session: PtySession): Promise<void> {
@@ -294,6 +224,10 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
 
     // Wire up input from the new WebSocket to the existing PTY
     ws.on("message", (data: Buffer) => {
+      if (!existing.pty) {
+        return;
+      }
+
       const msg = data.toString();
       try {
         const parsed = JSON.parse(msg);
@@ -345,14 +279,16 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
     const msg = data.toString();
     try {
       const parsed = JSON.parse(msg);
-      if (parsed.type === "resize" && parsed.cols && parsed.rows) {
+      if (parsed.type === "resize" && parsed.cols && parsed.rows && session.pty) {
         session.pty.resize(parsed.cols, parsed.rows);
         return;
       }
     } catch {
       // Not JSON, treat as terminal input
     }
-    session.pty.write(msg);
+    if (session.pty) {
+      session.pty.write(msg);
+    }
   });
 
   // On WebSocket close: DETACH, don't kill the PTY
@@ -371,15 +307,23 @@ function createDetachedSession(input: {
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
 }): PtySession {
-  const cwd = resolveSessionCwd(input.cwd);
-  const launch = getSessionLaunchSpec({
-    providerId: input.providerId,
-    prompt: input.prompt,
-    workdir: cwd,
-  });
-  const resolvedProviderId = resolveProviderId(input.providerId);
+  if (input.providerId || input.prompt?.trim()) {
+    return createAcpDetachedSession(input);
+  }
+  return createShellDetachedSession(input);
+}
 
-  const term = pty.spawn(launch.command, launch.args, {
+function createShellDetachedSession(input: {
+  sessionId: string;
+  providerId?: string;
+  prompt?: string;
+  cwd?: string;
+  timeoutSeconds?: number;
+  onData?: (chunk: string) => void;
+}): PtySession {
+  const cwd = resolveSessionCwd(input.cwd);
+  const shell = process.env.SHELL || "/bin/zsh";
+  const term = pty.spawn(shell, [], {
     name: "xterm-256color",
     cols: 120,
     rows: 30,
@@ -396,32 +340,19 @@ function createDetachedSession(input: {
 
   const session: PtySession = {
     id: input.sessionId,
-    providerId: resolvedProviderId,
+    providerId: "shell",
+    kind: "shell",
     pty: term,
     ws: null,
     createdAt: new Date(),
     output: [],
     exited: false,
     exitCode: null,
-    initialPrompt: launch.initialPrompt?.trim() || undefined,
-    initialPromptSent: false,
-    promptSubmittedOutputLength: 0,
-    autoExitRequested: false,
-    readyStrategy: launch.readyStrategy,
   };
   sessions.set(input.sessionId, session);
 
   term.onData((data: string) => {
     session.output.push(data);
-    if (
-      session.initialPrompt &&
-      !session.initialPromptSent &&
-      session.readyStrategy === "claude" &&
-      claudePromptReady(session.output.join(""))
-    ) {
-      submitInitialPrompt(session);
-    }
-    maybeAutoExitClaudeSession(session);
     void syncConversationChunk(input.sessionId, data).catch(() => {});
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
       session.ws.send(data);
@@ -430,20 +361,12 @@ function createDetachedSession(input: {
   });
 
   term.onExit(({ exitCode }) => {
-    console.log(`Session ${input.sessionId} PTY exited with code ${exitCode}`);
+    console.log(`Session ${input.sessionId} shell exited with code ${exitCode}`);
     session.exited = true;
     session.exitCode = exitCode;
     if (session.timeoutHandle) {
       clearTimeout(session.timeoutHandle);
       delete session.timeoutHandle;
-    }
-    if (session.initialPromptTimer) {
-      clearTimeout(session.initialPromptTimer);
-      delete session.initialPromptTimer;
-    }
-    if (session.autoExitFallbackTimer) {
-      clearTimeout(session.autoExitFallbackTimer);
-      delete session.autoExitFallbackTimer;
     }
 
     const plain = stripAnsi(session.output.join(""));
@@ -465,11 +388,110 @@ function createDetachedSession(input: {
     }, input.timeoutSeconds * 1000);
   }
 
-  if (session.initialPrompt) {
-    session.initialPromptTimer = setTimeout(() => {
-      submitInitialPrompt(session);
-    }, 1500);
+  return session;
+}
+
+function createAcpDetachedSession(input: {
+  sessionId: string;
+  providerId?: string;
+  prompt?: string;
+  cwd?: string;
+  timeoutSeconds?: number;
+  onData?: (chunk: string) => void;
+}): PtySession {
+  const cwd = resolveSessionCwd(input.cwd);
+  const resolvedProviderId = resolveProviderId(input.providerId);
+  const prompt = input.prompt?.trim();
+
+  if (!prompt) {
+    throw new Error("ACP sessions require a prompt");
   }
+
+  const session: PtySession = {
+    id: input.sessionId,
+    providerId: resolvedProviderId,
+    kind: "acp",
+    ws: null,
+    createdAt: new Date(),
+    output: [],
+    exited: false,
+    exitCode: null,
+  };
+  sessions.set(input.sessionId, session);
+
+  const appendOutput = (chunk: string) => {
+    if (!chunk) return;
+    session.output.push(chunk);
+    void syncConversationChunk(input.sessionId, chunk).catch(() => {});
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      session.ws.send(chunk);
+    }
+    input.onData?.(chunk);
+  };
+
+  const finalizeAcpSession = async (status: "completed" | "failed", error?: string) => {
+    if (session.exited) return;
+    session.exited = true;
+    session.exitCode = status === "completed" ? 0 : 1;
+    session.resolvedStatus = status;
+    if (session.timeoutHandle) {
+      clearTimeout(session.timeoutHandle);
+      delete session.timeoutHandle;
+    }
+
+    const plain = stripAnsi(session.output.join(""));
+    completedOutput.set(input.sessionId, { output: plain, completedAt: Date.now() });
+    await finalizeSessionConversation(session).catch(() => {});
+    if (error && session.ws && session.ws.readyState === WebSocket.OPEN) {
+      session.ws.send(`\r\n${error}\r\n`);
+    }
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      sessions.delete(input.sessionId);
+      session.ws.close();
+    }
+  };
+
+  void createProviderSession({
+    providerId: resolvedProviderId,
+    cwd,
+    onSessionUpdate(params) {
+      appendOutput(formatAcpSessionUpdate(params));
+    },
+    onStderr(chunk) {
+      appendOutput(chunk);
+    },
+  }).then(async (acpSession) => {
+    session.acpClose = acpSession.close;
+    session.acpKill = acpSession.kill;
+
+    if (input.timeoutSeconds && input.timeoutSeconds > 0) {
+      session.timeoutHandle = setTimeout(() => {
+        try {
+          session.acpKill?.();
+        } catch {}
+        const message = `Session timed out after ${input.timeoutSeconds}s`;
+        appendOutput(`\n${message}\n`);
+        void finalizeAcpSession("failed", message);
+      }, input.timeoutSeconds * 1000);
+    }
+
+    try {
+      await acpSession.prompt(prompt);
+      await acpSession.close();
+      await finalizeAcpSession("completed");
+    } catch (error) {
+      try {
+        await acpSession.close();
+      } catch {}
+      const message = error instanceof Error ? error.message : String(error);
+      appendOutput(`\n${message}\n`);
+      await finalizeAcpSession("failed", message);
+    }
+  }).catch(async (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    appendOutput(`\n${message}\n`);
+    await finalizeAcpSession("failed", message);
+  });
 
   return session;
 }
@@ -976,7 +998,8 @@ process.on("SIGINT", () => {
     task.stop();
   }
   for (const [, session] of sessions) {
-    try { session.pty.kill(); } catch {}
+    try { session.pty?.kill(); } catch {}
+    try { session.acpKill?.(); } catch {}
   }
   void scheduleWatcher.close();
   closeDb();

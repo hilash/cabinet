@@ -1,8 +1,10 @@
 import fs from "fs";
 import { execSync, spawn } from "child_process";
+import path from "path";
 import type { AgentProvider } from "./provider-interface";
 
 export const RUNTIME_PATH = [
+  path.join(process.cwd(), "node_modules", ".bin"),
   `${process.env.HOME || ""}/.local/bin`,
   process.env.PATH || "",
 ].filter(Boolean).join(":");

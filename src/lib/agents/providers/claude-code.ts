@@ -1,71 +1,45 @@
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
 import { checkCliProviderAvailable } from "../provider-cli";
+import { checkAcpProviderHealth } from "../acp-runtime";
 
 export const claudeCodeProvider: AgentProvider = {
   id: "claude-code",
   name: "Claude Code Max",
   type: "cli",
+  runtime: "acp",
+  adapterKind: "adapter",
   icon: "sparkles",
-  installMessage: "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code",
+  installMessage: "Cabinet could not start the bundled Claude ACP adapter. Run npm install in this project to restore dependencies. If you manage adapters globally, claude-code-acp on PATH also works.",
   installSteps: [
-    { title: "Get a Claude subscription", detail: "You need a Claude Max or Team plan to use Claude Code.", link: { label: "Open Claude billing", url: "https://claude.ai/settings/billing" } },
-    { title: "Install Claude Code", detail: "npm install -g @anthropic-ai/claude-code" },
-    { title: "Log in", detail: "Run claude in your terminal and follow the login prompts." },
+    {
+      title: "Install Cabinet dependencies",
+      detail: "Run npm install so Cabinet can use the bundled ACP adapters from node_modules/.bin.",
+    },
+    {
+      title: "Optional global adapter",
+      detail: "If you prefer to manage the adapter outside this repo, install @zed-industries/claude-code-acp globally.",
+    },
+    {
+      title: "Configure Anthropic auth",
+      detail: "Set ANTHROPIC_API_KEY or use the adapter-supported Claude auth flow.",
+      link: { label: "Claude Code ACP adapter", url: "https://github.com/zed-industries/claude-code-acp" },
+    },
   ],
-  command: "claude",
+  command: "claude-code-acp",
   commandCandidates: [
-    `${process.env.HOME || ""}/.local/bin/claude`,
-    "/usr/local/bin/claude",
-    "/opt/homebrew/bin/claude",
-    "claude",
+    `${process.cwd()}/node_modules/.bin/claude-code-acp`,
+    `${process.env.HOME || ""}/.local/bin/claude-code-acp`,
+    "/usr/local/bin/claude-code-acp",
+    "/opt/homebrew/bin/claude-code-acp",
+    "claude-code-acp",
   ],
-
-  buildArgs(prompt: string, _workdir: string): string[] {
-    return ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"];
-  },
-
-  buildOneShotInvocation(prompt: string, workdir: string) {
-    return {
-      command: this.command || "claude",
-      args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
-    };
-  },
-
-  buildSessionInvocation(prompt: string | undefined, _workdir: string) {
-    return {
-      command: this.command || "claude",
-      args: ["--dangerously-skip-permissions"],
-      initialPrompt: prompt?.trim() || undefined,
-      readyStrategy: prompt ? "claude" : undefined,
-    };
-  },
+  commandArgs: [],
 
   async isAvailable(): Promise<boolean> {
     return checkCliProviderAvailable(this);
   },
 
   async healthCheck(): Promise<ProviderStatus> {
-    try {
-      const available = await this.isAvailable();
-      if (!available) {
-        return {
-          available: false,
-          authenticated: false,
-          error: this.installMessage,
-        };
-      }
-
-      return {
-        available: true,
-        authenticated: true, // Max subscription auth is inherited
-        version: "Claude Code Max",
-      };
-    } catch (error) {
-      return {
-        available: false,
-        authenticated: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
+    return checkAcpProviderHealth(this);
   },
 };

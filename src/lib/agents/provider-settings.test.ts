@@ -42,8 +42,11 @@ test("normalizeProviderSettings falls back to the first enabled provider when ne
       id: "test-only-provider",
       name: "Test Only Provider",
       type: "cli",
+      runtime: "acp",
+      adapterKind: "adapter",
       icon: "bot",
       command: "test-only-provider",
+      commandArgs: [],
       async isAvailable() {
         return true;
       },
@@ -52,6 +55,8 @@ test("normalizeProviderSettings falls back to the first enabled provider when ne
           available: true,
           authenticated: true,
           version: "test",
+          runtime: "acp",
+          adapterKind: "adapter",
         };
       },
     },

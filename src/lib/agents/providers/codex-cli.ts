@@ -1,82 +1,45 @@
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
 import { checkCliProviderAvailable } from "../provider-cli";
+import { checkAcpProviderHealth } from "../acp-runtime";
 
 export const codexCliProvider: AgentProvider = {
   id: "codex-cli",
   name: "Codex CLI",
   type: "cli",
+  runtime: "acp",
+  adapterKind: "adapter",
   icon: "bot",
-  installMessage: "Codex CLI not found. Install with: npm install -g @openai/codex or brew install --cask codex",
+  installMessage: "Cabinet could not start the bundled Codex ACP adapter. Run npm install in this project to restore dependencies. If you manage adapters globally, codex-acp on PATH also works.",
   installSteps: [
-    { title: "Get an OpenAI API key", detail: "You need an OpenAI account with API access.", link: { label: "OpenAI API keys", url: "https://platform.openai.com/api-keys" } },
-    { title: "Set API key", detail: "export OPENAI_API_KEY=sk-..." },
-    { title: "Install Codex CLI", detail: "npm install -g @openai/codex" },
+    {
+      title: "Install Cabinet dependencies",
+      detail: "Run npm install so Cabinet can use the bundled ACP adapters from node_modules/.bin.",
+    },
+    {
+      title: "Optional global adapter",
+      detail: "If you prefer to manage the adapter outside this repo, install @zed-industries/codex-acp globally.",
+    },
+    {
+      title: "Use ChatGPT or API auth",
+      detail: "The adapter supports ChatGPT subscription auth plus CODEX_API_KEY and OPENAI_API_KEY.",
+      link: { label: "Codex ACP adapter", url: "https://github.com/zed-industries/codex-acp" },
+    },
   ],
-  command: "codex",
+  command: "codex-acp",
   commandCandidates: [
-    `${process.env.HOME || ""}/.local/bin/codex`,
-    "/usr/local/bin/codex",
-    "/opt/homebrew/bin/codex",
-    "codex",
+    `${process.cwd()}/node_modules/.bin/codex-acp`,
+    `${process.env.HOME || ""}/.local/bin/codex-acp`,
+    "/usr/local/bin/codex-acp",
+    "/opt/homebrew/bin/codex-acp",
+    "codex-acp",
   ],
-
-  buildArgs(prompt: string, _workdir: string): string[] {
-    return [
-      "exec",
-      "--ephemeral",
-      "--skip-git-repo-check",
-      "--dangerously-bypass-approvals-and-sandbox",
-      prompt,
-    ];
-  },
-
-  buildOneShotInvocation(prompt: string, workdir: string) {
-    return {
-      command: this.command || "codex",
-      args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
-    };
-  },
-
-  buildSessionInvocation(prompt: string | undefined, workdir: string) {
-    if (prompt?.trim()) {
-      return {
-        command: this.command || "codex",
-        args: this.buildArgs ? this.buildArgs(prompt.trim(), workdir) : [prompt.trim()],
-      };
-    }
-
-    return {
-      command: this.command || "codex",
-      args: ["--ephemeral"],
-    };
-  },
+  commandArgs: [],
 
   async isAvailable(): Promise<boolean> {
     return checkCliProviderAvailable(this);
   },
 
   async healthCheck(): Promise<ProviderStatus> {
-    try {
-      const available = await this.isAvailable();
-      if (!available) {
-        return {
-          available: false,
-          authenticated: false,
-          error: this.installMessage,
-        };
-      }
-
-      return {
-        available: true,
-        authenticated: true,
-        version: "Codex CLI",
-      };
-    } catch (error) {
-      return {
-        available: false,
-        authenticated: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
+    return checkAcpProviderHealth(this);
   },
 };

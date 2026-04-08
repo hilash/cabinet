@@ -20,9 +20,12 @@ test("resolveCliCommand prefers an existing command candidate path", async () =>
     id: "test-cli-provider",
     name: "Test CLI Provider",
     type: "cli",
+    runtime: "acp",
+    adapterKind: "adapter",
     icon: "bot",
     command: "missing-cli-provider",
     commandCandidates: [scriptPath, "missing-cli-provider"],
+    commandArgs: [],
     async isAvailable() {
       return true;
     },
@@ -31,6 +34,8 @@ test("resolveCliCommand prefers an existing command candidate path", async () =>
         available: true,
         authenticated: true,
         version: "test",
+        runtime: "acp",
+        adapterKind: "adapter",
       };
     },
   };
@@ -44,9 +49,12 @@ test("checkCliProviderAvailable uses resolved command candidates", async () => {
     id: "test-cli-provider",
     name: "Test CLI Provider",
     type: "cli",
+    runtime: "acp",
+    adapterKind: "adapter",
     icon: "bot",
     command: "missing-cli-provider",
     commandCandidates: [scriptPath, "missing-cli-provider"],
+    commandArgs: [],
     async isAvailable() {
       return true;
     },
@@ -55,6 +63,8 @@ test("checkCliProviderAvailable uses resolved command candidates", async () => {
         available: true,
         authenticated: true,
         version: "test",
+        runtime: "acp",
+        adapterKind: "adapter",
       };
     },
   };

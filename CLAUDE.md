@@ -2,7 +2,7 @@
 
 ## What is this project?
 
-Cabinet is an AI-first self-hosted knowledge base and startup OS. All content lives as markdown files on disk. The web UI provides WYSIWYG editing, a collapsible tree sidebar, drag-and-drop page organization, and an AI panel that can edit pages via Claude CLI.
+Cabinet is an AI-first self-hosted knowledge base and startup OS. All content lives as markdown files on disk. The web UI provides WYSIWYG editing, a collapsible tree sidebar, drag-and-drop page organization, and an AI panel that can edit pages via ACP-backed agent providers.
 
 **Core philosophy:** Humans define intent. Agents do the work. The knowledge base is the shared memory between both.
 
@@ -15,7 +15,7 @@ Cabinet is an AI-first self-hosted knowledge base and startup OS. All content li
 - **Fonts:** Inter (sans) + JetBrains Mono (code)
 - **Icons:** Lucide (no emoji in system chrome)
 - **Markdown:** gray-matter (frontmatter), unified/remark (MD→HTML), turndown (HTML→MD)
-- **AI:** Claude CLI headless mode (`claude -p`) for page editing
+- **AI:** ACP-based agent runtime with bundled Codex and Claude adapters
 
 ## Architecture
 
@@ -30,7 +30,7 @@ src/
   app/api/agents/            → GET/POST agent sessions
   app/api/jobs/              → GET/POST scheduled jobs
   app/api/git/               → Git log, diff, commit endpoints
-  app/api/ai/edit/           → POST instruction → Claude edits page
+  app/api/ai/edit/           → POST instruction → active ACP provider edits page
   stores/                    → Zustand (tree, editor, ai-panel, task, app)
   components/sidebar/        → Tree navigation, drag-and-drop, context menu
   components/editor/         → Tiptap WYSIWYG + toolbar, website/PDF/CSV viewers
@@ -44,10 +44,11 @@ src/
   lib/storage/               → Filesystem ops (path-utils, page-io, tree-builder, task-io)
   lib/markdown/              → MD↔HTML conversion
   lib/git/                   → Git service (auto-commit, history, diff)
-  lib/agents/                → Agent session manager
+  lib/agents/                → Provider registry, ACP runtime, agent session manager
   lib/jobs/                  → Job scheduler (node-cron)
 server/
-  terminal-server.ts         → Standalone WebSocket server for PTY sessions
+  cabinet-daemon.ts          → WebSocket daemon for ACP sessions, shell terminals, and jobs
+  terminal-server.ts         → Legacy standalone PTY server
 data/                        → Content directory (KB pages, tasks, jobs)
 ```
 
@@ -60,7 +61,7 @@ data/                        → Content directory (KB pages, tasks, jobs)
 5. **shadcn/ui uses base-ui** (not Radix) — DialogTrigger, ContextMenuTrigger etc. do NOT have `asChild`
 6. **Dark mode default** — theme toggle available, use `next-themes` with `attribute="class"`
 7. **Auto-save** — debounced 500ms after last keystroke in editor-store
-8. **AI edits** — Claude edits files DIRECTLY using its tools (read/edit), NOT by returning full content as stdout. The `/api/ai/edit` endpoint gives Claude the file path and instruction — Claude uses its file editing tools to make targeted changes.
+8. **AI edits** — the active ACP-backed provider edits files DIRECTLY using its tools (read/edit), NOT by returning full content as stdout. The `/api/ai/edit` endpoint gives the provider the file path and instruction so it can make targeted changes.
 9. **Version restore** — users can restore any page to a previous git commit via the Version History panel
 10. **Embedded apps** — dirs with `index.html` + no `index.md` render as iframes. Add `.app` marker for full-screen mode (sidebar + AI panel auto-collapse)
 11. **Linked repos** — `.repo.yaml` in a data dir links it to a Git repo (local path + remote URL). Agents use this to read/search source code in context. See `data/CLAUDE.md` for full spec.
@@ -69,21 +70,22 @@ data/                        → Content directory (KB pages, tasks, jobs)
 
 When the AI panel sends an edit request:
 
-1. **Claude gets the file path and instruction** — it should READ the file, then make TARGETED edits
+1. **The active agent provider gets the file path and instruction** — it should READ the file, then make TARGETED edits
 2. **NEVER replace the entire file** — only modify the specific parts the user asked about
 3. **PRESERVE existing content** — "add X" means INSERT, not REPLACE
-4. **The output shown in the AI panel** is Claude's summary of what it changed, NOT the file content
+4. **The output shown in the AI panel** is the provider's summary of what it changed, NOT the file content
 5. **If content gets corrupted** — users can restore from Version History (clock icon → select commit → Restore)
 
-The AI panel supports `@` mentions — users type `@PageName` to attach other pages as context. The mentioned pages' content is fetched and appended to the prompt so Claude has full context.
+The AI panel supports `@` mentions — users type `@PageName` to attach other pages as context. The mentioned pages' content is fetched and appended to the prompt so the active provider has full context.
 
 
 ## Commands
 
 ```bash
 npm run dev          # Start Next.js dev server on localhost:3000
-npm run dev:terminal # Start terminal WebSocket server on localhost:3001
-npm run dev:all      # Start both servers
+npm run dev:daemon   # Start Cabinet daemon on localhost:3001
+npm run dev:terminal # Start legacy standalone terminal server on localhost:3001
+npm run dev:all      # Start Next.js + Cabinet daemon
 npm run debug:chrome # Launch Chrome with CDP on localhost:9222 for frontend debugging
 npm run build        # Production build
 npm run lint         # ESLint

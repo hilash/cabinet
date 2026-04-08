@@ -1,37 +1,42 @@
+export interface ProviderAuthMethod {
+  id: string;
+  name: string;
+  type: "agent" | "env_var" | "terminal";
+}
+
+export interface ProviderAcpCapabilities {
+  loadSession?: boolean;
+  listSessions?: boolean;
+  promptEmbeddedContext?: boolean;
+  promptImage?: boolean;
+  readTextFile?: boolean;
+  writeTextFile?: boolean;
+  terminal?: boolean;
+}
+
 export interface ProviderStatus {
   available: boolean;
   authenticated: boolean;
   version?: string;
   error?: string;
-}
-
-export interface CliProviderInvocation {
-  command: string;
-  args: string[];
-  initialPrompt?: string;
-  readyStrategy?: "claude";
+  runtime: "acp";
+  adapterKind: "native" | "adapter";
+  authMethods?: ProviderAuthMethod[];
+  acpCapabilities?: ProviderAcpCapabilities;
 }
 
 export interface AgentProvider {
   id: string;
   name: string;
-  type: "cli" | "api";
+  type: "cli";
+  runtime: "acp";
+  adapterKind: "native" | "adapter";
   icon: string;
   installMessage?: string;
   installSteps?: Array<{ title: string; detail: string; link?: { label: string; url: string } }>;
-
-  // CLI providers
-  command?: string;
+  command: string;
   commandCandidates?: string[];
-  buildArgs?(prompt: string, workdir: string): string[];
-  buildOneShotInvocation?(prompt: string, workdir: string): CliProviderInvocation;
-  buildSessionInvocation?(prompt: string | undefined, workdir: string): CliProviderInvocation;
-
-  // API providers
-  apiKeyEnvVar?: string;
-  runPrompt?(prompt: string, context: string): Promise<string>;
-
-  // Common
+  commandArgs?: string[];
   isAvailable(): Promise<boolean>;
   healthCheck(): Promise<ProviderStatus>;
 }

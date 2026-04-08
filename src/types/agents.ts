@@ -69,11 +69,27 @@ export interface ProviderInfo {
   name: string;
   type: "cli" | "api";
   icon?: string;
+  runtime?: "acp";
+  adapterKind?: "native" | "adapter";
   enabled?: boolean;
   available: boolean;
   authenticated?: boolean;
   version?: string;
   error?: string;
+  authMethods?: Array<{
+    id: string;
+    name: string;
+    type: "agent" | "env_var" | "terminal";
+  }>;
+  acpCapabilities?: {
+    loadSession?: boolean;
+    listSessions?: boolean;
+    promptEmbeddedContext?: boolean;
+    promptImage?: boolean;
+    readTextFile?: boolean;
+    writeTextFile?: boolean;
+    terminal?: boolean;
+  };
   installMessage?: string;
   installSteps?: Array<{ title: string; detail: string; link?: { label: string; url: string } }>;
   usage?: {
