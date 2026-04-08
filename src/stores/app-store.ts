@@ -47,7 +47,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const id = `term-${Date.now()}`;
       set({
         terminalOpen: true,
-        terminalTabs: [{ id, label: "Claude 1" }],
+        terminalTabs: [{ id, label: "Terminal 1" }],
         activeTerminalTab: id,
       });
     } else {
@@ -61,13 +61,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { terminalTabs } = get();
     const num = terminalTabs.length + 1;
     const id = `term-${Date.now()}`;
-    set({
-      terminalTabs: [
-        ...terminalTabs,
-        { id, label: label || `Claude ${num}`, prompt },
-      ],
-      activeTerminalTab: id,
-      terminalOpen: true,
+      set({
+        terminalTabs: [
+          ...terminalTabs,
+          { id, label: label || `Terminal ${num}`, prompt },
+        ],
+        activeTerminalTab: id,
+        terminalOpen: true,
     });
   },
 

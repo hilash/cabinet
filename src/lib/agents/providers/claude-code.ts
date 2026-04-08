@@ -34,6 +34,17 @@ export const claudeCodeProvider: AgentProvider = {
     "claude-code-acp",
   ],
   commandArgs: [],
+  interactiveInstallMessage: "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code",
+  interactiveCommand: "claude",
+  interactiveCommandCandidates: [
+    `${process.env.HOME || ""}/.local/bin/claude`,
+    "/usr/local/bin/claude",
+    "/opt/homebrew/bin/claude",
+    "claude",
+  ],
+  buildInteractiveArgs() {
+    return ["--dangerously-skip-permissions"];
+  },
 
   async isAvailable(): Promise<boolean> {
     return checkCliProviderAvailable(this);

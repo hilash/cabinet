@@ -18,6 +18,10 @@ interface DaemonAuthPayload {
   wsOrigin?: string;
 }
 
+interface ProvidersResponse {
+  defaultProvider?: string;
+}
+
 function readRootVar(name: string, fallback: string) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
@@ -201,7 +205,19 @@ export function WebTerminal({
             const auth = (await authResponse.json()) as DaemonAuthPayload;
             const params = new URLSearchParams({ id, token: auth.token });
             if (prompt && !reconnect) params.set("prompt", prompt);
-            if (providerId && !reconnect) params.set("providerId", providerId);
+            let resolvedProviderId = providerId;
+            if (!resolvedProviderId && !prompt && !reconnect) {
+              try {
+                const providersResponse = await fetch("/api/agents/providers");
+                if (providersResponse.ok) {
+                  const providers = await providersResponse.json() as ProvidersResponse;
+                  resolvedProviderId = providers.defaultProvider;
+                }
+              } catch {
+                // Fall back to the daemon default behavior if provider settings cannot be loaded.
+              }
+            }
+            if (resolvedProviderId && !reconnect) params.set("providerId", resolvedProviderId);
 
             const wsOrigin =
               auth.wsOrigin ||
