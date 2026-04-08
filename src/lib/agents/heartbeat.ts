@@ -352,6 +352,7 @@ export async function runHeartbeat(slug: string): Promise<string | null> {
       prompt,
       providerId: persona.provider,
       cwd,
+      allowedRoots: [DATA_DIR],
       timeoutSeconds: 600,
       onComplete: async (completion) => {
         if (completion.status === "failed" && !completion.output) {

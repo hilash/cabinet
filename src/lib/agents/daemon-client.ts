@@ -5,6 +5,7 @@ interface CreateDaemonSessionInput {
   prompt: string;
   providerId?: string;
   cwd?: string;
+  allowedRoots?: string[];
   timeoutSeconds?: number;
 }
 

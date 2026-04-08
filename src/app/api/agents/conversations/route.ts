@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
           ? conversationInput.mentionedPaths
           : mentionedPaths,
       cwd: conversationInput.cwd,
+      allowedRoots: conversationInput.allowedRoots,
       onComplete: async (completion) => {
         if (agentSlug === "general" || !completion.meta.contextSummary) return;
         const timestamp = new Date().toISOString();

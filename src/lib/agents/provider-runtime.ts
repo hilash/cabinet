@@ -42,6 +42,7 @@ export function startOneShotProviderPrompt(input: {
   providerId?: string;
   prompt: string;
   cwd: string;
+  allowedRoots?: string[];
   timeoutMs?: number;
 }): ProviderPromptRun {
   let session: AcpRunSession | undefined;
@@ -55,6 +56,7 @@ export function startOneShotProviderPrompt(input: {
       session = await createProviderSession({
         providerId: input.providerId,
         cwd: input.cwd,
+        allowedRoots: input.allowedRoots,
         onSessionUpdate(params) {
           const update = params.update;
           if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text") {
@@ -98,6 +100,7 @@ export async function runOneShotProviderPrompt(input: {
   providerId?: string;
   prompt: string;
   cwd: string;
+  allowedRoots?: string[];
   timeoutMs?: number;
 }): Promise<string> {
   return startOneShotProviderPrompt(input).result;
@@ -106,12 +109,14 @@ export async function runOneShotProviderPrompt(input: {
 export async function createProviderSession(input: {
   providerId?: string;
   cwd: string;
+  allowedRoots?: string[];
   onSessionUpdate?: Parameters<typeof startAcpSession>[1]["onSessionUpdate"];
   onStderr?: Parameters<typeof startAcpSession>[1]["onStderr"];
 }): Promise<AcpRunSession> {
   const provider = resolveProviderOrThrow(input.providerId);
   return startAcpSession(provider, {
     cwd: input.cwd,
+    allowedRoots: input.allowedRoots,
     onSessionUpdate: input.onSessionUpdate,
     onStderr: input.onStderr,
   });

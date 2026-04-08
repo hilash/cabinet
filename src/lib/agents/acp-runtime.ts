@@ -45,8 +45,25 @@ export interface AcpRunSession {
 
 export interface AcpRunInput {
   cwd: string;
+  allowedRoots?: string[];
   onSessionUpdate?: (params: schema.SessionNotification) => void | Promise<void>;
   onStderr?: (chunk: string) => void;
+}
+
+function normalizeAllowedRoots(cwd: string, allowedRoots?: string[]): string[] {
+  const candidates = [cwd, ...(allowedRoots || [])]
+    .map((root) => path.resolve(root))
+    .filter(Boolean)
+    .sort((a, b) => a.length - b.length);
+
+  const roots: string[] = [];
+  for (const candidate of candidates) {
+    if (roots.some((root) => candidate === root || candidate.startsWith(`${root}${path.sep}`))) {
+      continue;
+    }
+    roots.push(candidate);
+  }
+  return roots;
 }
 
 function getProviderEnv(): NodeJS.ProcessEnv {
@@ -289,7 +306,7 @@ async function spawnAcpConnection(
   });
 
   const { client, terminals } = buildClientHandlers({
-    allowedRoots: [input.cwd],
+    allowedRoots: normalizeAllowedRoots(input.cwd, input.allowedRoots),
     onSessionUpdate: input.onSessionUpdate,
   });
   const stream = ndJsonStream(

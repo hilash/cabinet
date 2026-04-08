@@ -28,6 +28,7 @@ interface StartConversationInput {
   jobId?: string;
   jobName?: string;
   cwd?: string;
+  allowedRoots?: string[];
   timeoutSeconds?: number;
   onComplete?: (completion: ConversationCompletion) => Promise<void> | void;
 }
@@ -89,6 +90,7 @@ export async function buildManualConversationPrompt(input: {
   prompt: string;
   title: string;
   cwd?: string;
+  allowedRoots: string[];
   providerId: string;
 }> {
   const persona = input.agentSlug === "general"
@@ -114,6 +116,7 @@ export async function buildManualConversationPrompt(input: {
     prompt,
     title: makeTitle(input.userMessage),
     cwd,
+    allowedRoots: [DATA_DIR],
     providerId: persona?.provider || getDefaultProviderId(),
   };
 }
@@ -126,6 +129,7 @@ export async function buildEditorConversationPrompt(input: {
   prompt: string;
   title: string;
   cwd?: string;
+  allowedRoots: string[];
   mentionedPaths: string[];
   providerId: string;
 }> {
@@ -155,6 +159,7 @@ export async function buildEditorConversationPrompt(input: {
     prompt,
     title: makeTitle(input.userMessage),
     cwd,
+    allowedRoots: [DATA_DIR],
     mentionedPaths: combinedMentionedPaths,
     providerId: persona?.provider || getDefaultProviderId(),
   };
@@ -179,6 +184,7 @@ export async function startConversationRun(
       prompt: input.prompt,
       providerId: input.providerId,
       cwd: input.cwd,
+      allowedRoots: input.allowedRoots,
       timeoutSeconds: input.timeoutSeconds,
     });
   } catch (error) {
@@ -329,6 +335,7 @@ export async function startJobConversation(job: JobConfig): Promise<JobRun> {
     trigger: "job",
     prompt,
     providerId: job.provider || persona?.provider || getDefaultProviderId(),
+    allowedRoots: [DATA_DIR],
     jobId: job.id,
     jobName: job.name,
     cwd,

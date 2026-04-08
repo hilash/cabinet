@@ -304,6 +304,7 @@ function createDetachedSession(input: {
   providerId?: string;
   prompt?: string;
   cwd?: string;
+  allowedRoots?: string[];
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
 }): PtySession {
@@ -318,6 +319,7 @@ function createShellDetachedSession(input: {
   providerId?: string;
   prompt?: string;
   cwd?: string;
+  allowedRoots?: string[];
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
 }): PtySession {
@@ -396,6 +398,7 @@ function createAcpDetachedSession(input: {
   providerId?: string;
   prompt?: string;
   cwd?: string;
+  allowedRoots?: string[];
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
 }): PtySession {
@@ -454,6 +457,7 @@ function createAcpDetachedSession(input: {
   void createProviderSession({
     providerId: resolvedProviderId,
     cwd,
+    allowedRoots: input.allowedRoots?.length ? input.allowedRoots : [DATA_DIR],
     onSessionUpdate(params) {
       appendOutput(formatAcpSessionUpdate(params));
     },
@@ -797,12 +801,14 @@ const server = http.createServer(async (req, res) => {
           providerId,
           prompt,
           cwd,
+          allowedRoots,
           timeoutSeconds,
         } = JSON.parse(body) as {
           id: string;
           providerId?: string;
           prompt?: string;
           cwd?: string;
+          allowedRoots?: string[];
           timeoutSeconds?: number;
         };
         const sessionId = id || `session-${Date.now()}`;
@@ -819,6 +825,7 @@ const server = http.createServer(async (req, res) => {
             providerId,
             prompt,
             cwd,
+            allowedRoots,
             timeoutSeconds,
           });
         } catch (err: unknown) {

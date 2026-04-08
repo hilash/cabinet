@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import type { AgentProvider } from "./provider-interface";
 import { providerRegistry } from "./provider-registry";
 import { writeProviderSettings } from "./provider-settings";
@@ -25,6 +26,10 @@ function getExampleAgentPath(): string {
   );
 }
 
+function getFsAgentPath(): string {
+  return path.join(process.cwd(), "test", "fixtures", "acp-fs-agent.mjs");
+}
+
 function createAcpTestProvider(id: string): AgentProvider {
   const exampleAgentPath = getExampleAgentPath();
 
@@ -38,6 +43,34 @@ function createAcpTestProvider(id: string): AgentProvider {
     command: process.execPath,
     commandCandidates: [process.execPath],
     commandArgs: [exampleAgentPath],
+    async isAvailable() {
+      return true;
+    },
+    async healthCheck() {
+      return {
+        available: true,
+        authenticated: true,
+        version: "test",
+        runtime: "acp",
+        adapterKind: "adapter",
+      };
+    },
+  };
+}
+
+function createFsAcpTestProvider(id: string): AgentProvider {
+  const fsAgentPath = getFsAgentPath();
+
+  return {
+    id,
+    name: `ACP FS Test Provider ${id}`,
+    type: "cli",
+    runtime: "acp",
+    adapterKind: "adapter",
+    icon: "bot",
+    command: process.execPath,
+    commandCandidates: [process.execPath],
+    commandArgs: [fsAgentPath],
     async isAvailable() {
       return true;
     },
@@ -156,4 +189,63 @@ test("createProviderSession starts an ACP session and streams updates", async (t
   assert.ok(updates.includes("agent_message_chunk"));
   assert.ok(updates.includes("tool_call"));
   assert.ok(updates.includes("tool_call_update"));
+});
+
+test("createProviderSession rejects writes outside cwd when no broader allowed roots are provided", async (t) => {
+  const previousDefaultProvider = providerRegistry.defaultProvider;
+  const provider = createFsAcpTestProvider("test-fs-default-roots");
+  registerTestProvider(provider, t, previousDefaultProvider);
+
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cabinet-acp-roots-"));
+  const cwd = path.join(tempRoot, "workspace", "marketing");
+  const targetPath = path.join(tempRoot, "workspace", "sales", "note.md");
+  await fs.mkdir(cwd, { recursive: true });
+
+  const session = await createProviderSession({
+    providerId: provider.id,
+    cwd,
+  });
+
+  t.after(async () => {
+    await session.close();
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  await assert.rejects(session.prompt(`WRITE ${targetPath}\noutside cwd`), (error: unknown) => {
+    assert.equal(error instanceof Error, true);
+    const details =
+      typeof error === "object" && error !== null && "data" in error
+        ? Reflect.get(error.data as object, "details")
+        : undefined;
+    assert.match(String(details), /outside the allowed workspace/);
+    return true;
+  });
+});
+
+test("createProviderSession allows writes anywhere under allowedRoots even when cwd is narrower", async (t) => {
+  const previousDefaultProvider = providerRegistry.defaultProvider;
+  const provider = createFsAcpTestProvider("test-fs-expanded-roots");
+  registerTestProvider(provider, t, previousDefaultProvider);
+
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cabinet-acp-roots-"));
+  const allowedRoot = path.join(tempRoot, "workspace");
+  const cwd = path.join(allowedRoot, "marketing");
+  const targetPath = path.join(allowedRoot, "sales", "note.md");
+  await fs.mkdir(cwd, { recursive: true });
+
+  const session = await createProviderSession({
+    providerId: provider.id,
+    cwd,
+    allowedRoots: [allowedRoot],
+  });
+
+  t.after(async () => {
+    await session.close();
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  const result = await session.prompt(`WRITE ${targetPath}\nshared workspace`);
+
+  assert.equal(result.stopReason, "end_turn");
+  assert.equal(await fs.readFile(targetPath, "utf8"), "shared workspace");
 });
