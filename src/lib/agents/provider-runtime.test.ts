@@ -10,6 +10,7 @@ import {
   createProviderSession,
   getDefaultProviderId,
   getInteractiveProviderLaunchSpec,
+  probeProviderSessionOptions,
   resolveProviderId,
   resolveProviderOrThrow,
   runOneShotProviderPrompt,
@@ -127,6 +128,7 @@ test("provider runtime resolves the configured enabled default provider", async 
     await writeProviderSettings({
       defaultProvider: provider.id,
       disabledProviderIds: [],
+      providerModels: {},
     });
 
     assert.equal(getDefaultProviderId(), provider.id);
@@ -140,6 +142,7 @@ test("provider runtime falls back to the enabled default when the requested prov
     await writeProviderSettings({
       defaultProvider: "codex-cli",
       disabledProviderIds: ["claude-code"],
+      providerModels: {},
     });
 
     assert.equal(resolveProviderId("claude-code"), "codex-cli");
@@ -301,4 +304,26 @@ test("createProviderSession allows writes anywhere under allowedRoots even when 
 
   assert.equal(result.stopReason, "end_turn");
   assert.equal(await fs.readFile(targetPath, "utf8"), "shared workspace");
+});
+
+test("probeProviderSessionOptions returns model options for bundled ACP providers", async () => {
+  const codex = await probeProviderSessionOptions({
+    providerId: "codex-cli",
+    cwd: process.cwd(),
+  });
+  assert.ok((codex.modelMetadata?.options.length || 0) > 0);
+  assert.ok(
+    codex.modelMetadata?.source === "configOptions" ||
+    codex.modelMetadata?.source === "models"
+  );
+
+  const claude = await probeProviderSessionOptions({
+    providerId: "claude-code",
+    cwd: process.cwd(),
+  });
+  assert.ok((claude.modelMetadata?.options.length || 0) > 0);
+  assert.ok(
+    claude.modelMetadata?.source === "models" ||
+    claude.modelMetadata?.source === "configOptions"
+  );
 });

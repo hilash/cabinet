@@ -53,6 +53,7 @@ export interface AgentListItem {
   emoji: string;
   role: string;
   provider?: string;
+  providerModel?: string;
   active: boolean;
   type?: AgentType | string;
   department?: string;
@@ -63,6 +64,22 @@ export interface AgentListItem {
   jobCount?: number;
   runningCount?: number;
   status?: "active" | "running" | "idle";
+}
+
+export interface ProviderModelOption {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface ProviderModelOptionsResponse {
+  providerId: string;
+  supportsModelSelection: boolean;
+  modelOptions: ProviderModelOption[];
+  currentModelId?: string;
+  configuredModel?: string;
+  effectiveModelId?: string;
+  error?: string;
 }
 export interface ProviderInfo {
   id: string;

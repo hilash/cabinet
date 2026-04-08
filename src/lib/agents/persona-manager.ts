@@ -39,6 +39,7 @@ export interface AgentPersona {
   name: string;
   role: string;
   provider: string;
+  providerModel?: string;
   heartbeat: string; // cron expression
   budget: number; // max heartbeats per month
   active: boolean;
@@ -186,6 +187,10 @@ export async function readPersona(slug: string): Promise<AgentPersona | null> {
     provider: resolveEnabledProviderId(
       typeof data.provider === "string" ? data.provider : getDefaultProviderId()
     ),
+    providerModel:
+      typeof data.providerModel === "string" && data.providerModel.trim()
+        ? data.providerModel.trim()
+        : undefined,
     heartbeat: (data.heartbeat as string) || "0 8 * * *",
     budget: (data.budget as number) || 100,
     active: data.active !== false,
@@ -247,6 +252,14 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
 
   const existing = await readPersona(slug);
   const merged = { ...existing, ...persona };
+  if (
+    existing &&
+    typeof persona.provider === "string" &&
+    persona.provider !== existing.provider &&
+    !Object.prototype.hasOwnProperty.call(persona, "providerModel")
+  ) {
+    merged.providerModel = undefined;
+  }
 
   const frontmatter: Record<string, unknown> = {
     name: merged.name,
@@ -264,6 +277,9 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
     type: merged.type || "specialist",
     workspace: merged.workspace || "workspace",
     setupComplete: merged.setupComplete === true,
+    ...(typeof merged.providerModel === "string" && merged.providerModel.trim()
+      ? { providerModel: merged.providerModel.trim() }
+      : {}),
     ...(merged.goals && merged.goals.length > 0 ? { goals: merged.goals } : {}),
     ...(merged.channels && merged.channels.length > 0 ? { channels: merged.channels } : {}),
   };

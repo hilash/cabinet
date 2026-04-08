@@ -32,6 +32,14 @@ export interface AcpProbeResult {
   capabilities?: schema.AgentCapabilities;
 }
 
+export interface AcpSessionOptionsProbeResult {
+  provider: {
+    name?: string | null;
+    version?: string | null;
+  };
+  modelMetadata: AcpSessionModelMetadata | null;
+}
+
 export interface AcpRunSession {
   providerId: string;
   providerName: string;
@@ -46,8 +54,21 @@ export interface AcpRunSession {
 export interface AcpRunInput {
   cwd: string;
   allowedRoots?: string[];
+  model?: string;
   onSessionUpdate?: (params: schema.SessionNotification) => void | Promise<void>;
   onStderr?: (chunk: string) => void;
+}
+
+export interface AcpSessionModelOption {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface AcpSessionModelMetadata {
+  currentModelId?: string;
+  options: AcpSessionModelOption[];
+  source: "configOptions" | "models";
 }
 
 function normalizeAllowedRoots(cwd: string, allowedRoots?: string[]): string[] {
@@ -281,6 +302,113 @@ function buildClientHandlers(input: {
   };
 }
 
+function getAcpModelConfigOption(
+  configOptions?: Array<schema.SessionConfigOption> | null
+): schema.SessionConfigOption | undefined {
+  return configOptions?.find((option) => {
+    if (option.type !== "select") return false;
+    return option.category === "model" || option.id === "model";
+  });
+}
+
+function flattenSelectOptions(
+  options: schema.SessionConfigSelectOptions
+): schema.SessionConfigSelectOption[] {
+  return options.flatMap((option) => ("value" in option ? [option] : option.options));
+}
+
+function errorMentionsAuthentication(value: unknown): boolean {
+  if (typeof value === "string") {
+    return /auth|login/i.test(value);
+  }
+  if (Array.isArray(value)) {
+    return value.some((entry) => errorMentionsAuthentication(entry));
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).some((entry) => errorMentionsAuthentication(entry));
+  }
+  return false;
+}
+
+function isAcpAuthenticationError(error: unknown): boolean {
+  if (!(error instanceof RequestError)) {
+    return false;
+  }
+  if (error.code === -32000) {
+    return true;
+  }
+  return error.code === -32603 && errorMentionsAuthentication(error.data);
+}
+
+export function normalizeAcpSessionModelMetadata(input: {
+  configOptions?: Array<schema.SessionConfigOption> | null;
+  models?: schema.SessionModelState | null;
+}): AcpSessionModelMetadata | null {
+  const modelConfig = getAcpModelConfigOption(input.configOptions);
+  if (modelConfig?.type === "select" && modelConfig.options.length > 0) {
+    const options = flattenSelectOptions(modelConfig.options);
+    return {
+      currentModelId: typeof modelConfig.currentValue === "string" ? modelConfig.currentValue : undefined,
+      options: options.map((option) => ({
+        id: option.value,
+        name: option.name,
+        description: option.description || undefined,
+      })),
+      source: "configOptions",
+    };
+  }
+
+  if (input.models?.availableModels?.length) {
+    return {
+      currentModelId: input.models.currentModelId,
+      options: input.models.availableModels.map((model) => ({
+        id: model.modelId,
+        name: model.name,
+        description: model.description || undefined,
+      })),
+      source: "models",
+    };
+  }
+
+  return null;
+}
+
+async function applyRequestedModel(input: {
+  connection: ClientSideConnection;
+  sessionId: string;
+  requestedModel?: string;
+  configOptions?: Array<schema.SessionConfigOption> | null;
+  models?: schema.SessionModelState | null;
+}): Promise<void> {
+  const requestedModel = input.requestedModel?.trim();
+  if (!requestedModel) return;
+
+  const normalized = normalizeAcpSessionModelMetadata({
+    configOptions: input.configOptions,
+    models: input.models,
+  });
+  if (!normalized) return;
+  if (!normalized.options.some((option) => option.id === requestedModel)) {
+    return;
+  }
+
+  if (normalized.source === "configOptions") {
+    const modelConfig = getAcpModelConfigOption(input.configOptions);
+    if (!modelConfig) return;
+    await input.connection.setSessionConfigOption({
+      sessionId: input.sessionId,
+      configId: modelConfig.id,
+      value: requestedModel,
+    });
+    return;
+  }
+
+  await input.connection.unstable_setSessionModel({
+    sessionId: input.sessionId,
+    modelId: requestedModel,
+  });
+}
+
 async function spawnAcpConnection(
   provider: AgentProvider,
   input: AcpRunInput
@@ -381,6 +509,33 @@ export async function probeAcpProvider(provider: AgentProvider): Promise<AcpProb
   }
 }
 
+export async function probeAcpSessionOptions(
+  provider: AgentProvider,
+  input: Pick<AcpRunInput, "cwd" | "allowedRoots">
+): Promise<AcpSessionOptionsProbeResult> {
+  const runtime = await spawnAcpConnection(provider, input);
+
+  try {
+    const session = await runtime.connection.newSession({
+      cwd: input.cwd,
+      mcpServers: [],
+    });
+
+    return {
+      provider: {
+        name: runtime.init.agentInfo?.title || runtime.init.agentInfo?.name,
+        version: runtime.init.agentInfo?.version,
+      },
+      modelMetadata: normalizeAcpSessionModelMetadata({
+        configOptions: session.configOptions,
+        models: session.models,
+      }),
+    };
+  } finally {
+    await runtime.cleanup();
+  }
+}
+
 export async function checkAcpProviderHealth(provider: AgentProvider): Promise<ProviderStatus> {
   try {
     const available = await provider.isAvailable();
@@ -395,11 +550,24 @@ export async function checkAcpProviderHealth(provider: AgentProvider): Promise<P
     }
 
     const probe = await probeAcpProvider(provider);
+    let authenticated = true;
+    let authError: string | undefined;
+
+    try {
+      const sessionProbe = await startAcpSession(provider, {
+        cwd: process.cwd(),
+      });
+      await sessionProbe.close();
+    } catch (error) {
+      authenticated = false;
+      authError = error instanceof Error ? error.message : "Provider authentication required";
+    }
 
     return {
       available: true,
-      authenticated: true,
+      authenticated,
       version: probe.provider.version || probe.provider.name || provider.name,
+      ...(authError ? { error: authError } : {}),
       runtime: "acp",
       adapterKind: provider.adapterKind,
       authMethods: probe.authMethods.map((method) => ({
@@ -439,6 +607,13 @@ export async function startAcpSession(
       cwd: input.cwd,
       mcpServers: [],
     });
+    await applyRequestedModel({
+      connection: runtime.connection,
+      sessionId: session.sessionId,
+      requestedModel: input.model,
+      configOptions: session.configOptions,
+      models: session.models,
+    });
 
     return {
       providerId: provider.id,
@@ -467,7 +642,7 @@ export async function startAcpSession(
   } catch (error) {
     await runtime.cleanup();
     const message =
-      error instanceof RequestError && error.code === -32000
+      isAcpAuthenticationError(error)
         ? "ACP agent requires authentication before Cabinet can create a session"
         : error instanceof Error
           ? error.message
@@ -481,12 +656,14 @@ export async function runAcpOneShotPrompt(
   input: {
     cwd: string;
     prompt: string;
+    model?: string;
     timeoutMs?: number;
   }
 ): Promise<string> {
   let assistantOutput = "";
   const session = await startAcpSession(provider, {
     cwd: input.cwd,
+    model: input.model,
     onSessionUpdate(params) {
       const update = params.update;
       if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text") {

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProviderModelField } from "@/components/agents/provider-model-field";
 import { SchedulePicker } from "./schedule-picker";
 import { cn } from "@/lib/utils";
 import { Plus, X, Save, Trash2 } from "lucide-react";
@@ -47,6 +48,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
   const [type, setType] = useState<"specialist" | "lead">("specialist");
   const [heartbeat, setHeartbeat] = useState("0 */4 * * *");
   const [provider, setProvider] = useState("claude-code");
+  const [providerModel, setProviderModel] = useState("");
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("claude-code");
   const [goals, setGoals] = useState<GoalInput[]>([]);
@@ -81,6 +83,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
         setType(p.type || "specialist");
         setHeartbeat(p.heartbeat || "0 */4 * * *");
         setProvider(p.provider || defaultProvider);
+        setProviderModel(p.providerModel || "");
         setChannels(p.channels || ["general"]);
         setBody(p.body || "");
         setGoals(
@@ -121,6 +124,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
         type,
         heartbeat,
         provider,
+        providerModel: providerModel || undefined,
         goals: goalsFmt,
         channels,
         body,
@@ -277,7 +281,11 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
               <label className="text-[12px] font-medium">Provider</label>
               <select
                 value={provider}
-                onChange={(e) => { setProvider(e.target.value); markDirty(); }}
+                onChange={(e) => {
+                  setProvider(e.target.value);
+                  setProviderModel("");
+                  markDirty();
+                }}
                 className="w-full h-8 text-[12px] rounded-md border border-input bg-background px-2"
               >
                 {(providers.length > 0
@@ -290,6 +298,17 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
                 ))}
               </select>
             </div>
+            <ProviderModelField
+              providerId={provider}
+              value={providerModel}
+              onChange={(nextModel) => {
+                setProviderModel(nextModel);
+                markDirty();
+              }}
+              includeDefaultOption
+              labelClassName="block space-y-1"
+              selectClassName="w-full h-8 text-[12px] rounded-md border border-input bg-background px-2"
+            />
           </div>
 
           {/* Schedule */}

@@ -2,13 +2,17 @@ import type { AgentProvider } from "./provider-interface";
 import { resolveCliCommand } from "./provider-cli";
 import { providerRegistry } from "./provider-registry";
 import {
+  probeAcpSessionOptions,
   startAcpSession,
   type AcpRunSession,
+  type AcpSessionOptionsProbeResult,
 } from "./acp-runtime";
 import {
   getConfiguredDefaultProviderId,
+  getConfiguredProviderModel,
   readProviderSettingsSync,
   resolveEnabledProviderId,
+  resolveConfiguredProviderModel,
 } from "./provider-settings";
 
 export function resolveProviderOrThrow(providerId?: string): AgentProvider {
@@ -28,6 +32,10 @@ export function resolveProviderOrThrow(providerId?: string): AgentProvider {
 
 export function getDefaultProviderId(): string {
   return getConfiguredDefaultProviderId();
+}
+
+export function getDefaultProviderModel(providerId: string): string | undefined {
+  return getConfiguredProviderModel(providerId);
 }
 
 export function resolveProviderId(providerId?: string): string {
@@ -72,6 +80,7 @@ export function getInteractiveProviderLaunchSpec(input: {
 
 export function startOneShotProviderPrompt(input: {
   providerId?: string;
+  providerModel?: string;
   prompt: string;
   cwd: string;
   allowedRoots?: string[];
@@ -87,6 +96,7 @@ export function startOneShotProviderPrompt(input: {
     try {
       session = await createProviderSession({
         providerId: input.providerId,
+        providerModel: input.providerModel,
         cwd: input.cwd,
         allowedRoots: input.allowedRoots,
         onSessionUpdate(params) {
@@ -130,6 +140,7 @@ export function startOneShotProviderPrompt(input: {
 
 export async function runOneShotProviderPrompt(input: {
   providerId?: string;
+  providerModel?: string;
   prompt: string;
   cwd: string;
   allowedRoots?: string[];
@@ -140,6 +151,7 @@ export async function runOneShotProviderPrompt(input: {
 
 export async function createProviderSession(input: {
   providerId?: string;
+  providerModel?: string;
   cwd: string;
   allowedRoots?: string[];
   onSessionUpdate?: Parameters<typeof startAcpSession>[1]["onSessionUpdate"];
@@ -149,7 +161,20 @@ export async function createProviderSession(input: {
   return startAcpSession(provider, {
     cwd: input.cwd,
     allowedRoots: input.allowedRoots,
+    model: resolveConfiguredProviderModel(provider.id, input.providerModel),
     onSessionUpdate: input.onSessionUpdate,
     onStderr: input.onStderr,
+  });
+}
+
+export async function probeProviderSessionOptions(input: {
+  providerId?: string;
+  cwd: string;
+  allowedRoots?: string[];
+}): Promise<AcpSessionOptionsProbeResult> {
+  const provider = resolveProviderOrThrow(input.providerId);
+  return probeAcpSessionOptions(provider, {
+    cwd: input.cwd,
+    allowedRoots: input.allowedRoots,
   });
 }

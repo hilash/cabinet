@@ -54,6 +54,7 @@ export class ProviderSettingsConflictError extends Error {
 export interface ProviderSettingsUpdateInput {
   defaultProvider?: string;
   disabledProviderIds?: string[];
+  providerModels?: Record<string, string>;
   migrations?: ProviderMigration[];
 }
 
@@ -162,6 +163,7 @@ export async function migrateProviderAssignments(
         const parsed = matter(personaRaw);
         if (parsed.data.provider === fromProviderId) {
           parsed.data.provider = toProviderId;
+          delete parsed.data.providerModel;
           await fs.writeFile(personaPath, matter.stringify(parsed.content, parsed.data), "utf8");
         }
       }
@@ -176,6 +178,7 @@ export async function migrateProviderAssignments(
       const parsed = matter(personaRaw);
       if (parsed.data.provider === fromProviderId) {
         parsed.data.provider = toProviderId;
+        delete parsed.data.providerModel;
         await fs.writeFile(personaPath, matter.stringify(parsed.content, parsed.data), "utf8");
       }
     }
@@ -214,6 +217,7 @@ export async function updateProviderSettingsWithMigrations(
   const nextSettings = normalizeProviderSettings({
     defaultProvider: input.defaultProvider ?? currentSettings.defaultProvider,
     disabledProviderIds: input.disabledProviderIds ?? currentSettings.disabledProviderIds,
+    providerModels: input.providerModels ?? currentSettings.providerModels,
   });
   const usage = await getProviderUsage();
   const migrations = (input.migrations || []).filter(

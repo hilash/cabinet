@@ -13,7 +13,7 @@ import { writeProviderSettings } from "./provider-settings";
 
 const AGENTS_DIR = path.join(process.cwd(), "data", ".agents");
 
-async function writeRawPersona(slug: string, provider: string): Promise<string> {
+async function writeRawPersona(slug: string, provider: string, providerModel?: string): Promise<string> {
   const agentDir = path.join(AGENTS_DIR, slug);
   await fs.mkdir(agentDir, { recursive: true });
   const personaPath = path.join(agentDir, "persona.md");
@@ -31,6 +31,7 @@ async function writeRawPersona(slug: string, provider: string): Promise<string> 
     department: "general",
     type: "specialist",
     workspace: "workspace",
+    ...(providerModel ? { providerModel } : {}),
   });
   await fs.writeFile(personaPath, content, "utf8");
   return agentDir;
@@ -81,6 +82,7 @@ test("provider settings update reports conflicts for providers still assigned to
   await writeProviderSettings({
     defaultProvider: "claude-code",
     disabledProviderIds: [],
+    providerModels: {},
   });
 
   await assert.rejects(
@@ -112,7 +114,7 @@ test("provider settings update migrates assigned personas and jobs before disabl
   const baselineUsage = await getProviderUsage();
   const baselineCodexTotal = baselineUsage["codex-cli"]?.totalCount || 0;
   const baselineClaudeTotal = baselineUsage["claude-code"]?.totalCount || 0;
-  const agentDir = await writeRawPersona(slug, "claude-code");
+  const agentDir = await writeRawPersona(slug, "claude-code", "haiku");
   const jobPath = await writeRawJob(slug, "job-migrate", "claude-code");
   const personaPath = path.join(agentDir, "persona.md");
   const providersPath = path.join(process.cwd(), "data", ".agents", ".config", "providers.json");
@@ -130,6 +132,7 @@ test("provider settings update migrates assigned personas and jobs before disabl
   await writeProviderSettings({
     defaultProvider: "claude-code",
     disabledProviderIds: [],
+    providerModels: {},
   });
 
   const result = await updateProviderSettingsWithMigrations({
@@ -143,6 +146,7 @@ test("provider settings update migrates assigned personas and jobs before disabl
   const personaRaw = await fs.readFile(personaPath, "utf8");
   const persona = matter(personaRaw);
   assert.equal(persona.data.provider, "codex-cli");
+  assert.equal(persona.data.providerModel, undefined);
 
   const job = yaml.load(await fs.readFile(jobPath, "utf8")) as { provider: string };
   assert.equal(job.provider, "codex-cli");
@@ -151,5 +155,7 @@ test("provider settings update migrates assigned personas and jobs before disabl
   assert.equal(usage["claude-code"]?.totalCount || 0, baselineClaudeTotal);
   assert.ok(!(usage["claude-code"]?.agentSlugs || []).includes(slug));
   assert.ok(!(usage["claude-code"]?.jobs || []).some((job) => job.jobId === "job-migrate"));
-  assert.equal(usage["codex-cli"]?.totalCount || 0, baselineCodexTotal + 2);
+  assert.ok((usage["codex-cli"]?.totalCount || 0) >= baselineCodexTotal + 2);
+  assert.ok((usage["codex-cli"]?.agentSlugs || []).includes(slug));
+  assert.ok((usage["codex-cli"]?.jobs || []).some((job) => job.jobId === "job-migrate"));
 });

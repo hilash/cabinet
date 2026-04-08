@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ProviderModelField } from "@/components/agents/provider-model-field";
 import { UpdateSummary } from "@/components/system/update-summary";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useTheme } from "next-themes";
@@ -63,6 +64,8 @@ type Tab = "providers" | "integrations" | "notifications" | "appearance" | "upda
 export function SettingsPage() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("");
+  const [providerModels, setProviderModels] = useState<Record<string, string>>({});
+  const [activeProviderId, setActiveProviderId] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingProviders, setSavingProviders] = useState(false);
   const [tab, setTab] = useState<Tab>("providers");
@@ -110,6 +113,23 @@ export function SettingsPage() {
         const data = await res.json();
         setProviders(data.providers || []);
         setDefaultProvider(data.defaultProvider || "");
+        setProviderModels(data.providerModels || {});
+        setActiveProviderId((current) => {
+          const cliProviders = (data.providers || []).filter(
+            (provider: ProviderInfo) => provider.type === "cli"
+          );
+          const enabledCliProviders = cliProviders.filter((provider: ProviderInfo) => provider.enabled);
+          const enabledIds = enabledCliProviders.map((provider: ProviderInfo) => provider.id);
+          if (current && enabledIds.includes(current)) return current;
+          if (
+            typeof data.defaultProvider === "string" &&
+            data.defaultProvider &&
+            enabledIds.includes(data.defaultProvider)
+          ) {
+            return data.defaultProvider;
+          }
+          return enabledIds[0] || cliProviders[0]?.id || "";
+        });
       }
     } catch {
       // ignore
@@ -121,6 +141,7 @@ export function SettingsPage() {
   const saveProviderSettings = useCallback(async (
     nextDefaultProvider: string,
     disabledProviderIds: string[],
+    nextProviderModels: Record<string, string> = providerModels,
     migrations: Array<{ fromProviderId: string; toProviderId: string }> = []
   ) => {
     setSavingProviders(true);
@@ -131,6 +152,7 @@ export function SettingsPage() {
         body: JSON.stringify({
           defaultProvider: nextDefaultProvider,
           disabledProviderIds,
+          providerModels: nextProviderModels,
           migrations,
         }),
       });
@@ -157,7 +179,7 @@ export function SettingsPage() {
       setSavingProviders(false);
     }
     return false;
-  }, [refresh]);
+  }, [providerModels, refresh]);
 
   const getProviderName = (providerId: string) =>
     providers.find((provider) => provider.id === providerId)?.name || providerId;
@@ -493,77 +515,126 @@ export function SettingsPage() {
                           .map((provider) => (
                             <div
                               key={provider.id}
-                              className="flex items-center justify-between bg-card border border-border rounded-lg p-3"
+                              className={cn(
+                                "rounded-lg border bg-card p-3 transition-colors",
+                                activeProviderId === provider.id
+                                  ? "border-primary/40 bg-primary/5"
+                                  : "border-border"
+                              )}
+                              onClick={() => {
+                                if (provider.enabled) {
+                                  setActiveProviderId(provider.id);
+                                }
+                              }}
                             >
-                              <div className="flex items-center gap-3">
-                                {provider.available ? (
-                                  <CheckCircle className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 text-muted-foreground" />
-                                )}
-                                <div>
-                                  <p className="text-[13px] font-medium">{provider.name}</p>
-                                  <p className="text-[11px] text-muted-foreground">
-                                    {provider.available ? provider.version || "Ready" : provider.error || "Not installed"}
-                                  </p>
-                                  {(provider.usage?.totalCount ?? 0) > 0 && (
-                                    <p className="text-[11px] text-muted-foreground">
-                                      In use by {describeProviderUsage(provider)}
-                                    </p>
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  {provider.available ? (
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4 text-muted-foreground" />
                                   )}
+                                  <div>
+                                    <p className="text-[13px] font-medium">{provider.name}</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {provider.available ? "Ready" : provider.error || "Not installed"}
+                                    </p>
+                                    {(provider.usage?.totalCount ?? 0) > 0 && (
+                                      <p className="text-[11px] text-muted-foreground">
+                                        In use by {describeProviderUsage(provider)}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={cn(
+                                    "text-[10px] px-2 py-0.5 rounded-full font-medium",
+                                    provider.id === defaultProvider
+                                      ? "bg-primary/10 text-primary"
+                                      : provider.enabled
+                                        ? "bg-emerald-500/10 text-emerald-500"
+                                        : "bg-muted text-muted-foreground"
+                                  )}>
+                                    {provider.id === defaultProvider
+                                      ? "Default"
+                                      : provider.enabled
+                                        ? "Enabled"
+                                        : "Disabled"}
+                                  </span>
+                                  <button
+                                    onClick={async (event) => {
+                                      event.stopPropagation();
+                                      const nextDisabled = provider.enabled
+                                        ? providers
+                                            .filter((entry) => !entry.enabled || entry.id === provider.id)
+                                            .map((entry) => entry.id)
+                                        : providers
+                                            .filter((entry) => !entry.enabled && entry.id !== provider.id)
+                                            .map((entry) => entry.id);
+                                      const enabledAfterToggle = providers.filter(
+                                        (entry) => !nextDisabled.includes(entry.id) && entry.type === "cli"
+                                      );
+                                      const nextDefault =
+                                        provider.id === defaultProvider && nextDisabled.includes(provider.id)
+                                          ? enabledAfterToggle[0]?.id || defaultProvider
+                                          : defaultProvider;
+                                      const migrations =
+                                        provider.enabled && (provider.usage?.totalCount ?? 0) > 0
+                                          ? [{ fromProviderId: provider.id, toProviderId: nextDefault }]
+                                          : [];
+
+                                      if (provider.enabled && (provider.usage?.totalCount ?? 0) > 0) {
+                                        const confirmed = window.confirm(
+                                          `Disable ${provider.name} and migrate ${describeProviderUsage(provider)} to ${getProviderName(nextDefault)}?`
+                                        );
+                                        if (!confirmed) return;
+                                      }
+
+                                      await saveProviderSettings(
+                                        nextDefault,
+                                        nextDisabled,
+                                        providerModels,
+                                        migrations
+                                      );
+                                    }}
+                                    disabled={savingProviders || (provider.id === defaultProvider && providers.filter((entry) => entry.type === "cli" && entry.enabled).length <= 1)}
+                                    className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                                  >
+                                    {provider.enabled ? "Disable" : "Enable"}
+                                  </button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className={cn(
-                                  "text-[10px] px-2 py-0.5 rounded-full font-medium",
-                                  provider.id === defaultProvider
-                                    ? "bg-primary/10 text-primary"
-                                    : provider.enabled
-                                      ? "bg-emerald-500/10 text-emerald-500"
-                                      : "bg-muted text-muted-foreground"
-                                )}>
-                                  {provider.id === defaultProvider
-                                    ? "Default"
-                                    : provider.enabled
-                                      ? "Enabled"
-                                      : "Disabled"}
-                                </span>
-                                <button
-                                  onClick={async () => {
-                                    const nextDisabled = provider.enabled
-                                      ? providers
-                                          .filter((entry) => !entry.enabled || entry.id === provider.id)
-                                          .map((entry) => entry.id)
-                                      : providers
-                                          .filter((entry) => !entry.enabled && entry.id !== provider.id)
-                                          .map((entry) => entry.id);
-                                    const enabledAfterToggle = providers.filter(
-                                      (entry) => !nextDisabled.includes(entry.id) && entry.type === "cli"
-                                    );
-                                    const nextDefault =
-                                      provider.id === defaultProvider && nextDisabled.includes(provider.id)
-                                        ? enabledAfterToggle[0]?.id || defaultProvider
-                                        : defaultProvider;
-                                    const migrations =
-                                      provider.enabled && (provider.usage?.totalCount ?? 0) > 0
-                                        ? [{ fromProviderId: provider.id, toProviderId: nextDefault }]
-                                        : [];
-
-                                    if (provider.enabled && (provider.usage?.totalCount ?? 0) > 0) {
-                                      const confirmed = window.confirm(
-                                        `Disable ${provider.name} and migrate ${describeProviderUsage(provider)} to ${getProviderName(nextDefault)}?`
+                              {provider.id === activeProviderId && provider.enabled && (
+                                <div className="mt-3 border-t border-border/60 pt-3">
+                                  <ProviderModelField
+                                    providerId={provider.id}
+                                    value={providerModels[provider.id]}
+                                    onChange={(nextModel) => {
+                                      const nextProviderModels = { ...providerModels };
+                                      if (nextModel) {
+                                        nextProviderModels[provider.id] = nextModel;
+                                      } else {
+                                        delete nextProviderModels[provider.id];
+                                      }
+                                      setProviderModels(nextProviderModels);
+                                      const disabledProviderIds = providers
+                                        .filter((entry) => !entry.enabled)
+                                        .map((entry) => entry.id);
+                                      void saveProviderSettings(
+                                        defaultProvider,
+                                        disabledProviderIds,
+                                        nextProviderModels
                                       );
-                                      if (!confirmed) return;
-                                    }
-
-                                    await saveProviderSettings(nextDefault, nextDisabled, migrations);
-                                  }}
-                                  disabled={savingProviders || (provider.id === defaultProvider && providers.filter((entry) => entry.type === "cli" && entry.enabled).length <= 1)}
-                                  className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                                >
-                                  {provider.enabled ? "Disable" : "Enable"}
-                                </button>
-                              </div>
+                                    }}
+                                    disabled={savingProviders}
+                                    includeDefaultOption
+                                    defaultOptionLabel="Use adapter default"
+                                    labelClassName="block space-y-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                                    selectClassName="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                                    messageClassName="text-[11px]"
+                                  />
+                                </div>
+                              )}
                             </div>
                           ))}
                       </div>

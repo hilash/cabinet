@@ -33,6 +33,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
+import { ProviderModelField } from "@/components/agents/provider-model-field";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { useTreeStore } from "@/stores/tree-store";
@@ -69,6 +70,7 @@ interface NewAgentDraft {
   role: string;
   heartbeat: string;
   provider: string;
+  providerModel: string;
   department: string;
   type: string;
   workspace: string;
@@ -123,6 +125,7 @@ const DEFAULT_NEW_AGENT: NewAgentDraft = {
   role: "",
   heartbeat: "0 */4 * * *",
   provider: "claude-code",
+  providerModel: "",
   department: "general",
   type: "specialist",
   workspace: "workspace",
@@ -556,6 +559,8 @@ export function AgentsWorkspace({
         department: GENERAL_AGENT.department || "",
         type: GENERAL_AGENT.type || "",
         heartbeat: GENERAL_AGENT.heartbeat || "",
+        provider: GENERAL_AGENT.provider || "",
+        providerModel: GENERAL_AGENT.providerModel || "",
         workspace: GENERAL_AGENT.workspace || "",
         body: "",
       });
@@ -578,6 +583,8 @@ export function AgentsWorkspace({
         department: data.persona.department || "",
         type: data.persona.type || "",
         heartbeat: data.persona.heartbeat || "",
+        provider: data.persona.provider || "",
+        providerModel: data.persona.providerModel || "",
         workspace: data.persona.workspace || "",
         body: data.persona.body || "",
       });
@@ -947,6 +954,7 @@ export function AgentsWorkspace({
       type: settingsEditorDraft.type || "",
       heartbeat: settingsEditorDraft.heartbeat || "",
       provider: settingsEditorDraft.provider || "",
+      providerModel: settingsEditorDraft.providerModel || "",
       workspace: settingsEditorDraft.workspace || "",
       body: settingsEditorBody,
     });
@@ -1170,6 +1178,7 @@ export function AgentsWorkspace({
           heartbeat: newAgentDraft.heartbeat,
           workspace: newAgentDraft.workspace || "workspace",
           provider: newAgentDraft.provider,
+          providerModel: newAgentDraft.providerModel || undefined,
           budget: 100,
           active: newAgentDraft.active,
           workdir: "/data",
@@ -1280,6 +1289,7 @@ export function AgentsWorkspace({
     type: settingsEditorDraft.type || "",
     heartbeat: settingsEditorDraft.heartbeat || "",
     provider: settingsEditorDraft.provider || "",
+    providerModel: settingsEditorDraft.providerModel || "",
     workspace: settingsEditorDraft.workspace || "",
     body: settingsEditorBody,
   }) !== lastSavedSettingsRef.current;
@@ -2076,7 +2086,11 @@ export function AgentsWorkspace({
                       <select
                         value={newAgentDraft.provider}
                         onChange={(event) =>
-                          setNewAgentDraft({ ...newAgentDraft, provider: event.target.value })
+                          setNewAgentDraft({
+                            ...newAgentDraft,
+                            provider: event.target.value,
+                            providerModel: "",
+                          })
                         }
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
                       >
@@ -2087,6 +2101,16 @@ export function AgentsWorkspace({
                         ))}
                       </select>
                     </label>
+                    <ProviderModelField
+                      providerId={newAgentDraft.provider}
+                      value={newAgentDraft.providerModel}
+                      onChange={(providerModel) =>
+                        setNewAgentDraft({ ...newAgentDraft, providerModel })
+                      }
+                      includeDefaultOption
+                      labelClassName="block space-y-1 text-[11px] text-muted-foreground"
+                      selectClassName="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+                    />
                     <label className="space-y-1 text-[11px] text-muted-foreground md:col-span-2">
                       <span>Workspace</span>
                       <input
@@ -2377,6 +2401,7 @@ export function AgentsWorkspace({
                                 setSettingsEditorDraft({
                                   ...settingsEditorDraft,
                                   provider: event.target.value,
+                                  providerModel: "",
                                 })
                               }
                               className="w-full rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors focus:bg-muted"
@@ -2388,6 +2413,16 @@ export function AgentsWorkspace({
                               ))}
                             </select>
                           </label>
+                          <ProviderModelField
+                            providerId={settingsEditorDraft.provider || defaultProvider}
+                            value={settingsEditorDraft.providerModel}
+                            onChange={(providerModel) =>
+                              setSettingsEditorDraft({ ...settingsEditorDraft, providerModel })
+                            }
+                            includeDefaultOption
+                            labelClassName="block space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
+                            selectClassName="w-full rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors focus:bg-muted"
+                          />
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
                             <span>Workspace</span>
                             <input

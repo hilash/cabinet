@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProviderModelField } from "@/components/agents/provider-model-field";
 import { SchedulePicker } from "./schedule-picker";
 import { cn } from "@/lib/utils";
 import { Plus, X } from "lucide-react";
@@ -44,6 +45,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
   const [type, setType] = useState<"specialist" | "lead">("specialist");
   const [heartbeat, setHeartbeat] = useState("0 */4 * * *");
   const [provider, setProvider] = useState("claude-code");
+  const [providerModel, setProviderModel] = useState("");
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("claude-code");
   const [goals, setGoals] = useState<GoalInput[]>([]);
@@ -59,6 +61,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
         const nextDefault = data.defaultProvider || "claude-code";
         setDefaultProvider(nextDefault);
         setProvider(nextDefault);
+        setProviderModel("");
       })
       .catch(() => {});
   }, [open]);
@@ -92,6 +95,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
         type,
         heartbeat,
         provider,
+        providerModel: providerModel || undefined,
         budget: 200,
         active: false,
         workdir: "/data",
@@ -128,6 +132,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
     setType("specialist");
     setHeartbeat("0 */4 * * *");
     setProvider(defaultProvider);
+    setProviderModel("");
     setGoals([]);
   };
 
@@ -254,7 +259,10 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
               <label className="text-[12px] font-medium">Provider</label>
               <select
                 value={provider}
-                onChange={(e) => setProvider(e.target.value)}
+                onChange={(e) => {
+                  setProvider(e.target.value);
+                  setProviderModel("");
+                }}
                 className="w-full h-8 text-[12px] bg-background border border-border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 {(providers.length > 0
@@ -267,6 +275,14 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
                 ))}
               </select>
             </div>
+            <ProviderModelField
+              providerId={provider}
+              value={providerModel}
+              onChange={setProviderModel}
+              includeDefaultOption
+              labelClassName="block space-y-1"
+              selectClassName="w-full h-8 text-[12px] bg-background border border-border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+            />
           </div>
 
           {/* Schedule */}

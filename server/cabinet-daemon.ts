@@ -303,6 +303,7 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
 function createDetachedSession(input: {
   sessionId: string;
   providerId?: string;
+  providerModel?: string;
   prompt?: string;
   cwd?: string;
   allowedRoots?: string[];
@@ -321,6 +322,7 @@ function createDetachedSession(input: {
 function createShellDetachedSession(input: {
   sessionId: string;
   providerId?: string;
+  providerModel?: string;
   prompt?: string;
   cwd?: string;
   allowedRoots?: string[];
@@ -400,6 +402,7 @@ function createShellDetachedSession(input: {
 function createAcpDetachedSession(input: {
   sessionId: string;
   providerId?: string;
+  providerModel?: string;
   prompt?: string;
   cwd?: string;
   allowedRoots?: string[];
@@ -460,6 +463,7 @@ function createAcpDetachedSession(input: {
 
   void createProviderSession({
     providerId: resolvedProviderId,
+    providerModel: input.providerModel,
     cwd,
     allowedRoots: input.allowedRoots?.length ? input.allowedRoots : [DATA_DIR],
     onSessionUpdate(params) {
@@ -507,6 +511,7 @@ function createAcpDetachedSession(input: {
 function createInteractiveProviderDetachedSession(input: {
   sessionId: string;
   providerId?: string;
+  providerModel?: string;
   prompt?: string;
   cwd?: string;
   allowedRoots?: string[];
@@ -885,6 +890,7 @@ const server = http.createServer(async (req, res) => {
         const {
           id,
           providerId,
+          providerModel,
           prompt,
           cwd,
           allowedRoots,
@@ -892,6 +898,7 @@ const server = http.createServer(async (req, res) => {
         } = JSON.parse(body) as {
           id: string;
           providerId?: string;
+          providerModel?: string;
           prompt?: string;
           cwd?: string;
           allowedRoots?: string[];
@@ -909,6 +916,7 @@ const server = http.createServer(async (req, res) => {
           createDetachedSession({
             sessionId,
             providerId,
+            providerModel,
             prompt,
             cwd,
             allowedRoots,
@@ -987,12 +995,13 @@ const server = http.createServer(async (req, res) => {
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
       try {
-        const { agentSlug, jobId, prompt, providerId, timeoutSeconds } = JSON.parse(body);
+        const { agentSlug, jobId, prompt, providerId, providerModel, timeoutSeconds } = JSON.parse(body);
         if (prompt) {
           const sessionId = jobId || `manual-${Date.now()}`;
           createDetachedSession({
             sessionId,
             providerId,
+            providerModel,
             prompt,
             timeoutSeconds,
           });

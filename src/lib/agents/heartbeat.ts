@@ -351,6 +351,7 @@ export async function runHeartbeat(slug: string): Promise<string | null> {
       trigger: "heartbeat",
       prompt,
       providerId: persona.provider,
+      providerModel: persona.providerModel,
       cwd,
       allowedRoots: [DATA_DIR],
       timeoutSeconds: 600,

@@ -24,6 +24,7 @@ interface StartConversationInput {
   trigger: ConversationMeta["trigger"];
   prompt: string;
   providerId?: string;
+  providerModel?: string;
   mentionedPaths?: string[];
   jobId?: string;
   jobName?: string;
@@ -92,6 +93,7 @@ export async function buildManualConversationPrompt(input: {
   cwd?: string;
   allowedRoots: string[];
   providerId: string;
+  providerModel?: string;
 }> {
   const persona = input.agentSlug === "general"
     ? null
@@ -118,6 +120,7 @@ export async function buildManualConversationPrompt(input: {
     cwd,
     allowedRoots: [DATA_DIR],
     providerId: persona?.provider || getDefaultProviderId(),
+    providerModel: persona?.providerModel,
   };
 }
 
@@ -132,6 +135,7 @@ export async function buildEditorConversationPrompt(input: {
   allowedRoots: string[];
   mentionedPaths: string[];
   providerId: string;
+  providerModel?: string;
 }> {
   const persona = await readPersona("editor");
   const combinedMentionedPaths = Array.from(
@@ -162,6 +166,7 @@ export async function buildEditorConversationPrompt(input: {
     allowedRoots: [DATA_DIR],
     mentionedPaths: combinedMentionedPaths,
     providerId: persona?.provider || getDefaultProviderId(),
+    providerModel: persona?.providerModel,
   };
 }
 
@@ -183,6 +188,7 @@ export async function startConversationRun(
       id: meta.id,
       prompt: input.prompt,
       providerId: input.providerId,
+      providerModel: input.providerModel,
       cwd: input.cwd,
       allowedRoots: input.allowedRoots,
       timeoutSeconds: input.timeoutSeconds,
@@ -335,6 +341,7 @@ export async function startJobConversation(job: JobConfig): Promise<JobRun> {
     trigger: "job",
     prompt,
     providerId: job.provider || persona?.provider || getDefaultProviderId(),
+    providerModel: job.provider ? undefined : persona?.providerModel,
     allowedRoots: [DATA_DIR],
     jobId: job.id,
     jobName: job.name,

@@ -800,7 +800,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                             </p>
                             <p className="text-xs" style={{ color: isReady ? "#16a34a" : WEB.textTertiary }}>
                               {isReady ? "Installed and ready" : "Not found"}
-                              {isReady && p.version && ` (${p.version})`}
                             </p>
                           </div>
                           {isReady ? (

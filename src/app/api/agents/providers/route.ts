@@ -43,6 +43,7 @@ export async function GET() {
     return NextResponse.json({
       providers: results,
       defaultProvider: getConfiguredDefaultProviderId(settings),
+      providerModels: settings.providerModels,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -61,6 +62,15 @@ export async function PUT(req: Request) {
       disabledProviderIds: Array.isArray(body.disabledProviderIds)
         ? body.disabledProviderIds.filter((value: unknown): value is string => typeof value === "string")
         : [],
+      providerModels:
+        body.providerModels && typeof body.providerModels === "object"
+          ? Object.fromEntries(
+              Object.entries(body.providerModels as Record<string, unknown>).flatMap(([providerId, value]) => {
+                if (typeof value !== "string") return [];
+                return [[providerId, value]];
+              })
+            )
+          : undefined,
       migrations: Array.isArray(body.migrations)
         ? body.migrations.flatMap((value: unknown) => {
             if (!value || typeof value !== "object") return [];

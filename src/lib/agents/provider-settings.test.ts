@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeProviderSettings, resolveEnabledProviderId } from "./provider-settings";
+import {
+  getConfiguredProviderModel,
+  normalizeProviderSettings,
+  resolveConfiguredProviderModel,
+  resolveEnabledProviderId,
+} from "./provider-settings";
 import { providerRegistry } from "./provider-registry";
 import type { AgentProvider } from "./provider-interface";
 
@@ -17,20 +22,29 @@ test("normalizeProviderSettings keeps a valid enabled default provider", () => {
   const settings = normalizeProviderSettings({
     defaultProvider: "claude-code",
     disabledProviderIds: [],
+    providerModels: {
+      "claude-code": "default",
+      unknown: "ignored",
+    },
   });
 
   assert.equal(settings.defaultProvider, "claude-code");
   assert.deepEqual(settings.disabledProviderIds, []);
+  assert.deepEqual(settings.providerModels, { "claude-code": "default" });
 });
 
 test("normalizeProviderSettings falls back when the requested default is disabled", () => {
   const settings = normalizeProviderSettings({
     defaultProvider: "codex-cli",
     disabledProviderIds: ["codex-cli"],
+    providerModels: {
+      "codex-cli": "gpt-5.4",
+    },
   });
 
   assert.equal(settings.defaultProvider, "claude-code");
   assert.deepEqual(settings.disabledProviderIds, ["codex-cli"]);
+  assert.deepEqual(settings.providerModels, { "codex-cli": "gpt-5.4" });
 });
 
 test("normalizeProviderSettings falls back to the first enabled provider when needed", () => {
@@ -64,10 +78,14 @@ test("normalizeProviderSettings falls back to the first enabled provider when ne
       const settings = normalizeProviderSettings({
         defaultProvider: "missing-provider",
         disabledProviderIds: ["claude-code", "codex-cli"],
+        providerModels: {
+          "test-only-provider": "test-model",
+        },
       });
 
       assert.equal(settings.defaultProvider, "test-only-provider");
       assert.deepEqual(settings.disabledProviderIds, ["claude-code", "codex-cli"]);
+      assert.deepEqual(settings.providerModels, { "test-only-provider": "test-model" });
     }
   );
 
@@ -78,7 +96,22 @@ test("resolveEnabledProviderId falls back to the configured default when the req
   const providerId = resolveEnabledProviderId("claude-code", {
     defaultProvider: "codex-cli",
     disabledProviderIds: ["claude-code"],
+    providerModels: {},
   });
 
   assert.equal(providerId, "codex-cli");
+});
+
+test("provider settings resolve configured provider models with explicit override precedence", () => {
+  const settings = normalizeProviderSettings({
+    defaultProvider: "claude-code",
+    disabledProviderIds: [],
+    providerModels: {
+      "claude-code": "opus",
+    },
+  });
+
+  assert.equal(getConfiguredProviderModel("claude-code", settings), "opus");
+  assert.equal(resolveConfiguredProviderModel("claude-code", undefined, settings), "opus");
+  assert.equal(resolveConfiguredProviderModel("claude-code", "haiku", settings), "haiku");
 });

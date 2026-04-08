@@ -10,6 +10,7 @@ const PROVIDERS_FILE = path.join(CONFIG_DIR, "providers.json");
 export interface ProviderSettings {
   defaultProvider: string;
   disabledProviderIds: string[];
+  providerModels: Record<string, string>;
 }
 
 function knownProviderIds(): string[] {
@@ -36,10 +37,21 @@ export function normalizeProviderSettings(raw: unknown): ProviderSettings {
       : enabledIds.includes(fallbackDefault)
         ? fallbackDefault
         : enabledIds[0] || fallbackDefault;
+  const providerModels = object.providerModels && typeof object.providerModels === "object"
+    ? Object.fromEntries(
+        Object.entries(object.providerModels as Record<string, unknown>).flatMap(([providerId, value]) => {
+          if (!knownIds.has(providerId) || typeof value !== "string" || !value.trim()) {
+            return [];
+          }
+          return [[providerId, value.trim()]];
+        })
+      )
+    : {};
 
   return {
     defaultProvider,
     disabledProviderIds,
+    providerModels,
   };
 }
 
@@ -75,6 +87,26 @@ export function isProviderEnabled(providerId: string, settings?: ProviderSetting
 
 export function getConfiguredDefaultProviderId(settings?: ProviderSettings): string {
   return (settings || readProviderSettingsSync()).defaultProvider;
+}
+
+export function getConfiguredProviderModel(
+  providerId: string,
+  settings?: ProviderSettings
+): string | undefined {
+  const resolved = settings || readProviderSettingsSync();
+  const model = resolved.providerModels[providerId];
+  return typeof model === "string" && model.trim() ? model.trim() : undefined;
+}
+
+export function resolveConfiguredProviderModel(
+  providerId: string,
+  providerModel?: string,
+  settings?: ProviderSettings
+): string | undefined {
+  if (typeof providerModel === "string" && providerModel.trim()) {
+    return providerModel.trim();
+  }
+  return getConfiguredProviderModel(providerId, settings);
 }
 
 export function resolveEnabledProviderId(
