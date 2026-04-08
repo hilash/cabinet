@@ -7,7 +7,12 @@ import type {
   ConversationStatus,
   ConversationTrigger,
 } from "../../types/conversations";
-import { DATA_DIR, sanitizeFilename, virtualPathFromFs } from "../storage/path-utils";
+import {
+  DATA_DIR,
+  canonicalizeVirtualPagePath,
+  sanitizeFilename,
+  virtualPathFromFs,
+} from "../storage/path-utils";
 import {
   ensureDirectory,
   fileExists,
@@ -42,6 +47,8 @@ interface ParsedCabinetBlock {
   contextSummary?: string;
   artifactPaths: string[];
 }
+
+type CabinetFieldName = "SUMMARY" | "CONTEXT" | "ARTIFACT";
 
 const PLACEHOLDER_SUMMARY = "one short summary line";
 const PLACEHOLDER_CONTEXT = "optional lightweight memory/context summary";
@@ -79,13 +86,40 @@ function artifactsPathFs(id: string): string {
   return path.join(conversationDir(id), "artifacts.json");
 }
 
+function isConversationSummaryNoise(line: string): boolean {
+  const trimmed = line.trim();
+  return (
+    !trimmed ||
+    trimmed.startsWith("[tool]") ||
+    trimmed.startsWith("[diff]") ||
+    trimmed.startsWith("```") ||
+    /^(SUMMARY|CONTEXT|ARTIFACT):/i.test(trimmed)
+  );
+}
+
 function makeSummaryFromOutput(output: string): string | undefined {
-  const lines = output
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !line.startsWith("```"));
-  return lines[0]?.slice(0, 300);
+  const lines = output.split("\n").map((line) => line.trim());
+  let end = lines.length - 1;
+
+  while (end >= 0 && isConversationSummaryNoise(lines[end])) {
+    end -= 1;
+  }
+
+  if (end >= 0) {
+    let start = end;
+    while (start > 0 && !isConversationSummaryNoise(lines[start - 1])) {
+      start -= 1;
+    }
+
+    const candidate = lines
+      .slice(start, end + 1)
+      .find((line) => !isConversationSummaryNoise(line));
+    if (candidate) {
+      return candidate.slice(0, 300);
+    }
+  }
+
+  return lines.find((line) => line && !line.startsWith("```"))?.slice(0, 300);
 }
 
 export function extractConversationRequest(prompt: string): string {
@@ -103,26 +137,27 @@ export function extractConversationRequest(prompt: string): string {
 }
 
 function normalizeArtifactPath(rawPath: string): string | null {
-  const trimmed = rawPath.trim();
+  const trimmed = rawPath.trim().replace(/^\/:\s*/, "").replace(/^:\s*/, "");
   if (!trimmed) return null;
   if (trimmed === PLACEHOLDER_ARTIFACT_HINT) return null;
   if (trimmed.includes("for every KB file")) return null;
 
   if (trimmed.startsWith("/data/")) {
-    return trimmed.replace(/^\/data\//, "");
+    return canonicalizeVirtualPagePath(trimmed.replace(/^\/data\//, ""));
   }
 
   if (trimmed.startsWith(DATA_DIR)) {
-    return virtualPathFromFs(trimmed);
+    return canonicalizeVirtualPagePath(virtualPathFromFs(trimmed));
   }
 
   const normalized = trimmed.replace(/^\.?\//, "");
   if (!normalized || normalized.startsWith("..")) return null;
-  return normalized;
+  return canonicalizeVirtualPagePath(normalized);
 }
 
 function sanitizeCabinetFieldValue(value: string): string {
   return value
+    .replace(/\\r\\n|\\n|\\r/g, " ")
     .replace(/\s*❯\s*$/g, "")
     .replace(/\s*[─-]{8,}\s*$/g, "")
     .replace(/\s+/g, " ")
@@ -131,7 +166,7 @@ function sanitizeCabinetFieldValue(value: string): string {
 
 function isPlaceholderCabinetValue(value?: string): boolean {
   if (!value) return false;
-  const normalized = value.trim().toLowerCase();
+  const normalized = sanitizeCabinetFieldValue(value).toLowerCase();
   return (
     normalized === PLACEHOLDER_SUMMARY ||
     normalized === PLACEHOLDER_CONTEXT ||
@@ -139,54 +174,205 @@ function isPlaceholderCabinetValue(value?: string): boolean {
   );
 }
 
-export function parseCabinetBlock(output: string, prompt?: string): ParsedCabinetBlock {
-  const cleaned = cleanConversationOutputForParsing(output, prompt);
-  const matches = Array.from(cleaned.matchAll(/```cabinet\s*([\s\S]*?)```/gi));
-  const match = matches.at(-1);
+function repairWrappedCabinetFields(text: string): string {
+  return text
+    .replace(/SUM\s*\n\s*MARY:/gi, "\nSUMMARY:")
+    .replace(/CON\s*\n\s*TEXT:/gi, "\nCONTEXT:")
+    .replace(/ARTI?\s*\n\s*FACT:/gi, "\nARTIFACT:");
+}
+
+function normalizeCabinetLetters(value: string): string {
+  return value.toLowerCase().replace(/[^a-z]/g, "");
+}
+
+function containsSubsequence(source: string, target: string): boolean {
+  let index = 0;
+  for (const char of source) {
+    if (char === target[index]) {
+      index += 1;
+      if (index === target.length) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function detectCabinetField(prefix: string, value: string): CabinetFieldName | null {
+  const normalizedPrefix = normalizeCabinetLetters(prefix);
+  const normalizedCombined = `${normalizedPrefix}${normalizeCabinetLetters(value.slice(0, 24))}`;
+
+  if (
+    normalizedPrefix.endsWith("summary") ||
+    containsSubsequence(normalizedPrefix, "summary")
+  ) {
+    return "SUMMARY";
+  }
+
+  if (
+    normalizedPrefix.endsWith("context") ||
+    containsSubsequence(normalizedPrefix, "context") ||
+    containsSubsequence(normalizedCombined, "context")
+  ) {
+    return "CONTEXT";
+  }
+
+  if (
+    normalizedPrefix.endsWith("artifact") ||
+    containsSubsequence(normalizedPrefix, "artifact") ||
+    containsSubsequence(normalizedCombined, "artifact")
+  ) {
+    return "ARTIFACT";
+  }
+
+  return null;
+}
+
+function stripLeadingFieldFragments(value: string, field: CabinetFieldName): string {
+  if (field === "SUMMARY") {
+    return value.replace(/^(?:MARY)\s*[: -]?\s*/i, "");
+  }
+
+  if (field === "CONTEXT") {
+    return value.replace(/^(?:TEXT)\s*[: -]?\s*/i, "");
+  }
+
+  return value.replace(/^(?:ACT|FACT|IFACT|TIFACT|RTIFACT)\s*[: -]?\s*/i, "");
+}
+
+function parseCabinetFieldEntries(
+  blockText: string
+): Array<{ field: CabinetFieldName; value: string }> {
+  const lines = repairWrappedCabinetFields(blockText)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const entries: Array<{ field: CabinetFieldName; value: string }> = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index].endsWith("CON") && lines[index + 1]?.startsWith("TEXT:")) {
+      lines[index] = lines[index].slice(0, -3).trimEnd();
+      lines[index + 1] = `CONTEXT:${lines[index + 1].slice("TEXT:".length)}`;
+    }
+
+    const line = lines[index];
+    const colonIndex = line.indexOf(":");
+    if (colonIndex === -1) continue;
+
+    const prefix = line.slice(0, colonIndex);
+    const field = detectCabinetField(prefix, line.slice(colonIndex + 1));
+    if (!field) continue;
+
+    let value = stripLeadingFieldFragments(line.slice(colonIndex + 1).trim(), field);
+    if (field === "SUMMARY" && value.endsWith("CON") && lines[index + 1]?.startsWith("TEXT:")) {
+      value = value.slice(0, -3).trimEnd();
+    }
+
+    value = sanitizeCabinetFieldValue(value);
+    if (!value) continue;
+
+    entries.push({ field, value });
+  }
+
+  return entries;
+}
+
+function parseCabinetEntries(entries: Array<{ field: CabinetFieldName; value: string }>): ParsedCabinetBlock {
   const artifactPaths: string[] = [];
   let summary = "";
   let contextSummary = "";
 
-  if (match) {
-    const lines = match[1]
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    for (const line of lines) {
-      if (line.startsWith("SUMMARY:")) {
-        summary = sanitizeCabinetFieldValue(line.slice("SUMMARY:".length));
-        continue;
-      }
-      if (line.startsWith("CONTEXT:")) {
-        contextSummary = sanitizeCabinetFieldValue(line.slice("CONTEXT:".length));
-        continue;
-      }
-      if (line.startsWith("ARTIFACT:")) {
-        const normalized = normalizeArtifactPath(line.slice("ARTIFACT:".length));
-        if (normalized && !artifactPaths.includes(normalized)) {
-          artifactPaths.push(normalized);
-        }
-      }
+  for (const entry of entries) {
+    if (entry.field === "SUMMARY") {
+      summary = entry.value;
+      continue;
     }
 
-    return {
-      summary: summary && !isPlaceholderCabinetValue(summary) ? summary : undefined,
-      contextSummary:
-        contextSummary && !isPlaceholderCabinetValue(contextSummary)
-          ? contextSummary
-          : undefined,
-      artifactPaths,
-    };
+    if (entry.field === "CONTEXT") {
+      contextSummary = entry.value;
+      continue;
+    }
+
+    const normalized = normalizeArtifactPath(entry.value);
+    if (normalized && !artifactPaths.includes(normalized)) {
+      artifactPaths.push(normalized);
+    }
   }
 
+  return {
+    summary: summary && !isPlaceholderCabinetValue(summary) ? summary : undefined,
+    contextSummary:
+      contextSummary && !isPlaceholderCabinetValue(contextSummary)
+        ? contextSummary
+        : undefined,
+    artifactPaths,
+  };
+}
+
+function extractCabinetLikeBlock(cleaned: string): string | null {
+  const matches = Array.from(cleaned.matchAll(/(?:^|\n)```([^\n]*)\n([\s\S]*?)\n```/g));
+  const match = [...matches].reverse().find((entry) => {
+    const label = entry[1].trim().toLowerCase();
+    return label.includes("cabinet") || label.includes("cab");
+  });
+
+  return match ? match[2] : null;
+}
+
+function extractArtifactPathsFromOutput(output: string): string[] {
+  const artifactPaths: string[] = [];
+
+  function addArtifact(rawPath: string): void {
+    const normalized = normalizeArtifactPath(rawPath);
+    if (normalized && !artifactPaths.includes(normalized)) {
+      artifactPaths.push(normalized);
+    }
+  }
+
+  for (const match of output.matchAll(/^\[diff\]\s+(.+)$/gm)) {
+    addArtifact(match[1]);
+  }
+
+  for (const match of output.matchAll(/^\[tool\]\s+Edit\s+(.+?)\s+\((?:in_progress|completed|failed)\)$/gm)) {
+    for (const rawPath of match[1].split(/\s*,\s*/)) {
+      addArtifact(rawPath);
+    }
+  }
+
+  return artifactPaths;
+}
+
+function deriveConversationOutput(output: string, prompt?: string): ParsedCabinetBlock {
+  const cleaned = cleanConversationOutputForParsing(output, prompt);
+  const parsed = parseCabinetBlock(cleaned, prompt);
+  const fallbackArtifacts = extractArtifactPathsFromOutput(cleaned);
+
+  return {
+    summary: parsed.summary,
+    contextSummary: parsed.contextSummary,
+    artifactPaths: fallbackArtifacts.length > 0 ? fallbackArtifacts : parsed.artifactPaths,
+  };
+}
+
+export function parseCabinetBlock(output: string, prompt?: string): ParsedCabinetBlock {
+  const cleaned = cleanConversationOutputForParsing(output, prompt);
+  const cabinetBlock = extractCabinetLikeBlock(cleaned);
+
+  if (cabinetBlock) {
+    return parseCabinetEntries(parseCabinetFieldEntries(cabinetBlock));
+  }
+
+  const tail = cleaned.split("\n").slice(-80).join("\n");
   const fieldMatches = Array.from(
-    cleaned.matchAll(/(?:^|\n)\s*(SUMMARY|CONTEXT|ARTIFACT):\s*(.*)$/gm)
+    tail.matchAll(/(?:^|\n)\s*(SUMMARY|CONTEXT|ARTIFACT):\s*(.*)$/gm)
   );
   if (fieldMatches.length === 0) {
     return { artifactPaths: [] };
   }
 
+  const artifactPaths: string[] = [];
+  let summary = "";
+  let contextSummary = "";
   const lastSummaryMatch = [...fieldMatches].reverse().find((entry) => entry[1] === "SUMMARY");
   const relevantStart = lastSummaryMatch?.index ?? 0;
 
@@ -366,12 +552,14 @@ function isPromptEchoLine(line: string, promptEchoLines: Set<string>): boolean {
 }
 
 function cleanConversationOutputForParsing(output: string, prompt?: string): string {
-  return stripPromptEchoFromTranscript(
-    stripAnsiText(output)
-      .replace(/\u00A0/g, " ")
-      .replace(/\r+/g, "\n")
-      .replace(/\s*(SUMMARY:|CONTEXT:|ARTIFACT:)\s*/g, "\n$1"),
-    prompt
+  return repairWrappedCabinetFields(
+    stripPromptEchoFromTranscript(
+      stripAnsiText(output)
+        .replace(/\u00A0/g, " ")
+        .replace(/\r+/g, "\n")
+        .replace(/\s*(SUMMARY:|CONTEXT:|ARTIFACT:)\s*/g, "\n$1"),
+      prompt
+    )
   );
 }
 
@@ -497,7 +685,7 @@ async function maybeResolveCompletedConversation(
   if (meta.status === "running" && !transcriptShowsCompletedRun(transcript, prompt)) {
     return meta;
   }
-  const parsed = parseCabinetBlock(transcript, prompt);
+  const parsed = deriveConversationOutput(transcript, prompt);
   const needsRepair =
     meta.status === "running" ||
     isPlaceholderCabinetValue(meta.summary) ||
@@ -559,7 +747,7 @@ export async function finalizeConversation(
     hasPrompt ? readFileContent(promptPathFs(id)) : Promise.resolve(""),
   ]);
   const cleanedOutput = cleanConversationOutputForParsing(output, prompt);
-  const parsed = parseCabinetBlock(cleanedOutput, prompt);
+  const parsed = deriveConversationOutput(cleanedOutput, prompt);
   const artifacts = parsed.artifactPaths.map((artifactPath) => ({
     path: artifactPath,
   }));
@@ -623,13 +811,24 @@ export async function readConversationDetail(
     artifacts = [];
   }
 
+  const normalizedArtifacts = artifacts.map((artifact) => ({
+    ...artifact,
+    path: canonicalizeVirtualPagePath(artifact.path),
+  }));
+  const normalizedArtifactPaths = meta.artifactPaths.map((artifactPath) =>
+    canonicalizeVirtualPagePath(artifactPath)
+  );
+
   return {
-    meta,
+    meta: {
+      ...meta,
+      artifactPaths: normalizedArtifactPaths,
+    },
     prompt,
     request: extractConversationRequest(prompt),
     transcript: formatConversationTranscriptForDisplay(transcript, prompt),
     mentions,
-    artifacts,
+    artifacts: normalizedArtifacts,
   };
 }
 

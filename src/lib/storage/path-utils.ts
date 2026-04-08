@@ -24,6 +24,18 @@ export function virtualPathFromFs(fsPath: string): string {
   return fsPath.replace(DATA_DIR, "").replace(/^\//, "");
 }
 
+export function canonicalizeVirtualPagePath(virtualPath: string): string {
+  const normalized = virtualPath.trim().replace(/^\/+/, "").replace(/\/+/g, "/");
+  if (!normalized) return normalized;
+  if (normalized.endsWith("/index.md")) {
+    return normalized.slice(0, -"/index.md".length);
+  }
+  if (normalized.endsWith(".md")) {
+    return normalized.slice(0, -".md".length);
+  }
+  return normalized;
+}
+
 export function sanitizeFilename(name: string): string {
   return name
     .replace(/[^a-zA-Z0-9-_ ]/g, "")

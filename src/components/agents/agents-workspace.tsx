@@ -36,8 +36,10 @@ import { ConversationResultView } from "@/components/agents/conversation-result-
 import { ProviderModelField } from "@/components/agents/provider-model-field";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
+import { openKnowledgeBasePage } from "@/lib/navigation/open-page";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { useEditorStore } from "@/stores/editor-store";
 import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
 import type { TreeNode } from "@/types";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
@@ -437,7 +439,9 @@ export function AgentsWorkspace({
   const jobsPanel = useHorizontalResize(280, 220, 420);
   const treeNodes = useTreeStore((state) => state.nodes);
   const selectPage = useTreeStore((state) => state.selectPage);
+  const expandPath = useTreeStore((state) => state.expandPath);
   const setSection = useAppStore((state) => state.setSection);
+  const loadPage = useEditorStore((state) => state.loadPage);
 
   const allPages = flattenTree(treeNodes);
   const settingsAgentSlug =
@@ -464,6 +468,16 @@ export function AgentsWorkspace({
             available: true,
           } as ProviderInfo,
         ];
+
+  function openArtifactPage(rawPath: string) {
+    openKnowledgeBasePage({
+      rawPath,
+      expandPath,
+      selectPage,
+      setPageSection: () => setSection({ type: "page" }),
+      loadPage,
+    });
+  }
 
   async function refreshProviders() {
     try {
@@ -1853,10 +1867,7 @@ export function AgentsWorkspace({
                   {selectedConversation.artifacts.map((artifact) => (
                     <button
                       key={artifact.path}
-                      onClick={() => {
-                        selectPage(artifact.path);
-                        setSection({ type: "page" });
-                      }}
+                      onClick={() => openArtifactPage(artifact.path)}
                       className="shrink-0 rounded-md border border-border bg-muted/30 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
                     >
                       {artifact.label || artifact.path.split("/").pop()}
@@ -1880,10 +1891,7 @@ export function AgentsWorkspace({
               ) : selectedConversation ? (
                 <ConversationResultView
                   detail={selectedConversation}
-                  onOpenArtifact={(artifactPath) => {
-                    selectPage(artifactPath);
-                    setSection({ type: "page" });
-                  }}
+                  onOpenArtifact={openArtifactPage}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
