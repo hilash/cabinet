@@ -306,9 +306,14 @@ function stripAnsiText(str: string): string {
   return str
     .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, "")
     .replace(/\u001B[P^_][\s\S]*?\u001B\\/g, "")
+    // Replace cursor-movement CSI sequences with a space to preserve word boundaries
+    .replace(/\u001B\[\d*[CGHID]/g, " ")
+    // Strip remaining CSI sequences (colors, formatting, erasing)
     .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "")
     .replace(/\u001B[@-_]/g, "")
-    .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "");
+    .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "")
+    // Collapse runs of spaces produced by cursor replacements
+    .replace(/ {2,}/g, " ");
 }
 
 function normalizeDisplayLine(line: string): string {
