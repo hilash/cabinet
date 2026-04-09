@@ -29,7 +29,9 @@ export interface AgentProvider {
 
   // API providers
   apiKeyEnvVar?: string;
-  runPrompt?(prompt: string, context: string): Promise<string>;
+  runPrompt?(prompt: string, context: string, conversationId?: string): Promise<string>;
+  /** Streaming variant — yields text chunks as they arrive from the provider. */
+  streamPrompt?(prompt: string, context: string, conversationId?: string): AsyncIterable<string>;
 
   // Common
   isAvailable(): Promise<boolean>;

@@ -1,23 +1,19 @@
 /**
- * Bodega One provider for Cabinet
+ * Bodega One provider for Cabinet — v2
  *
  * Bridges Cabinet's AgentProvider interface to a running Bodega One backend
  * (Express server on localhost:3000 by default).
  *
- * Provider type: "api" — uses runPrompt() rather than spawning a CLI process.
- * The Bodega One backend's /chat/complete endpoint handles the full agentic loop
- * (AgenticChatService) and returns the final assistant response as a string.
- *
- * Model selection: reads BODEGA_MODEL env var, falling back to the first
- * available model reported by /model-hub/catalog/local.
- *
- * MCP tool federation: the provider exposes a hook (registerMcpTools) so the
- * caller can inject tool descriptors (e.g. bodega-brain tools) that are
- * forwarded to Bodega One as project rules context until native MCP passthrough
- * is wired end-to-end.
+ * v2 adds:
+ *   - Streaming via /api/chat/stream SSE endpoint (streamPrompt)
+ *   - Session reuse: Cabinet conversation ID → Bodega One numeric session ID
+ *   - Native MCP tool passthrough via structured mcpTools request field
+ *   - PTY-compatible via bodega-bridge.ts shim (type: "cli" session invocation)
  */
 
-import type { AgentProvider, ProviderStatus } from "../provider-interface";
+import type { AgentProvider, CliProviderInvocation, ProviderStatus } from "../provider-interface";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -25,11 +21,29 @@ const DEFAULT_BASE_URL = process.env.BODEGA_ONE_URL ?? "http://localhost:3000";
 const DEFAULT_MODEL = process.env.BODEGA_MODEL ?? "";
 const DEFAULT_TIMEOUT_MS = 120_000;
 
-// ─── Types matching Bodega One's /chat/complete request body ──────────────────
+// Path to the PTY shim script (resolved relative to this file at runtime)
+const BRIDGE_SCRIPT = (() => {
+  try {
+    const dir = path.dirname(fileURLToPath(import.meta.url));
+    return path.join(dir, "..", "bodega-bridge.ts");
+  } catch {
+    // CJS fallback
+    return path.join(__dirname, "..", "bodega-bridge.ts");
+  }
+})();
+
+// ─── Bodega One API types ─────────────────────────────────────────────────────
 
 interface BodegaMessage {
   role: "user" | "assistant" | "system";
   content: string;
+}
+
+/** Structured MCP tool spec forwarded to Bodega One's agentic loop. */
+interface BodegaMcpToolSpec {
+  name: string;
+  description: string;
+  inputSchema?: Record<string, unknown>;
 }
 
 interface BodegaChatRequest {
@@ -38,6 +52,8 @@ interface BodegaChatRequest {
   sessionId?: number;
   projectPath?: string;
   projectRules?: string;
+  /** Native MCP tool specs to inject into the Bodega One tool registry for this request. */
+  mcpTools?: BodegaMcpToolSpec[];
   permissionMode?: "ask" | "auto" | "plan";
 }
 
@@ -58,7 +74,13 @@ interface BodegaModelCatalogEntry {
   available?: boolean;
 }
 
-// ─── MCP tool federation state ────────────────────────────────────────────────
+interface BodegaSession {
+  id: number;
+  title?: string;
+  type?: string;
+}
+
+// ─── MCP tool descriptor (Cabinet-facing) ────────────────────────────────────
 
 interface McpToolDescriptor {
   name: string;
@@ -66,17 +88,45 @@ interface McpToolDescriptor {
   schema?: Record<string, unknown>;
 }
 
+// ─── SSE parsing helpers ──────────────────────────────────────────────────────
+
+/**
+ * Parse a single SSE data payload line from Bodega One's /api/chat/stream.
+ * Returns a text chunk, or null if this event doesn't carry user-visible content.
+ */
+function parseSseChunk(payload: string): { chunk?: string; done?: boolean; content?: string; error?: string } {
+  try {
+    const json = JSON.parse(payload) as Record<string, unknown>;
+    if (json.error) return { error: String(json.error) };
+    if (json.done) return { done: true, content: typeof json.content === "string" ? json.content : undefined };
+    const delta = json.delta as Record<string, unknown> | undefined;
+    if (delta?.content && typeof delta.content === "string") {
+      return { chunk: delta.content };
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
 // ─── BodegaOneProvider ────────────────────────────────────────────────────────
 
 class BodegaOneProvider implements AgentProvider {
   readonly id = "bodega-one";
   readonly name = "Bodega One";
-  readonly type = "api" as const;
+  /** Hybrid: "cli" lets Cabinet use the PTY shim; API path is still supported. */
+  readonly type = "cli" as const;
   readonly icon = "zap";
 
   private baseUrl: string;
   private model: string;
   private mcpTools: McpToolDescriptor[] = [];
+
+  /**
+   * Session registry: Cabinet conversation ID → Bodega One numeric session ID.
+   * Allows related Cabinet tasks to reuse the same Bodega One conversation context.
+   */
+  private sessionRegistry = new Map<string, number>();
 
   // Hook points for PreToolUse routing and SubagentStop aggregation
   private preToolUseHook?: (toolName: string, args: unknown) => Promise<void>;
@@ -85,6 +135,32 @@ class BodegaOneProvider implements AgentProvider {
   constructor(baseUrl = DEFAULT_BASE_URL, model = DEFAULT_MODEL) {
     this.baseUrl = baseUrl;
     this.model = model;
+  }
+
+  // ── PTY shim invocations (CLI provider path) ───────────────────────────────
+
+  /**
+   * One-shot: spawn the bodega-bridge shim with the prompt as an arg.
+   * Cabinet's job runner uses this path.
+   */
+  buildOneShotInvocation(prompt: string, _workdir: string): CliProviderInvocation {
+    return {
+      command: "npx",
+      args: ["tsx", BRIDGE_SCRIPT, "--prompt", prompt],
+    };
+  }
+
+  /**
+   * Session: spawn the bodega-bridge shim in interactive mode.
+   * Cabinet's AI panel uses this path; the shim reads from stdin.
+   */
+  buildSessionInvocation(prompt: string | undefined, _workdir: string): CliProviderInvocation {
+    const args = ["tsx", BRIDGE_SCRIPT, "--session"];
+    return {
+      command: "npx",
+      args,
+      initialPrompt: prompt?.trim() || undefined,
+    };
   }
 
   // ── MCP tool federation ────────────────────────────────────────────────────
@@ -107,16 +183,13 @@ class BodegaOneProvider implements AgentProvider {
     this.subagentStopHook = hook;
   }
 
-  // ── Core API methods ───────────────────────────────────────────────────────
+  // ── Health & availability ──────────────────────────────────────────────────
 
   async isAvailable(): Promise<boolean> {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5_000);
       const res = await fetch(`${this.baseUrl}/api/health`, {
-        signal: controller.signal,
+        signal: AbortSignal.timeout(5_000),
       });
-      clearTimeout(timeout);
       return res.ok;
     } catch {
       return false;
@@ -125,13 +198,9 @@ class BodegaOneProvider implements AgentProvider {
 
   async healthCheck(): Promise<ProviderStatus> {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5_000);
-
       const res = await fetch(`${this.baseUrl}/api/health`, {
-        signal: controller.signal,
+        signal: AbortSignal.timeout(5_000),
       });
-      clearTimeout(timeout);
 
       if (!res.ok) {
         return {
@@ -141,12 +210,10 @@ class BodegaOneProvider implements AgentProvider {
         };
       }
 
-      // Resolve the active model to report as version
       const activeModel = await this.resolveModel();
-
       return {
         available: true,
-        authenticated: true, // Bodega One uses local auth — if server is up, we're in
+        authenticated: true,
         version: activeModel || "Bodega One (model unknown)",
       };
     } catch (err) {
@@ -159,40 +226,74 @@ class BodegaOneProvider implements AgentProvider {
     }
   }
 
-  /**
-   * runPrompt — Cabinet's primary API provider hook.
-   *
-   * Sends `prompt` to Bodega One's /chat/complete endpoint. The `context`
-   * argument (Cabinet passes the agent's instructions here) is injected as a
-   * system message so Bodega One's agentic loop has full persona context.
-   *
-   * MCP tool descriptors registered via registerMcpTools() are appended to
-   * projectRules so the LLM is aware of available tools without requiring
-   * a native MCP passthrough (planned for v2).
-   */
-  async runPrompt(prompt: string, context: string): Promise<string> {
-    const model = await this.resolveModel();
-    const messages: BodegaMessage[] = [];
+  // ── Session management ─────────────────────────────────────────────────────
 
+  /**
+   * Get or create a Bodega One session for the given Cabinet conversation ID.
+   * Returns the numeric Bodega One session ID to pass as `sessionId` in requests.
+   *
+   * If `conversationId` is not supplied, returns undefined (stateless request).
+   */
+  async getOrCreateBodegaSession(conversationId?: string, title?: string): Promise<number | undefined> {
+    if (!conversationId) return undefined;
+
+    const existing = this.sessionRegistry.get(conversationId);
+    if (existing !== undefined) return existing;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/api/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title ?? `Cabinet: ${conversationId.slice(0, 40)}`,
+          type: "chat",
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (!res.ok) return undefined;
+
+      const session = (await res.json()) as BodegaSession;
+      if (typeof session.id === "number") {
+        this.sessionRegistry.set(conversationId, session.id);
+        return session.id;
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** Explicitly bind a Cabinet conversation ID to an existing Bodega One session ID. */
+  bindSession(conversationId: string, bodegaSessionId: number): void {
+    this.sessionRegistry.set(conversationId, bodegaSessionId);
+  }
+
+  /** Release a session mapping (e.g. after a conversation is archived). */
+  releaseSession(conversationId: string): void {
+    this.sessionRegistry.delete(conversationId);
+  }
+
+  // ── Blocking API path ──────────────────────────────────────────────────────
+
+  /**
+   * runPrompt — blocking API call via /api/chat/complete.
+   * `conversationId` (optional) enables session reuse across calls.
+   */
+  async runPrompt(prompt: string, context: string, conversationId?: string): Promise<string> {
+    const model = await this.resolveModel();
+    const sessionId = await this.getOrCreateBodegaSession(conversationId);
+
+    const messages: BodegaMessage[] = [];
     if (context?.trim()) {
       messages.push({ role: "system", content: context.trim() });
     }
     messages.push({ role: "user", content: prompt });
 
-    const projectRules = this.buildProjectRules();
+    const body = this.buildRequestBody(messages, model, sessionId);
 
-    const body: BodegaChatRequest = {
-      messages,
-      ...(model ? { model } : {}),
-      ...(projectRules ? { projectRules } : {}),
-      permissionMode: "auto",
-    };
-
-    // Fire PreToolUse hook (informational — actual tool routing is server-side)
     if (this.preToolUseHook) {
-      await this.preToolUseHook("chat/complete", body).catch(() => {
-        // hooks must not block the main request
-      });
+      await this.preToolUseHook("chat/complete", body).catch(() => {});
     }
 
     const controller = new AbortController();
@@ -205,7 +306,6 @@ class BodegaOneProvider implements AgentProvider {
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-
       clearTimeout(timeout);
 
       if (!res.ok) {
@@ -216,7 +316,6 @@ class BodegaOneProvider implements AgentProvider {
       const data = (await res.json()) as BodegaChatResponse;
       const result = data.content ?? "";
 
-      // Fire SubagentStop hook with result
       if (this.subagentStopHook) {
         await this.subagentStopHook("bodega-one", result).catch(() => {});
       }
@@ -228,12 +327,128 @@ class BodegaOneProvider implements AgentProvider {
     }
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Streaming API path ─────────────────────────────────────────────────────
 
   /**
-   * Resolve which model to use.
-   * Priority: explicit config → BODEGA_MODEL env → first available local model.
+   * streamPrompt — yields text chunks from /api/chat/stream SSE.
+   * Consumes Bodega One's delta/content events and surfaces them as an AsyncIterable.
+   * `conversationId` (optional) enables session reuse across calls.
    */
+  async *streamPrompt(
+    prompt: string,
+    context: string,
+    conversationId?: string
+  ): AsyncIterable<string> {
+    const model = await this.resolveModel();
+    const sessionId = await this.getOrCreateBodegaSession(conversationId);
+
+    const messages: BodegaMessage[] = [];
+    if (context?.trim()) {
+      messages.push({ role: "system", content: context.trim() });
+    }
+    messages.push({ role: "user", content: prompt });
+
+    const body = this.buildRequestBody(messages, model, sessionId);
+
+    if (this.preToolUseHook) {
+      await this.preToolUseHook("chat/stream", body).catch(() => {});
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+    let fullContent = "";
+
+    try {
+      const res = await fetch(`${this.baseUrl}/api/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!res.ok || !res.body) {
+        clearTimeout(timeout);
+        const errorText = await res.text().catch(() => `HTTP ${res.status}`);
+        throw new Error(`Bodega One stream failed (${res.status}): ${errorText}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          const payload = trimmed.slice("data: ".length);
+          if (payload === "[DONE]") continue;
+
+          const parsed = parseSseChunk(payload);
+          if (parsed.error) {
+            clearTimeout(timeout);
+            throw new Error(`Bodega One stream error: ${parsed.error}`);
+          }
+          if (parsed.done) {
+            if (parsed.content) fullContent = parsed.content;
+            break;
+          }
+          if (parsed.chunk) {
+            fullContent += parsed.chunk;
+            yield parsed.chunk;
+          }
+        }
+      }
+
+      clearTimeout(timeout);
+    } catch (err) {
+      clearTimeout(timeout);
+      throw err;
+    }
+
+    if (this.subagentStopHook) {
+      await this.subagentStopHook("bodega-one", fullContent).catch(() => {});
+    }
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  private buildRequestBody(
+    messages: BodegaMessage[],
+    model: string,
+    sessionId?: number
+  ): BodegaChatRequest {
+    const body: BodegaChatRequest = {
+      messages,
+      permissionMode: "auto",
+    };
+
+    if (model) body.model = model;
+    if (sessionId !== undefined) body.sessionId = sessionId;
+
+    // Native MCP passthrough: structured tool specs
+    if (this.mcpTools.length > 0) {
+      body.mcpTools = this.mcpTools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.schema,
+      }));
+
+      // Text fallback for backends that don't yet parse mcpTools
+      const toolLines = this.mcpTools.map((t) => `- ${t.name}: ${t.description}`).join("\n");
+      body.projectRules = `## Federated MCP Tools (Cabinet → Bodega One)\n${toolLines}`;
+    }
+
+    return body;
+  }
+
   private async resolveModel(): Promise<string> {
     if (this.model) return this.model;
 
@@ -249,43 +464,20 @@ class BodegaOneProvider implements AgentProvider {
     }
   }
 
-  /**
-   * Build the projectRules string injected alongside each request.
-   * Includes MCP tool descriptors so the LLM knows what tools are federated.
-   */
-  private buildProjectRules(): string {
-    if (this.mcpTools.length === 0) return "";
-
-    const toolLines = this.mcpTools
-      .map((t) => `- ${t.name}: ${t.description}`)
-      .join("\n");
-
-    return `## Federated MCP Tools (via Cabinet → Bodega One bridge)\n${toolLines}`;
-  }
-
-  /**
-   * Expose the resolved base URL for diagnostics / UI display.
-   */
   getBaseUrl(): string {
     return this.baseUrl;
   }
 
-  /**
-   * Override the target URL at runtime (useful for multi-instance setups).
-   */
   setBaseUrl(url: string): void {
     this.baseUrl = url;
   }
 
-  /**
-   * Override the model at runtime.
-   */
   setModel(model: string): void {
     this.model = model;
   }
 
   /**
-   * Create an isolated copy of this provider with fresh state.
+   * Create an isolated copy of this provider with fresh session state.
    * Each Cabinet task should use its own instance to prevent context bleed.
    */
   fork(overrides?: { model?: string; baseUrl?: string }): BodegaOneProvider {
@@ -293,8 +485,8 @@ class BodegaOneProvider implements AgentProvider {
       overrides?.baseUrl ?? this.baseUrl,
       overrides?.model ?? this.model
     );
-    // MCP tools are shared (they're global registrations)
     instance.mcpTools = [...this.mcpTools];
+    // Session registry is NOT copied — forks start with a clean slate
     return instance;
   }
 }
@@ -304,4 +496,4 @@ class BodegaOneProvider implements AgentProvider {
 export const bodegaOneProvider = new BodegaOneProvider();
 
 export { BodegaOneProvider };
-export type { McpToolDescriptor, BodegaChatRequest, BodegaChatResponse };
+export type { McpToolDescriptor, BodegaChatRequest, BodegaChatResponse, BodegaMcpToolSpec };

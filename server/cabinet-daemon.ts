@@ -26,6 +26,7 @@ import {
   getDaemonPort,
 } from "../src/lib/runtime/runtime-config";
 import { getSessionLaunchSpec, resolveProviderId } from "../src/lib/agents/provider-runtime";
+import { providerRegistry } from "../src/lib/agents/provider-registry";
 import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
 import {
   appendConversationTranscript,
@@ -74,7 +75,8 @@ const enrichedPath = [
 interface PtySession {
   id: string;
   providerId: string;
-  pty: pty.IPty;
+  /** Undefined for API-provider sessions that run headless (no PTY). */
+  pty?: pty.IPty;
   ws: WebSocket | null;
   createdAt: Date;
   output: string[];
@@ -177,8 +179,8 @@ function submitInitialPrompt(session: PtySession): void {
     delete session.initialPromptTimer;
   }
 
-  session.pty.write(session.initialPrompt);
-  session.pty.write("\r");
+  session.pty?.write(session.initialPrompt);
+  session.pty?.write("\r");
 }
 
 async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
@@ -219,11 +221,11 @@ function maybeAutoExitClaudeSession(session: PtySession): void {
   }).finally(() => {
     session.resolvingStatus = false;
   });
-  session.pty.write("/exit\r");
+  session.pty?.write("/exit\r");
   session.autoExitFallbackTimer = setTimeout(() => {
     if (session.exited) return;
     try {
-      session.pty.kill();
+      session.pty?.kill();
     } catch {}
   }, 1500);
 }
@@ -303,13 +305,13 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
       try {
         const parsed = JSON.parse(msg);
         if (parsed.type === "resize" && parsed.cols && parsed.rows) {
-          existing.pty.resize(parsed.cols, parsed.rows);
+          existing.pty?.resize(parsed.cols, parsed.rows);
           return;
         }
       } catch {
         // Not JSON, treat as terminal input
       }
-      existing.pty.write(msg);
+      existing.pty?.write(msg);
     });
 
     // On disconnect again, just detach — don't kill
@@ -351,13 +353,13 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
     try {
       const parsed = JSON.parse(msg);
       if (parsed.type === "resize" && parsed.cols && parsed.rows) {
-        session.pty.resize(parsed.cols, parsed.rows);
+        session.pty?.resize(parsed.cols, parsed.rows);
         return;
       }
     } catch {
       // Not JSON, treat as terminal input
     }
-    session.pty.write(msg);
+    session.pty?.write(msg);
   });
 
   // On WebSocket close: DETACH, don't kill the PTY
@@ -377,12 +379,90 @@ function createDetachedSession(input: {
   onData?: (chunk: string) => void;
 }): PtySession {
   const cwd = resolveSessionCwd(input.cwd);
+  const resolvedProviderId = resolveProviderId(input.providerId);
+
+  // ── API provider path (no PTY) ──────────────────────────────────────────────
+  // When the resolved provider is type "api", run via runPrompt/streamPrompt
+  // instead of spawning a PTY subprocess. Output is pushed to the session buffer
+  // and forwarded to any connected WebSocket just like PTY output.
+  const provider = providerRegistry.get(resolvedProviderId);
+  if (provider?.type === "api" && input.prompt) {
+    const headlessSession: PtySession = {
+      id: input.sessionId,
+      providerId: resolvedProviderId,
+      pty: undefined,
+      ws: null,
+      createdAt: new Date(),
+      output: [],
+      exited: false,
+      exitCode: null,
+    };
+    sessions.set(input.sessionId, headlessSession);
+
+    const pushChunk = (chunk: string): void => {
+      headlessSession.output.push(chunk);
+      void syncConversationChunk(input.sessionId, chunk).catch(() => {});
+      if (headlessSession.ws && headlessSession.ws.readyState === WebSocket.OPEN) {
+        headlessSession.ws.send(chunk);
+      }
+      input.onData?.(chunk);
+    };
+
+    const finalizeHeadless = (exitCode: number): void => {
+      headlessSession.exited = true;
+      headlessSession.exitCode = exitCode;
+      if (headlessSession.timeoutHandle) {
+        clearTimeout(headlessSession.timeoutHandle);
+        delete headlessSession.timeoutHandle;
+      }
+      const plain = headlessSession.output.join("");
+      completedOutput.set(input.sessionId, { output: plain, completedAt: Date.now() });
+      void finalizeSessionConversation(headlessSession).catch(() => {});
+      if (headlessSession.ws && headlessSession.ws.readyState === WebSocket.OPEN) {
+        sessions.delete(input.sessionId);
+        headlessSession.ws.close();
+      }
+    };
+
+    // Stream chunks to the session output, then finalize
+    const runApiSession = async (): Promise<void> => {
+      try {
+        if (provider.streamPrompt) {
+          for await (const chunk of provider.streamPrompt(input.prompt!, "", input.sessionId)) {
+            pushChunk(chunk);
+          }
+        } else if (provider.runPrompt) {
+          const result = await provider.runPrompt(input.prompt!, "", input.sessionId);
+          pushChunk(result);
+        } else {
+          throw new Error(`Provider ${resolvedProviderId} has no runPrompt or streamPrompt`);
+        }
+        finalizeHeadless(0);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        pushChunk(`\n[bodega-bridge] error: ${msg}\n`);
+        finalizeHeadless(1);
+      }
+    };
+
+    void runApiSession();
+
+    if (input.timeoutSeconds && input.timeoutSeconds > 0) {
+      headlessSession.timeoutHandle = setTimeout(() => {
+        console.warn(`Session ${input.sessionId} (API) timed out after ${input.timeoutSeconds}s`);
+        finalizeHeadless(1);
+      }, input.timeoutSeconds * 1000);
+    }
+
+    return headlessSession;
+  }
+
+  // ── PTY path (CLI providers) ────────────────────────────────────────────────
   const launch = getSessionLaunchSpec({
     providerId: input.providerId,
     prompt: input.prompt,
     workdir: cwd,
   });
-  const resolvedProviderId = resolveProviderId(input.providerId);
 
   const term = pty.spawn(launch.command, launch.args, {
     name: "xterm-256color",
@@ -981,7 +1061,7 @@ process.on("SIGINT", () => {
     task.stop();
   }
   for (const [, session] of sessions) {
-    try { session.pty.kill(); } catch {}
+    try { session.pty?.kill(); } catch {}
   }
   void scheduleWatcher.close();
   closeDb();
