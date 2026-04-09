@@ -102,6 +102,13 @@ const TASK_CARD_TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
   heartbeat: "bg-pink-500/12 text-pink-400 ring-1 ring-pink-500/20",
 };
 
+const STATUS_TAG_STYLES: Record<string, string> = {
+  running: "bg-primary/10 text-primary ring-1 ring-primary/20",
+  completed: "bg-emerald-500/12 text-emerald-500 ring-1 ring-emerald-500/20",
+  failed: "bg-destructive/12 text-destructive ring-1 ring-destructive/20",
+  cancelled: "bg-muted text-muted-foreground ring-1 ring-border",
+};
+
 const AGENT_EMOJI_OPTIONS = [
   "🤖",
   "👑",
@@ -428,6 +435,8 @@ export function AgentsWorkspace({
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingJob, setSavingJob] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [hoveredConvId, setHoveredConvId] = useState<string | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const lastSavedSettingsRef = useRef<string | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1751,8 +1760,17 @@ export function AgentsWorkspace({
                       setSelectedConversationId(conversation.id);
                       setMode("conversation");
                     }}
+                    onPointerEnter={() => {
+                      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+                      hoverTimerRef.current = setTimeout(() => setHoveredConvId(conversation.id), 1000);
+                    }}
+                    onPointerLeave={() => {
+                      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+                      hoverTimerRef.current = null;
+                      setHoveredConvId((prev) => prev === conversation.id ? null : prev);
+                    }}
                     className={cn(
-                      "group/conv relative flex w-full items-start gap-2 border-b border-border/70 px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      "relative flex w-full items-start gap-2 border-b border-border/70 px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       isSelected ? "bg-primary/5" : "hover:bg-accent/35"
                     )}
                   >
@@ -1793,7 +1811,10 @@ export function AgentsWorkspace({
                                 void deleteConversation(conversation.id);
                               }
                             }}
-                            className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/conv:opacity-100"
+                            className={cn(
+                              "inline-flex h-5.5 w-5.5 items-center justify-center rounded-full text-muted-foreground transition-opacity hover:text-destructive",
+                              hoveredConvId === conversation.id ? "opacity-100" : "opacity-0"
+                            )}
                           >
                             <Trash2 className="h-2.75 w-2.75" />
                           </span>
@@ -1865,12 +1886,45 @@ export function AgentsWorkspace({
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-[15px] font-semibold">{selectedConversationMeta.title}</h3>
-                  <p className="text-[11px] text-muted-foreground">
-                    {selectedConversationMeta.agentSlug} · {TRIGGER_LABELS[selectedConversationMeta.trigger]} ·{" "}
-                    {selectedConversationMeta.status}
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => openAgentSettings(selectedConversationMeta.agentSlug)}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-border transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <Bot className="h-2.5 w-2.5" />
+                      {selectedConversationMeta.agentSlug}
+                    </button>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        TASK_CARD_TRIGGER_STYLES[selectedConversationMeta.trigger]
+                      )}
+                    >
+                      <TriggerIcon trigger={selectedConversationMeta.trigger} className="h-2.5 w-2.5" />
+                      {TRIGGER_LABELS[selectedConversationMeta.trigger]}
+                    </span>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        STATUS_TAG_STYLES[selectedConversationMeta.status] || "bg-muted text-muted-foreground ring-1 ring-border"
+                      )}
+                    >
+                      {selectedConversationMeta.status}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
+                  {selectedConversationMeta.trigger === "job" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-[11px] text-muted-foreground"
+                      onClick={() => openAgentSettings(selectedConversationMeta.agentSlug)}
+                    >
+                      <Settings className="h-3 w-3" />
+                      Settings
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1883,15 +1937,6 @@ export function AgentsWorkspace({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 gap-1 text-[11px] text-muted-foreground"
-                    onClick={() => openAgentSettings(selectedConversationMeta.agentSlug)}
-                  >
-                    <Settings className="h-3 w-3" />
-                    Settings
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
                     className="h-7 gap-1 text-[11px] text-muted-foreground hover:text-destructive"
                     onClick={() => void deleteConversation(selectedConversationMeta.id)}
                   >
@@ -1900,22 +1945,6 @@ export function AgentsWorkspace({
                   </Button>
                 </div>
               </div>
-              {selectedConversation?.artifacts && selectedConversation.artifacts.length > 0 && (
-                <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-                  {selectedConversation.artifacts.map((artifact) => (
-                    <button
-                      key={artifact.path}
-                      onClick={() => {
-                        selectPage(artifact.path);
-                        setSection({ type: "page" });
-                      }}
-                      className="shrink-0 rounded-md border border-border bg-muted/30 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
-                    >
-                      {artifact.label || artifact.path.split("/").pop()}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="flex-1 overflow-hidden">
               {selectedConversationMeta.status === "running" ? (

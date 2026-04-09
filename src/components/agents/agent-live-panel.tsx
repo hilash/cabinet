@@ -160,7 +160,7 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
       <div
         className={cn(
           "flex-1 min-h-0 flex flex-col",
-          currentSessions.length === 0 && "overflow-y-auto"
+          "overflow-y-auto"
         )}
         ref={scrollRef}
       >

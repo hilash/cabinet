@@ -9,6 +9,7 @@ import type {
 } from "../../types/conversations";
 import { DATA_DIR, sanitizeFilename, virtualPathFromFs } from "../storage/path-utils";
 import {
+  deleteFileOrDir,
   ensureDirectory,
   fileExists,
   listDirectory,
@@ -671,4 +672,11 @@ export async function getRunningConversationCounts(): Promise<Record<string, num
     acc[meta.agentSlug] = (acc[meta.agentSlug] || 0) + 1;
     return acc;
   }, {});
+}
+
+export async function deleteConversation(id: string): Promise<boolean> {
+  const dir = conversationDir(id);
+  if (!(await fileExists(metaPath(id)))) return false;
+  await deleteFileOrDir(dir);
+  return true;
 }
