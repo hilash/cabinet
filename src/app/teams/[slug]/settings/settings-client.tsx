@@ -16,6 +16,14 @@ interface Member {
   joined_at: string;
 }
 
+interface Team {
+  id: string;
+  name: string;
+  slug: string;
+  kbPath: string | null;
+  effectivePath: string;
+}
+
 interface TeamSettingsClientProps {
   slug: string;
 }
@@ -26,11 +34,14 @@ export function TeamSettingsClient({ slug }: TeamSettingsClientProps) {
   const setTeams = useAppStore((s) => s.setTeams);
   const setCurrentTeam = useAppStore((s) => s.setCurrentTeam);
 
-  const [team, setTeam] = useState<{ id: string; name: string; slug: string } | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [name, setName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [kbPath, setKbPath] = useState("");
+  const [effectivePath, setEffectivePath] = useState("");
+  const [savingPath, setSavingPath] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -54,6 +65,8 @@ export function TeamSettingsClient({ slug }: TeamSettingsClientProps) {
         const { members: m } = await membersRes.json();
         setTeam(t);
         setName(t.name);
+        setKbPath(t.kbPath ?? "");
+        setEffectivePath(t.effectivePath ?? "");
         setMembers(m);
       } catch {
         router.push("/");
@@ -88,6 +101,57 @@ export function TeamSettingsClient({ slug }: TeamSettingsClientProps) {
       setError("Connection error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSavePath = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPath(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/teams/${slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kbPath: kbPath.trim() || null }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error ?? "Failed to save path");
+        return;
+      }
+      const { team: t } = await res.json();
+      setTeam(t);
+      setKbPath(t.kbPath ?? "");
+      setEffectivePath(t.effectivePath ?? "");
+    } catch {
+      setError("Connection error");
+    } finally {
+      setSavingPath(false);
+    }
+  };
+
+  const handleResetPath = async () => {
+    setSavingPath(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/teams/${slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kbPath: null }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error ?? "Failed to reset path");
+        return;
+      }
+      const { team: t } = await res.json();
+      setTeam(t);
+      setKbPath("");
+      setEffectivePath(t.effectivePath ?? "");
+    } catch {
+      setError("Connection error");
+    } finally {
+      setSavingPath(false);
     }
   };
 
@@ -201,6 +265,49 @@ export function TeamSettingsClient({ slug }: TeamSettingsClientProps) {
               >
                 {saving ? "Saving..." : "Rename"}
               </button>
+            )}
+          </form>
+        </section>
+
+        {/* Knowledge Base */}
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold">Knowledge Base</h2>
+          <p className="text-[12px] text-muted-foreground">
+            Absolute path where this team&apos;s KB files are stored. Leave empty to use the
+            default:{" "}
+            <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded">
+              {effectivePath}
+            </code>
+          </p>
+          <form onSubmit={handleSavePath} className="flex gap-2">
+            <input
+              type="text"
+              value={kbPath}
+              onChange={(e) => setKbPath(e.target.value)}
+              disabled={!isAdmin}
+              placeholder={effectivePath}
+              className="flex-1 px-3 py-2 rounded-md border border-border bg-background font-mono text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+            />
+            {isAdmin && (
+              <>
+                <button
+                  type="submit"
+                  disabled={savingPath || kbPath === (team?.kbPath ?? "")}
+                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-[14px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {savingPath ? "Saving..." : "Save"}
+                </button>
+                {(team?.kbPath) && (
+                  <button
+                    type="button"
+                    onClick={handleResetPath}
+                    disabled={savingPath}
+                    className="px-4 py-2 rounded-md border border-border text-[14px] font-medium hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    Reset
+                  </button>
+                )}
+              </>
             )}
           </form>
         </section>

@@ -46,6 +46,7 @@ export function StatusBar() {
   const { saveStatus, currentPath } = useEditorStore();
   const loadTree = useTreeStore((s) => s.loadTree);
   const setSection = useAppStore((s) => s.setSection);
+  const currentTeamSlug = useAppStore((s) => s.currentTeamSlug);
   const [uncommitted, setUncommitted] = useState(0);
   const [pullStatus, setPullStatus] = useState<"idle" | "pulling" | "pulled" | "up-to-date" | "error">("idle");
   const [pulling, setPulling] = useState(false);
@@ -55,7 +56,10 @@ export function StatusBar() {
 
   const fetchGitStatus = async () => {
     try {
-      const res = await fetch("/api/git/commit");
+      const endpoint = currentTeamSlug
+        ? `/api/teams/${currentTeamSlug}/git/commit`
+        : `/api/git/commit`;
+      const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
         setUncommitted(data.uncommitted || 0);
@@ -87,7 +91,10 @@ export function StatusBar() {
     setPulling(true);
     setPullStatus("pulling");
     try {
-      const res = await fetch("/api/git/pull", { method: "POST" });
+      const endpoint = currentTeamSlug
+        ? `/api/teams/${currentTeamSlug}/git/pull`
+        : `/api/git/pull`;
+      const res = await fetch(endpoint, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         if (data.pulled) {
@@ -107,7 +114,7 @@ export function StatusBar() {
       // Reset status after 3 seconds
       setTimeout(() => setPullStatus("idle"), 3000);
     }
-  }, [pulling, loadTree]);
+  }, [pulling, loadTree, currentTeamSlug]);
 
   // Auto-pull on mount (page load)
   useEffect(() => {
@@ -120,7 +127,7 @@ export function StatusBar() {
     return () => window.clearTimeout(initialPull);
   }, [pullAndRefresh]);
 
-  // Poll git status
+  // Poll git status (re-runs when team changes)
   useEffect(() => {
     const initialFetch = window.setTimeout(() => {
       void fetchGitStatus();
@@ -130,7 +137,8 @@ export function StatusBar() {
       window.clearTimeout(initialFetch);
       clearInterval(interval);
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTeamSlug]);
 
   useEffect(() => {
     const controller = new AbortController();
