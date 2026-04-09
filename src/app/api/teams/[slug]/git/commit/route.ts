@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { manualCommit, getStatus } from "@/lib/git/git-service";
+import {
+  manualCommit,
+  manualCommitFiles,
+  getStatus,
+  getChangedFiles,
+} from "@/lib/git/git-service";
 import { requireTeamContext, teamContextErrorResponse } from "@/lib/teams/team-context";
 import { getTeamDataDir } from "@/lib/teams/team-fs";
 
@@ -12,8 +17,25 @@ export async function POST(
     await requireTeamContext(slug);
     const dataDir = getTeamDataDir(slug);
     const body = await req.json();
-    const message = body.message || "Manual commit from KB";
-    const committed = await manualCommit(message, dataDir);
+    const {
+      message = "Manual commit from KB",
+      files,
+      authorName,
+      authorEmail,
+    } = body as {
+      message?: string;
+      files?: string[];
+      authorName?: string;
+      authorEmail?: string;
+    };
+
+    let committed: boolean;
+    if (files && files.length > 0 && authorName && authorEmail) {
+      committed = await manualCommitFiles(message, files, authorName, authorEmail, dataDir);
+    } else {
+      committed = await manualCommit(message, dataDir);
+    }
+
     return NextResponse.json({ ok: true, committed });
   } catch (err) {
     return teamContextErrorResponse(err);
@@ -28,8 +50,11 @@ export async function GET(
   try {
     await requireTeamContext(slug);
     const dataDir = getTeamDataDir(slug);
-    const status = await getStatus(dataDir);
-    return NextResponse.json(status);
+    const [status, files] = await Promise.all([
+      getStatus(dataDir),
+      getChangedFiles(dataDir),
+    ]);
+    return NextResponse.json({ ...status, files });
   } catch (err) {
     return teamContextErrorResponse(err);
   }

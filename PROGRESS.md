@@ -28,3 +28,13 @@
 
 [2026-04-09] Fixed Claude CLI not being found in Electron DMG builds. The packaged app inherits macOS GUI PATH which lacks NVM paths. Added NVM bin detection (scans ~/.nvm/versions/node/) to RUNTIME_PATH in provider-cli.ts, enrichedPath in cabinet-daemon.ts, and commandCandidates in claude-code provider.
 
+
+[2026-04-09] Added controllable git auto-commit via NEXT_PUBLIC_GIT_AUTO_COMMIT env var (default: enabled). When set to "false", auto-commit is disabled and the StatusBar footer gains Commit and Push buttons. The Commit button opens a modal showing all changed files with checkboxes (select which to stage), a commit message input, and uses the logged-in user's identity for the commit author. The Push button pushes to the GitHub remote using the user's OAuth access token stored in the account table. New API routes: POST /api/git/push and POST /api/teams/[slug]/git/push. GitHub OAuth now requests repo scope to enable push access.
+
+[2026-04-09] Fixed Push button: SSH remotes (git@github.com:...) now push directly using system SSH keys instead of being rejected. Added push error modal that shows the full error message in a friendly dialog instead of just a tooltip when push fails.
+
+[2026-04-09] Fixed push to always use GitHub OAuth token: SSH remotes (git@github.com:...) are now converted to authenticated HTTPS URLs before pushing, instead of relying on system SSH keys.
+
+[2026-04-09] Added "Commit & Push" button to the commit modal. Clicking it commits the selected files then immediately pushes using the logged-in GitHub OAuth token. If commit succeeds but push fails, the dialog stays open and shows the push error inline.
+
+[2026-04-09] Added plan document ai/plans/2026-04-09-controllable-git-commit-push.md covering the controllable auto-commit feature, manual Commit/Push UI, GitHub OAuth scope update, and all related API routes and components.

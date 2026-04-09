@@ -14,6 +14,9 @@ export const auth = betterAuth({
       github: {
         clientId: process.env.GITHUB_CLIENT_ID,
         clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+        // repo scope is required for push; users who authenticated before this change
+        // must sign out and re-authenticate to grant push access.
+        scope: ["read:user", "user:email", "repo"],
       },
     }),
   },

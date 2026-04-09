@@ -31,11 +31,147 @@ async function getGit(dataDir: string): Promise<SimpleGit | null> {
   }
 }
 
+export interface ChangedFile {
+  path: string;
+  status: "modified" | "added" | "deleted" | "renamed";
+}
+
+export async function getChangedFiles(
+  dataDir: string = DATA_DIR
+): Promise<ChangedFile[]> {
+  const g = await getGit(dataDir);
+  if (!g) return [];
+
+  try {
+    const status = await g.status();
+    const seen = new Set<string>();
+    const files: ChangedFile[] = [];
+
+    for (const f of status.files) {
+      if (seen.has(f.path)) continue;
+      seen.add(f.path);
+
+      const code = (f.index !== " " && f.index !== "?" ? f.index : f.working_dir).toUpperCase();
+      let fileStatus: ChangedFile["status"];
+      if (code === "A" || f.index === "?" || f.working_dir === "?") {
+        fileStatus = "added";
+      } else if (code === "D") {
+        fileStatus = "deleted";
+      } else if (code === "R") {
+        fileStatus = "renamed";
+      } else {
+        fileStatus = "modified";
+      }
+
+      files.push({ path: f.path, status: fileStatus });
+    }
+
+    return files;
+  } catch {
+    return [];
+  }
+}
+
+export async function manualCommitFiles(
+  message: string,
+  filePaths: string[],
+  authorName: string,
+  authorEmail: string,
+  dataDir: string = DATA_DIR
+): Promise<boolean> {
+  const g = await getGit(dataDir);
+  if (!g) return false;
+
+  try {
+    await g.add(filePaths);
+    const status = await g.status();
+    if (status.staged.length === 0) return false;
+
+    await g.commit(message, undefined, {
+      "--author": `${authorName} <${authorEmail}>`,
+    });
+    return true;
+  } catch (error) {
+    console.error("manualCommitFiles failed:", error);
+    return false;
+  }
+}
+
+export async function gitPushWithToken(
+  token: string,
+  dataDir: string = DATA_DIR
+): Promise<{ pushed: boolean; summary: string }> {
+  const g = await getGit(dataDir);
+  if (!g) return { pushed: false, summary: "Git not available" };
+
+  try {
+    const remotes = await g.getRemotes(true);
+    if (remotes.length === 0) {
+      return { pushed: false, summary: "No remote configured" };
+    }
+
+    const origin = remotes.find((r) => r.name === "origin") ?? remotes[0];
+    const pushUrl = origin.refs.push || origin.refs.fetch;
+
+    if (!pushUrl) {
+      return { pushed: false, summary: "Remote URL not found" };
+    }
+
+    // Normalise any remote URL to an authenticated HTTPS URL.
+    // Supports:
+    //   git@github.com:owner/repo.git
+    //   ssh://git@github.com/owner/repo.git
+    //   https://github.com/owner/repo.git
+    let httpsUrl: string;
+
+    if (pushUrl.startsWith("git@github.com:")) {
+      // git@github.com:owner/repo.git → https://github.com/owner/repo.git
+      httpsUrl = "https://github.com/" + pushUrl.slice("git@github.com:".length);
+    } else if (pushUrl.startsWith("ssh://git@github.com/")) {
+      httpsUrl = "https://github.com/" + pushUrl.slice("ssh://git@github.com/".length);
+    } else if (pushUrl.startsWith("https://github.com/")) {
+      httpsUrl = pushUrl;
+    } else {
+      return {
+        pushed: false,
+        summary: `Remote "${pushUrl}" is not a GitHub remote. Only GitHub remotes are supported.`,
+      };
+    }
+
+    // Inject OAuth token into the HTTPS URL.
+    const authenticatedUrl = httpsUrl.replace(
+      "https://",
+      `https://x-oauth-basic:${token}@`
+    );
+
+    await g.raw(["push", authenticatedUrl]);
+    return { pushed: true, summary: "Pushed successfully" };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("403") || msg.includes("Permission") || msg.includes("denied")) {
+      return {
+        pushed: false,
+        summary:
+          "Push failed: insufficient permissions. If using HTTPS, sign out and sign in with GitHub again to grant 'repo' access. If using SSH, check your SSH key is registered on GitHub.",
+      };
+    }
+    if (msg.includes("no upstream") || msg.includes("has no upstream")) {
+      return {
+        pushed: false,
+        summary:
+          "No upstream branch configured. Run this once in your terminal:\n\ngit push --set-upstream origin <branch>",
+      };
+    }
+    return { pushed: false, summary: msg };
+  }
+}
+
 export async function autoCommit(
   pagePath: string,
   action: "Update" | "Add" | "Delete",
   dataDir: string = DATA_DIR
 ) {
+  if (process.env.NEXT_PUBLIC_GIT_AUTO_COMMIT === "false") return;
   // Debounce commits per dataDir — batch within 5 seconds
   const existing = commitTimers.get(dataDir);
   if (existing) clearTimeout(existing);
