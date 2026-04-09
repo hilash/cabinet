@@ -1880,13 +1880,13 @@ export function AgentsWorkspace({
               </DialogContent>
             </Dialog>
             <div className="border-b border-border px-5 py-3">
-              <div className="flex items-center gap-3">
-                <span className="text-lg">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 text-lg">
                   {agents.find((agent) => agent.slug === selectedConversationMeta.agentSlug)?.emoji || "🤖"}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-[15px] font-semibold">{selectedConversationMeta.title}</h3>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <h3 className="line-clamp-2 text-[15px] font-semibold">{selectedConversationMeta.title}</h3>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                     <button
                       onClick={() => openAgentSettings(selectedConversationMeta.agentSlug)}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-border transition-colors hover:bg-muted hover:text-foreground"
