@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-09] Added per-team KB path configuration in Team Settings. Each team can now point its KB to any absolute path on disk (e.g. a project repo's docs/ folder). StatusBar git status and Sync button now route through /api/teams/{slug}/git/* so they reflect the active team's repository. Default remains CABINET_DATA_DIR/teams/{slug} when no path is set.
+
 [2026-04-09] Merged feat/improvments → feat/multi-tenant-auth (rebased onto origin/main). Added multi-tenant OAuth auth via better-auth (Google + GitHub), team management with per-team KB isolation, SQL migrations 002-004, agent session isolation (PTY sessions tagged by userId/teamSlug), ElectronDetector client component (React 19 fix), and updated next.config.ts and .env.example for better-auth.
 
 [2026-04-09] Fix pty.node macOS Gatekeeper warning: added xattr quarantine flag removal before ad-hoc codesigning of extracted native binaries in Electron main process.
