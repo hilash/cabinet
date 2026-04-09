@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-09] Merged feat/improvments → feat/multi-tenant-auth (rebased onto origin/main). Added multi-tenant OAuth auth via better-auth (Google + GitHub), team management with per-team KB isolation, SQL migrations 002-004, agent session isolation (PTY sessions tagged by userId/teamSlug), ElectronDetector client component (React 19 fix), and updated next.config.ts and .env.example for better-auth.
+
 [2026-04-09] Fix pty.node macOS Gatekeeper warning: added xattr quarantine flag removal before ad-hoc codesigning of extracted native binaries in Electron main process.
 
 [2026-04-09] Added `export const dynamic = "force-dynamic"` to all `/api/system/*` route handlers. Without this, Next.js could cache these routes during production builds, potentially serving stale update check results and triggering a false "update available" popup on fresh installs.

@@ -7,6 +7,11 @@ import {
   movePageApi,
   renamePageApi,
 } from "@/lib/api/client";
+import { useAppStore } from "./app-store";
+
+function getTeamSlug(): string | null {
+  return useAppStore.getState().currentTeamSlug;
+}
 
 interface TreeState {
   nodes: TreeNode[];
@@ -51,7 +56,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   loadTree: async () => {
     set({ loading: true });
     try {
-      const nodes = await fetchTree();
+      const nodes = await fetchTree(getTeamSlug());
       set({ nodes, loading: false });
     } catch {
       set({ loading: false });
@@ -90,7 +95,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
     const fullPath = parentPath ? `${parentPath}/${slug}` : slug;
-    await createPageApi(fullPath, title);
+    await createPageApi(fullPath, title, getTeamSlug());
     if (parentPath) {
       get().expandPath(parentPath);
     }
@@ -99,7 +104,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   },
 
   deletePage: async (path: string) => {
-    await deletePageApi(path);
+    await deletePageApi(path, getTeamSlug());
     const { selectedPath } = get();
     if (selectedPath === path) {
       set({ selectedPath: null });
@@ -109,7 +114,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   movePage: async (fromPath: string, toParentPath: string) => {
     try {
-      const newPath = await movePageApi(fromPath, toParentPath);
+      const newPath = await movePageApi(fromPath, toParentPath, getTeamSlug());
       if (toParentPath) {
         get().expandPath(toParentPath);
       }
@@ -125,7 +130,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   renamePage: async (pagePath: string, newName: string) => {
     try {
-      const newPath = await renamePageApi(pagePath, newName);
+      const newPath = await renamePageApi(pagePath, newName, getTeamSlug());
       await get().loadTree();
       const { selectedPath } = get();
       if (selectedPath === pagePath) {

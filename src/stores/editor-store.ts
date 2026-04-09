@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { FrontMatter, SaveStatus } from "@/types";
 import { fetchPage, savePage } from "@/lib/api/client";
+import { useAppStore } from "./app-store";
 
 interface EditorState {
   currentPath: string | null;
@@ -31,8 +32,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (saveTimer) clearTimeout(saveTimer);
     if (statusTimer) clearTimeout(statusTimer);
 
+    const teamSlug = useAppStore.getState().currentTeamSlug;
     try {
-      const page = await fetchPage(path);
+      const page = await fetchPage(path, teamSlug);
       set({
         currentPath: path,
         content: page.content,
@@ -77,7 +79,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set({ saveStatus: "saving" });
     try {
-      await savePage(currentPath, content, frontmatter || {});
+      const teamSlug = useAppStore.getState().currentTeamSlug;
+      await savePage(currentPath, content, frontmatter || {}, teamSlug);
       set({ saveStatus: "saved", isDirty: false });
 
       if (statusTimer) clearTimeout(statusTimer);
