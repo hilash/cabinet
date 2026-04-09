@@ -172,8 +172,12 @@ function submitInitialPrompt(session: PtySession): void {
     delete session.initialPromptTimer;
   }
 
-  session.pty.write(session.initialPrompt);
-  session.pty.write("\r");
+  session.pty.write(`\x1b[200~${session.initialPrompt}\x1b[201~`);
+  setTimeout(() => {
+    if (!session.exited) {
+      session.pty.write("\r");
+    }
+  }, 300);
 }
 
 async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
