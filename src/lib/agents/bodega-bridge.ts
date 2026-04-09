@@ -60,12 +60,16 @@ async function resolveModel(): Promise<string> {
   if (MODEL) { resolvedModel = MODEL; return resolvedModel; }
 
   try {
-    const res = await fetch(`${BASE_URL}/api/model-hub/catalog/local`, {
+    const res = await fetch(`${BASE_URL}/api/llm/health`, {
       signal: AbortSignal.timeout(3_000),
     });
     if (!res.ok) { resolvedModel = ""; return ""; }
-    const catalog = (await res.json()) as Array<{ id: string }>;
-    resolvedModel = catalog[0]?.id ?? "";
+    const data = (await res.json()) as {
+      defaultModel?: string;
+      availableModels?: string[];
+      status?: string;
+    };
+    resolvedModel = data.defaultModel || data.availableModels?.[0] || "";
     return resolvedModel;
   } catch {
     resolvedModel = "";

@@ -313,8 +313,8 @@ class BodegaOneProvider implements AgentProvider {
         throw new Error(`Bodega One request failed (${res.status}): ${errorText}`);
       }
 
-      const data = (await res.json()) as BodegaChatResponse;
-      const result = data.content ?? "";
+      const data = (await res.json()) as BodegaChatResponse & { message?: string };
+      const result = data.content ?? data.message ?? "";
 
       if (this.subagentStopHook) {
         await this.subagentStopHook("bodega-one", result).catch(() => {});
@@ -453,12 +453,16 @@ class BodegaOneProvider implements AgentProvider {
     if (this.model) return this.model;
 
     try {
-      const res = await fetch(`${this.baseUrl}/api/model-hub/catalog/local`, {
+      const res = await fetch(`${this.baseUrl}/api/llm/health`, {
         signal: AbortSignal.timeout(3_000),
       });
       if (!res.ok) return "";
-      const catalog = (await res.json()) as BodegaModelCatalogEntry[];
-      return catalog[0]?.id ?? "";
+      const data = (await res.json()) as {
+        defaultModel?: string;
+        availableModels?: string[];
+        status?: string;
+      };
+      return data.defaultModel || data.availableModels?.[0] || "";
     } catch {
       return "";
     }
