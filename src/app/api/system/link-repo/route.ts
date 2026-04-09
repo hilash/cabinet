@@ -11,6 +11,8 @@ import {
 import { ensureDirectory, fileExists, writeFileContent } from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
 
+export const dynamic = "force-dynamic";
+
 interface LinkRepoRequest {
   localPath?: string;
   name?: string;

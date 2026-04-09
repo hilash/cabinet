@@ -1,6 +1,8 @@
 import { spawn } from "child_process";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 function getPickerCommand(): { command: string; args: string[] } {
   switch (process.platform) {
     case "darwin":

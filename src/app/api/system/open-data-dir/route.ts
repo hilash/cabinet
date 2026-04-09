@@ -3,6 +3,8 @@ import path from "path";
 import { NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 
+export const dynamic = "force-dynamic";
+
 function getOpenCommand(targetPath: string, reveal?: boolean): { command: string; args: string[] } {
   switch (process.platform) {
     case "darwin":

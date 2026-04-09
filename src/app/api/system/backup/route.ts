@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createDataBackup, createProjectSnapshotBackup } from "@/lib/system/backup";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as { scope?: "data" | "project" };

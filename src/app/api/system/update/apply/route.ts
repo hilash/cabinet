@@ -6,6 +6,8 @@ import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { writeUpdateStatus } from "@/lib/system/update-status";
 import { getUpdateCheckResult } from "@/lib/system/update-service";
 
+export const dynamic = "force-dynamic";
+
 export async function POST() {
   const update = await getUpdateCheckResult();
 
