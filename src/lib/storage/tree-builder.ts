@@ -3,6 +3,7 @@ import path from "path";
 import matter from "gray-matter";
 import type { TreeNode } from "@/types";
 import { DATA_DIR, virtualPathFromFs, isHiddenEntry } from "./path-utils";
+
 import { listDirectory, readFileContent, fileExists } from "./fs-operations";
 
 async function readFrontmatter(
@@ -19,6 +20,7 @@ async function readFrontmatter(
 
 async function buildTreeRecursive(
   dirPath: string,
+  rootDir: string,
   ancestorRealPaths = new Set<string>()
 ): Promise<TreeNode[]> {
   let realDirPath = dirPath;
@@ -43,7 +45,7 @@ async function buildTreeRecursive(
     if (entry.name === "CLAUDE.md") continue;
 
     const fullPath = path.join(dirPath, entry.name);
-    const vPath = virtualPathFromFs(fullPath);
+    const vPath = virtualPathFromFs(fullPath, rootDir);
 
     if (entry.isDirectory) {
       const indexMd = path.join(fullPath, "index.md");
@@ -71,7 +73,7 @@ async function buildTreeRecursive(
       }
 
       const fm = hasIndexMd ? await readFrontmatter(indexMd) : {};
-      const children = await buildTreeRecursive(fullPath, nextAncestorRealPaths);
+      const children = await buildTreeRecursive(fullPath, rootDir, nextAncestorRealPaths);
 
       nodes.push({
         name: entry.name,
@@ -131,6 +133,7 @@ async function buildTreeRecursive(
   return nodes;
 }
 
-export async function buildTree(): Promise<TreeNode[]> {
-  return buildTreeRecursive(DATA_DIR);
+export async function buildTree(dataDir?: string): Promise<TreeNode[]> {
+  const root = dataDir ?? DATA_DIR;
+  return buildTreeRecursive(root, root);
 }

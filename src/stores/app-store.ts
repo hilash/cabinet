@@ -13,6 +13,13 @@ interface TerminalTab {
   prompt?: string;
 }
 
+interface TeamInfo {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
 interface AppState {
   section: SelectedSection;
   terminalOpen: boolean;
@@ -20,6 +27,9 @@ interface AppState {
   activeTerminalTab: string | null;
   sidebarCollapsed: boolean;
   aiPanelCollapsed: boolean;
+  // Multi-team
+  currentTeamSlug: string | null;
+  teams: TeamInfo[];
   setSection: (section: SelectedSection) => void;
   toggleTerminal: () => void;
   closeTerminal: () => void;
@@ -29,6 +39,8 @@ interface AppState {
   openAgentTab: (taskTitle: string, prompt: string) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setAiPanelCollapsed: (collapsed: boolean) => void;
+  setCurrentTeam: (slug: string) => void;
+  setTeams: (teams: TeamInfo[]) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -38,6 +50,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTerminalTab: null,
   sidebarCollapsed: false,
   aiPanelCollapsed: false,
+  currentTeamSlug: null,
+  teams: [],
 
   setSection: (section) => set({ section }),
 
@@ -89,6 +103,28 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   setAiPanelCollapsed: (collapsed) => set({ aiPanelCollapsed: collapsed }),
+
+  setCurrentTeam: (slug) => {
+    set({ currentTeamSlug: slug });
+    if (typeof window !== "undefined") {
+      localStorage.setItem("kb-current-team", slug);
+    }
+  },
+
+  setTeams: (teams) => {
+    set({ teams });
+    // Restore last used team or default to first
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem("kb-current-team") : null;
+    const { currentTeamSlug } = get();
+    if (!currentTeamSlug) {
+      const slug =
+        (stored && teams.find((t) => t.slug === stored)?.slug) ||
+        teams[0]?.slug ||
+        null;
+      if (slug) set({ currentTeamSlug: slug });
+    }
+  },
 
   openAgentTab: (taskTitle: string, prompt: string) => {
     const id = `agent-${Date.now()}`;

@@ -59,6 +59,8 @@ import { Separator } from "@/components/ui/separator";
 import { TreeView } from "./tree-view";
 import { NewPageDialog } from "./new-page-dialog";
 import { LinkRepoDialog } from "./link-repo-dialog";
+import { TeamSwitcher } from "@/components/layout/team-switcher";
+import { UserMenu } from "@/components/layout/user-menu";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 
@@ -265,18 +267,12 @@ export function Sidebar() {
         )}
         style={!isMobile && !collapsed ? { width: sidebarWidth } : undefined}
       >
-        <div className="sidebar-header flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span
-              className="font-logo text-[22px] italic tracking-[-0.01em] text-foreground"
-            >
-              cabinet
-            </span>
-          </div>
+        <div className="sidebar-header flex items-center justify-between px-3 py-2">
+          <TeamSwitcher />
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-7 w-7 shrink-0"
             onClick={() => setCollapsed(true)}
           >
             <PanelLeftClose className="h-4 w-4" />
@@ -449,21 +445,24 @@ export function Sidebar() {
         <TreeView />
         <LinkRepoDialog open={linkRepoOpen} onOpenChange={setLinkRepoOpen} />
 
-        <div className="p-2 flex items-center gap-1">
-          <div className="flex-1">
-            <NewPageDialog />
+        <div className="p-2 flex flex-col gap-1">
+          <div className="flex items-center gap-1">
+            <div className="flex-1">
+              <NewPageDialog />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-7 w-7 shrink-0",
+                (section.type === "settings") && "bg-accent text-foreground"
+              )}
+              onClick={() => setSection({ type: "settings" })}
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "h-7 w-7 shrink-0",
-              (section.type === "settings") && "bg-accent text-foreground"
-            )}
-            onClick={() => setSection({ type: "settings" })}
-          >
-            <Settings className="h-3.5 w-3.5" />
-          </Button>
+          <UserMenu />
         </div>
       </aside>
       {!isMobile && !collapsed && (
@@ -482,8 +481,8 @@ export function Sidebar() {
           variant="ghost"
           size="icon"
           className={cn(
-            "absolute top-3 h-7 w-7",
-            isMobile ? "left-3 z-50" : "left-2 z-20"
+            "absolute top-3 z-10 h-7 w-7",
+            isMobile ? "left-3 z-50" : "left-2"
           )}
           onClick={() => setCollapsed(false)}
         >

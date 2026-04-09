@@ -6,6 +6,8 @@ interface CreateDaemonSessionInput {
   providerId?: string;
   cwd?: string;
   timeoutSeconds?: number;
+  userId?: string;
+  teamSlug?: string;
 }
 
 async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {
@@ -44,15 +46,16 @@ export async function getDaemonSessionOutput(id: string): Promise<{
   return response.json() as Promise<{ status: string; output: string }>;
 }
 
-export async function listDaemonSessions(): Promise<
-  { id: string; createdAt: string; connected: boolean; exited: boolean; exitCode: number | null }[]
+export async function listDaemonSessions(userId?: string): Promise<
+  { id: string; createdAt: string; connected: boolean; exited: boolean; exitCode: number | null; userId?: string; teamSlug?: string }[]
 > {
-  const response = await daemonFetch("/sessions");
+  const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+  const response = await daemonFetch(`/sessions${qs}`);
   if (!response.ok) {
     throw new Error(`Failed to list daemon sessions (${response.status})`);
   }
   return response.json() as Promise<
-    { id: string; createdAt: string; connected: boolean; exited: boolean; exitCode: number | null }[]
+    { id: string; createdAt: string; connected: boolean; exited: boolean; exitCode: number | null; userId?: string; teamSlug?: string }[]
   >;
 }
 

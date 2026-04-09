@@ -1,4 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { betterFetch } from "@better-fetch/fetch";
+
+const PUBLIC_PREFIXES = ["/login", "/api/auth", "/api/health", "/_next", "/favicon"];
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
 
 async function hashToken(password: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -8,45 +16,49 @@ async function hashToken(password: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function middleware(req: NextRequest) {
-  const password = process.env.KB_PASSWORD || "";
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-  // Auth disabled — no password set
-  if (!password) {
+  if (isPublicPath(pathname)) return NextResponse.next();
+
+  const hasOAuth = !!(process.env.GOOGLE_CLIENT_ID || process.env.GITHUB_CLIENT_ID);
+  const legacyPassword = process.env.KB_PASSWORD ?? "";
+
+  // Legacy mode: KB_PASSWORD set, no OAuth configured
+  if (legacyPassword && !hasOAuth) {
+    const token = request.cookies.get("kb-auth")?.value;
+    const expected = await hashToken(legacyPassword);
+    if (token !== expected) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
     return NextResponse.next();
   }
 
-  const { pathname } = req.nextUrl;
+  // No auth configured — open access
+  if (!legacyPassword && !hasOAuth) return NextResponse.next();
 
-  // Allow login page and login API
-  if (pathname === "/login" || pathname === "/api/auth/login" || pathname === "/api/auth/check") {
-    return NextResponse.next();
-  }
+  // OAuth mode: validate better-auth session via lightweight fetch to own endpoint
+  const { data: session } = await betterFetch<{ user: { id: string } }>(
+    "/api/auth/get-session",
+    {
+      baseURL: request.nextUrl.origin,
+      headers: { cookie: request.headers.get("cookie") ?? "" },
+    }
+  );
 
-  // Allow health check
-  if (pathname === "/api/health") {
-    return NextResponse.next();
-  }
-
-  // Check auth cookie
-  const token = req.cookies.get("kb-auth")?.value;
-  const expected = await hashToken(password);
-
-  if (token !== expected) {
-    // API routes return 401
+  if (!session?.user) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Pages redirect to login
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    // Protect all routes except static files and Next.js internals
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

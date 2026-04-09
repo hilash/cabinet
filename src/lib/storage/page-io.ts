@@ -1,7 +1,7 @@
 import path from "path";
 import matter from "gray-matter";
 import type { PageData, FrontMatter } from "@/types";
-import { resolveContentPath } from "./path-utils";
+import { resolveContentPath, virtualPathFromFs } from "./path-utils";
 import {
   readFileContent,
   writeFileContent,
@@ -15,8 +15,8 @@ function defaultFrontmatter(title: string): FrontMatter {
   return { title, created: now, modified: now, tags: [] };
 }
 
-export async function readPage(virtualPath: string): Promise<PageData> {
-  const resolved = resolveContentPath(virtualPath);
+export async function readPage(virtualPath: string, dataDir?: string): Promise<PageData> {
+  const resolved = resolveContentPath(virtualPath, dataDir);
 
   // Try directory with index.md first
   const indexPath = path.join(resolved, "index.md");
@@ -53,9 +53,10 @@ export async function readPage(virtualPath: string): Promise<PageData> {
 export async function writePage(
   virtualPath: string,
   content: string,
-  frontmatter: Partial<FrontMatter>
+  frontmatter: Partial<FrontMatter>,
+  dataDir?: string
 ): Promise<void> {
-  const resolved = resolveContentPath(virtualPath);
+  const resolved = resolveContentPath(virtualPath, dataDir);
 
   const indexPath = path.join(resolved, "index.md");
   const mdPath = resolved.endsWith(".md") ? resolved : `${resolved}.md`;
@@ -84,9 +85,10 @@ export async function writePage(
 
 export async function createPage(
   virtualPath: string,
-  title: string
+  title: string,
+  dataDir?: string
 ): Promise<void> {
-  const resolved = resolveContentPath(virtualPath);
+  const resolved = resolveContentPath(virtualPath, dataDir);
   const dirPath = resolved;
   const filePath = path.join(dirPath, "index.md");
 
@@ -100,20 +102,21 @@ export async function createPage(
   await writeFileContent(filePath, output);
 }
 
-export async function deletePage(virtualPath: string): Promise<void> {
-  const resolved = resolveContentPath(virtualPath);
+export async function deletePage(virtualPath: string, dataDir?: string): Promise<void> {
+  const resolved = resolveContentPath(virtualPath, dataDir);
   await deleteFileOrDir(resolved);
 }
 
 export async function movePage(
   fromPath: string,
-  toParentPath: string
+  toParentPath: string,
+  dataDir?: string
 ): Promise<string> {
-  const fromResolved = resolveContentPath(fromPath);
+  const fromResolved = resolveContentPath(fromPath, dataDir);
   const name = path.basename(fromResolved);
   const toDir = toParentPath
-    ? resolveContentPath(toParentPath)
-    : resolveContentPath("");
+    ? resolveContentPath(toParentPath, dataDir)
+    : resolveContentPath("", dataDir);
   const toResolved = path.join(toDir, name);
 
   if (fromResolved === toResolved) return fromPath;
@@ -125,14 +128,16 @@ export async function movePage(
   const fs = await import("fs/promises");
   await fs.rename(fromResolved, toResolved);
 
-  return toParentPath ? `${toParentPath}/${name}` : name;
+  const newVirtualPath = virtualPathFromFs(toResolved, dataDir);
+  return newVirtualPath;
 }
 
 export async function renamePage(
   virtualPath: string,
-  newName: string
+  newName: string,
+  dataDir?: string
 ): Promise<string> {
-  const fromResolved = resolveContentPath(virtualPath);
+  const fromResolved = resolveContentPath(virtualPath, dataDir);
   const parentDir = path.dirname(fromResolved);
   const slug = newName
     .toLowerCase()
@@ -159,6 +164,5 @@ export async function renamePage(
     await writeFileContent(indexMd, output);
   }
 
-  const parentVirtual = virtualPath.split("/").slice(0, -1).join("/");
-  return parentVirtual ? `${parentVirtual}/${slug}` : slug;
+  return virtualPathFromFs(toResolved, dataDir);
 }
