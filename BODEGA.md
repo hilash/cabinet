@@ -141,7 +141,55 @@ output back as plain text — Cabinet's ANSI-stripping logic handles the rest.
 - [x] Branch: `bodega-integration`
 - [x] Dependencies installed, build verified clean
 - [x] Codebase read: daemon, provider interface, provider runtime, registry, claude-code provider
-- [ ] `bodega-bridge.ts` — implement
-- [ ] `providers/bodega-one.ts` — implement
-- [ ] Register in `provider-registry.ts`
+- [x] `providers/bodega-one.ts` — implemented (`BodegaOneProvider` class, full `AgentProvider` contract)
+- [x] Register in `provider-registry.ts` — `bodegaOneProvider` registered alongside claude-code and codex-cli
+- [ ] `bodega-bridge.ts` — streaming/PTY shim (planned v2, needed for session/interactive mode)
 - [ ] Integration test against local Cabinet instance
+
+---
+
+## Provider: bodega-one.ts
+
+`src/lib/agents/providers/bodega-one.ts` implements Option A (`type: "api"`) from above.
+
+### What's implemented
+
+| Feature | Status | Detail |
+|---------|--------|--------|
+| `AgentProvider` interface | ✅ | All required fields + methods |
+| Health check | ✅ | GET `/api/health` with 5s timeout |
+| `runPrompt` | ✅ | POST `/api/chat/complete`, passes agent instructions as system message |
+| Model resolution | ✅ | BODEGA_MODEL env → `/api/model-hub/catalog/local` → first available |
+| MCP tool federation | ✅ | Tools injected into `projectRules` (text-based, pre-passthrough) |
+| Context isolation | ✅ | `provider.fork()` creates independent instance per task |
+| PreToolUse hook | ✅ | `onPreToolUse(fn)` — called before every request |
+| SubagentStop hook | ✅ | `onSubagentStop(fn)` — called with result after every response |
+
+### What's planned for v2
+
+| Feature | Blocker |
+|---------|---------|
+| Streaming output | Needs `AgentProvider` interface extension (`streamPrompt` → `AsyncIterable<string>`) |
+| Native MCP passthrough | Needs Bodega One's tool loop to accept external tool specs over HTTP |
+| PTY session shim | `bodega-bridge.ts` — wraps HTTP responses in stdio for Cabinet's terminal |
+| Session continuity | Bodega One `sessionId` reuse across related Cabinet tasks |
+
+### Usage
+
+```typescript
+import { bodegaOneProvider, BodegaOneProvider } from "./providers/bodega-one";
+
+// Singleton (shared):
+const status = await bodegaOneProvider.healthCheck();
+
+// Isolated per-task copy:
+const task = bodegaOneProvider.fork({ model: "qwen3:8b" });
+const result = await task.runPrompt("Refactor this function", agentInstructions);
+```
+
+### Environment variables
+
+```bash
+BODEGA_ONE_URL=http://localhost:3000  # default
+BODEGA_MODEL=qwen3:8b                 # optional — falls back to first available model
+```
