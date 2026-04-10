@@ -22,5 +22,8 @@
 
 [2026-04-09] Fixed Claude CLI not being found in Electron DMG builds. The packaged app inherits macOS GUI PATH which lacks NVM paths. Added NVM bin detection (scans ~/.nvm/versions/node/) to RUNTIME_PATH in provider-cli.ts, enrichedPath in cabinet-daemon.ts, and commandCandidates in claude-code provider.
 
+[2026-04-09] Fixed startup EADDRINUSE collision: added --port 3100 to dev and start:next scripts in package.json so Cabinet no longer defaults to port 3000 (used by Bodega One).
+
 [2026-04-10] Fixed three critical startup issues: (1) `npm run dev` now starts both Next.js and the cabinet daemon together (daemon was previously only started via `dev:all`). (2) Removed duplicate Tiptap Link extension — StarterKit v3 bundles Link by default; added `link: false` to StarterKit.configure() so the custom wiki-link-aware version is the only registration. (3) Renamed `src/middleware.ts` to `src/proxy.ts` per Next.js 16.2.1 convention. Verified Bodega One connection: health, llm/health, and sessions endpoints all respond correctly (defaultModel: qwen3.5:2b).
 
+[2026-04-10] Applied Bodega One dark theme to Cabinet: replaced achromatic grayscale `.dark` CSS custom properties with violet-accented palette — `#7936FC` purple for primary/accent/ring, violet-tinted surfaces (chroma 0.005 at hue 290), warm off-white foreground, and a purple-to-cyan gradient chart palette.
