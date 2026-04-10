@@ -127,11 +127,14 @@ function extractNativeModules() {
     fs.mkdirSync(externalModulesDir, { recursive: true });
     fs.cpSync(bundledNodePty, externalNodePty, { recursive: true });
 
-    // Ad-hoc codesign native binaries so macOS allows execution
+    // Remove quarantine flags and ad-hoc codesign native binaries so macOS allows execution
     const prebuildsDir = path.join(externalNodePty, "prebuilds", "darwin-arm64");
     for (const name of ["spawn-helper", "pty.node"]) {
       const target = path.join(prebuildsDir, name);
       if (fs.existsSync(target)) {
+        try {
+          execFileSync("xattr", ["-dr", "com.apple.quarantine", target]);
+        } catch {}
         try {
           execFileSync("codesign", ["--force", "--sign", "-", target]);
         } catch {}

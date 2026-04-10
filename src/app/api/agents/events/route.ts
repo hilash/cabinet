@@ -6,7 +6,7 @@ import { getRespondingAgents } from "@/app/api/agents/slack/route";
 import fs from "fs/promises";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
+import { getRunningConversationCounts, drainConversationNotifications } from "@/lib/agents/conversation-store";
 
 async function getDataDirVersion(): Promise<string> {
   try {
@@ -74,6 +74,20 @@ export async function GET() {
           }));
 
           send("agent_status", agentStatuses);
+
+          // Conversation completion notifications
+          const completedNotifications = drainConversationNotifications();
+          if (completedNotifications.length > 0) {
+            const enriched = completedNotifications.map((n) => {
+              const persona = personas.find((p) => p.slug === n.agentSlug);
+              return {
+                ...n,
+                agentName: persona?.name || n.agentSlug,
+                agentEmoji: persona?.emoji || "🤖",
+              };
+            });
+            send("conversation_completed", enriched);
+          }
 
           // Goal progress (only for agents with goals)
           const goalUpdates: { slug: string; goals: Record<string, { current: number; target: number }> }[] = [];

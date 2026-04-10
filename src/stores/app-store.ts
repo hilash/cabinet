@@ -1,10 +1,11 @@
 import { create } from "zustand";
 
-export type SectionType = "page" | "agents" | "agent" | "jobs" | "settings";
+export type SectionType = "home" | "page" | "agents" | "agent" | "jobs" | "settings";
 
 export interface SelectedSection {
   type: SectionType;
   slug?: string; // agent slug when type === "agent"
+  conversationId?: string; // auto-select this conversation on mount
 }
 
 interface TerminalTab {
@@ -32,7 +33,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  section: { type: "agents" },
+  section: { type: "home" },
   terminalOpen: false,
   terminalTabs: [],
   activeTerminalTab: null,

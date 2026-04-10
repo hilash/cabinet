@@ -232,7 +232,7 @@ export function KBEditor() {
   // When content updates from store (after loadPage), set it in editor
   const prevPathRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!editor || !currentPath) return;
+    if (!editor || currentPath === null) return;
     // Skip if content hasn't actually changed (same path, dirty edit)
     if (useEditorStore.getState().isDirty && currentPath === prevPathRef.current) return;
     prevPathRef.current = currentPath;
@@ -255,7 +255,7 @@ export function KBEditor() {
   };
 
 
-  if (!currentPath) {
+  if (currentPath === null) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
         <div className="text-center space-y-3">

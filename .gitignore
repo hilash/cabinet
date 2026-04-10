@@ -41,13 +41,17 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# data: keep only the shipped template + guidance tracked
+# data: keep only the shipped templates, agent library, and guidance tracked
 data/**
 !data/
 !data/getting-started/
 !data/getting-started/**
-!data/cabinet-example/
-!data/cabinet-example/**
+!data/example-cabinet-carousel-factory/
+!data/example-cabinet-carousel-factory/**
+!data/.agents/
+!data/.agents/.library/
+!data/.agents/.library/**
+!data/index.md
 !data/CLAUDE.md
 data/**/.DS_Store
 

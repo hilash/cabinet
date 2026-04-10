@@ -64,7 +64,13 @@ export async function readBundledReleaseManifest(): Promise<ReleaseManifest> {
 
   try {
     const raw = await fs.readFile(PROJECT_RELEASE_MANIFEST_PATH, "utf-8");
-    return normalizeReleaseManifest(JSON.parse(raw) as Partial<ReleaseManifest>, fallback);
+    const manifest = normalizeReleaseManifest(JSON.parse(raw) as Partial<ReleaseManifest>, fallback);
+    // package.json is the source of truth for the current version —
+    // cabinet-release.json may be stale if a version bump didn't regenerate it
+    if (pkg.version) {
+      manifest.version = pkg.version;
+    }
+    return manifest;
   } catch {
     return fallback;
   }

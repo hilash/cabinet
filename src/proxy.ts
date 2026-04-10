@@ -8,7 +8,7 @@ async function hashToken(password: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const password = process.env.KB_PASSWORD || "";
 
   // Auth disabled — no password set

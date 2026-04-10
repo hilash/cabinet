@@ -436,14 +436,17 @@ export function AgentsWorkspace({
   const [savingJob, setSavingJob] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [hoveredConvId, setHoveredConvId] = useState<string | null>(null);
+  const [quickSendAgent, setQuickSendAgent] = useState<string | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const lastSavedSettingsRef = useRef<string | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const quickSendTextareaRef = useRef<HTMLTextAreaElement>(null);
   const conversationsPanel = useHorizontalResize(340, 260, 520);
   const jobsPanel = useHorizontalResize(280, 220, 420);
   const treeNodes = useTreeStore((state) => state.nodes);
   const selectPage = useTreeStore((state) => state.selectPage);
+  const section = useAppStore((state) => state.section);
   const setSection = useAppStore((state) => state.setSection);
 
   const allPages = flattenTree(treeNodes);
@@ -664,14 +667,19 @@ export function AgentsWorkspace({
   }, [activeAgentSlug, triggerFilter, statusFilter, conversations]);
 
   useEffect(() => {
+    const pendingConvId = section.conversationId || null;
     setActiveAgentSlug(selectedScope === "agent" ? selectedAgentSlug || null : null);
-    setSelectedConversationId(null);
+    setSelectedConversationId(pendingConvId);
     setSelectedConversation(null);
     setSettingsTarget(selectedScope === "agent" ? selectedAgentSlug || null : null);
     setHasLoadedConversations(false);
     setConversationsLoading(true);
-    setMode(selectedScope === "agent" && selectedAgentSlug ? "settings" : "composer");
-  }, [selectedAgentSlug, selectedScope]);
+    if (pendingConvId) {
+      setMode("conversation");
+    } else {
+      setMode(selectedScope === "agent" && selectedAgentSlug ? "settings" : "composer");
+    }
+  }, [selectedAgentSlug, selectedScope, section.conversationId]);
 
   function openAgentWorkspace(agentSlug: string) {
     setActiveAgentSlug(agentSlug);
@@ -681,6 +689,33 @@ export function AgentsWorkspace({
     setMode("settings");
     setSection({ type: "agent", slug: agentSlug });
   }
+
+  function openAgentComposer(agentSlug: string) {
+    setComposerInput("");
+    setMentionedPaths([]);
+    setShowMentions(false);
+    setQuickSendAgent(agentSlug);
+    requestAnimationFrame(() => {
+      quickSendTextareaRef.current?.focus();
+    });
+  }
+
+  // Listen for notification toast clicks to open a specific conversation
+  useEffect(() => {
+    function handler(event: Event) {
+      const { conversationId, agentSlug } = (event as CustomEvent).detail as {
+        conversationId: string;
+        agentSlug: string;
+      };
+      setActiveAgentSlug(agentSlug);
+      setSettingsTarget(agentSlug);
+      setSelectedConversationId(conversationId);
+      setMode("conversation");
+      void refreshConversations();
+    }
+    window.addEventListener("cabinet:open-conversation", handler);
+    return () => window.removeEventListener("cabinet:open-conversation", handler);
+  }, []);
 
   useEffect(() => {
     if (mode === "settings" && settingsAgentSlug) {
@@ -778,6 +813,12 @@ export function AgentsWorkspace({
       void refreshSelectedConversation(selectedConversationId);
     }
   }, [selectedConversationId, conversations]);
+
+  useEffect(() => {
+    const handler = () => { openAddAgentDialog(); };
+    window.addEventListener("cabinet:open-add-agent", handler);
+    return () => window.removeEventListener("cabinet:open-add-agent", handler);
+  }, []);
 
   function openAgentSettings(agentSlug: string) {
     setMode("settings");
@@ -958,6 +999,7 @@ export function AgentsWorkspace({
       const conversation = data.conversation as ConversationMeta;
       setComposerInput("");
       setMentionedPaths([]);
+      setQuickSendAgent(null);
       setActiveAgentSlug(targetAgentSlug);
       setSection({ type: "agent", slug: targetAgentSlug });
       setSelectedConversationId(conversation.id);
@@ -1426,6 +1468,27 @@ export function AgentsWorkspace({
               >
                 <div className="absolute right-3 top-3 flex items-center gap-2">
                   <ActivityBeacon active={isAgentWorking(orgRoot)} />
+                  {chiefAgent ? (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      title={`Send task to ${orgRoot.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openAgentComposer(chiefAgent.slug);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.stopPropagation();
+                          event.preventDefault();
+                          openAgentComposer(chiefAgent.slug);
+                        }
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-background/70 text-primary opacity-0 transition-all hover:bg-primary/10 group-hover:opacity-100"
+                    >
+                      <Send className="h-4 w-4" />
+                    </div>
+                  ) : null}
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-background/70 text-primary">
                     <Crown className="h-5 w-5" />
                   </div>
@@ -1518,6 +1581,25 @@ export function AgentsWorkspace({
                                       <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-muted-foreground">
                                         {agent.role || "Role not set"}
                                       </p>
+                                    </div>
+                                    <div
+                                      role="button"
+                                      tabIndex={0}
+                                      title={`Send task to ${agent.name}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openAgentComposer(agent.slug);
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                          event.stopPropagation();
+                                          event.preventDefault();
+                                          openAgentComposer(agent.slug);
+                                        }
+                                      }}
+                                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg opacity-0 transition-all hover:bg-primary/10 group-hover:opacity-100"
+                                    >
+                                      <Send className="h-3.5 w-3.5 text-primary" />
                                     </div>
                                   </div>
 
@@ -3090,6 +3172,159 @@ export function AgentsWorkspace({
           </div>
         )}
       </div>
+
+      {/* Quick Send popup */}
+      {quickSendAgent ? (() => {
+        const targetAgent = agents.find((a) => a.slug === quickSendAgent) || null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-background/60 backdrop-blur-sm"
+              onClick={() => {
+                setQuickSendAgent(null);
+                setComposerInput("");
+                setMentionedPaths([]);
+                setShowMentions(false);
+              }}
+            />
+            <div className="relative z-10 flex w-full max-w-xl flex-col rounded-2xl border border-border bg-card shadow-2xl">
+              <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-muted text-[22px]">
+                  {targetAgent?.emoji || "🤖"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold text-foreground">
+                    {targetAgent?.name || quickSendAgent}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {targetAgent?.role || "Agent"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickSendAgent(null);
+                    setComposerInput("");
+                    setMentionedPaths([]);
+                    setShowMentions(false);
+                  }}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="relative flex flex-col">
+                <textarea
+                  ref={quickSendTextareaRef}
+                  value={composerInput}
+                  onChange={(event) =>
+                    handleComposerInput(
+                      event.target.value,
+                      event.target.selectionStart || event.target.value.length
+                    )
+                  }
+                  onKeyDown={(event) => {
+                    if (showMentions && filteredMentions.length > 0) {
+                      if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        setMentionIndex((current) => (current + 1) % filteredMentions.length);
+                      } else if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        setMentionIndex((current) =>
+                          current === 0 ? filteredMentions.length - 1 : current - 1
+                        );
+                      } else if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        const page = filteredMentions[mentionIndex];
+                        if (page) insertMention(page.path, page.title);
+                      } else if (event.key === "Escape") {
+                        setShowMentions(false);
+                      }
+                      return;
+                    }
+
+                    if (event.key === "Escape") {
+                      setQuickSendAgent(null);
+                      setComposerInput("");
+                      setMentionedPaths([]);
+                      setShowMentions(false);
+                      return;
+                    }
+
+                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                      event.preventDefault();
+                      void submitConversation(quickSendAgent);
+                    }
+                  }}
+                  placeholder={`Ask ${targetAgent?.name || quickSendAgent} to work on something. Type @ to attach a page as context.`}
+                  style={{ minHeight: "120px", maxHeight: "300px" }}
+                  className="w-full resize-none overflow-y-auto bg-transparent px-5 pt-4 pb-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60"
+                />
+
+                {mentionedPaths.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 px-5 pb-2">
+                    {mentionedPaths.map((path) => (
+                      <span
+                        key={path}
+                        className="group inline-flex items-center gap-0.5 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"
+                      >
+                        @{makePageContextLabel(path, allPages)}
+                        <button
+                          onClick={() =>
+                            setMentionedPaths((current) => current.filter((entry) => entry !== path))
+                          }
+                          className="ml-0.5 inline-flex h-3.5 w-0 items-center justify-center overflow-hidden rounded-full opacity-0 transition-all duration-150 group-hover:w-3.5 group-hover:opacity-100 hover:bg-foreground/10"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {showMentions && filteredMentions.length > 0 ? (
+                  <div className="absolute inset-x-0 bottom-full z-20 mb-2 max-h-[280px] overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-lg">
+                    {filteredMentions.slice(0, 6).map((page, index) => (
+                      <button
+                        key={page.path}
+                        onClick={() => insertMention(page.path, page.title)}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px]",
+                          index === mentionIndex
+                            ? "bg-accent text-foreground"
+                            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        )}
+                      >
+                        <span className="truncate">{page.title}</span>
+                        <span className="ml-3 truncate text-[11px] text-muted-foreground">
+                          {page.path}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘</kbd>
+                    <span>+</span>
+                    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">↵</kbd>
+                  </div>
+                  <Button
+                    className="h-8 gap-2 text-xs"
+                    onClick={() => void submitConversation(quickSendAgent)}
+                    disabled={submitting || !composerInput.trim()}
+                  >
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Send
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { KBEditor } from "@/components/editor/editor";
 import { WebsiteViewer } from "@/components/editor/website-viewer";
 import { PdfViewer } from "@/components/editor/pdf-viewer";
 import { CsvViewer } from "@/components/editor/csv-viewer";
+import { HomeScreen } from "@/components/home/home-screen";
 import { AgentsWorkspace } from "@/components/agents/agents-workspace";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
@@ -17,6 +18,7 @@ import { KeyboardShortcuts } from "@/components/shortcuts/keyboard-shortcuts";
 import { StatusBar } from "@/components/layout/status-bar";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
+import { NotificationToasts } from "@/components/layout/notification-toasts";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useHashRoute } from "@/hooks/use-hash-route";
 import { useTreeStore } from "@/stores/tree-store";
@@ -85,6 +87,14 @@ export function AppShell() {
     try {
       es = new EventSource("/api/agents/events");
       es.addEventListener("tree_changed", () => loadTree());
+      es.addEventListener("conversation_completed", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          window.dispatchEvent(
+            new CustomEvent("cabinet:conversation-completed", { detail: data })
+          );
+        } catch { /* ignore */ }
+      });
     } catch {
       // SSE not supported
     }
@@ -101,7 +111,7 @@ export function AppShell() {
 
   const handleWizardComplete = useCallback(() => {
     setShowWizard(false);
-    setSection({ type: "agents" });
+    setSection({ type: "home" });
     loadTree();
   }, [setSection, loadTree]);
 
@@ -161,6 +171,7 @@ export function AppShell() {
   // Determine what to render in the main area
   const renderContent = () => {
     // System sections (non-page views)
+    if (section.type === "home") return <HomeScreen />;
     if (section.type === "settings") return <SettingsPage />;
     if (section.type === "agents") {
       return <AgentsWorkspace selectedScope="all" selectedAgentSlug={null} />;
@@ -275,6 +286,7 @@ export function AppShell() {
         onOpenDataDir={openDataDir}
         onLater={handleUpdateLater}
       />
+      <NotificationToasts />
     </div>
   );
 }

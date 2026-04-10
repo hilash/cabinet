@@ -163,35 +163,90 @@ function CommunityCardTile({ card }: { card: CommunityCard }) {
   );
 }
 
-function suggestTeam(answers: OnboardingAnswers): SuggestedAgent[] {
-  const agents: SuggestedAgent[] = [
-    { slug: "ceo", name: "CEO Agent", emoji: "\u{1F3AF}", role: "Strategic planning, goal tracking, task delegation", checked: true },
-    { slug: "editor", name: "Editor", emoji: "\u{1F4DD}", role: "KB content, documentation, formatting", checked: true },
-  ];
+/* ─── Keyword → agent pre-check mapping ─── */
+const KEYWORD_CHECKS: [RegExp, string[]][] = [
+  [/content|blog|social|market|brand|newsletter/, ["content-marketer", "social-media", "copywriter"]],
+  [/seo|search|rank|keyword|organic|google/, ["seo"]],
+  [/sales|lead|outreach|revenue|pipeline|deal/, ["sales", "customer-success"]],
+  [/quality|review|proofread|test|audit/, ["qa"]],
+  [/tech|code|engineer|dev|infra|deploy/, ["cto", "devops"]],
+  [/product|feature|roadmap|user research/, ["product-manager"]],
+  [/design|ux|wireframe|prototype/, ["ux-designer"]],
+  [/data|analytics|metrics|dashboard/, ["data-analyst"]],
+  [/finance|budget|runway|fundraise/, ["cfo"]],
+  [/growth|funnel|acquisition|conversion/, ["growth-marketer"]],
+  [/research|competitive|market analysis/, ["researcher"]],
+  [/legal|compliance|contract|privacy/, ["legal"]],
+  [/hiring|culture|hr|onboarding|team health/, ["people-ops"]],
+  [/operations|process|efficiency/, ["coo"]],
+];
 
+const ALWAYS_CHECKED = new Set(["ceo", "editor"]);
+
+const DEPARTMENT_ORDER: [string, string][] = [
+  ["leadership", "Leadership"],
+  ["marketing", "Marketing"],
+  ["engineering", "Engineering"],
+  ["product", "Product & Design"],
+  ["design", "Product & Design"],
+  ["sales", "Business"],
+  ["support", "Business"],
+  ["analytics", "Business"],
+  ["research", "Business"],
+  ["finance", "Finance & Ops"],
+  ["legal", "Finance & Ops"],
+  ["hr", "Finance & Ops"],
+];
+
+function getDepartmentLabel(dept: string): string {
+  const entry = DEPARTMENT_ORDER.find(([key]) => key === dept);
+  return entry ? entry[1] : "Other";
+}
+
+function computeChecked(answers: OnboardingAnswers): Set<string> {
+  const checked = new Set(ALWAYS_CHECKED);
   const desc = (answers.description + " " + answers.goals + " " + answers.priority).toLowerCase();
 
-  if (desc.match(/content|blog|social|market|brand|seo|newsletter/)) {
-    agents.push({ slug: "content-marketer", name: "Content Marketer", emoji: "\u{1F4E3}", role: "Blog, social media, newsletters, content strategy", checked: true });
+  for (const [pattern, slugs] of KEYWORD_CHECKS) {
+    if (pattern.test(desc)) {
+      for (const s of slugs) checked.add(s);
+    }
   }
 
-  if (desc.match(/seo|search|rank|keyword|organic|google/)) {
-    agents.push({ slug: "seo", name: "SEO Specialist", emoji: "\u{1F50D}", role: "Keyword research, site optimization, rankings", checked: false });
+  // Fallback: ensure at least 3 agents are pre-checked
+  if (checked.size < 3) {
+    checked.add("content-marketer");
+    if (checked.size < 3) checked.add("product-manager");
   }
 
-  if (desc.match(/sales|lead|outreach|revenue|customer|pipeline|deal/)) {
-    agents.push({ slug: "sales", name: "Sales Agent", emoji: "\u{1F4B0}", role: "Lead generation, outreach, pipeline management", checked: false });
+  return checked;
+}
+
+interface LibraryTemplate {
+  slug: string;
+  name: string;
+  emoji: string;
+  role: string;
+  department: string;
+  type: string;
+}
+
+function groupByDepartment(agents: SuggestedAgent[], templates: LibraryTemplate[]): [string, SuggestedAgent[]][] {
+  const deptMap = new Map<string, string>();
+  for (const t of templates) deptMap.set(t.slug, t.department);
+
+  const groups = new Map<string, SuggestedAgent[]>();
+  for (const agent of agents) {
+    const label = getDepartmentLabel(deptMap.get(agent.slug) || "general");
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label)!.push(agent);
   }
 
-  if (desc.match(/quality|review|proofread|test|check|audit/)) {
-    agents.push({ slug: "qa", name: "QA Agent", emoji: "\u{1F9EA}", role: "Review, proofread, fact-check content", checked: false });
-  }
-
-  if (agents.length === 2) {
-    agents.push({ slug: "content-marketer", name: "Content Marketer", emoji: "\u{1F4E3}", role: "Blog, social media, newsletters", checked: true });
-  }
-
-  return agents;
+  // Sort groups by the predefined order
+  const labelOrder = Array.from(new Set(DEPARTMENT_ORDER.map(([, l]) => l))).concat("Other");
+  return labelOrder
+    .filter((label) => groups.has(label))
+    .map((label) => [label, groups.get(label)!]);
 }
 
 /* ─── Dot-grid background (from runcabinet.com) ─── */
@@ -210,6 +265,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     priority: "",
   });
   const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[]>([]);
+  const [libraryTemplates, setLibraryTemplates] = useState<LibraryTemplate[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [githubStars, setGithubStars] = useState(GITHUB_STARS_FALLBACK);
   const [providersLoading, setProvidersLoading] = useState(true);
@@ -264,9 +321,33 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     }
   }, [step, checkProvider]);
 
-  const goToTeamSuggestion = () => {
-    setSuggestedAgents(suggestTeam(answers));
+  const goToTeamSuggestion = async () => {
     setStep(3);
+    setAgentsLoading(true);
+    try {
+      const res = await fetch("/api/agents/library");
+      const data = await res.json();
+      const templates: LibraryTemplate[] = data.templates ?? [];
+      setLibraryTemplates(templates);
+      const checked = computeChecked(answers);
+      setSuggestedAgents(
+        templates.map((t) => ({
+          slug: t.slug,
+          name: t.name,
+          emoji: t.emoji,
+          role: t.role,
+          checked: checked.has(t.slug),
+        }))
+      );
+    } catch {
+      // Fallback: at least offer CEO + Editor
+      setSuggestedAgents([
+        { slug: "ceo", name: "CEO Agent", emoji: "\u{1F3AF}", role: "Strategic planning, goal tracking, task delegation", checked: true },
+        { slug: "editor", name: "Editor", emoji: "\u{1F4DD}", role: "KB content, documentation, formatting", checked: true },
+      ]);
+    } finally {
+      setAgentsLoading(false);
+    }
   };
 
   const toggleAgent = (slug: string) => {
@@ -690,46 +771,63 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   Your starter team
                 </h1>
                 <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
-                  Based on your goals, here&apos;s who I recommend. Check the
-                  agents you want &mdash; you can always add more from the library
-                  later.
+                  Based on your goals, we&apos;ve pre-selected a recommended team.
+                  Toggle anyone on or off &mdash; you can always change this later.
                 </p>
               </div>
 
-              <div className="grid gap-2 md:grid-cols-2">
-                {suggestedAgents.map((agent) => (
-                  <button
-                    key={agent.slug}
-                    onClick={() => toggleAgent(agent.slug)}
-                    className="flex w-full items-center gap-3 rounded-xl p-4 text-left transition-all"
-                    style={{
-                      border: `1px solid ${agent.checked ? WEB.accent : WEB.border}`,
-                      background: agent.checked ? WEB.accentBg : WEB.bgCard,
-                    }}
-                  >
-                    <div
-                      className="flex size-5 shrink-0 items-center justify-center rounded"
-                      style={{
-                        border: `1.5px solid ${agent.checked ? WEB.accent : WEB.borderDark}`,
-                        background: agent.checked ? WEB.accent : "transparent",
-                      }}
-                    >
-                      {agent.checked && (
-                        <Check className="size-3 text-white" />
-                      )}
-                    </div>
-                    <span className="text-xl">{agent.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium" style={{ color: WEB.text }}>
-                        {agent.name}
+              {agentsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="size-6 animate-spin" style={{ color: WEB.textTertiary }} />
+                </div>
+              ) : (
+                <div className="space-y-5 max-h-[400px] overflow-y-auto pr-1">
+                  {groupByDepartment(suggestedAgents, libraryTemplates).map(([label, agents]) => (
+                    <div key={label}>
+                      <p
+                        className="mb-2 text-[11px] font-semibold uppercase tracking-wider"
+                        style={{ color: WEB.textTertiary }}
+                      >
+                        {label}
                       </p>
-                      <p className="text-[11px]" style={{ color: WEB.textSecondary }}>
-                        {agent.role}
-                      </p>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {agents.map((agent) => (
+                          <button
+                            key={agent.slug}
+                            onClick={() => toggleAgent(agent.slug)}
+                            className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all"
+                            style={{
+                              border: `1px solid ${agent.checked ? WEB.accent : WEB.border}`,
+                              background: agent.checked ? WEB.accentBg : WEB.bgCard,
+                            }}
+                          >
+                            <div
+                              className="flex size-5 shrink-0 items-center justify-center rounded"
+                              style={{
+                                border: `1.5px solid ${agent.checked ? WEB.accent : WEB.borderDark}`,
+                                background: agent.checked ? WEB.accent : "transparent",
+                              }}
+                            >
+                              {agent.checked && (
+                                <Check className="size-3 text-white" />
+                              )}
+                            </div>
+                            <span className="text-lg">{agent.emoji}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-medium" style={{ color: WEB.text }}>
+                                {agent.name}
+                              </p>
+                              <p className="text-[11px]" style={{ color: WEB.textSecondary }}>
+                                {agent.role}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-2">
                 <button
