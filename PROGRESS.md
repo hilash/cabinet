@@ -71,3 +71,5 @@
 [2026-04-10] Added in-app toast notifications for agent task completion/failure. When a conversation finishes, a slide-in toast appears in the bottom-right with agent emoji, status, and title. Clicking navigates to the conversation. Uses an in-memory notification queue drained by SSE. Documented in notifications.md.
 
 [2026-04-10] Added notification sounds for task completion/failure toasts. Uses Web Audio API to synthesize tones — ascending chime for success, descending tone for failure. No audio files needed.
+
+[2026-04-10] Merged upstream hilash/cabinet v0.2.11 (22 commits) into Bodega One fork. Brought in: home screen, sidebar overhaul, 24 agent library personas, toast notifications, multi-theme system (themes.ts), macOS codesigning, Carousel Factory example data, and hash-based URL routing. Fixed proxy.ts export name from `middleware` to `proxy` per Next.js 16.2.1 convention — caught during post-merge build. All Bodega One customizations preserved (purple dark theme, BodegaOneProvider v2, daemon, proxy.ts, extensions link fix).
