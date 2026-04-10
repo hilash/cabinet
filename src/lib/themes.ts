@@ -529,15 +529,23 @@ export function applyTheme(theme: ThemeDefinition | null) {
 // Get the stored theme name from localStorage
 export function getStoredThemeName(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("cabinet-theme");
+  try {
+    return localStorage.getItem("cabinet-theme");
+  } catch {
+    return null;
+  }
 }
 
 // Store theme name to localStorage
 export function storeThemeName(name: string | null) {
   if (typeof window === "undefined") return;
-  if (name) {
-    localStorage.setItem("cabinet-theme", name);
-  } else {
-    localStorage.removeItem("cabinet-theme");
+  try {
+    if (name) {
+      localStorage.setItem("cabinet-theme", name);
+    } else {
+      localStorage.removeItem("cabinet-theme");
+    }
+  } catch {
+    // localStorage may be unavailable in restricted webview contexts
   }
 }
