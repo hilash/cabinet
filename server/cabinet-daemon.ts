@@ -100,13 +100,10 @@ const completedOutput = new Map<string, { output: string; completedAt: number }>
 
 function resolveSessionCwd(input?: string): string {
   if (!input) return DATA_DIR;
-
-  const resolved = path.resolve(input);
-  if (resolved.startsWith(DATA_DIR)) {
-    return resolved;
-  }
-
-  return DATA_DIR;
+  // Sessions created via the authenticated POST /sessions API can specify any
+  // absolute path (e.g. a team's external data_dir_override). WebSocket-initiated
+  // sessions never pass cwd, so they always land on DATA_DIR via the `!input` branch.
+  return path.resolve(input);
 }
 
 function applyCors(req: http.IncomingMessage, res: http.ServerResponse): void {

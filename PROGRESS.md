@@ -1,5 +1,9 @@
 # Progress
 
+[2026-04-10] Fix daemon rejecting team data directories for Codex sessions: `resolveSessionCwd` in `cabinet-daemon.ts` validated that the cwd must start with `DATA_DIR`, silently falling back to the global data folder for any team with an external `data_dir_override`. WebSocket sessions never pass cwd so remain unaffected; API sessions (authenticated POST /sessions) can now use any absolute path.
+
+[2026-04-10] Auto-reload editor after AI edits: replaced the unreliable store→useEffect reload chain with a custom DOM event `ai:page_updated`. When an AI panel session ends, `handleSessionEnd` dispatches the event after 500ms. `KBEditor` listens and reloads via `loadPage` + direct `editor.commands.setContent`, using `remoteUpdateRef` to prevent double-updates — same proven pattern as the real-time presence system.
+
 [2026-04-09] Thread team context through agent/conversation pipeline: `conversation-runner.ts` now resolves the working directory via `getTeamDataDir(teamSlug)` instead of the global `DATA_DIR`. The AI panel sends `teamSlug` in the POST body, the conversations API route extracts and forwards it, and both `buildEditorConversationPrompt` and `buildManualConversationPrompt` use the team's configured repository folder as cwd and KB root. Jobs' `processPostActions` (git_commit) also now targets the team's dataDir. Mentioned pages are read from the correct team directory.
 
 [2026-04-09] Fixed AI editor not writing to documents: the agent prompt used hardcoded `/data` as the KB root path (Docker convention), but native macOS deployments have a different DATA_DIR. Claude's file tools were targeting a non-existent path, causing silent failures and hallucinated "no changes needed" responses. Fixed by replacing all `/data` literals in `buildEditorConversationPrompt` and `buildManualConversationPrompt` with the actual `DATA_DIR` constant.

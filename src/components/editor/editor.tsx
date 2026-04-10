@@ -299,6 +299,38 @@ export function KBEditor() {
     return () => window.removeEventListener("presence:content_update", handler);
   }, [editor, currentPath]);
 
+  // Reload editor content when AI finishes editing this page
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const { path } = (e as CustomEvent<{ path: string }>).detail;
+      if (!editor) return;
+
+      const state = useEditorStore.getState();
+      if (path !== state.currentPath) return;
+
+      // Use the same guard pattern as the presence system to prevent
+      // the content-change useEffect from double-applying the update.
+      remoteUpdateRef.current = true;
+      isLoadingRef.current = true;
+
+      try {
+        // loadPage fetches fresh content from disk and updates the store
+        await state.loadPage(path);
+        const freshContent = useEditorStore.getState().content;
+        const html = await markdownToHtml(freshContent, path);
+        editor.commands.setContent(html);
+      } finally {
+        setTimeout(() => {
+          isLoadingRef.current = false;
+          remoteUpdateRef.current = false;
+        }, 100);
+      }
+    };
+
+    window.addEventListener("ai:page_updated", handler);
+    return () => window.removeEventListener("ai:page_updated", handler);
+  }, [editor]);
+
   // Broadcast content to collaborators after each successful save
   const prevSaveStatusRef = useRef(saveStatus);
   useEffect(() => {

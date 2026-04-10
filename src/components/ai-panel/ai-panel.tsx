@@ -95,7 +95,7 @@ export function AIPanel() {
     removeSession,
     clearAllSessions,
   } = useAIPanelStore();
-  const { currentPath, loadPage } = useEditorStore();
+  const { currentPath } = useEditorStore();
   const currentTeamSlug = useAppStore((s) => s.currentTeamSlug);
   const treeNodes = useTreeStore((s) => s.nodes);
   const [input, setInput] = useState("");
@@ -360,13 +360,17 @@ export function AIPanel() {
       markSessionCompleted(sessionId);
       await loadPastSessions();
 
-      // Reload the current page if we're still on it
+      // Signal the editor to reload if it's still showing this page
       const currentPagePath = useEditorStore.getState().currentPath;
       if (session && currentPagePath === session.pagePath) {
-        setTimeout(() => loadPage(session.pagePath), 500);
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("ai:page_updated", { detail: { path: session.pagePath } })
+          );
+        }, 500);
       }
     },
-    [loadPage, loadPastSessions, markSessionCompleted]
+    [loadPastSessions, markSessionCompleted]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -566,7 +570,7 @@ export function AIPanel() {
                   onClick={() => {
                     // Navigate to the page where this session is running
                     useAppStore.getState().setSection({ type: "page" });
-                    loadPage(session.pagePath);
+                    useEditorStore.getState().loadPage(session.pagePath);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 border border-[#ffffff08] rounded-lg text-[12px] hover:bg-accent/30 transition-colors cursor-pointer text-left"
                 >
