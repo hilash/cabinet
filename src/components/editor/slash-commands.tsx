@@ -177,12 +177,13 @@ export function SlashCommands({ editor }: SlashCommandsProps) {
             from
           );
           if (from === 1 || textBefore === "" || textBefore === "\n" || textBefore === " ") {
-            // Get cursor position for menu placement
+            // Get cursor position in viewport coordinates
             const coords = editor.view.coordsAtPos(from);
-            const editorRect = editor.view.dom.getBoundingClientRect();
+            const menuWidth = 240;
+            const left = Math.min(coords.left, window.innerWidth - menuWidth - 8);
             setPosition({
-              top: coords.bottom - editorRect.top + 4,
-              left: coords.left - editorRect.left,
+              top: coords.bottom + 6,
+              left,
             });
             setOpen(true);
             setQuery("");
@@ -244,7 +245,7 @@ export function SlashCommands({ editor }: SlashCommandsProps) {
   return (
     <div
       ref={menuRef}
-      className="absolute z-50 w-[240px] bg-popover border border-border rounded-lg shadow-lg py-1 overflow-hidden"
+      className="fixed z-50 w-[240px] bg-popover border border-border rounded-lg shadow-lg py-1 overflow-hidden"
       style={{ top: position.top, left: position.left }}
     >
       {filtered.map((cmd, i) => {

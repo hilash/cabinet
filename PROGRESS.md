@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-09] Fixed slash command menu position: switched from `position: absolute` (relative to outer scroll container) to `position: fixed` (viewport-relative), using raw `coordsAtPos` coordinates. Menu now appears directly below the cursor like Notion, regardless of scroll offset or container nesting.
+
 [2026-04-09] Improved AI panel @ mention UX: (1) current document is now auto-added as a mention chip when the panel opens; (2) the mention list is now team-scoped by reading from useTreeStore instead of fetching /api/tree without team context; (3) typing @ now opens a folder-browsable tree view (browse mode) instead of a flat list — users can click folders to drill in, use Back to go up, and Escape navigates up one level; typing text after @ still triggers the flat search mode.
 
 [2026-04-09] Fixed team-switching race condition: switching from a slow-loading Team X to Team Y would eventually show Team X's documents (the slow fetch completed after Y's fast fetch). Fixed by adding an AbortController in tree-store.ts that cancels any in-flight fetch when a new loadTree() starts, and clearing `selectedPath`/`nodes` immediately on team change in app-shell.tsx so stale content never lingers.
