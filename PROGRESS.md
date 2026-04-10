@@ -22,3 +22,5 @@
 
 [2026-04-09] Fixed Claude CLI not being found in Electron DMG builds. The packaged app inherits macOS GUI PATH which lacks NVM paths. Added NVM bin detection (scans ~/.nvm/versions/node/) to RUNTIME_PATH in provider-cli.ts, enrichedPath in cabinet-daemon.ts, and commandCandidates in claude-code provider.
 
+[2026-04-10] Fixed three critical startup issues: (1) `npm run dev` now starts both Next.js and the cabinet daemon together (daemon was previously only started via `dev:all`). (2) Removed duplicate Tiptap Link extension — StarterKit v3 bundles Link by default; added `link: false` to StarterKit.configure() so the custom wiki-link-aware version is the only registration. (3) Renamed `src/middleware.ts` to `src/proxy.ts` per Next.js 16.2.1 convention. Verified Bodega One connection: health, llm/health, and sessions endpoints all respond correctly (defaultModel: qwen3.5:2b).
+

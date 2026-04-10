@@ -4,10 +4,11 @@
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
-    "dev": "next dev",
+    "dev": "npm run dev:next & npm run dev:daemon",
+    "dev:next": "next dev",
     "dev:terminal": "tsx server/terminal-server.ts",
     "dev:daemon": "tsx server/cabinet-daemon.ts",
-    "dev:all": "npm run dev & npm run dev:daemon",
+    "dev:all": "npm run dev:next & npm run dev:daemon",
     "debug:chrome": "bash scripts/launch-chrome-debug.sh",
     "build": "next build",
     "electron:prep": "node scripts/prepare-electron-package.mjs",
