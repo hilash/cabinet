@@ -9,8 +9,12 @@ import { SlashCommands } from "./slash-commands";
 import { useEditorStore } from "@/stores/editor-store";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
 import { useTreeStore } from "@/stores/tree-store";
+import { usePresenceStore } from "@/stores/presence-store";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
+import { sendPresenceUpdate, sendContentBroadcast } from "@/components/presence/presence-provider";
+import { RemoteCursors } from "@/components/presence/remote-cursors";
+import { authClient } from "@/lib/auth-client";
 import type { TreeNode } from "@/types";
 
 async function uploadFile(pagePath: string, file: File): Promise<string | null> {
@@ -111,9 +115,24 @@ export function KBEditor() {
   const { currentPath, content, saveStatus, frontmatter } = useEditorStore();
   const isRtl = frontmatter?.dir === "rtl";
   const { open: openAI, clearMessages } = useAIPanelStore();
+  const remoteUsers = usePresenceStore((s) => s.remoteUsers);
+  const { data: session } = authClient.useSession();
   const isLoadingRef = useRef(false);
+  const remoteUpdateRef = useRef(false); // true while applying a remote content update
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceText, setSourceText] = useState("");
+  // Debounce ref for presence cursor updates (300ms)
+  const presenceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const debouncedSendPresence = useCallback(
+    (extra: { selectionFrom?: number; selectionTo?: number; scrollY?: number }) => {
+      if (presenceDebounceRef.current) clearTimeout(presenceDebounceRef.current);
+      presenceDebounceRef.current = setTimeout(() => {
+        sendPresenceUpdate(extra);
+      }, 300);
+    },
+    []
+  );
 
   const handleUpdate = useCallback(
     ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
@@ -144,6 +163,11 @@ export function KBEditor() {
     extensions: editorExtensions,
     content: "",
     onUpdate: handleUpdate,
+    onSelectionUpdate: ({ editor: ed }) => {
+      if (isLoadingRef.current || !ed) return;
+      const { from, to } = ed.state.selection;
+      debouncedSendPresence({ selectionFrom: from, selectionTo: to });
+    },
     editorProps: {
       attributes: {
         class:
@@ -235,6 +259,8 @@ export function KBEditor() {
     if (!editor || !currentPath) return;
     // Skip if content hasn't actually changed (same path, dirty edit)
     if (useEditorStore.getState().isDirty && currentPath === prevPathRef.current) return;
+    // Skip if this content change came from applying a remote update (already set in editor)
+    if (remoteUpdateRef.current) return;
     prevPathRef.current = currentPath;
 
     const setContent = async () => {
@@ -248,6 +274,40 @@ export function KBEditor() {
 
     setContent();
   }, [editor, content, currentPath]);
+
+  // Apply incoming real-time content updates from collaborators
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { path, content: remoteContent } = (e as CustomEvent<{ path: string; content: string }>).detail;
+      const { currentPath: localPath } = useEditorStore.getState();
+      if (!editor || path !== localPath) return;
+
+      remoteUpdateRef.current = true;
+      isLoadingRef.current = true;
+      markdownToHtml(remoteContent, path).then((html) => {
+        editor.commands.setContent(html);
+        // Sync store so subsequent saves use the latest content
+        useEditorStore.setState({ content: remoteContent, isDirty: false });
+        setTimeout(() => {
+          isLoadingRef.current = false;
+          remoteUpdateRef.current = false;
+        }, 100);
+      });
+    };
+
+    window.addEventListener("presence:content_update", handler);
+    return () => window.removeEventListener("presence:content_update", handler);
+  }, [editor, currentPath]);
+
+  // Broadcast content to collaborators after each successful save
+  const prevSaveStatusRef = useRef(saveStatus);
+  useEffect(() => {
+    if (saveStatus === "saved" && prevSaveStatusRef.current !== "saved") {
+      const { currentPath: path, content: md } = useEditorStore.getState();
+      if (path && md) sendContentBroadcast(path, md);
+    }
+    prevSaveStatusRef.current = saveStatus;
+  }, [saveStatus]);
 
   const handleOpenAI = () => {
     clearMessages();
@@ -317,8 +377,22 @@ export function KBEditor() {
           />
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto relative" dir={isRtl ? "rtl" : undefined}>
+        <div
+          className="flex-1 overflow-y-auto relative"
+          dir={isRtl ? "rtl" : undefined}
+          onScroll={(e) =>
+            debouncedSendPresence({ scrollY: (e.target as HTMLElement).scrollTop })
+          }
+        >
           <EditorContent editor={editor} />
+          <RemoteCursors
+            users={remoteUsers.filter(
+              (u) =>
+                u.currentPath === currentPath &&
+                u.userId !== session?.user?.id
+            )}
+            editor={editor}
+          />
           <SlashCommands editor={editor} />
 
           {/* AI Edit Prompt */}

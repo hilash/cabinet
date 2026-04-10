@@ -10,6 +10,7 @@ import {
 import { useEditorStore } from "@/stores/editor-store";
 import { VersionHistory } from "@/components/editor/version-history";
 import { HeaderActions } from "@/components/layout/header-actions";
+import { PresenceAvatars } from "@/components/presence/presence-avatars";
 
 export function Header() {
   const { frontmatter, content, currentPath } = useEditorStore();
@@ -54,6 +55,9 @@ export function Header() {
         </h1>
       </div>
       <div className="flex items-center gap-1">
+        {/* Presence: online collaborator avatars — leftmost in the action bar */}
+        <PresenceAvatars />
+
         {/* Export dropdown */}
         {currentPath && (
           <DropdownMenu>

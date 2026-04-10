@@ -15,6 +15,7 @@ import { AIPanel } from "@/components/ai-panel/ai-panel";
 import { SearchDialog } from "@/components/search/search-dialog";
 import { KeyboardShortcuts } from "@/components/shortcuts/keyboard-shortcuts";
 import { StatusBar } from "@/components/layout/status-bar";
+import { PresenceProvider } from "@/components/presence/presence-provider";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
@@ -242,6 +243,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen bg-background text-foreground">
+      <PresenceProvider />
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <main className="flex-1 flex flex-col overflow-hidden">
