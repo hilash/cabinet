@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
+import { useAppStore } from "@/stores/app-store";
 
 interface LinkRepoDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ export function LinkRepoDialog({ open, onOpenChange }: LinkRepoDialogProps) {
   const loadTree = useTreeStore((s) => s.loadTree);
   const selectPage = useTreeStore((s) => s.selectPage);
   const loadPage = useEditorStore((s) => s.loadPage);
+  const currentTeamSlug = useAppStore((s) => s.currentTeamSlug);
 
   const [localPath, setLocalPath] = useState("");
   const [name, setName] = useState("");
@@ -96,6 +98,7 @@ export function LinkRepoDialog({ open, onOpenChange }: LinkRepoDialogProps) {
           name: name.trim() || basenameForPath(localPath),
           remote: remote.trim() || undefined,
           description: description.trim() || undefined,
+          teamSlug: currentTeamSlug ?? undefined,
         }),
       });
 

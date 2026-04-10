@@ -5,11 +5,12 @@ import yaml from "js-yaml";
 import simpleGit from "simple-git";
 import { NextRequest, NextResponse } from "next/server";
 import {
-  resolveContentPath,
+  DATA_DIR,
   sanitizeFilename,
 } from "@/lib/storage/path-utils";
 import { ensureDirectory, fileExists, writeFileContent } from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
+import { getTeamDataDir } from "@/lib/teams/team-fs";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ interface LinkRepoRequest {
   name?: string;
   remote?: string;
   description?: string;
+  teamSlug?: string;
 }
 
 async function detectGitMetadata(localPath: string): Promise<{
@@ -116,7 +118,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    targetDir = resolveContentPath(folderName);
+    const rootDir = body.teamSlug ? getTeamDataDir(body.teamSlug) : DATA_DIR;
+    targetDir = path.join(rootDir, folderName);
+    if (!targetDir.startsWith(rootDir + path.sep)) {
+      return NextResponse.json({ error: "Invalid folder name." }, { status: 400 });
+    }
     if (await fileExists(targetDir)) {
       return NextResponse.json(
         { error: `A Knowledge Base folder named "${folderName}" already exists.` },
@@ -168,7 +174,7 @@ export async function POST(req: NextRequest) {
       process.platform === "win32" ? "junction" : "dir"
     );
 
-    autoCommit(folderName, "Add");
+    autoCommit(folderName, "Add", rootDir);
 
     return NextResponse.json({
       ok: true,
