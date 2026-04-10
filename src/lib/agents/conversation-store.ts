@@ -19,6 +19,22 @@ import {
 
 export const CONVERSATIONS_DIR = path.join(DATA_DIR, ".agents", ".conversations");
 
+// ── In-memory notification queue for completed/failed conversations ──
+export interface ConversationNotification {
+  id: string;
+  agentSlug: string;
+  title: string;
+  status: ConversationStatus;
+  summary?: string;
+  completedAt: string;
+}
+
+const notificationQueue: ConversationNotification[] = [];
+
+export function drainConversationNotifications(): ConversationNotification[] {
+  return notificationQueue.splice(0, notificationQueue.length);
+}
+
 interface CreateConversationInput {
   agentSlug: string;
   title: string;
@@ -580,6 +596,18 @@ export async function finalizeConversation(
     writeConversationMeta(meta),
     replaceConversationArtifacts(id, artifacts),
   ]);
+
+  // Push notification for terminal statuses
+  if (meta.status === "completed" || meta.status === "failed") {
+    notificationQueue.push({
+      id: meta.id,
+      agentSlug: meta.agentSlug,
+      title: meta.title,
+      status: meta.status,
+      summary: meta.summary,
+      completedAt: meta.completedAt || new Date().toISOString(),
+    });
+  }
 
   return meta;
 }

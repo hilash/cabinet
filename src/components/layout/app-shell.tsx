@@ -17,6 +17,7 @@ import { KeyboardShortcuts } from "@/components/shortcuts/keyboard-shortcuts";
 import { StatusBar } from "@/components/layout/status-bar";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
+import { NotificationToasts } from "@/components/layout/notification-toasts";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useHashRoute } from "@/hooks/use-hash-route";
 import { useTreeStore } from "@/stores/tree-store";
@@ -85,6 +86,14 @@ export function AppShell() {
     try {
       es = new EventSource("/api/agents/events");
       es.addEventListener("tree_changed", () => loadTree());
+      es.addEventListener("conversation_completed", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          window.dispatchEvent(
+            new CustomEvent("cabinet:conversation-completed", { detail: data })
+          );
+        } catch { /* ignore */ }
+      });
     } catch {
       // SSE not supported
     }
@@ -275,6 +284,7 @@ export function AppShell() {
         onOpenDataDir={openDataDir}
         onLater={handleUpdateLater}
       />
+      <NotificationToasts />
     </div>
   );
 }
