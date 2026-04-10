@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
+    "@better-fetch/fetch": "^1.1.21",
     "@tailwindcss/typography": "^0.5.19",
     "@tiptap/extension-code-block-lowlight": "^3.20.4",
     "@tiptap/extension-image": "^3.20.4",
@@ -43,6 +44,7 @@
     "@xterm/addon-unicode11": "^0.9.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
+    "better-auth": "^1.6.2",
     "better-sqlite3": "^12.8.0",
     "chokidar": "^5.0.0",
     "class-variance-authority": "^0.7.1",

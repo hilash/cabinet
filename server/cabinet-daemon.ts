@@ -90,6 +90,9 @@ interface PtySession {
   resolvedStatus?: "completed" | "failed";
   resolvingStatus?: boolean;
   readyStrategy?: "claude";
+  // Multi-user isolation
+  userId?: string;
+  teamSlug?: string;
 }
 
 const sessions = new Map<string, PtySession>();
@@ -97,13 +100,10 @@ const completedOutput = new Map<string, { output: string; completedAt: number }>
 
 function resolveSessionCwd(input?: string): string {
   if (!input) return DATA_DIR;
-
-  const resolved = path.resolve(input);
-  if (resolved.startsWith(DATA_DIR)) {
-    return resolved;
-  }
-
-  return DATA_DIR;
+  // Sessions created via the authenticated POST /sessions API can specify any
+  // absolute path (e.g. a team's external data_dir_override). WebSocket-initiated
+  // sessions never pass cwd, so they always land on DATA_DIR via the `!input` branch.
+  return path.resolve(input);
 }
 
 function applyCors(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -375,6 +375,8 @@ function createDetachedSession(input: {
   cwd?: string;
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
+  userId?: string;
+  teamSlug?: string;
 }): PtySession {
   const cwd = resolveSessionCwd(input.cwd);
   const launch = getSessionLaunchSpec({
@@ -413,6 +415,8 @@ function createDetachedSession(input: {
     promptSubmittedOutputLength: 0,
     autoExitRequested: false,
     readyStrategy: launch.readyStrategy,
+    userId: input.userId,
+    teamSlug: input.teamSlug,
   };
   sessions.set(input.sessionId, session);
 
@@ -781,12 +785,16 @@ const server = http.createServer(async (req, res) => {
           prompt,
           cwd,
           timeoutSeconds,
+          userId,
+          teamSlug,
         } = JSON.parse(body) as {
           id: string;
           providerId?: string;
           prompt?: string;
           cwd?: string;
           timeoutSeconds?: number;
+          userId?: string;
+          teamSlug?: string;
         };
         const sessionId = id || `session-${Date.now()}`;
 
@@ -803,6 +811,8 @@ const server = http.createServer(async (req, res) => {
             prompt,
             cwd,
             timeoutSeconds,
+            userId,
+            teamSlug,
           });
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -823,15 +833,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET /sessions — list all active sessions
+  // GET /sessions — list all active sessions (optionally filtered by ?userId=)
   if (url.pathname === "/sessions" && req.method === "GET") {
-    const activeSessions = Array.from(sessions.values()).map((s) => ({
-      id: s.id,
-      createdAt: s.createdAt.toISOString(),
-      connected: s.ws !== null,
-      exited: s.exited,
-      exitCode: s.exitCode,
-    }));
+    const filterUserId = url.searchParams.get("userId") ?? undefined;
+    const activeSessions = Array.from(sessions.values())
+      .filter((s) => !filterUserId || s.userId === filterUserId)
+      .map((s) => ({
+        id: s.id,
+        createdAt: s.createdAt.toISOString(),
+        connected: s.ws !== null,
+        exited: s.exited,
+        exitCode: s.exitCode,
+        userId: s.userId,
+        teamSlug: s.teamSlug,
+      }));
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(activeSessions));
     return;

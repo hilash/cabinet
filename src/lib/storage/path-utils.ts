@@ -12,16 +12,18 @@ export const BACKUP_ROOT = isElectronRuntime()
   ? path.join(path.dirname(DATA_DIR), "cabinet-backups")
   : path.resolve(PROJECT_ROOT, "..", ".cabinet-backups", path.basename(PROJECT_ROOT));
 
-export function resolveContentPath(virtualPath: string): string {
-  const resolved = path.resolve(DATA_DIR, virtualPath);
-  if (!resolved.startsWith(DATA_DIR)) {
+export function resolveContentPath(virtualPath: string, rootDir?: string): string {
+  const base = rootDir ?? DATA_DIR;
+  const resolved = path.resolve(base, virtualPath);
+  if (!resolved.startsWith(base)) {
     throw new Error("Path traversal detected");
   }
   return resolved;
 }
 
-export function virtualPathFromFs(fsPath: string): string {
-  return fsPath.replace(DATA_DIR, "").replace(/^\//, "");
+export function virtualPathFromFs(fsPath: string, rootDir?: string): string {
+  const base = rootDir ?? DATA_DIR;
+  return fsPath.replace(base, "").replace(/^\//, "");
 }
 
 export function sanitizeFilename(name: string): string {

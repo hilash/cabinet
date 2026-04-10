@@ -15,12 +15,13 @@ import { AIPanel } from "@/components/ai-panel/ai-panel";
 import { SearchDialog } from "@/components/search/search-dialog";
 import { KeyboardShortcuts } from "@/components/shortcuts/keyboard-shortcuts";
 import { StatusBar } from "@/components/layout/status-bar";
+import { PresenceProvider } from "@/components/presence/presence-provider";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
-import { useHashRoute } from "@/hooks/use-hash-route";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { fetchUserTeams } from "@/lib/api/client";
 import type { TreeNode } from "@/types";
 
 const DISMISSED_UPDATE_STORAGE_KEY = "cabinet.dismissed-update-version";
@@ -42,8 +43,9 @@ export function AppShell() {
   const selectedPath = useTreeStore((s) => s.selectedPath);
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
+  const setTeams = useAppStore((s) => s.setTeams);
+  const currentTeamSlug = useAppStore((s) => s.currentTeamSlug);
   const terminalOpen = useAppStore((s) => s.terminalOpen);
-  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
   const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
@@ -60,9 +62,6 @@ export function AppShell() {
     applyUpdate,
   } = useCabinetUpdate({ autoRefresh: true });
 
-  // Sync navigation state with URL hash + localStorage
-  useHashRoute();
-
   // Onboarding wizard state
   const [showWizard, setShowWizard] = useState<boolean | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -75,9 +74,18 @@ export function AppShell() {
     }
   });
 
+  // Load user's teams on mount; team selection triggers tree reload
   useEffect(() => {
+    fetchUserTeams()
+      .then((teams) => setTeams(teams))
+      .catch(() => {/* no teams (legacy mode) */});
+  }, [setTeams]);
+
+  // Reload tree whenever active team changes; clear stale selection immediately
+  useEffect(() => {
+    useTreeStore.setState({ selectedPath: null, nodes: [] });
     loadTree();
-  }, [loadTree]);
+  }, [loadTree, currentTeamSlug]);
 
   // Auto-refresh sidebar when /data changes (detected via SSE)
   useEffect(() => {
@@ -236,11 +244,9 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen bg-background text-foreground">
+      <PresenceProvider />
       <Sidebar />
-      <div
-        className="flex-1 flex flex-col overflow-hidden"
-        style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '2.25rem' : '0px' } as React.CSSProperties}
-      >
+      <div className="flex-1 flex flex-col overflow-hidden">
         <main className="flex-1 flex flex-col overflow-hidden">
           {renderContent()}
         </main>

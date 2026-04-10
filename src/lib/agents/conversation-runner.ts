@@ -2,6 +2,7 @@ import type { JobConfig, JobRun, JobPostAction } from "@/types/jobs";
 import type { ConversationMeta } from "@/types/conversations";
 import { readPage } from "../storage/page-io";
 import { DATA_DIR } from "../storage/path-utils";
+import { getTeamDataDir } from "../teams/team-fs";
 import {
   appendConversationTranscript,
   createConversation,
@@ -30,6 +31,11 @@ interface StartConversationInput {
   cwd?: string;
   timeoutSeconds?: number;
   onComplete?: (completion: ConversationCompletion) => Promise<void> | void;
+}
+
+function resolveDataDir(teamSlug?: string): string {
+  if (teamSlug) return getTeamDataDir(teamSlug);
+  return DATA_DIR;
 }
 
 function buildCabinetEpilogueInstructions(): string {
@@ -61,13 +67,13 @@ function makeTitle(text: string): string {
   return firstLine.slice(0, 80);
 }
 
-async function buildMentionContext(mentionedPaths: string[]): Promise<string> {
+async function buildMentionContext(mentionedPaths: string[], dataDir?: string): Promise<string> {
   if (mentionedPaths.length === 0) return "";
 
   const chunks = await Promise.all(
     mentionedPaths.map(async (pagePath) => {
       try {
-        const page = await readPage(pagePath);
+        const page = await readPage(pagePath, dataDir);
         return `--- ${page.frontmatter.title} (${pagePath}) ---\n${page.content}`;
       } catch {
         return null;
@@ -85,25 +91,27 @@ export async function buildManualConversationPrompt(input: {
   agentSlug: string;
   userMessage: string;
   mentionedPaths?: string[];
+  teamSlug?: string;
 }): Promise<{
   prompt: string;
   title: string;
   cwd?: string;
   providerId: string;
 }> {
+  const dataDir = resolveDataDir(input.teamSlug);
   const persona = input.agentSlug === "general"
     ? null
     : await readPersona(input.agentSlug);
-  const mentionContext = await buildMentionContext(input.mentionedPaths || []);
+  const mentionContext = await buildMentionContext(input.mentionedPaths || [], dataDir);
   const cwd =
     persona?.workdir && persona.workdir !== "/data"
-      ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
-      : DATA_DIR;
+      ? `${dataDir}/${persona.workdir.replace(/^\/+/, "")}`
+      : dataDir;
 
   const prompt = [
     buildAgentContextHeader(persona, input.agentSlug),
     "",
-    "Work in the Cabinet knowledge base at /data.",
+    `Work in the Cabinet knowledge base at ${dataDir}.`,
     "Reflect useful outputs in KB files, not only in terminal text.",
     buildCabinetEpilogueInstructions(),
     "",
@@ -122,6 +130,7 @@ export async function buildEditorConversationPrompt(input: {
   pagePath: string;
   userMessage: string;
   mentionedPaths?: string[];
+  teamSlug?: string;
 }): Promise<{
   prompt: string;
   title: string;
@@ -129,22 +138,23 @@ export async function buildEditorConversationPrompt(input: {
   mentionedPaths: string[];
   providerId: string;
 }> {
+  const dataDir = resolveDataDir(input.teamSlug);
   const persona = await readPersona("editor");
   const combinedMentionedPaths = Array.from(
     new Set([input.pagePath, ...(input.mentionedPaths || [])])
   );
-  const mentionContext = await buildMentionContext(combinedMentionedPaths);
+  const mentionContext = await buildMentionContext(combinedMentionedPaths, dataDir);
   const cwd =
     persona?.workdir && persona.workdir !== "/data"
-      ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
-      : DATA_DIR;
+      ? `${dataDir}/${persona.workdir.replace(/^\/+/, "")}`
+      : dataDir;
 
   const prompt = [
     buildAgentContextHeader(persona, "editor"),
     "",
-    `You are editing the page at /data/${input.pagePath}.`,
-    `Prefer making the requested changes directly in ${input.pagePath} unless the task clearly belongs in another KB file.`,
-    "Work in the Cabinet knowledge base at /data.",
+    `You are editing the page at ${dataDir}/${input.pagePath}.`,
+    `Prefer making the requested changes directly in ${dataDir}/${input.pagePath} unless the task clearly belongs in another KB file.`,
+    `Work in the Cabinet knowledge base at ${dataDir}.`,
     "Edit KB files directly and reflect useful outputs in the KB, not only in terminal text.",
     buildCabinetEpilogueInstructions(),
     "",
@@ -280,7 +290,8 @@ function substituteTemplateVars(text: string, job: JobConfig): string {
 
 async function processPostActions(
   actions: JobPostAction[] | undefined,
-  job: JobConfig
+  job: JobConfig,
+  dataDir: string = DATA_DIR
 ): Promise<void> {
   if (!actions || actions.length === 0) return;
 
@@ -288,7 +299,7 @@ async function processPostActions(
     try {
       if (action.action === "git_commit") {
         const simpleGit = (await import("simple-git")).default;
-        const git = simpleGit(DATA_DIR);
+        const git = simpleGit(dataDir);
         await git.add(".");
         await git.commit(
           substituteTemplateVars(
@@ -303,15 +314,16 @@ async function processPostActions(
   }
 }
 
-export async function startJobConversation(job: JobConfig): Promise<JobRun> {
+export async function startJobConversation(job: JobConfig, teamSlug?: string): Promise<JobRun> {
+  const dataDir = resolveDataDir(teamSlug);
   const persona = job.agentSlug ? await readPersona(job.agentSlug) : null;
   const jobPrompt = substituteTemplateVars(job.prompt, job);
   const cwd =
     job.workdir && job.workdir !== "/data"
-      ? `${DATA_DIR}/${job.workdir.replace(/^\/+/, "")}`
+      ? `${dataDir}/${job.workdir.replace(/^\/+/, "")}`
       : persona?.workdir && persona.workdir !== "/data"
-        ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
-        : DATA_DIR;
+        ? `${dataDir}/${persona.workdir.replace(/^\/+/, "")}`
+        : dataDir;
 
   const prompt = [
     buildAgentContextHeader(persona, job.agentSlug || "agent"),
@@ -335,9 +347,9 @@ export async function startJobConversation(job: JobConfig): Promise<JobRun> {
     timeoutSeconds: job.timeout || 600,
     onComplete: async (completion) => {
       if (completion.status === "completed") {
-        await processPostActions(job.on_complete, job);
+        await processPostActions(job.on_complete, job, dataDir);
       } else {
-        await processPostActions(job.on_failure, job);
+        await processPostActions(job.on_failure, job, dataDir);
       }
     },
   });

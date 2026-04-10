@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   X,
   Send,
@@ -12,12 +12,15 @@ import {
   CheckCircle,
   Clock,
   Loader2,
+  Folder,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useAppStore } from "@/stores/app-store";
+import { useTreeStore } from "@/stores/tree-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import type { TreeNode } from "@/types";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
@@ -43,6 +46,35 @@ function flattenTree(nodes: TreeNode[]): FlatPage[] {
   return result;
 }
 
+function findNodeByPath(nodes: TreeNode[], path: string): TreeNode | null {
+  for (const node of nodes) {
+    if (node.path === path) return node;
+    if (node.children) {
+      const found = findNodeByPath(node.children, path);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function getParentPath(path: string): string | null {
+  const idx = path.lastIndexOf("/");
+  return idx === -1 ? null : path.slice(0, idx);
+}
+
+interface BrowseItem {
+  node: TreeNode;
+  isFolder: boolean;
+}
+
+function getBrowseItems(nodes: TreeNode[], browsePath: string | null): BrowseItem[] {
+  const children =
+    browsePath === null ? nodes : (findNodeByPath(nodes, browsePath)?.children ?? []);
+  return (children ?? [])
+    .filter((n) => n.type !== "website")
+    .map((n) => ({ node: n, isFolder: !!(n.children && n.children.length > 0) }));
+}
+
 interface PastSession {
   id: string;
   pagePath: string;
@@ -63,7 +95,9 @@ export function AIPanel() {
     removeSession,
     clearAllSessions,
   } = useAIPanelStore();
-  const { currentPath, loadPage } = useEditorStore();
+  const { currentPath } = useEditorStore();
+  const currentTeamSlug = useAppStore((s) => s.currentTeamSlug);
+  const treeNodes = useTreeStore((s) => s.nodes);
   const [input, setInput] = useState("");
   const [mentionedPages, setMentionedPages] = useState<string[]>([]);
   const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
@@ -71,13 +105,14 @@ export function AIPanel() {
   const [pastSessionDetails, setPastSessionDetails] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prevIsOpenRef = useRef(false);
 
   // @ mention state
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
-  const [allPages, setAllPages] = useState<FlatPage[]>([]);
   const [mentionStartPos, setMentionStartPos] = useState(0);
+  const [mentionBrowsePath, setMentionBrowsePath] = useState<string | null>(null);
 
   const loadPastSessions = useCallback(async () => {
     if (!currentPath || !isOpen) return;
@@ -172,31 +207,22 @@ export function AIPanel() {
     restore();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load pages for @ mentions
-  useEffect(() => {
-    if (!isOpen) return;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/tree");
-        if (res.ok) {
-          const tree = await res.json();
-          setAllPages(flattenTree(tree));
-        }
-      } catch {}
-    };
-    load();
-  }, [isOpen]);
+  const allPages = useMemo(() => flattenTree(treeNodes), [treeNodes]);
+
+  const filteredPages = useMemo(
+    () =>
+      allPages.filter(
+        (p) =>
+          p.title.toLowerCase().includes(mentionQuery.toLowerCase()) ||
+          p.path.toLowerCase().includes(mentionQuery.toLowerCase())
+      ),
+    [allPages, mentionQuery]
+  );
 
   // Load past sessions when page changes
   useEffect(() => {
     void loadPastSessions();
   }, [loadPastSessions]);
-
-  const filteredPages = allPages.filter(
-    (p) =>
-      p.title.toLowerCase().includes(mentionQuery.toLowerCase()) ||
-      p.path.toLowerCase().includes(mentionQuery.toLowerCase())
-  );
 
   // Auto-scroll on new sessions
   useEffect(() => {
@@ -211,6 +237,17 @@ export function AIPanel() {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Auto-mention current page each time the panel opens
+  useEffect(() => {
+    const wasOpen = prevIsOpenRef.current;
+    prevIsOpenRef.current = isOpen;
+    if (isOpen && !wasOpen && currentPath) {
+      setMentionedPages((prev) =>
+        prev.includes(currentPath) ? prev : [...prev, currentPath]
+      );
+    }
+  }, [isOpen, currentPath]);
 
   const insertMention = useCallback(
     (page: FlatPage) => {
@@ -254,6 +291,7 @@ export function AIPanel() {
           setMentionQuery(query);
           setMentionIndex(0);
           setMentionStartPos(atIndex);
+          setMentionBrowsePath(null);
           return;
         }
       }
@@ -278,6 +316,7 @@ export function AIPanel() {
           pagePath: currentPath,
           userMessage: instruction,
           mentionedPaths: selectedMentionedPages,
+          teamSlug: currentTeamSlug,
         }),
       });
 
@@ -321,36 +360,88 @@ export function AIPanel() {
       markSessionCompleted(sessionId);
       await loadPastSessions();
 
-      // Reload the current page if we're still on it
+      // Signal the editor to reload if it's still showing this page
       const currentPagePath = useEditorStore.getState().currentPath;
       if (session && currentPagePath === session.pagePath) {
-        setTimeout(() => loadPage(session.pagePath), 500);
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("ai:page_updated", { detail: { path: session.pagePath } })
+          );
+        }, 500);
       }
     },
-    [loadPage, loadPastSessions, markSessionCompleted]
+    [loadPastSessions, markSessionCompleted]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showMentions && filteredPages.length > 0) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setMentionIndex((i) => Math.min(i + 1, filteredPages.length - 1));
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setMentionIndex((i) => Math.max(i - 1, 0));
-        return;
-      }
-      if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        insertMention(filteredPages[mentionIndex]);
-        return;
-      }
+    if (showMentions) {
+      const isBrowseMode = mentionQuery.length === 0;
+
       if (e.key === "Escape") {
         e.preventDefault();
-        setShowMentions(false);
+        if (isBrowseMode && mentionBrowsePath !== null) {
+          setMentionBrowsePath(getParentPath(mentionBrowsePath));
+          setMentionIndex(0);
+        } else {
+          setShowMentions(false);
+        }
         return;
+      }
+
+      if (isBrowseMode) {
+        const browseItems = getBrowseItems(treeNodes, mentionBrowsePath);
+        const hasBackRow = mentionBrowsePath !== null;
+        const totalRows = (hasBackRow ? 1 : 0) + browseItems.length;
+
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setMentionIndex((i) => Math.min(i + 1, totalRows - 1));
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setMentionIndex((i) => Math.max(i - 1, 0));
+          return;
+        }
+        if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          if (hasBackRow && mentionIndex === 0) {
+            setMentionBrowsePath(getParentPath(mentionBrowsePath));
+            setMentionIndex(0);
+          } else {
+            const item = browseItems[mentionIndex - (hasBackRow ? 1 : 0)];
+            if (item) {
+              if (item.isFolder) {
+                setMentionBrowsePath(item.node.path);
+                setMentionIndex(0);
+              } else {
+                insertMention({
+                  path: item.node.path,
+                  title: item.node.frontmatter?.title || item.node.name,
+                });
+              }
+            }
+          }
+          return;
+        }
+      } else {
+        if (filteredPages.length > 0) {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setMentionIndex((i) => Math.min(i + 1, filteredPages.length - 1));
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setMentionIndex((i) => Math.max(i - 1, 0));
+            return;
+          }
+          if (e.key === "Enter" || e.key === "Tab") {
+            e.preventDefault();
+            insertMention(filteredPages[mentionIndex]);
+            return;
+          }
+        }
       }
     }
 
@@ -479,7 +570,7 @@ export function AIPanel() {
                   onClick={() => {
                     // Navigate to the page where this session is running
                     useAppStore.getState().setSection({ type: "page" });
-                    loadPage(session.pagePath);
+                    useEditorStore.getState().loadPage(session.pagePath);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 border border-[#ffffff08] rounded-lg text-[12px] hover:bg-accent/30 transition-colors cursor-pointer text-left"
                 >
@@ -653,30 +744,112 @@ export function AIPanel() {
         )}
 
         <div className="relative">
-          {showMentions && filteredPages.length > 0 && (
+          {showMentions && (
             <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto py-1 z-50">
-              {filteredPages.slice(0, 10).map((page, i) => (
-                <button
-                  key={page.path}
-                  onClick={() => insertMention(page)}
-                  className={cn(
-                    "flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors",
-                    i === mentionIndex
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-medium truncate">
-                      {page.title}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/60 truncate">
-                      {page.path}
-                    </p>
-                  </div>
-                </button>
-              ))}
+              {mentionQuery.length === 0 ? (
+                /* Browse mode */
+                (() => {
+                  const browseItems = getBrowseItems(treeNodes, mentionBrowsePath);
+                  const hasBackRow = mentionBrowsePath !== null;
+                  let rowIndex = 0;
+                  return (
+                    <>
+                      {hasBackRow && (
+                        <button
+                          onClick={() => {
+                            setMentionBrowsePath(getParentPath(mentionBrowsePath));
+                            setMentionIndex(0);
+                          }}
+                          className={cn(
+                            "flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors text-muted-foreground",
+                            rowIndex++ === mentionIndex
+                              ? "bg-accent text-accent-foreground"
+                              : "hover:bg-accent/50"
+                          )}
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+                          <span className="text-[12px]">Back</span>
+                        </button>
+                      )}
+                      {browseItems.length === 0 && (
+                        <div className="px-3 py-2 text-[12px] text-muted-foreground/60">
+                          No pages here
+                        </div>
+                      )}
+                      {browseItems.map((item) => {
+                        const idx = rowIndex++;
+                        return (
+                          <button
+                            key={item.node.path}
+                            onClick={() => {
+                              if (item.isFolder) {
+                                setMentionBrowsePath(item.node.path);
+                                setMentionIndex(0);
+                              } else {
+                                insertMention({
+                                  path: item.node.path,
+                                  title: item.node.frontmatter?.title || item.node.name,
+                                });
+                              }
+                            }}
+                            className={cn(
+                              "flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors",
+                              idx === mentionIndex
+                                ? "bg-accent text-accent-foreground"
+                                : "hover:bg-accent/50"
+                            )}
+                          >
+                            {item.isFolder ? (
+                              <Folder className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            ) : (
+                              <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[12px] font-medium truncate">
+                                {item.node.frontmatter?.title || item.node.name}
+                              </p>
+                              {item.isFolder && (
+                                <p className="text-[10px] text-muted-foreground/60 truncate">
+                                  {item.node.path}
+                                </p>
+                              )}
+                            </div>
+                            {item.isFolder && (
+                              <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </>
+                  );
+                })()
+              ) : filteredPages.length > 0 ? (
+                /* Search mode */
+                filteredPages.slice(0, 10).map((page, i) => (
+                  <button
+                    key={page.path}
+                    onClick={() => insertMention(page)}
+                    className={cn(
+                      "flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors",
+                      i === mentionIndex
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-accent/50"
+                    )}
+                  >
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-medium truncate">{page.title}</p>
+                      <p className="text-[10px] text-muted-foreground/60 truncate">
+                        {page.path}
+                      </p>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-[12px] text-muted-foreground/60">
+                  No pages found
+                </div>
+              )}
             </div>
           )}
 

@@ -1,5 +1,29 @@
 # Progress
 
+[2026-04-10] Fix daemon rejecting team data directories for Codex sessions: `resolveSessionCwd` in `cabinet-daemon.ts` validated that the cwd must start with `DATA_DIR`, silently falling back to the global data folder for any team with an external `data_dir_override`. WebSocket sessions never pass cwd so remain unaffected; API sessions (authenticated POST /sessions) can now use any absolute path.
+
+[2026-04-10] Auto-reload editor after AI edits: replaced the unreliable store→useEffect reload chain with a custom DOM event `ai:page_updated`. When an AI panel session ends, `handleSessionEnd` dispatches the event after 500ms. `KBEditor` listens and reloads via `loadPage` + direct `editor.commands.setContent`, using `remoteUpdateRef` to prevent double-updates — same proven pattern as the real-time presence system.
+
+[2026-04-09] Thread team context through agent/conversation pipeline: `conversation-runner.ts` now resolves the working directory via `getTeamDataDir(teamSlug)` instead of the global `DATA_DIR`. The AI panel sends `teamSlug` in the POST body, the conversations API route extracts and forwards it, and both `buildEditorConversationPrompt` and `buildManualConversationPrompt` use the team's configured repository folder as cwd and KB root. Jobs' `processPostActions` (git_commit) also now targets the team's dataDir. Mentioned pages are read from the correct team directory.
+
+[2026-04-09] Fixed AI editor not writing to documents: the agent prompt used hardcoded `/data` as the KB root path (Docker convention), but native macOS deployments have a different DATA_DIR. Claude's file tools were targeting a non-existent path, causing silent failures and hallucinated "no changes needed" responses. Fixed by replacing all `/data` literals in `buildEditorConversationPrompt` and `buildManualConversationPrompt` with the actual `DATA_DIR` constant.
+
+[2026-04-09] Fixed slash command menu position: switched from `position: absolute` (relative to outer scroll container) to `position: fixed` (viewport-relative), using raw `coordsAtPos` coordinates. Menu now appears directly below the cursor like Notion, regardless of scroll offset or container nesting.
+
+[2026-04-09] Improved AI panel @ mention UX: (1) current document is now auto-added as a mention chip when the panel opens; (2) the mention list is now team-scoped by reading from useTreeStore instead of fetching /api/tree without team context; (3) typing @ now opens a folder-browsable tree view (browse mode) instead of a flat list — users can click folders to drill in, use Back to go up, and Escape navigates up one level; typing text after @ still triggers the flat search mode.
+
+[2026-04-09] Fixed team-switching race condition: switching from a slow-loading Team X to Team Y would eventually show Team X's documents (the slow fetch completed after Y's fast fetch). Fixed by adding an AbortController in tree-store.ts that cancels any in-flight fetch when a new loadTree() starts, and clearing `selectedPath`/`nodes` immediately on team change in app-shell.tsx so stale content never lingers.
+
+[2026-04-09] Improved collaborative presence: moved presence avatars to leftmost position in header; fixed cursor name label to be flush with cursor line (translateY(-100%)); filtered self from remote cursor display; added real-time document content sync — after each auto-save the content is broadcast via SSE to all collaborators on the same page who are not actively typing, giving Google Docs-style live editing visibility.
+
+[2026-04-09] Added real-time collaborative presence (Google Docs/Figma style). Users now see online teammates' avatars in the header (gray when recently offline); clicking an online avatar navigates to their document and scrolls to their position. The editor shows remote users' cursors, name labels, and selection highlights as colored overlays. Implemented via SSE broadcast (instant push, no polling) + HTTP POST heartbeats; presence state lives in a module-level in-memory singleton and a client-side Zustand store. New files: `src/lib/presence/presence-store.ts`, `src/app/api/presence/route.ts`, `src/app/api/presence/events/route.ts`, `src/stores/presence-store.ts`, `src/components/presence/presence-provider.tsx`, `src/components/presence/presence-avatars.tsx`, `src/components/presence/remote-cursors.tsx`.
+
+[2026-04-09] Fixed symlinked repo being created in the wrong team. The "Add Symlinked Repo" dialog now passes `currentTeamSlug` to the `/api/system/link-repo` endpoint, which resolves the target directory via `getTeamDataDir(slug)` instead of the global `DATA_DIR`. The `autoCommit` call also now receives the team's data directory so the commit lands in the correct git repo.
+
+[2026-04-09] Added per-team KB path configuration in Team Settings. Each team can now point its KB to any absolute path on disk (e.g. a project repo's docs/ folder). StatusBar git status and Sync button now route through /api/teams/{slug}/git/* so they reflect the active team's repository. Default remains CABINET_DATA_DIR/teams/{slug} when no path is set.
+
+[2026-04-09] Merged feat/improvments → feat/multi-tenant-auth (rebased onto origin/main). Added multi-tenant OAuth auth via better-auth (Google + GitHub), team management with per-team KB isolation, SQL migrations 002-004, agent session isolation (PTY sessions tagged by userId/teamSlug), ElectronDetector client component (React 19 fix), and updated next.config.ts and .env.example for better-auth.
+
 [2026-04-09] Fix pty.node macOS Gatekeeper warning: added xattr quarantine flag removal before ad-hoc codesigning of extracted native binaries in Electron main process.
 
 [2026-04-09] Added `export const dynamic = "force-dynamic"` to all `/api/system/*` route handlers. Without this, Next.js could cache these routes during production builds, potentially serving stale update check results and triggering a false "update available" popup on fresh installs.
@@ -24,3 +48,13 @@
 
 [2026-04-09] Fixed Claude CLI not being found in Electron DMG builds. The packaged app inherits macOS GUI PATH which lacks NVM paths. Added NVM bin detection (scans ~/.nvm/versions/node/) to RUNTIME_PATH in provider-cli.ts, enrichedPath in cabinet-daemon.ts, and commandCandidates in claude-code provider.
 
+
+[2026-04-09] Added controllable git auto-commit via NEXT_PUBLIC_GIT_AUTO_COMMIT env var (default: enabled). When set to "false", auto-commit is disabled and the StatusBar footer gains Commit and Push buttons. The Commit button opens a modal showing all changed files with checkboxes (select which to stage), a commit message input, and uses the logged-in user's identity for the commit author. The Push button pushes to the GitHub remote using the user's OAuth access token stored in the account table. New API routes: POST /api/git/push and POST /api/teams/[slug]/git/push. GitHub OAuth now requests repo scope to enable push access.
+
+[2026-04-09] Fixed Push button: SSH remotes (git@github.com:...) now push directly using system SSH keys instead of being rejected. Added push error modal that shows the full error message in a friendly dialog instead of just a tooltip when push fails.
+
+[2026-04-09] Fixed push to always use GitHub OAuth token: SSH remotes (git@github.com:...) are now converted to authenticated HTTPS URLs before pushing, instead of relying on system SSH keys.
+
+[2026-04-09] Added "Commit & Push" button to the commit modal. Clicking it commits the selected files then immediately pushes using the logged-in GitHub OAuth token. If commit succeeds but push fails, the dialog stays open and shows the push error inline.
+
+[2026-04-09] Added plan document ai/plans/2026-04-09-controllable-git-commit-push.md covering the controllable auto-commit feature, manual Commit/Push UI, GitHub OAuth scope update, and all related API routes and components.

@@ -7,6 +7,16 @@ import {
   movePageApi,
   renamePageApi,
 } from "@/lib/api/client";
+import { useAppStore } from "./app-store";
+
+function getTeamSlug(): string | null {
+  return useAppStore.getState().currentTeamSlug;
+}
+
+// Module-level AbortController for in-flight tree fetches.
+// Aborted and replaced on every new loadTree() call to prevent stale
+// responses from a slow previous team from overwriting the current team's data.
+let treeLoadController: AbortController | null = null;
 
 interface TreeState {
   nodes: TreeNode[];
@@ -49,11 +59,20 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   dragOverPath: null,
 
   loadTree: async () => {
+    // Cancel any in-flight request from a previous team switch
+    treeLoadController?.abort();
+    treeLoadController = new AbortController();
+    const { signal } = treeLoadController;
+    // Capture teamSlug NOW — before any await — so a mid-flight team change
+    // doesn't silently redirect the result to the wrong team.
+    const teamSlug = getTeamSlug();
+
     set({ loading: true });
     try {
-      const nodes = await fetchTree();
+      const nodes = await fetchTree(teamSlug, signal);
       set({ nodes, loading: false });
-    } catch {
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return; // stale request — discard silently
       set({ loading: false });
     }
   },
@@ -90,7 +109,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
     const fullPath = parentPath ? `${parentPath}/${slug}` : slug;
-    await createPageApi(fullPath, title);
+    await createPageApi(fullPath, title, getTeamSlug());
     if (parentPath) {
       get().expandPath(parentPath);
     }
@@ -99,7 +118,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   },
 
   deletePage: async (path: string) => {
-    await deletePageApi(path);
+    await deletePageApi(path, getTeamSlug());
     const { selectedPath } = get();
     if (selectedPath === path) {
       set({ selectedPath: null });
@@ -109,7 +128,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   movePage: async (fromPath: string, toParentPath: string) => {
     try {
-      const newPath = await movePageApi(fromPath, toParentPath);
+      const newPath = await movePageApi(fromPath, toParentPath, getTeamSlug());
       if (toParentPath) {
         get().expandPath(toParentPath);
       }
@@ -125,7 +144,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   renamePage: async (pagePath: string, newName: string) => {
     try {
-      const newPath = await renamePageApi(pagePath, newName);
+      const newPath = await renamePageApi(pagePath, newName, getTeamSlug());
       await get().loadTree();
       const { selectedPath } = get();
       if (selectedPath === pagePath) {

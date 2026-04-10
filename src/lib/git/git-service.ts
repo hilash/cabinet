@@ -3,37 +3,183 @@ import { DATA_DIR } from "@/lib/storage/path-utils";
 import { fileExists } from "@/lib/storage/fs-operations";
 import path from "path";
 
-let git: SimpleGit | null = null;
+// Per-directory git instances and commit timers
+const gitInstances = new Map<string, SimpleGit | null>();
+const commitTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-async function getGit(): Promise<SimpleGit | null> {
-  if (git) return git;
+async function getGit(dataDir: string): Promise<SimpleGit | null> {
+  if (gitInstances.has(dataDir)) return gitInstances.get(dataDir)!;
 
-  const gitDir = path.join(DATA_DIR, ".git");
+  const gitDir = path.join(dataDir, ".git");
   if (await fileExists(gitDir)) {
-    git = simpleGit(DATA_DIR);
-    return git;
+    const instance = simpleGit(dataDir);
+    gitInstances.set(dataDir, instance);
+    return instance;
   }
 
-  // Initialize git in data dir if not exists
+  // Initialize git in dir if not exists
   try {
-    git = simpleGit(DATA_DIR);
-    await git.init();
-    await git.addConfig("user.email", "kb@cabinet.dev");
-    await git.addConfig("user.name", "Cabinet");
-    return git;
+    const instance = simpleGit(dataDir);
+    await instance.init();
+    await instance.addConfig("user.email", "kb@cabinet.dev");
+    await instance.addConfig("user.name", "Cabinet");
+    gitInstances.set(dataDir, instance);
+    return instance;
   } catch {
+    gitInstances.set(dataDir, null);
     return null;
   }
 }
 
-let commitTimer: ReturnType<typeof setTimeout> | null = null;
+export interface ChangedFile {
+  path: string;
+  status: "modified" | "added" | "deleted" | "renamed";
+}
 
-export async function autoCommit(pagePath: string, action: "Update" | "Add" | "Delete") {
-  // Debounce commits — batch within 5 seconds
-  if (commitTimer) clearTimeout(commitTimer);
-  commitTimer = setTimeout(async () => {
+export async function getChangedFiles(
+  dataDir: string = DATA_DIR
+): Promise<ChangedFile[]> {
+  const g = await getGit(dataDir);
+  if (!g) return [];
+
+  try {
+    const status = await g.status();
+    const seen = new Set<string>();
+    const files: ChangedFile[] = [];
+
+    for (const f of status.files) {
+      if (seen.has(f.path)) continue;
+      seen.add(f.path);
+
+      const code = (f.index !== " " && f.index !== "?" ? f.index : f.working_dir).toUpperCase();
+      let fileStatus: ChangedFile["status"];
+      if (code === "A" || f.index === "?" || f.working_dir === "?") {
+        fileStatus = "added";
+      } else if (code === "D") {
+        fileStatus = "deleted";
+      } else if (code === "R") {
+        fileStatus = "renamed";
+      } else {
+        fileStatus = "modified";
+      }
+
+      files.push({ path: f.path, status: fileStatus });
+    }
+
+    return files;
+  } catch {
+    return [];
+  }
+}
+
+export async function manualCommitFiles(
+  message: string,
+  filePaths: string[],
+  authorName: string,
+  authorEmail: string,
+  dataDir: string = DATA_DIR
+): Promise<boolean> {
+  const g = await getGit(dataDir);
+  if (!g) return false;
+
+  try {
+    await g.add(filePaths);
+    const status = await g.status();
+    if (status.staged.length === 0) return false;
+
+    await g.commit(message, undefined, {
+      "--author": `${authorName} <${authorEmail}>`,
+    });
+    return true;
+  } catch (error) {
+    console.error("manualCommitFiles failed:", error);
+    return false;
+  }
+}
+
+export async function gitPushWithToken(
+  token: string,
+  dataDir: string = DATA_DIR
+): Promise<{ pushed: boolean; summary: string }> {
+  const g = await getGit(dataDir);
+  if (!g) return { pushed: false, summary: "Git not available" };
+
+  try {
+    const remotes = await g.getRemotes(true);
+    if (remotes.length === 0) {
+      return { pushed: false, summary: "No remote configured" };
+    }
+
+    const origin = remotes.find((r) => r.name === "origin") ?? remotes[0];
+    const pushUrl = origin.refs.push || origin.refs.fetch;
+
+    if (!pushUrl) {
+      return { pushed: false, summary: "Remote URL not found" };
+    }
+
+    // Normalise any remote URL to an authenticated HTTPS URL.
+    // Supports:
+    //   git@github.com:owner/repo.git
+    //   ssh://git@github.com/owner/repo.git
+    //   https://github.com/owner/repo.git
+    let httpsUrl: string;
+
+    if (pushUrl.startsWith("git@github.com:")) {
+      // git@github.com:owner/repo.git → https://github.com/owner/repo.git
+      httpsUrl = "https://github.com/" + pushUrl.slice("git@github.com:".length);
+    } else if (pushUrl.startsWith("ssh://git@github.com/")) {
+      httpsUrl = "https://github.com/" + pushUrl.slice("ssh://git@github.com/".length);
+    } else if (pushUrl.startsWith("https://github.com/")) {
+      httpsUrl = pushUrl;
+    } else {
+      return {
+        pushed: false,
+        summary: `Remote "${pushUrl}" is not a GitHub remote. Only GitHub remotes are supported.`,
+      };
+    }
+
+    // Inject OAuth token into the HTTPS URL.
+    const authenticatedUrl = httpsUrl.replace(
+      "https://",
+      `https://x-oauth-basic:${token}@`
+    );
+
+    await g.raw(["push", authenticatedUrl]);
+    return { pushed: true, summary: "Pushed successfully" };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("403") || msg.includes("Permission") || msg.includes("denied")) {
+      return {
+        pushed: false,
+        summary:
+          "Push failed: insufficient permissions. If using HTTPS, sign out and sign in with GitHub again to grant 'repo' access. If using SSH, check your SSH key is registered on GitHub.",
+      };
+    }
+    if (msg.includes("no upstream") || msg.includes("has no upstream")) {
+      return {
+        pushed: false,
+        summary:
+          "No upstream branch configured. Run this once in your terminal:\n\ngit push --set-upstream origin <branch>",
+      };
+    }
+    return { pushed: false, summary: msg };
+  }
+}
+
+export async function autoCommit(
+  pagePath: string,
+  action: "Update" | "Add" | "Delete",
+  dataDir: string = DATA_DIR
+) {
+  if (process.env.NEXT_PUBLIC_GIT_AUTO_COMMIT === "false") return;
+  // Debounce commits per dataDir — batch within 5 seconds
+  const existing = commitTimers.get(dataDir);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(async () => {
+    commitTimers.delete(dataDir);
     try {
-      const g = await getGit();
+      const g = await getGit(dataDir);
       if (!g) return;
 
       await g.add(".");
@@ -45,6 +191,8 @@ export async function autoCommit(pagePath: string, action: "Update" | "Add" | "D
       console.error("Auto-commit failed:", error);
     }
   }, 5000);
+
+  commitTimers.set(dataDir, timer);
 }
 
 export interface GitLogEntry {
@@ -54,12 +202,14 @@ export interface GitLogEntry {
   author: string;
 }
 
-export async function getPageHistory(virtualPath: string): Promise<GitLogEntry[]> {
-  const g = await getGit();
+export async function getPageHistory(
+  virtualPath: string,
+  dataDir: string = DATA_DIR
+): Promise<GitLogEntry[]> {
+  const g = await getGit(dataDir);
   if (!g) return [];
 
   try {
-    // Try both directory and file paths
     const candidates = [
       path.join(virtualPath, "index.md"),
       `${virtualPath}.md`,
@@ -87,15 +237,14 @@ export async function getPageHistory(virtualPath: string): Promise<GitLogEntry[]
   }
 }
 
-export async function getDiff(hash: string): Promise<string> {
-  const g = await getGit();
+export async function getDiff(hash: string, dataDir: string = DATA_DIR): Promise<string> {
+  const g = await getGit(dataDir);
   if (!g) return "";
 
   try {
     return await g.diff([`${hash}~1`, hash]);
   } catch {
     try {
-      // First commit case
       return await g.diff([hash]);
     } catch {
       return "";
@@ -103,8 +252,11 @@ export async function getDiff(hash: string): Promise<string> {
   }
 }
 
-export async function manualCommit(message: string): Promise<boolean> {
-  const g = await getGit();
+export async function manualCommit(
+  message: string,
+  dataDir: string = DATA_DIR
+): Promise<boolean> {
+  const g = await getGit(dataDir);
   if (!g) return false;
 
   try {
@@ -126,15 +278,14 @@ export async function manualCommit(message: string): Promise<boolean> {
 
 export async function restoreFileFromCommit(
   hash: string,
-  filePath: string
+  filePath: string,
+  dataDir: string = DATA_DIR
 ): Promise<boolean> {
-  const g = await getGit();
+  const g = await getGit(dataDir);
   if (!g) return false;
 
   try {
-    // Restore file to state at the given commit
     await g.checkout([hash, "--", filePath]);
-    // Commit the restoration
     await g.add(filePath);
     await g.commit(`Restore ${filePath} to version ${hash.slice(0, 8)}`);
     return true;
@@ -144,12 +295,13 @@ export async function restoreFileFromCommit(
   }
 }
 
-export async function gitPull(): Promise<{ pulled: boolean; summary: string }> {
-  const g = await getGit();
+export async function gitPull(
+  dataDir: string = DATA_DIR
+): Promise<{ pulled: boolean; summary: string }> {
+  const g = await getGit(dataDir);
   if (!g) return { pulled: false, summary: "Git not available" };
 
   try {
-    // Check if remote exists
     const remotes = await g.getRemotes(true);
     if (remotes.length === 0) {
       return { pulled: false, summary: "No remote configured" };
@@ -168,8 +320,10 @@ export async function gitPull(): Promise<{ pulled: boolean; summary: string }> {
   }
 }
 
-export async function getStatus(): Promise<{ uncommitted: number }> {
-  const g = await getGit();
+export async function getStatus(
+  dataDir: string = DATA_DIR
+): Promise<{ uncommitted: number }> {
+  const g = await getGit(dataDir);
   if (!g) return { uncommitted: 0 };
 
   try {

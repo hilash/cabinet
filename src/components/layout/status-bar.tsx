@@ -1,16 +1,39 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { GitBranch, RefreshCw, Check, CloudDownload, Star } from "lucide-react";
+import {
+  GitBranch,
+  RefreshCw,
+  Check,
+  CloudDownload,
+  Star,
+  GitCommitHorizontal,
+  Upload,
+  Loader2,
+  AlertCircle,
+  XCircle,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { CommitDialog } from "@/components/layout/commit-dialog";
 
 const DISCORD_SUPPORT_URL = "https://discord.com/invite/rxd8BYnN";
 const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
 const GITHUB_STATS_URL = "/api/github/repo";
 const GITHUB_STARS_FALLBACK = 244;
+
+// Inlined at build time — NEXT_PUBLIC_* is available on both client and server.
+const isAutoCommitEnabled = process.env.NEXT_PUBLIC_GIT_AUTO_COMMIT !== "false";
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -46,16 +69,28 @@ export function StatusBar() {
   const { saveStatus, currentPath } = useEditorStore();
   const loadTree = useTreeStore((s) => s.loadTree);
   const setSection = useAppStore((s) => s.setSection);
+  const currentTeamSlug = useAppStore((s) => s.currentTeamSlug);
   const [uncommitted, setUncommitted] = useState(0);
-  const [pullStatus, setPullStatus] = useState<"idle" | "pulling" | "pulled" | "up-to-date" | "error">("idle");
+  const [pullStatus, setPullStatus] = useState<
+    "idle" | "pulling" | "pulled" | "up-to-date" | "error"
+  >("idle");
   const [pulling, setPulling] = useState(false);
   const [githubStars, setGithubStars] = useState(GITHUB_STARS_FALLBACK);
+  const [commitDialogOpen, setCommitDialogOpen] = useState(false);
+  const [pushStatus, setPushStatus] = useState<
+    "idle" | "pushing" | "pushed" | "error"
+  >("idle");
+  const [pushSummary, setPushSummary] = useState("");
+  const [pushErrorOpen, setPushErrorOpen] = useState(false);
   const didAutoPullRef = useRef(false);
   const { update } = useCabinetUpdate();
 
-  const fetchGitStatus = async () => {
+  const fetchGitStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/git/commit");
+      const endpoint = currentTeamSlug
+        ? `/api/teams/${currentTeamSlug}/git/commit`
+        : `/api/git/commit`;
+      const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
         setUncommitted(data.uncommitted || 0);
@@ -63,7 +98,7 @@ export function StatusBar() {
     } catch {
       // ignore
     }
-  };
+  }, [currentTeamSlug]);
 
   const fetchGitHubStats = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -87,12 +122,14 @@ export function StatusBar() {
     setPulling(true);
     setPullStatus("pulling");
     try {
-      const res = await fetch("/api/git/pull", { method: "POST" });
+      const endpoint = currentTeamSlug
+        ? `/api/teams/${currentTeamSlug}/git/pull`
+        : `/api/git/pull`;
+      const res = await fetch(endpoint, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         if (data.pulled) {
           setPullStatus("pulled");
-          // Reload tree to reflect new/changed files
           await loadTree();
         } else {
           setPullStatus("up-to-date");
@@ -104,10 +141,38 @@ export function StatusBar() {
       setPullStatus("error");
     } finally {
       setPulling(false);
-      // Reset status after 3 seconds
       setTimeout(() => setPullStatus("idle"), 3000);
     }
-  }, [pulling, loadTree]);
+  }, [pulling, loadTree, currentTeamSlug]);
+
+  const handlePush = useCallback(async () => {
+    if (pushStatus === "pushing") return;
+    setPushStatus("pushing");
+    setPushSummary("");
+    try {
+      const endpoint = currentTeamSlug
+        ? `/api/teams/${currentTeamSlug}/git/push`
+        : `/api/git/push`;
+      const res = await fetch(endpoint, { method: "POST" });
+      const data = await res.json();
+      if (data.pushed) {
+        setPushStatus("pushed");
+        setPushSummary(data.summary || "Pushed to remote");
+      } else {
+        setPushStatus("error");
+        setPushSummary(data.summary || "Push failed");
+        setPushErrorOpen(true);
+      }
+    } catch {
+      setPushStatus("error");
+      setPushSummary("Unexpected error while pushing. Check the server logs for details.");
+      setPushErrorOpen(true);
+    } finally {
+      setTimeout(() => {
+        setPushStatus("idle");
+      }, 4000);
+    }
+  }, [pushStatus, currentTeamSlug]);
 
   // Auto-pull on mount (page load)
   useEffect(() => {
@@ -120,7 +185,7 @@ export function StatusBar() {
     return () => window.clearTimeout(initialPull);
   }, [pullAndRefresh]);
 
-  // Poll git status
+  // Poll git status (re-runs when team changes)
   useEffect(() => {
     const initialFetch = window.setTimeout(() => {
       void fetchGitStatus();
@@ -130,7 +195,8 @@ export function StatusBar() {
       window.clearTimeout(initialFetch);
       clearInterval(interval);
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTeamSlug]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -150,118 +216,183 @@ export function StatusBar() {
   }, [fetchGitHubStats]);
 
   return (
-    <div className="flex items-center justify-between px-3 py-1 border-t border-border text-[11px] text-muted-foreground/60 bg-background">
-      <div className="flex min-w-0 items-center gap-3">
-        {currentPath && (
-          <span>
-            {saveStatus === "saving"
-              ? "Saving..."
-              : saveStatus === "saved"
-              ? "Saved"
-              : saveStatus === "error"
-              ? "Save failed"
-              : "Ready"}
+    <>
+      <div className="flex items-center justify-between px-3 py-1 border-t border-border text-[11px] text-muted-foreground/60 bg-background">
+        <div className="flex min-w-0 items-center gap-3">
+          {currentPath && (
+            <span>
+              {saveStatus === "saving"
+                ? "Saving..."
+                : saveStatus === "saved"
+                ? "Saved"
+                : saveStatus === "error"
+                ? "Save failed"
+                : "Ready"}
+            </span>
+          )}
+          {pullStatus === "pulling" && (
+            <span className="flex items-center gap-1 text-blue-400">
+              <CloudDownload className="h-3 w-3 animate-pulse" />
+              Pulling...
+            </span>
+          )}
+          {pullStatus === "pulled" && (
+            <span className="flex items-center gap-1 text-green-400">
+              <Check className="h-3 w-3" />
+              Updated from remote
+            </span>
+          )}
+          {pullStatus === "up-to-date" && (
+            <span className="flex items-center gap-1 text-muted-foreground/60">
+              <Check className="h-3 w-3" />
+              Up to date
+            </span>
+          )}
+          {pullStatus === "error" && (
+            <span className="flex items-center gap-1 text-red-400">
+              Pull failed
+            </span>
+          )}
+          {update?.updateStatus.state === "restart-required" && (
+            <button
+              onClick={() => setSection({ type: "settings" })}
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-amber-600 hover:bg-muted hover:text-foreground transition-colors"
+              title="Open Settings to review the installed update"
+            >
+              <CloudDownload className="h-3 w-3" />
+              Restart to finish update
+            </button>
+          )}
+          {update?.updateAvailable &&
+            update?.updateStatus.state !== "restart-required" &&
+            update.latest && (
+              <button
+                onClick={() => setSection({ type: "settings" })}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-blue-500 hover:bg-muted hover:text-foreground transition-colors"
+                title={`Cabinet ${update.latest.version} is available`}
+              >
+                <CloudDownload className="h-3 w-3" />
+                Update {update.latest.version} available
+              </button>
+            )}
+          <span className="flex items-center gap-1">
+            <GitBranch className="h-3 w-3" />
+            {uncommitted > 0 ? `${uncommitted} uncommitted` : "All committed"}
           </span>
-        )}
-        {pullStatus === "pulling" && (
-          <span className="flex items-center gap-1 text-blue-400">
-            <CloudDownload className="h-3 w-3 animate-pulse" />
-            Pulling...
-          </span>
-        )}
-        {pullStatus === "pulled" && (
-          <span className="flex items-center gap-1 text-green-400">
-            <Check className="h-3 w-3" />
-            Updated from remote
-          </span>
-        )}
-        {pullStatus === "up-to-date" && (
-          <span className="flex items-center gap-1 text-muted-foreground/60">
-            <Check className="h-3 w-3" />
-            Up to date
-          </span>
-        )}
-        {pullStatus === "error" && (
-          <span className="flex items-center gap-1 text-red-400">
-            Pull failed
-          </span>
-        )}
-        {update?.updateStatus.state === "restart-required" && (
           <button
-            onClick={() => setSection({ type: "settings" })}
-            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-amber-600 hover:bg-muted hover:text-foreground transition-colors"
-            title="Open Settings to review the installed update"
+            onClick={pullAndRefresh}
+            disabled={pulling}
+            aria-label="Pull latest changes from GitHub and refresh"
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
+            title="Pull latest from GitHub & refresh"
           >
-            <CloudDownload className="h-3 w-3" />
-            Restart to finish update
+            <RefreshCw className={`h-3 w-3 ${pulling ? "animate-spin" : ""}`} />
+            Sync
           </button>
-        )}
-        {update?.updateAvailable && update?.updateStatus.state !== "restart-required" && update.latest && (
-          <button
-            onClick={() => setSection({ type: "settings" })}
-            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-blue-500 hover:bg-muted hover:text-foreground transition-colors"
-            title={`Cabinet ${update.latest.version} is available`}
+          {!isAutoCommitEnabled && (
+            <>
+              <button
+                onClick={() => setCommitDialogOpen(true)}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
+                title="Commit changes"
+              >
+                <GitCommitHorizontal className="h-3 w-3" />
+                Commit
+              </button>
+              <button
+                onClick={handlePush}
+                disabled={pushStatus === "pushing"}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
+                title={
+                  pushStatus === "error" && pushSummary
+                    ? pushSummary
+                    : "Push commits to GitHub"
+                }
+              >
+                {pushStatus === "pushing" ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : pushStatus === "pushed" ? (
+                  <Check className="h-3 w-3 text-green-400" />
+                ) : pushStatus === "error" ? (
+                  <AlertCircle className="h-3 w-3 text-red-400" />
+                ) : (
+                  <Upload className="h-3 w-3" />
+                )}
+                {pushStatus === "pushing"
+                  ? "Pushing..."
+                  : pushStatus === "pushed"
+                  ? "Pushed"
+                  : pushStatus === "error"
+                  ? "Push failed"
+                  : "Push"}
+              </button>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <a
+            href={DISCORD_SUPPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open Discord for support and feedback"
+            title="Support and feedback on Discord"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#5865F2]/20 bg-[#5865F2]/10 px-2.5 py-1 text-[#5865F2] transition-all hover:-translate-y-px hover:border-[#5865F2]/35 hover:bg-[#5865F2]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
           >
-            <CloudDownload className="h-3 w-3" />
-            Update {update.latest.version} available
-          </button>
-        )}
-        <span className="flex items-center gap-1">
-          <GitBranch className="h-3 w-3" />
-          {uncommitted > 0 ? `${uncommitted} uncommitted` : "All committed"}
-        </span>
-        <button
-          onClick={pullAndRefresh}
-          disabled={pulling}
-          aria-label="Pull latest changes from GitHub and refresh"
-          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
-          title="Pull latest from GitHub & refresh"
-        >
-          <RefreshCw className={`h-3 w-3 ${pulling ? "animate-spin" : ""}`} />
-          Sync
-        </button>
+            <DiscordIcon className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
+              Chat
+            </span>
+          </a>
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open the Cabinet GitHub repository to contribute"
+            title="Contribute on GitHub"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
+          >
+            <GitHubIcon className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
+              Contribute
+            </span>
+          </a>
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Star Cabinet on GitHub (${formatGithubStars(githubStars)} stars)`}
+            title={`Star on GitHub (${formatGithubStars(githubStars)} stars)`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-500/35 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
+          >
+            <Star className="h-3.5 w-3.5 fill-current" />
+            <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
+              {formatGithubStars(githubStars)} stars
+            </span>
+          </a>
+        </div>
       </div>
-      <div className="flex items-center gap-1.5">
-        <a
-          href={DISCORD_SUPPORT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open Discord for support and feedback"
-          title="Support and feedback on Discord"
-          className="inline-flex items-center gap-1.5 rounded-full border border-[#5865F2]/20 bg-[#5865F2]/10 px-2.5 py-1 text-[#5865F2] transition-all hover:-translate-y-px hover:border-[#5865F2]/35 hover:bg-[#5865F2]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
-        >
-          <DiscordIcon className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            Chat
-          </span>
-        </a>
-        <a
-          href={GITHUB_REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open the Cabinet GitHub repository to contribute"
-          title="Contribute on GitHub"
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
-        >
-          <GitHubIcon className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            Contribute
-          </span>
-        </a>
-        <a
-          href={GITHUB_REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Star Cabinet on GitHub (${formatGithubStars(githubStars)} stars)`}
-          title={`Star on GitHub (${formatGithubStars(githubStars)} stars)`}
-          className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-500/35 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
-        >
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            {formatGithubStars(githubStars)} stars
-          </span>
-        </a>
-      </div>
-    </div>
+      <CommitDialog
+        open={commitDialogOpen}
+        onOpenChange={setCommitDialogOpen}
+        teamSlug={currentTeamSlug}
+        onCommitted={fetchGitStatus}
+      />
+      <Dialog open={pushErrorOpen} onOpenChange={setPushErrorOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-4 w-4 shrink-0" />
+              Push failed
+            </DialogTitle>
+          </DialogHeader>
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2.5">
+            <p className="whitespace-pre-wrap text-xs text-foreground/80 font-mono leading-relaxed">
+              {pushSummary}
+            </p>
+          </div>
+          <DialogFooter showCloseButton />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
