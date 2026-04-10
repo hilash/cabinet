@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-10] Fixed blank screen in Bodega One in-app webview: wrapped localStorage calls in `lib/themes.ts` (`getStoredThemeName`, `storeThemeName`) with try/catch to handle SecurityError thrown in Electron webview contexts. Also installed missing `tw-animate-css` package in worktree node_modules.
+
 [2026-04-10] Added all 7 sidebar icon types to the example workspace: Posts Editor (full-screen .app with carousel slide previews, placeholder images, prompts, and platform/status filters), Brand Kit (embedded website without .app — Globe icon), media-kit.pdf (PDF — FileType icon). Updated .gitignore to track the renamed example directory and agent library templates.
 
 [2026-04-10] Replaced Harry Potter example workspace with "Cabinet Carousel Factory" — a TikTok/Instagram/LinkedIn carousel content factory for marketing Cabinet itself. Includes: index.md (HQ page with brand guide, pipeline, hook formulas, posting schedule), competitors.csv (15 KB competitors updated daily by cron), content-ideas.csv (carousel backlog), content-calendar full-screen HTML app (.app) with Cabinet website design language (warm parchment, serif display, terminal chrome), .repo.yaml linking to Cabinet repo. Created 4 new agent personas (Trend Scout, Script Writer, Image Creator, Post Optimizer) and 3 scheduled jobs (morning briefing, daily competitor scan, weekly digest). Deleted old HP-themed content and jobs.
@@ -58,6 +60,11 @@
 
 [2026-04-09] Fixed Claude CLI not being found in Electron DMG builds. The packaged app inherits macOS GUI PATH which lacks NVM paths. Added NVM bin detection (scans ~/.nvm/versions/node/) to RUNTIME_PATH in provider-cli.ts, enrichedPath in cabinet-daemon.ts, and commandCandidates in claude-code provider.
 
+[2026-04-09] Fixed startup EADDRINUSE collision: added --port 3100 to dev and start:next scripts in package.json so Cabinet no longer defaults to port 3000 (used by Bodega One).
+
+[2026-04-10] Fixed three critical startup issues: (1) `npm run dev` now starts both Next.js and the cabinet daemon together (daemon was previously only started via `dev:all`). (2) Removed duplicate Tiptap Link extension — StarterKit v3 bundles Link by default; added `link: false` to StarterKit.configure() so the custom wiki-link-aware version is the only registration. (3) Renamed `src/middleware.ts` to `src/proxy.ts` per Next.js 16.2.1 convention. Verified Bodega One connection: health, llm/health, and sessions endpoints all respond correctly (defaultModel: qwen3.5:2b).
+
+[2026-04-10] Applied Bodega One dark theme to Cabinet: replaced achromatic grayscale `.dark` CSS custom properties with violet-accented palette — `#7936FC` purple for primary/accent/ring, violet-tinted surfaces (chroma 0.005 at hue 290), warm off-white foreground, and a purple-to-cyan gradient chart palette.
 
 [2026-04-10] Added send icon to each agent card in the Team Org Chart. Clicking it opens the agent's workspace with the composer focused, letting users quickly send a task to any agent directly from the org chart. Also added to the CEO card.
 
@@ -66,3 +73,5 @@
 [2026-04-10] Added in-app toast notifications for agent task completion/failure. When a conversation finishes, a slide-in toast appears in the bottom-right with agent emoji, status, and title. Clicking navigates to the conversation. Uses an in-memory notification queue drained by SSE. Documented in notifications.md.
 
 [2026-04-10] Added notification sounds for task completion/failure toasts. Uses Web Audio API to synthesize tones — ascending chime for success, descending tone for failure. No audio files needed.
+
+[2026-04-10] Merged upstream hilash/cabinet v0.2.11 (22 commits) into Bodega One fork. Brought in: home screen, sidebar overhaul, 24 agent library personas, toast notifications, multi-theme system (themes.ts), macOS codesigning, Carousel Factory example data, and hash-based URL routing. Fixed proxy.ts export name from `middleware` to `proxy` per Next.js 16.2.1 convention — caught during post-merge build. All Bodega One customizations preserved (purple dark theme, BodegaOneProvider v2, daemon, proxy.ts, extensions link fix).
