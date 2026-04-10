@@ -1,5 +1,9 @@
 # Progress
 
+[2026-04-09] Thread team context through agent/conversation pipeline: `conversation-runner.ts` now resolves the working directory via `getTeamDataDir(teamSlug)` instead of the global `DATA_DIR`. The AI panel sends `teamSlug` in the POST body, the conversations API route extracts and forwards it, and both `buildEditorConversationPrompt` and `buildManualConversationPrompt` use the team's configured repository folder as cwd and KB root. Jobs' `processPostActions` (git_commit) also now targets the team's dataDir. Mentioned pages are read from the correct team directory.
+
+[2026-04-09] Fixed AI editor not writing to documents: the agent prompt used hardcoded `/data` as the KB root path (Docker convention), but native macOS deployments have a different DATA_DIR. Claude's file tools were targeting a non-existent path, causing silent failures and hallucinated "no changes needed" responses. Fixed by replacing all `/data` literals in `buildEditorConversationPrompt` and `buildManualConversationPrompt` with the actual `DATA_DIR` constant.
+
 [2026-04-09] Fixed slash command menu position: switched from `position: absolute` (relative to outer scroll container) to `position: fixed` (viewport-relative), using raw `coordsAtPos` coordinates. Menu now appears directly below the cursor like Notion, regardless of scroll offset or container nesting.
 
 [2026-04-09] Improved AI panel @ mention UX: (1) current document is now auto-added as a mention chip when the panel opens; (2) the mention list is now team-scoped by reading from useTreeStore instead of fetching /api/tree without team context; (3) typing @ now opens a folder-browsable tree view (browse mode) instead of a flat list — users can click folders to drill in, use Back to go up, and Escape navigates up one level; typing text after @ still triggers the flat search mode.

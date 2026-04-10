@@ -48,6 +48,9 @@ export async function POST(req: NextRequest) {
       typeof body.pagePath === "string" && body.pagePath.trim()
         ? body.pagePath.trim()
         : undefined;
+    const teamSlug = typeof body.teamSlug === "string" && body.teamSlug.trim()
+      ? body.teamSlug.trim()
+      : undefined;
 
     if (!userMessage) {
       return NextResponse.json(
@@ -69,11 +72,13 @@ export async function POST(req: NextRequest) {
             pagePath,
             userMessage,
             mentionedPaths,
+            teamSlug,
           })
         : await buildManualConversationPrompt({
             agentSlug,
             userMessage,
             mentionedPaths,
+            teamSlug,
           });
 
     const conversation = await startConversationRun({

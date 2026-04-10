@@ -96,6 +96,7 @@ export function AIPanel() {
     clearAllSessions,
   } = useAIPanelStore();
   const { currentPath, loadPage } = useEditorStore();
+  const currentTeamSlug = useAppStore((s) => s.currentTeamSlug);
   const treeNodes = useTreeStore((s) => s.nodes);
   const [input, setInput] = useState("");
   const [mentionedPages, setMentionedPages] = useState<string[]>([]);
@@ -315,6 +316,7 @@ export function AIPanel() {
           pagePath: currentPath,
           userMessage: instruction,
           mentionedPaths: selectedMentionedPages,
+          teamSlug: currentTeamSlug,
         }),
       });
 
