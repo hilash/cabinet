@@ -1,11 +1,11 @@
 ---
 title: Getting Started
 created: '2026-03-21T00:00:00.000Z'
-modified: '2026-04-06T20:42:18.618Z'
+modified: '2026-04-10T05:27:27.906Z'
 tags:
   - guide
   - onboarding
-order: 1
+order: 0
 ---
 # Welcome to Cabinet
 
