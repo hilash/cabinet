@@ -29,7 +29,7 @@ import {
   Pencil,
   FilePlus,
   FolderOpen,
-  Boxes,
+  Archive,
   Crown,
   Megaphone,
   Search,
@@ -192,7 +192,7 @@ export function TreeView() {
           className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2 pb-1 w-full text-left flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
           style={pad(0)}
         >
-          <Boxes className="h-3.5 w-3.5 shrink-0" />
+          <Archive className="h-3.5 w-3.5 shrink-0" />
           Cabinet
           <ChevronRight
             className={cn(
