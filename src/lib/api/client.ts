@@ -6,8 +6,8 @@ function teamBase(teamSlug?: string | null, resource?: string): string {
   return resource ? `/api/${resource}` : "/api";
 }
 
-export async function fetchTree(teamSlug?: string | null): Promise<TreeNode[]> {
-  const res = await fetch(`${teamBase(teamSlug, "tree")}`);
+export async function fetchTree(teamSlug?: string | null, signal?: AbortSignal): Promise<TreeNode[]> {
+  const res = await fetch(`${teamBase(teamSlug, "tree")}`, { signal });
   if (!res.ok) throw new Error("Failed to fetch tree");
   return res.json();
 }

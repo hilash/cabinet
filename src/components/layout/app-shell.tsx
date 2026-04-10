@@ -81,8 +81,9 @@ export function AppShell() {
       .catch(() => {/* no teams (legacy mode) */});
   }, [setTeams]);
 
-  // Reload tree whenever active team changes
+  // Reload tree whenever active team changes; clear stale selection immediately
   useEffect(() => {
+    useTreeStore.setState({ selectedPath: null, nodes: [] });
     loadTree();
   }, [loadTree, currentTeamSlug]);
 
