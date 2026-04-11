@@ -894,6 +894,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [selectedEffort, setSelectedEffort] = useState<string | null>(null);
   const [dataDir, setDataDir] = useState<string>("");
   const [dataDirPending, setDataDirPending] = useState<string | null>(null);
   const [dataDirBrowsing, setDataDirBrowsing] = useState(false);
@@ -901,6 +902,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const anyProviderReady = readyProviders.length > 0;
   const activeProvider = providers.find((p) => p.id === selectedProvider);
   const activeModels = activeProvider?.models || [];
+  const activeEffortLevels = activeProvider?.effortLevels || [];
 
   useEffect(() => {
     const controller = new AbortController();
@@ -949,6 +951,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         const first = ready[0];
         setSelectedProvider(first.id);
         if (first.models?.length) setSelectedModel(first.models[0].id);
+        if (first.effortLevels?.length) {
+          const defaultEffort = first.effortLevels.find((e) => e.id === "high") || first.effortLevels[0];
+          setSelectedEffort(defaultEffort.id);
+        }
       }
     } catch {
       setProviders([]);
@@ -1026,6 +1032,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           body: JSON.stringify({
             defaultProvider: selectedProvider,
             defaultModel: selectedModel || undefined,
+            defaultEffort: selectedEffort || undefined,
           }),
         });
       }
@@ -1044,7 +1051,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       console.error("Setup failed:", e);
       setLaunching(false);
     }
-  }, [answers, suggestedAgents, selectedProvider, selectedModel, onComplete]);
+  }, [answers, suggestedAgents, selectedProvider, selectedModel, selectedEffort, onComplete]);
 
   const selectedAgentCount = suggestedAgents.filter(
     (agent) => agent.checked
@@ -1349,13 +1356,17 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         className="group rounded-xl p-4 space-y-3 transition-all cursor-pointer"
                         style={{
                           background: isSelected && isReady ? WEB.accentBg : WEB.bgCard,
-                          border: `1.5px solid ${isSelected && isReady ? WEB.accent : WEB.borderLight}`,
+                          border: `1px solid ${isSelected && isReady ? WEB.borderDark : WEB.borderLight}`,
                         }}
                         onClick={() => {
                           if (!isReady) return;
                           setSelectedProvider(p.id);
                           if (p.models?.length) setSelectedModel(p.models[0].id);
                           else setSelectedModel(null);
+                          if (p.effortLevels?.length) {
+                            const def = p.effortLevels.find((e) => e.id === "high") || p.effortLevels[0];
+                            setSelectedEffort(def.id);
+                          } else setSelectedEffort(null);
                         }}
                       >
                         <div className="flex items-center gap-3">
@@ -1510,7 +1521,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           className="rounded-xl p-3 text-left transition-all"
                           style={{
                             background: isMSelected ? WEB.accentBg : WEB.bgCard,
-                            border: `1.5px solid ${isMSelected ? WEB.accent : WEB.borderLight}`,
+                            border: `1px solid ${isMSelected ? WEB.borderDark : WEB.borderLight}`,
                           }}
                         >
                           <div className="flex items-center gap-2 mb-1">
@@ -1527,6 +1538,47 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           </div>
                           {m.description && (
                             <p className="text-[11px] ml-5" style={{ color: WEB.textSecondary }}>{m.description}</p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Effort level selector — only for providers that support it */}
+              {activeEffortLevels.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: WEB.textTertiary }}>
+                    Reasoning effort
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-4">
+                    {activeEffortLevels.map((e) => {
+                      const isESelected = selectedEffort === e.id;
+                      return (
+                        <button
+                          key={e.id}
+                          onClick={() => setSelectedEffort(e.id)}
+                          className="rounded-xl p-3 text-left transition-all"
+                          style={{
+                            background: isESelected ? WEB.accentBg : WEB.bgCard,
+                            border: `1px solid ${isESelected ? WEB.borderDark : WEB.borderLight}`,
+                          }}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <div
+                              className="flex size-3 shrink-0 items-center justify-center rounded-full"
+                              style={{
+                                border: `1.5px solid ${isESelected ? WEB.accent : WEB.borderDark}`,
+                                background: isESelected ? WEB.accent : "transparent",
+                              }}
+                            >
+                              {isESelected && <Check className="size-1.5 text-white" />}
+                            </div>
+                            <p className="text-[13px] font-medium" style={{ color: WEB.text }}>{e.name}</p>
+                          </div>
+                          {e.description && (
+                            <p className="text-[11px] ml-5" style={{ color: WEB.textSecondary }}>{e.description}</p>
                           )}
                         </button>
                       );

@@ -129,6 +129,7 @@ async function buildTreeRecursive(
       const indexHtml = path.join(fullPath, "index.html");
       const hasIndexMd = await fileExists(indexMd);
       const hasIndexHtml = await fileExists(indexHtml);
+      const hasCabinet = await fileExists(path.join(fullPath, ".cabinet"));
 
       const repoYaml = path.join(fullPath, ".repo.yaml");
       const hasRepo = await fileExists(repoYaml);
@@ -163,7 +164,7 @@ async function buildTreeRecursive(
       nodes.push({
         name: entry.name,
         path: vPath,
-        type: "directory",
+        type: hasCabinet ? "cabinet" : "directory",
         hasRepo: hasRepo || undefined,
         isLinked,
         frontmatter: {

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import {
+  Archive,
   ChevronRight,
   FileText,
   Folder,
@@ -84,7 +85,7 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
       toggleExpand(node.path);
     }
     selectPage(node.path);
-    if (node.type === "file" || node.type === "directory") {
+    if (node.type === "file" || node.type === "directory" || node.type === "cabinet") {
       loadPage(node.path);
     }
   };
@@ -220,6 +221,8 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
               <Workflow className="h-4 w-4 shrink-0 text-teal-400" />
             ) : node.type === "unknown" ? (
               <File className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            ) : node.type === "cabinet" ? (
+              <Archive className="h-4 w-4 shrink-0 text-amber-400" />
             ) : node.hasRepo ? (
               <GitBranch className="h-4 w-4 shrink-0 text-orange-400" />
             ) : node.isLinked ? (

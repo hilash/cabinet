@@ -18,6 +18,12 @@ export interface ProviderModel {
   description?: string;
 }
 
+export interface ProviderEffortLevel {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface AgentProvider {
   id: string;
   name: string;
@@ -26,6 +32,7 @@ export interface AgentProvider {
   installMessage?: string;
   installSteps?: Array<{ title: string; detail: string; link?: { label: string; url: string } }>;
   models?: ProviderModel[];
+  effortLevels?: ProviderEffortLevel[];
 
   // CLI providers
   command?: string;

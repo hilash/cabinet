@@ -14,8 +14,10 @@ export const codexCliProvider: AgentProvider = {
   ],
   models: [
     { id: "o3", name: "o3", description: "Most capable reasoning" },
-    { id: "o4-mini", name: "o4-mini", description: "Fast and affordable" },
-    { id: "gpt-4.1", name: "GPT-4.1", description: "Latest GPT model" },
+    { id: "o4-mini", name: "o4-mini", description: "Fast reasoning" },
+    { id: "gpt-4.1", name: "GPT-4.1", description: "Flagship GPT model" },
+    { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", description: "Fast and affordable" },
+    { id: "gpt-4.1-nano", name: "GPT-4.1 Nano", description: "Fastest, lowest cost" },
   ],
   command: "codex",
   commandCandidates: [

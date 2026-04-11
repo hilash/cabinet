@@ -125,6 +125,8 @@ export function SettingsPage() {
   const { showHiddenFiles, setShowHiddenFiles } = useTreeStore();
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("");
+  const [defaultModel, setDefaultModel] = useState("");
+  const [defaultEffort, setDefaultEffort] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingProviders, setSavingProviders] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
@@ -210,6 +212,8 @@ export function SettingsPage() {
         const data = await res.json();
         setProviders(data.providers || []);
         setDefaultProvider(data.defaultProvider || "");
+        setDefaultModel(data.defaultModel || "");
+        setDefaultEffort(data.defaultEffort || "");
       }
     } catch {
       // ignore
@@ -221,7 +225,8 @@ export function SettingsPage() {
   const saveProviderSettings = useCallback(async (
     nextDefaultProvider: string,
     disabledProviderIds: string[],
-    migrations: Array<{ fromProviderId: string; toProviderId: string }> = []
+    migrations: Array<{ fromProviderId: string; toProviderId: string }> = [],
+    overrides?: { defaultModel?: string; defaultEffort?: string }
   ) => {
     setSavingProviders(true);
     try {
@@ -230,6 +235,8 @@ export function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           defaultProvider: nextDefaultProvider,
+          defaultModel: overrides?.defaultModel ?? (defaultModel || undefined),
+          defaultEffort: overrides?.defaultEffort ?? (defaultEffort || undefined),
           disabledProviderIds,
           migrations,
         }),
@@ -257,7 +264,7 @@ export function SettingsPage() {
       setSavingProviders(false);
     }
     return false;
-  }, [refresh]);
+  }, [refresh, defaultModel, defaultEffort]);
 
   const getProviderName = (providerId: string) =>
     providers.find((provider) => provider.id === providerId)?.name || providerId;
@@ -782,6 +789,112 @@ export function SettingsPage() {
                           General conversations and fallback runs use this provider.
                         </p>
                       </div>
+
+                      {/* Default model selector */}
+                      {(() => {
+                        const activeP = providers.find((p) => p.id === defaultProvider);
+                        const models = activeP?.models || [];
+                        const effortLevels = activeP?.effortLevels || [];
+                        if (models.length === 0 && effortLevels.length === 0) return null;
+                        return (
+                          <div className="mb-3 rounded-lg border border-border bg-card p-3 space-y-4">
+                            {models.length > 0 && (
+                              <div>
+                                <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                  Default model
+                                </label>
+                                <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
+                                  {models.map((m) => {
+                                    const isActive = defaultModel === m.id;
+                                    return (
+                                      <button
+                                        key={m.id}
+                                        onClick={() => {
+                                          if (isActive || savingProviders) return;
+                                          setDefaultModel(m.id);
+                                          const disabledIds = providers.filter((p) => !p.enabled).map((p) => p.id);
+                                          void saveProviderSettings(defaultProvider, disabledIds, [], { defaultModel: m.id });
+                                        }}
+                                        disabled={savingProviders}
+                                        className={cn(
+                                          "rounded-md px-3 py-2 text-left text-[12px] transition-colors",
+                                          isActive
+                                            ? "bg-primary/5 border border-primary/30"
+                                            : "border border-transparent hover:bg-muted"
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className={cn(
+                                            "flex size-3 shrink-0 items-center justify-center rounded-full border",
+                                            isActive
+                                              ? "border-primary bg-primary text-primary-foreground"
+                                              : "border-muted-foreground/30"
+                                          )}>
+                                            {isActive && <Check className="size-1.5" />}
+                                          </span>
+                                          <span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>
+                                            {m.name}
+                                          </span>
+                                        </div>
+                                        {m.description && (
+                                          <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">{m.description}</p>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            {effortLevels.length > 0 && (
+                              <div>
+                                <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                  Reasoning effort
+                                </label>
+                                <div className="mt-2 grid gap-1.5 sm:grid-cols-4">
+                                  {effortLevels.map((e) => {
+                                    const isActive = defaultEffort === e.id;
+                                    return (
+                                      <button
+                                        key={e.id}
+                                        onClick={() => {
+                                          if (isActive || savingProviders) return;
+                                          setDefaultEffort(e.id);
+                                          const disabledIds = providers.filter((p) => !p.enabled).map((p) => p.id);
+                                          void saveProviderSettings(defaultProvider, disabledIds, [], { defaultEffort: e.id });
+                                        }}
+                                        disabled={savingProviders}
+                                        className={cn(
+                                          "rounded-md px-3 py-2 text-left text-[12px] transition-colors",
+                                          isActive
+                                            ? "bg-primary/5 border border-primary/30"
+                                            : "border border-transparent hover:bg-muted"
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className={cn(
+                                            "flex size-3 shrink-0 items-center justify-center rounded-full border",
+                                            isActive
+                                              ? "border-primary bg-primary text-primary-foreground"
+                                              : "border-muted-foreground/30"
+                                          )}>
+                                            {isActive && <Check className="size-1.5" />}
+                                          </span>
+                                          <span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>
+                                            {e.name}
+                                          </span>
+                                        </div>
+                                        {e.description && (
+                                          <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">{e.description}</p>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                         CLI Agents

@@ -24,6 +24,12 @@ export const claudeCodeProvider: AgentProvider = {
     { id: "opus", name: "Claude Opus", description: "Most intelligent" },
     { id: "haiku", name: "Claude Haiku", description: "Fastest responses" },
   ],
+  effortLevels: [
+    { id: "low", name: "Low", description: "Quick, minimal reasoning" },
+    { id: "medium", name: "Medium", description: "Balanced" },
+    { id: "high", name: "High", description: "Thorough reasoning" },
+    { id: "max", name: "Max", description: "Maximum depth" },
+  ],
   command: "claude",
   commandCandidates: [
     `${process.env.HOME || ""}/.local/bin/claude`,
