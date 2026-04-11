@@ -7,6 +7,7 @@ import {
   readProviderSettingsSync,
   resolveEnabledProviderId,
 } from "./provider-settings";
+import { terminateChildProcess } from "./process-utils";
 
 export interface ProviderLaunchSpec extends CliProviderInvocation {
   providerId: string;
@@ -144,8 +145,9 @@ export async function runOneShotProviderPrompt(input: {
     const timeoutHandle = setTimeout(() => {
       if (settled) return;
       settled = true;
-      proc.kill();
-      reject(new Error("Timed out after waiting for provider output"));
+      void terminateChildProcess(proc).finally(() => {
+        reject(new Error("Timed out after waiting for provider output"));
+      });
     }, input.timeoutMs || 120_000);
 
     let stdout = "";

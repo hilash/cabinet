@@ -3,6 +3,7 @@ import path from "path";
 import { execFileSync, spawn } from "child_process";
 import type { AgentProvider } from "./provider-interface";
 import { getNvmNodeBin } from "./nvm-path";
+import { terminateChildProcess } from "./process-utils";
 
 const nvmBin = getNvmNodeBin();
 
@@ -23,6 +24,10 @@ function resolveHomeDir(env: NodeJS.ProcessEnv): string {
 
 function isExplicitPath(candidate: string): boolean {
   return candidate.includes("/") || candidate.includes("\\") || /^[A-Za-z]:/.test(candidate);
+}
+
+function isSafeCommandName(candidate: string): boolean {
+  return /^[A-Za-z0-9._/-]+$/.test(candidate);
 }
 
 export function buildRuntimePath(options?: {
@@ -158,6 +163,7 @@ export function resolveCliCommand(provider: AgentProvider, options?: ResolveCliC
   if (platform === "win32") {
     for (const candidate of candidates) {
       if (isExplicitPath(candidate)) continue;
+      if (!isSafeCommandName(candidate)) continue;
       const resolved = commandLookup(candidate, { ...env, PATH: runtimePath }, platform);
       if (resolved) {
         return candidate;
@@ -173,6 +179,7 @@ export function resolveCliCommand(provider: AgentProvider, options?: ResolveCliC
 
   for (const candidate of candidates) {
     if (isExplicitPath(candidate)) continue;
+    if (!isSafeCommandName(candidate)) continue;
     const resolved = commandLookup(candidate, { ...env, PATH: runtimePath }, platform);
     if (resolved) {
       return resolved;
@@ -228,8 +235,9 @@ export async function checkCliProviderAvailable(provider: AgentProvider): Promis
     });
 
     const timeout = setTimeout(() => {
-      proc.kill();
-      settle(false);
+      void terminateChildProcess(proc).finally(() => {
+        settle(false);
+      });
     }, 5000);
   });
 }
