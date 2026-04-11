@@ -51,6 +51,8 @@ data/**
 !data/.agents/
 !data/.agents/.library/
 !data/.agents/.library/**
+!data/.agents/stripe/
+!data/.agents/stripe/**
 !data/index.md
 !data/CLAUDE.md
 data/**/.DS_Store
