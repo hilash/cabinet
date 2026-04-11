@@ -53,6 +53,9 @@ data/**
 !data/.agents/.library/**
 !data/index.md
 !data/CLAUDE.md
+!data/.agents/
+!data/.agents/meta-ads/
+!data/.agents/meta-ads/**
 data/**/.DS_Store
 
 # claude code
