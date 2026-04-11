@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-11] Added Stripe connector: server/connectors/stripe.ts pulls revenue, subscription health, and payment operations metrics from the Stripe REST API and writes a markdown report to data/reports/. Added the Stripe Reporter agent (data/.agents/stripe/) with a daily 07:00 cron job, updated .env.example with required and optional env vars, and created server/connectors/README.md with full Stripe setup, troubleshooting, and the general connector pattern documentation.
+
 [2026-04-11] Added Storage tab to Settings with data directory picker. Users can view the current data dir path, browse for a new one, or type a path manually. The setting is persisted to `.cabinet-install.json` and read by `getManagedDataDir()` at startup (env var still takes priority). A restart banner shows when the path changes. Also updated the About tab to show the actual data dir path.
 
 [2026-04-11] Added Mermaid diagram viewer for .mermaid and .mmd files. Renders diagrams with the mermaid library, supports source toggle, copy source, and SVG export. Follows the current Cabinet theme (dark/light). Shows error state with fallback to source view if rendering fails.

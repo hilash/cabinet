@@ -1,0 +1,21 @@
+id: daily-report
+name: Stripe Daily Report
+enabled: true
+schedule: "0 7 * * *"
+provider: claude-code
+timeout: 300
+prompt: |
+  Run the Stripe connector to pull the last 14 days of revenue, subscription,
+  and payment operations data and generate a daily markdown report.
+
+  Execute exactly this command using your Bash tool, from the repository root:
+
+      npx tsx server/connectors/stripe.ts
+
+  The script reads Stripe credentials from environment variables and writes
+  a report to `data/reports/stripe-YYYY-MM-DD.md`. Do not modify the script,
+  do not run any other commands, and do not edit any other files.
+
+  When the command finishes:
+  - If it exits with code 0, confirm the report file exists and report the path and file size.
+  - If it exits with a non-zero code, report the stderr output verbatim so the failure is visible in the job run history.
