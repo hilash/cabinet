@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-11] Added fallback viewer for unsupported file types. Files like .docx, .zip, .psd, .fig, .dmg etc. now appear in the sidebar (grayed out) and show a centered "Open in Finder" + "Download" view. Uses a whitelist approach — only common document, archive, and design file extensions are shown; everything else is silently skipped. Added `/api/system/reveal` endpoint for macOS Finder integration.
+
 [2026-04-11] Added Storage tab to Settings with data directory picker. Users can view the current data dir path, browse for a new one, or type a path manually. The setting is persisted to `.cabinet-install.json` and read by `getManagedDataDir()` at startup (env var still takes priority). A restart banner shows when the path changes. Also updated the About tab to show the actual data dir path.
 
 [2026-04-11] Added Mermaid diagram viewer for .mermaid and .mmd files. Renders diagrams with the mermaid library, supports source toggle, copy source, and SVG export. Follows the current Cabinet theme (dark/light). Shows error state with fallback to source view if rendering fails.

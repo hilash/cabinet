@@ -35,12 +35,30 @@ const AUDIO_EXTENSIONS = new Set([
 
 const MERMAID_EXTENSIONS = new Set([".mermaid", ".mmd"]);
 
+// Files that should appear in the sidebar as "unknown" with an Open in Finder fallback.
+// Only common document/archive types that a user would intentionally put in a KB.
+// Everything not in a known set is silently skipped.
+const UNKNOWN_EXTENSIONS = new Set([
+  // Office documents
+  ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
+  ".pages", ".numbers", ".key", ".odt", ".ods", ".odp",
+  // Archives
+  ".zip", ".tar", ".tgz", ".gz", ".rar", ".7z",
+  // Installers / packages
+  ".dmg", ".pkg", ".apk", ".ipa", ".msi", ".deb", ".rpm",
+  // Design
+  ".fig", ".sketch", ".psd", ".ai", ".xd",
+  // Other documents
+  ".epub", ".mobi", ".rtf",
+]);
+
 function classifyFile(ext: string): TreeNode["type"] | null {
   if (CODE_EXTENSIONS.has(ext)) return "code";
   if (IMAGE_EXTENSIONS.has(ext)) return "image";
   if (VIDEO_EXTENSIONS.has(ext)) return "video";
   if (AUDIO_EXTENSIONS.has(ext)) return "audio";
   if (MERMAID_EXTENSIONS.has(ext)) return "mermaid";
+  if (UNKNOWN_EXTENSIONS.has(ext)) return "unknown";
   return null;
 }
 
@@ -72,7 +90,8 @@ async function readCabinetMeta(
 
 async function buildTreeRecursive(
   dirPath: string,
-  ancestorRealPaths = new Set<string>()
+  ancestorRealPaths = new Set<string>(),
+  showHidden = false
 ): Promise<TreeNode[]> {
   let realDirPath = dirPath;
   try {
@@ -94,12 +113,12 @@ async function buildTreeRecursive(
   // Collect directory names so we can skip standalone .md files that collide.
   const dirNames = new Set(
     entries
-      .filter((e) => e.isDirectory && !isHiddenEntry(e.name))
+      .filter((e) => e.isDirectory && (!isHiddenEntry(e.name) || showHidden))
       .map((e) => e.name)
   );
 
   for (const entry of entries) {
-    if (isHiddenEntry(entry.name)) continue;
+    if (!showHidden && isHiddenEntry(entry.name)) continue;
     if (entry.name === "CLAUDE.md") continue;
 
     const fullPath = path.join(dirPath, entry.name);
@@ -187,16 +206,6 @@ async function buildTreeRecursive(
         continue;
       }
 
-      // Unrecognized file — show with generic fallback
-      if (!entry.name.endsWith(".md")) {
-        nodes.push({
-          name: entry.name,
-          path: vPath,
-          type: "unknown",
-          frontmatter: { title: entry.name },
-        });
-        continue;
-      }
     }
 
     if (entry.name.endsWith(".md") && entry.name !== "index.md") {

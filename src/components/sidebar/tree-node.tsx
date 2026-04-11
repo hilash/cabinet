@@ -233,7 +233,7 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
             ) : (
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
             )}
-            <span className="truncate">{title}</span>
+            <span className={cn("truncate", node.type === "unknown" && "opacity-50")}>{title}</span>
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent>
