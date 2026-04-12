@@ -12,7 +12,7 @@ test.describe("Multica integration", () => {
 
     // Either the issues list renders, or the auth guard shows "Connect Multica"
     const issuesContent = page.locator("text=Issues").first();
-    const authGuard = page.locator("text=Connect Multica").first();
+    const authGuard = page.locator("text=Sign in to Multica").first();
 
     // Wait for either to appear
     await expect(issuesContent.or(authGuard)).toBeVisible({ timeout: 10000 });
