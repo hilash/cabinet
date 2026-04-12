@@ -4,7 +4,7 @@
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "dev:terminal": "tsx server/terminal-server.ts",
     "dev:daemon": "tsx server/cabinet-daemon.ts",
     "dev:all": "npm run dev & npm run dev:daemon",

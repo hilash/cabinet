@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Search shortcuts", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/home");
+    await page.goto("/#/home", { waitUntil: "domcontentloaded" });
     await page.waitForSelector("text=cabinet", { timeout: 10000 });
   });
 

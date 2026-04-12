@@ -1,8 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@multica/ui/styles/base.css";
+@import "@multica/ui/styles/base.css" source(none);
 @plugin "@tailwindcss/typography";
+
 
 @custom-variant dark (&:is(.dark *));
 

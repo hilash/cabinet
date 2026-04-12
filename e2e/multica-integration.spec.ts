@@ -2,12 +2,12 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Multica integration", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/home");
+    await page.goto("/#/home", { waitUntil: "domcontentloaded" });
     await page.waitForSelector("text=cabinet", { timeout: 10000 });
   });
 
   test("Issues page shows content or auth guard", async ({ page }) => {
-    await page.goto("/#/issues");
+    await page.goto("/#/issues", { waitUntil: "domcontentloaded" });
     await page.waitForFunction(() => window.location.hash === "#/issues");
 
     // Either the issues list renders, or the auth guard shows "Connect Multica"
@@ -24,7 +24,7 @@ test.describe("Multica integration", () => {
     const multicaTab = page.locator("text=Multica Chat");
 
     // Navigate to a page first to ensure AI panel has context
-    await page.goto("/#/home");
+    await page.goto("/#/home", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(500);
 
     // The AI panel tabs may only be visible when the panel is open
@@ -41,12 +41,14 @@ test.describe("Multica integration", () => {
   });
 
   test("switching sections updates AI panel tab context", async ({ page }) => {
+    // Extra wait for full hydration since this test is sensitive to timing
+    await page.waitForTimeout(2000);
     const sidebar = page.locator("aside");
 
     // Go to Issues (multica section)
     await sidebar.getByRole("button", { name: "Issues", exact: true }).click();
     await page.waitForFunction(() => window.location.hash === "#/issues");
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
     // Check if Multica Chat tab is active (if AI panel is visible)
     const multicaTab = page.locator("text=Multica Chat");
