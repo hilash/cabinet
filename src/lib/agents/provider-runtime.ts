@@ -1,12 +1,13 @@
 import { spawn } from "child_process";
 import type { AgentProvider, CliProviderInvocation } from "./provider-interface";
 import { providerRegistry } from "./provider-registry";
-import { resolveCliCommand, RUNTIME_PATH } from "./provider-cli";
+import { buildWindowsShellCommand, resolveCliCommand, RUNTIME_PATH } from "./provider-cli";
 import {
   getConfiguredDefaultProviderId,
   readProviderSettingsSync,
   resolveEnabledProviderId,
 } from "./provider-settings";
+import { terminateChildProcess } from "./process-utils";
 
 export interface ProviderLaunchSpec extends CliProviderInvocation {
   providerId: string;
@@ -123,20 +124,30 @@ export async function runOneShotProviderPrompt(input: {
   });
 
   return new Promise<string>((resolve, reject) => {
-    const proc = spawn(launch.command, launch.args, {
-      cwd: input.cwd,
-      env: {
-        ...process.env,
-        PATH: RUNTIME_PATH,
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const env = {
+      ...process.env,
+      PATH: RUNTIME_PATH,
+    };
+    const proc =
+      process.platform === "win32"
+        ? spawn(buildWindowsShellCommand(launch.command, launch.args), {
+            cwd: input.cwd,
+            env,
+            shell: true,
+            stdio: ["ignore", "pipe", "pipe"],
+          })
+        : spawn(launch.command, launch.args, {
+            cwd: input.cwd,
+            env,
+            stdio: ["ignore", "pipe", "pipe"],
+          });
     let settled = false;
     const timeoutHandle = setTimeout(() => {
       if (settled) return;
       settled = true;
-      proc.kill();
-      reject(new Error("Timed out after waiting for provider output"));
+      void terminateChildProcess(proc).finally(() => {
+        reject(new Error("Timed out after waiting for provider output"));
+      });
     }, input.timeoutMs || 120_000);
 
     let stdout = "";

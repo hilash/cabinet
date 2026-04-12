@@ -1,6 +1,11 @@
 import { execSync } from "child_process";
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
-import { checkCliProviderAvailable, resolveCliCommand, RUNTIME_PATH } from "../provider-cli";
+import {
+  buildCommandCandidates,
+  checkCliProviderAvailable,
+  resolveCliCommand,
+  RUNTIME_PATH,
+} from "../provider-cli";
 
 export const codexCliProvider: AgentProvider = {
   id: "codex-cli",
@@ -13,12 +18,7 @@ export const codexCliProvider: AgentProvider = {
     { title: "Log in", detail: "Run codex in your terminal and follow the login prompts." },
   ],
   command: "codex",
-  commandCandidates: [
-    `${process.env.HOME || ""}/.local/bin/codex`,
-    "/usr/local/bin/codex",
-    "/opt/homebrew/bin/codex",
-    "codex",
-  ],
+  commandCandidates: buildCommandCandidates("codex"),
 
   buildArgs(prompt: string, _workdir: string): string[] {
     return [
