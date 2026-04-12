@@ -12,6 +12,7 @@ const PACKAGER_IGNORE = [
   /^\/\.github(?:\/|$)/,
   /^\/\.claude(?:\/|$)/,
   /^\/\.agents(?:\/|$)/,
+  /^\/packages(?:\/|$)/,
   /^\/coverage(?:\/|$)/,
   /^\/out(?:\/|$)/,
   /^\/test(?:\/|$)/,
