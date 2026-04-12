@@ -1,31 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useAuthStore } from "@multica/core/auth";
+import { LoginPage } from "@multica/views/auth";
 
 export function MulticaAuthGuard({ children }: { children: React.ReactNode }) {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const isLoading = useAuthStore((s) => s.isLoading);
 
-  useEffect(() => {
-    fetch("/multica-api/me", { credentials: "include" })
-      .then((r) => {
-        setAuthenticated(r.ok);
-      })
-      .catch(() => setAuthenticated(false));
-  }, []);
-
-  if (authenticated === null) return null;
-
-  if (!authenticated) {
+  if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-        <p className="text-sm">Connect to Multica to access this feature</p>
-        <a
-          href="/multica-auth/login"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Connect Multica
-        </a>
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-pulse text-sm text-muted-foreground">Loading...</div>
       </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <LoginPage
+        onSuccess={() => {
+          // AuthStore already updated — React will re-render and show children
+        }}
+      />
     );
   }
 
