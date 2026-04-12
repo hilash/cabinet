@@ -30,6 +30,13 @@ function isSafeCommandName(candidate: string): boolean {
   return /^[A-Za-z0-9._/-]+$/.test(candidate);
 }
 
+function getPlatformPathTools(platform: NodeJS.Platform) {
+  return {
+    api: platform === "win32" ? path.win32 : path.posix,
+    delimiter: platform === "win32" ? ";" : ":",
+  };
+}
+
 export function buildRuntimePath(options?: {
   platform?: NodeJS.Platform;
   env?: NodeJS.ProcessEnv;
@@ -38,24 +45,25 @@ export function buildRuntimePath(options?: {
   const platform = options?.platform || process.platform;
   const env = options?.env || process.env;
   const runtimeNvmBin = options?.nvmBin === undefined ? nvmBin : options.nvmBin;
+  const { api: pathApi, delimiter } = getPlatformPathTools(platform);
 
   if (platform === "win32") {
     const homeDir = resolveHomeDir(env);
     return [
-      env.APPDATA ? path.join(env.APPDATA, "npm") : "",
-      path.join(homeDir, ".local", "bin"),
-      ...(runtimeNvmBin ? [runtimeNvmBin] : []),
+      env.APPDATA ? pathApi.join(env.APPDATA, "npm") : "",
+      pathApi.join(homeDir, ".local", "bin"),
+      ...(runtimeNvmBin ? [pathApi.normalize(runtimeNvmBin)] : []),
       env.PATH || "",
-    ].filter(Boolean).join(path.delimiter);
+    ].filter(Boolean).join(delimiter);
   }
 
   return [
     `${env.HOME || ""}/.local/bin`,
     "/usr/local/bin",
     "/opt/homebrew/bin",
-    ...(runtimeNvmBin ? [runtimeNvmBin] : []),
+    ...(runtimeNvmBin ? [pathApi.normalize(runtimeNvmBin)] : []),
     env.PATH || "",
-  ].filter(Boolean).join(path.delimiter);
+  ].filter(Boolean).join(delimiter);
 }
 
 export const RUNTIME_PATH = buildRuntimePath();
@@ -101,16 +109,14 @@ export function buildCommandCandidates(
   const platform = options?.platform || process.platform;
   const env = options?.env || process.env;
   const runtimeNvmBin = options?.nvmBin ?? null;
+  const { api: pathApi } = getPlatformPathTools(platform);
 
   if (platform === "win32") {
     const homeDir = resolveHomeDir(env);
     return [
-      env.APPDATA ? path.join(env.APPDATA, "npm", `${command}.cmd`) : "",
-      env.APPDATA ? path.join(env.APPDATA, "npm", `${command}.ps1`) : "",
-      env.APPDATA ? path.join(env.APPDATA, "npm", command) : "",
-      path.join(homeDir, ".local", "bin", `${command}.cmd`),
-      path.join(homeDir, ".local", "bin", command),
-      ...(runtimeNvmBin ? [path.join(runtimeNvmBin, `${command}.cmd`), path.join(runtimeNvmBin, command)] : []),
+      env.APPDATA ? pathApi.join(env.APPDATA, "npm", `${command}.cmd`) : "",
+      pathApi.join(homeDir, ".local", "bin", `${command}.cmd`),
+      ...(runtimeNvmBin ? [pathApi.join(runtimeNvmBin, `${command}.cmd`)] : []),
       command,
     ].filter(Boolean);
   }
@@ -119,7 +125,7 @@ export function buildCommandCandidates(
     `${env.HOME || ""}/.local/bin/${command}`,
     `/usr/local/bin/${command}`,
     `/opt/homebrew/bin/${command}`,
-    ...(runtimeNvmBin ? [path.join(runtimeNvmBin, command)] : []),
+    ...(runtimeNvmBin ? [pathApi.join(runtimeNvmBin, command)] : []),
     command,
   ].filter(Boolean);
 }
