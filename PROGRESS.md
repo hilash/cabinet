@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-12] Removed inline Job editor panel from the agent settings jobs view. The jobs list now fills the full width. Clicking a job opens the styled New Job popup (now context-aware: "Edit Job" title, Run + Delete in footer, "Save job" button when editing an existing job).
+
 [2026-04-12] Redesigned "New Job" popup to match the "Edit Agent" dialog style exactly: two-column layout with the prompt textarea on the left (60vh tall, bg-muted/60 borderless), fields grid on the right (uppercase tracking labels, muted-fill inputs), and a proper footer with Starter Library ghost button on the left and Cancel + Create on the right.
 
 [2026-04-12] Fixed search API recursing into embedded app/website directories. `collectPages` in `src/app/api/search/route.ts` now skips directories that have `index.html` but no `index.md`, preventing internal files like `about.md` inside a pipeline app from appearing in Cmd+K search results.

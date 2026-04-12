@@ -456,7 +456,6 @@ export function AgentsWorkspace({
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const quickSendTextareaRef = useRef<HTMLTextAreaElement>(null);
   const conversationsPanel = useHorizontalResize(340, 260, 520);
-  const jobsPanel = useHorizontalResize(280, 220, 420);
   const treeNodes = useTreeStore((state) => state.nodes);
   const selectPage = useTreeStore((state) => state.selectPage);
   const section = useAppStore((state) => state.section);
@@ -1257,6 +1256,7 @@ export function AgentsWorkspace({
 
   function openJob(jobId: string) {
     setSelectedJobId(jobId);
+    setNewJobDialogOpen(true);
   }
 
   function applyLibraryTemplate(template: JobLibraryTemplate) {
@@ -1279,10 +1279,8 @@ export function AgentsWorkspace({
 
   function closeNewJobDialog() {
     setNewJobDialogOpen(false);
-    if (selectedJobId === "__new__") {
-      setSelectedJobId(null);
-      setJobDraft(null);
-    }
+    setSelectedJobId(null);
+    setJobDraft(null);
   }
 
   async function saveJob() {
@@ -2822,9 +2820,11 @@ export function AgentsWorkspace({
                 }}>
                   <DialogContent className="sm:max-w-5xl">
                     <DialogHeader className="gap-1">
-                      <DialogTitle>New Job</DialogTitle>
+                      <DialogTitle>{selectedJobId && selectedJobId !== "__new__" ? "Edit Job" : "New Job"}</DialogTitle>
                       <DialogDescription>
-                        Configure a scheduled prompt that runs automatically on a cron schedule.
+                        {selectedJobId && selectedJobId !== "__new__"
+                          ? "Edit this scheduled job. Changes take effect on the next run."
+                          : "Configure a scheduled prompt that runs automatically on a cron schedule."}
                       </DialogDescription>
                     </DialogHeader>
                     {jobDraft ? (
@@ -2931,15 +2931,48 @@ export function AgentsWorkspace({
                           </div>
                         </div>
                         <div className="flex items-center justify-between border-t border-border pt-3">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 gap-1 text-xs"
-                            onClick={() => setLibraryDialogOpen(true)}
-                          >
-                            <Library className="h-3.5 w-3.5" />
-                            Starter library
-                          </Button>
+                          {selectedJobId && selectedJobId !== "__new__" ? (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1 text-xs"
+                                onClick={() => { void runJob(selectedJobId); }}
+                                disabled={runningJobId === selectedJobId}
+                              >
+                                {runningJobId === selectedJobId ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Play className="h-3.5 w-3.5" />
+                                )}
+                                Run
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1 text-xs text-destructive"
+                                onClick={() => { void deleteJob(selectedJobId); closeNewJobDialog(); }}
+                                disabled={deletingJobId === selectedJobId}
+                              >
+                                {deletingJobId === selectedJobId ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                                Delete
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1 text-xs"
+                              onClick={() => setLibraryDialogOpen(true)}
+                            >
+                              <Library className="h-3.5 w-3.5" />
+                              Starter library
+                            </Button>
+                          )}
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={closeNewJobDialog}>
                               Cancel
@@ -2956,7 +2989,7 @@ export function AgentsWorkspace({
                               }
                             >
                               <Save className="h-3.5 w-3.5" />
-                              {savingJob ? "Saving..." : "Create job"}
+                              {savingJob ? "Saving..." : selectedJobId && selectedJobId !== "__new__" ? "Save job" : "Create job"}
                             </Button>
                           </div>
                         </div>
@@ -3007,10 +3040,7 @@ export function AgentsWorkspace({
 
                 <div className="min-h-0 flex-1 overflow-hidden">
                   <div className="flex h-full min-h-0">
-                    <div
-                      className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-l-xl rounded-r-none border border-r-0 border-border"
-                      style={{ width: jobsPanel.width }}
-                    >
+                    <div className="flex min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border">
                       <div className="flex items-center justify-between border-b border-border px-4 py-3">
                         <div>
                           <h4
@@ -3040,12 +3070,7 @@ export function AgentsWorkspace({
                             settingsJobs.map((job) => (
                               <div
                                 key={job.id}
-                                className={cn(
-                                  "rounded-xl border px-3 py-3 transition-colors",
-                                  selectedJobId === job.id
-                                    ? "border-foreground/15 bg-accent/40"
-                                    : "border-border bg-background"
-                                )}
+                                className="rounded-xl border border-border bg-background px-3 py-3 transition-colors hover:bg-accent/20"
                               >
                                 <div className="flex items-start gap-3">
                                   <button
@@ -3112,208 +3137,6 @@ export function AgentsWorkspace({
                           )}
                         </div>
                       </ScrollArea>
-                    </div>
-
-                    <div className="relative z-10 w-px shrink-0 bg-border">
-                      <div
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label="Resize jobs panel"
-                        onPointerDown={jobsPanel.startResize}
-                        className="absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
-                      />
-                    </div>
-
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-r-xl rounded-l-none border border-l-0 border-border">
-                      {jobDraft && selectedJobId !== "__new__" ? (
-                        <ScrollArea className="min-h-0 flex-1">
-                          <div className="space-y-4 p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <h4 className="text-[13px] font-semibold">
-                                  {selectedJobId === "__new__" ? "New job" : "Job editor"}
-                                </h4>
-                                <p className="text-[11px] text-muted-foreground">
-                                  Edit the selected job for this agent.
-                                </p>
-                              </div>
-                              <div className="flex gap-2">
-                                {selectedJobId && selectedJobId !== "__new__" ? (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-8 gap-1 text-xs"
-                                      onClick={() => void runJob(selectedJobId)}
-                                      disabled={runningJobId === selectedJobId}
-                                    >
-                                      {runningJobId === selectedJobId ? (
-                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                      ) : (
-                                        <Play className="h-3.5 w-3.5" />
-                                      )}
-                                      Run
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 gap-1 text-xs text-destructive"
-                                      onClick={() => void deleteJob(selectedJobId)}
-                                      disabled={deletingJobId === selectedJobId}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      Delete
-                                    </Button>
-                                  </>
-                                ) : null}
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-medium text-muted-foreground">Job name</label>
-                              <input
-                                value={jobDraft.name}
-                                onChange={(event) =>
-                                  setJobDraft((current) =>
-                                    current ? { ...current, name: event.target.value } : current
-                                  )
-                                }
-                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
-                                placeholder="Weekly strategy digest"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-medium text-muted-foreground">Job id</label>
-                              <input
-                                value={jobDraft.id}
-                                onChange={(event) =>
-                                  setJobDraft((current) =>
-                                    current ? { ...current, id: event.target.value } : current
-                                  )
-                                }
-                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 font-mono text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
-                                placeholder="weekly-strategy-digest"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-medium text-muted-foreground">Schedule</label>
-                              <div className="mt-1">
-                                <SchedulePicker
-                                  value={jobDraft.schedule || "0 9 * * 1-5"}
-                                  onChange={(cron) =>
-                                    setJobDraft((current) =>
-                                      current ? { ...current, schedule: cron } : current
-                                    )
-                                  }
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-medium text-muted-foreground">Provider</label>
-                              <select
-                                value={jobDraft.provider}
-                                onChange={(event) =>
-                                  setJobDraft((current) =>
-                                    current ? { ...current, provider: event.target.value } : current
-                                  )
-                                }
-                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
-                              >
-                                {selectableCliProviders.map((provider) => (
-                                  <option key={provider.id} value={provider.id}>
-                                    {provider.name}{provider.available ? "" : " (not installed)"}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-medium text-muted-foreground">Timeout (seconds)</label>
-                              <input
-                                type="number"
-                                value={jobDraft.timeout || 600}
-                                onChange={(event) =>
-                                  setJobDraft((current) =>
-                                    current
-                                      ? {
-                                          ...current,
-                                          timeout: parseInt(event.target.value || "600", 10),
-                                        }
-                                      : current
-                                  )
-                                }
-                                className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-medium text-muted-foreground">Prompt</label>
-                              <textarea
-                                value={jobDraft.prompt}
-                                onChange={(event) =>
-                                  setJobDraft((current) =>
-                                    current ? { ...current, prompt: event.target.value } : current
-                                  )
-                                }
-                                rows={10}
-                                className="mt-1 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[13px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring"
-                                placeholder="What should this job do?"
-                              />
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <Button
-                                size="sm"
-                                className="h-9 px-4"
-                                onClick={() => void saveJob()}
-                                disabled={
-                                  savingJob ||
-                                  !jobDraft.name.trim() ||
-                                  !jobDraft.id.trim() ||
-                                  !jobDraft.prompt.trim()
-                                }
-                              >
-                                {savingJob ? "Saving..." : "Save job"}
-                              </Button>
-                              <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                                <input
-                                  type="checkbox"
-                                  checked={jobDraft.enabled}
-                                  onChange={(event) =>
-                                    setJobDraft((current) =>
-                                      current ? { ...current, enabled: event.target.checked } : current
-                                    )
-                                  }
-                                />
-                                Enabled
-                              </label>
-                            </div>
-                          </div>
-                        </ScrollArea>
-                      ) : (
-                        <div className="flex h-full min-h-[280px] items-center justify-center">
-                          <div className="max-w-sm space-y-3 px-6 text-center">
-                            <h4 className="text-[13px] font-semibold">Select a job to edit</h4>
-                            <p className="text-[12px] text-muted-foreground">
-                              Existing jobs open here. Create a new job to start from scratch or choose a template inside the popup.
-                            </p>
-                            <div className="flex justify-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 text-xs"
-                                onClick={() => setLibraryDialogOpen(true)}
-                              >
-                                Library
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="h-8 gap-1 text-xs"
-                                onClick={startNewJobDraft}
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                                New job
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
