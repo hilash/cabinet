@@ -2820,12 +2820,48 @@ export function AgentsWorkspace({
                 }}>
                   <DialogContent className="sm:max-w-5xl">
                     <DialogHeader className="gap-1">
-                      <DialogTitle>{selectedJobId && selectedJobId !== "__new__" ? "Edit Job" : "New Job"}</DialogTitle>
-                      <DialogDescription>
-                        {selectedJobId && selectedJobId !== "__new__"
-                          ? "Edit this scheduled job. Changes take effect on the next run."
-                          : "Configure a scheduled prompt that runs automatically on a cron schedule."}
-                      </DialogDescription>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <DialogTitle>{selectedJobId && selectedJobId !== "__new__" ? "Edit Job" : "New Job"}</DialogTitle>
+                          <DialogDescription>
+                            {selectedJobId && selectedJobId !== "__new__"
+                              ? "Edit this scheduled job. Changes take effect on the next run."
+                              : "Configure a scheduled prompt that runs automatically on a cron schedule."}
+                          </DialogDescription>
+                        </div>
+                        {selectedJobId && selectedJobId !== "__new__" ? (
+                          <div className="flex shrink-0 gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1 text-xs"
+                              onClick={() => { void runJob(selectedJobId); }}
+                              disabled={runningJobId === selectedJobId}
+                            >
+                              {runningJobId === selectedJobId ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Play className="h-3.5 w-3.5" />
+                              )}
+                              Run
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1 text-xs text-destructive hover:text-destructive"
+                              onClick={() => { void deleteJob(selectedJobId); closeNewJobDialog(); }}
+                              disabled={deletingJobId === selectedJobId}
+                            >
+                              {deletingJobId === selectedJobId ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                              Delete
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
                     </DialogHeader>
                     {jobDraft ? (
                       <div className="space-y-3">
@@ -2931,38 +2967,7 @@ export function AgentsWorkspace({
                           </div>
                         </div>
                         <div className="flex items-center justify-between border-t border-border pt-3">
-                          {selectedJobId && selectedJobId !== "__new__" ? (
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-1 text-xs"
-                                onClick={() => { void runJob(selectedJobId); }}
-                                disabled={runningJobId === selectedJobId}
-                              >
-                                {runningJobId === selectedJobId ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Play className="h-3.5 w-3.5" />
-                                )}
-                                Run
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-1 text-xs text-destructive"
-                                onClick={() => { void deleteJob(selectedJobId); closeNewJobDialog(); }}
-                                disabled={deletingJobId === selectedJobId}
-                              >
-                                {deletingJobId === selectedJobId ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                )}
-                                Delete
-                              </Button>
-                            </div>
-                          ) : (
+                          {!(selectedJobId && selectedJobId !== "__new__") ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -2972,7 +2977,7 @@ export function AgentsWorkspace({
                               <Library className="h-3.5 w-3.5" />
                               Starter library
                             </Button>
-                          )}
+                          ) : <div />}
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={closeNewJobDialog}>
                               Cancel
