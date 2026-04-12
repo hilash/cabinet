@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-12] Task board header: moved selectors and refresh button to same row as filter chips (chips left, selectors right). Active chip color now matches its type (sky for Manual, emerald for Jobs, pink for Heartbeat) instead of generic primary.
+
 [2026-04-12] Made BACK button icon smaller (2.5) and nudged it up to align with the center of the letter height.
 
 [2026-04-12] Removed scope/visibility label text next to AGENTS in sidebar (e.g. "Cabinet · Include two cabinet levels") and added more spacing between CABINET header and AGENTS sub-item.

@@ -4,14 +4,15 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 import {
-  ArrowUpRight,
+  Bot,
   CheckCircle2,
   Circle,
+  Clock3,
+  HeartPulse,
   Inbox,
   Loader2,
   Play,
@@ -20,6 +21,18 @@ import {
   Send,
   XCircle,
 } from "lucide-react";
+import { buildConversationInstanceKey } from "@/lib/agents/conversation-identity";
+import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { CABINET_VISIBILITY_OPTIONS } from "@/lib/cabinets/visibility";
+import { cn } from "@/lib/utils";
+import { useAppStore } from "@/stores/app-store";
+import type { HumanInboxDraft } from "@/types/agents";
+import type { CabinetOverview, CabinetVisibilityMode } from "@/types/cabinets";
+import type {
+  ConversationMeta,
+  ConversationStatus,
+  ConversationTrigger,
+} from "@/types/conversations";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,17 +52,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
-import { CABINET_VISIBILITY_OPTIONS } from "@/lib/cabinets/visibility";
-import { cn } from "@/lib/utils";
-import { useAppStore } from "@/stores/app-store";
-import type { AgentTask, AgentListItem } from "@/types/agents";
-import type { CabinetOverview, CabinetVisibilityMode } from "@/types/cabinets";
-import type { ConversationMeta } from "@/types/conversations";
 
-type TaskStatus = AgentTask["status"];
+type VisibleAgent = CabinetOverview["agents"][number];
+type TriggerFilter = "all" | ConversationTrigger;
+type BoardLane = "inbox" | "running" | "completed" | "failed";
 
-const LANE_ORDER: TaskStatus[] = ["pending", "in_progress", "completed", "failed"];
 const PRIORITY_OPTIONS = [
   { label: "P0", value: "1" },
   { label: "P1", value: "2" },
@@ -57,8 +64,10 @@ const PRIORITY_OPTIONS = [
   { label: "P3", value: "4" },
 ] as const;
 
+const TRIGGER_FILTERS: TriggerFilter[] = ["all", "manual", "job", "heartbeat"];
+
 const LANE_COPY: Record<
-  TaskStatus,
+  BoardLane,
   {
     title: string;
     description: string;
@@ -66,15 +75,15 @@ const LANE_COPY: Record<
     badge: string;
   }
 > = {
-  pending: {
+  inbox: {
     title: "Inbox",
-    description: "Tasks waiting to be launched.",
+    description: "Unassigned ideas you want to execute.",
     icon: Inbox,
     badge: "bg-amber-500/10 text-amber-700",
   },
-  in_progress: {
+  running: {
     title: "Running",
-    description: "Work already in motion.",
+    description: "Conversations already in motion.",
     icon: Loader2,
     badge: "bg-sky-500/10 text-sky-700",
   },
@@ -90,6 +99,18 @@ const LANE_COPY: Record<
     icon: XCircle,
     badge: "bg-destructive/10 text-destructive",
   },
+};
+
+const TRIGGER_STYLES: Record<ConversationTrigger, string> = {
+  manual: "bg-sky-500/12 text-sky-400 ring-1 ring-sky-500/20",
+  job: "bg-emerald-500/12 text-emerald-400 ring-1 ring-emerald-500/20",
+  heartbeat: "bg-pink-500/12 text-pink-400 ring-1 ring-pink-500/20",
+};
+
+const TRIGGER_LABELS: Record<ConversationTrigger, string> = {
+  manual: "Manual",
+  job: "Job",
+  heartbeat: "Heartbeat",
 };
 
 function startCase(value: string | undefined, fallback = "General"): string {
@@ -114,6 +135,25 @@ function scopedAgentKey(cabinetPath: string | undefined, slug: string): string {
   return `${cabinetPath || ROOT_CABINET_PATH}::agent::${slug}`;
 }
 
+function cabinetLabel(cabinetPath?: string): string | null {
+  const resolved = cabinetPath || ROOT_CABINET_PATH;
+  if (resolved === ROOT_CABINET_PATH) return null;
+  return startCase(resolved.split("/").pop());
+}
+
+function visibleAgentCabinetLabel(
+  agent: VisibleAgent | null,
+  fallbackCabinetPath?: string
+): string | null {
+  if (agent) {
+    return agent.cabinetPath === ROOT_CABINET_PATH
+      ? null
+      : agent.cabinetName || cabinetLabel(agent.cabinetPath);
+  }
+
+  return cabinetLabel(fallbackCabinetPath);
+}
+
 function priorityLabel(priority: number): string {
   if (priority <= 1) return "P0";
   if (priority <= 2) return "P1";
@@ -128,31 +168,77 @@ function priorityTone(priority: number): string {
   return "bg-muted text-muted-foreground";
 }
 
-function taskPrompt(task: AgentTask): string {
-  return task.description.trim()
-    ? `${task.title.trim()}\n\nContext:\n${task.description.trim()}`
-    : task.title.trim();
+function draftPrompt(draft: HumanInboxDraft): string {
+  return draft.description.trim()
+    ? `${draft.title.trim()}\n\nContext:\n${draft.description.trim()}`
+    : draft.title.trim();
 }
 
-function statusIcon(status: TaskStatus, animate = false) {
+const TRIGGER_CHIP_ACTIVE: Record<TriggerFilter, string> = {
+  all: "bg-primary text-primary-foreground",
+  manual: "bg-sky-500/15 text-sky-600 ring-1 ring-sky-500/25",
+  job: "bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/25",
+  heartbeat: "bg-pink-500/15 text-pink-600 ring-1 ring-pink-500/25",
+};
+
+function TriggerChip({
+  filter,
+  active,
+  onClick,
+  children,
+}: {
+  filter: TriggerFilter;
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+        active
+          ? TRIGGER_CHIP_ACTIVE[filter]
+          : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TriggerIcon({
+  trigger,
+  className,
+}: {
+  trigger: ConversationTrigger;
+  className?: string;
+}) {
+  if (trigger === "job") return <Clock3 className={className} />;
+  if (trigger === "heartbeat") return <HeartPulse className={className} />;
+  return <Bot className={className} />;
+}
+
+function ConversationStatusIcon({ status }: { status: ConversationStatus }) {
+  if (status === "running") {
+    return <Loader2 className="size-4 animate-spin text-emerald-500" />;
+  }
   if (status === "completed") {
-    return <CheckCircle2 className="size-4 text-emerald-600" />;
+    return <CheckCircle2 className="size-4 text-emerald-500" />;
   }
   if (status === "failed") {
     return <XCircle className="size-4 text-destructive" />;
   }
-  if (status === "in_progress") {
-    return <Loader2 className={cn("size-4 text-sky-600", animate && "animate-spin")} />;
-  }
+  return <Circle className="size-4 text-muted-foreground/40" />;
+}
+
+function DraftStatusIcon() {
   return <Circle className="size-4 text-amber-600" />;
 }
 
-function CreateTaskDialog({
+function CreateDraftDialog({
   open,
   onOpenChange,
-  visibleAgents,
-  selectedCreateAgentId,
-  onSelectedCreateAgentIdChange,
   title,
   onTitleChange,
   description,
@@ -164,9 +250,6 @@ function CreateTaskDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  visibleAgents: CabinetOverview["agents"];
-  selectedCreateAgentId: string | null;
-  onSelectedCreateAgentIdChange: (value: string | null) => void;
   title: string;
   onTitleChange: (value: string) => void;
   description: string;
@@ -176,46 +259,41 @@ function CreateTaskDialog({
   creating: boolean;
   onSubmit: () => void;
 }) {
-  const createAgentItems = visibleAgents.map((agent) => ({
-    label: `${agent.name}${agent.cabinetName ? ` · ${agent.cabinetName}` : ""}`,
-    value: agent.scopedId,
-  }));
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Add Inbox Task</DialogTitle>
           <DialogDescription>
-            Queue a task for an agent. It will land in the Inbox lane until you run it.
+            Capture something you want executed. You can assign the agent later from Inbox.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <label
-              htmlFor="task-title"
+              htmlFor="draft-title"
               className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70"
             >
               Task title
             </label>
             <Input
-              id="task-title"
+              id="draft-title"
               value={title}
               onChange={(event) => onTitleChange(event.target.value)}
-              placeholder="Draft the next task you want an agent to execute"
+              placeholder="Draft the next task you want to execute"
             />
           </div>
 
           <div className="flex flex-col gap-2">
             <label
-              htmlFor="task-context"
+              htmlFor="draft-context"
               className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70"
             >
               Context
             </label>
             <textarea
-              id="task-context"
+              id="draft-context"
               value={description}
               onChange={(event) => onDescriptionChange(event.target.value)}
               placeholder="Optional details, constraints, or acceptance notes"
@@ -223,38 +301,7 @@ function CreateTaskDialog({
             />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-                Agent
-              </label>
-              <Select
-                items={createAgentItems}
-                value={selectedCreateAgentId}
-                onValueChange={(value) =>
-                  onSelectedCreateAgentIdChange(typeof value === "string" ? value : null)
-                }
-                disabled={visibleAgents.length === 0}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="No visible agents" />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectGroup>
-                    {visibleAgents.map((agent) => (
-                      <SelectItem key={agent.scopedId} value={agent.scopedId}>
-                        <span className="text-sm leading-none">{agent.emoji || "🤖"}</span>
-                        <span className="truncate">
-                          {agent.name}
-                          {agent.cabinetName ? ` · ${agent.cabinetName}` : ""}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
+          <div className="grid gap-3 sm:grid-cols-[140px]">
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
                 Priority
@@ -288,10 +335,7 @@ function CreateTaskDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={onSubmit}
-            disabled={!title.trim() || !selectedCreateAgentId || creating}
-          >
+          <Button onClick={onSubmit} disabled={!title.trim() || creating}>
             {creating ? (
               <Loader2 data-icon="inline-start" className="animate-spin" />
             ) : (
@@ -305,151 +349,224 @@ function CreateTaskDialog({
   );
 }
 
-function TaskCard({
-  task,
-  isLive,
-  agentLabel,
-  cabinetLabel,
-  onRun,
-  onOpenRun,
-  onUpdateStatus,
-  runningTaskId,
-  updatingTaskId,
+function AssignDraftDialog({
+  open,
+  onOpenChange,
+  draft,
+  visibleAgents,
+  selectedAgentId,
+  onSelectedAgentIdChange,
+  busyAction,
+  onSaveForLater,
+  onStartNow,
 }: {
-  task: AgentTask;
-  isLive: boolean;
-  agentLabel: string;
-  cabinetLabel: string | null;
-  onRun: (task: AgentTask) => void;
-  onOpenRun: (task: AgentTask) => void;
-  onUpdateStatus: (task: AgentTask, status: TaskStatus) => void;
-  runningTaskId: string | null;
-  updatingTaskId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  draft: HumanInboxDraft | null;
+  visibleAgents: VisibleAgent[];
+  selectedAgentId: string | null;
+  onSelectedAgentIdChange: (value: string | null) => void;
+  busyAction: "save" | "start" | null;
+  onSaveForLater: () => void;
+  onStartNow: () => void;
 }) {
-  const pendingRun = runningTaskId === task.id;
-  const pendingUpdate = updatingTaskId === task.id;
-  const canOpenRun = Boolean(task.linkedConversationId);
-  const metadataLabel = [agentLabel, cabinetLabel, `from ${task.fromName || task.fromAgent}`]
-    .filter(Boolean)
-    .join(" · ");
-  const updatedLabel =
-    task.status === "completed" || task.status === "failed"
-      ? formatRelative(task.completedAt)
-      : formatRelative(task.updatedAt || task.createdAt);
+  const agentItems = visibleAgents.map((agent) => ({
+    label: `${agent.name}${agent.cabinetName ? ` · ${agent.cabinetName}` : ""}`,
+    value: agent.scopedId,
+  }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Assign Draft</DialogTitle>
+          <DialogDescription>
+            Pick the agent who should handle this task now or later.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4">
+          {draft ? (
+            <div className="rounded-[22px] border border-border/70 bg-muted/25 px-4 py-3">
+              <p className="text-[12px] font-medium text-foreground">{draft.title}</p>
+              {draft.description ? (
+                <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                  {draft.description}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+              Agent
+            </label>
+            <Select
+              items={agentItems}
+              value={selectedAgentId}
+              onValueChange={(value) =>
+                onSelectedAgentIdChange(typeof value === "string" ? value : null)
+              }
+              disabled={visibleAgents.length === 0}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="No visible agents" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectGroup>
+                  {visibleAgents.map((agent) => (
+                    <SelectItem key={agent.scopedId} value={agent.scopedId}>
+                      <span className="text-sm leading-none">{agent.emoji || "🤖"}</span>
+                      <span className="truncate">
+                        {agent.name}
+                        {agent.cabinetName ? ` · ${agent.cabinetName}` : ""}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onSaveForLater}
+            disabled={!selectedAgentId || busyAction !== null}
+          >
+            {busyAction === "save" ? (
+              <Loader2 data-icon="inline-start" className="animate-spin" />
+            ) : (
+              <Send data-icon="inline-start" />
+            )}
+            Save for later
+          </Button>
+          <Button onClick={onStartNow} disabled={!selectedAgentId || busyAction !== null}>
+            {busyAction === "start" ? (
+              <Loader2 data-icon="inline-start" className="animate-spin" />
+            ) : (
+              <Play data-icon="inline-start" />
+            )}
+            Start now
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DraftRow({
+  draft,
+  assignedAgentLabel,
+  assignedCabinetLabel,
+  canStartNow,
+  busy,
+  onAssign,
+  onChangeAssignment,
+  onStartNow,
+}: {
+  draft: HumanInboxDraft;
+  assignedAgentLabel: string | null;
+  assignedCabinetLabel: string | null;
+  canStartNow: boolean;
+  busy: boolean;
+  onAssign: () => void;
+  onChangeAssignment: () => void;
+  onStartNow: () => void;
+}) {
+  const assignmentText = assignedAgentLabel
+    ? `Assigned to ${assignedAgentLabel}${assignedCabinetLabel ? ` · ${assignedCabinetLabel}` : ""}`
+    : "Not assigned yet";
 
   return (
     <article className="border-b border-border/70 transition-colors hover:bg-accent/35 last:border-b-0">
       <div className="flex items-start gap-2 px-3 py-2">
         <div className="mt-0.5 shrink-0">
-          {statusIcon(task.status, task.status === "in_progress" && isLive)}
+          <DraftStatusIcon />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11.5px] font-medium leading-[1.35] text-foreground">
-                {task.title}
+                {draft.title}
               </p>
               <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                <p className="truncate">{metadataLabel}</p>
-                <span className="shrink-0">{updatedLabel}</span>
+                <p className="truncate">{assignmentText}</p>
+                <span className="shrink-0">{formatRelative(draft.updatedAt)}</span>
               </div>
             </div>
 
             <span
               className={cn(
                 "mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em]",
-                priorityTone(task.priority)
+                priorityTone(draft.priority)
               )}
             >
-              {priorityLabel(task.priority)}
+              {priorityLabel(draft.priority)}
             </span>
           </div>
 
-          {task.description ? (
+          {draft.description ? (
             <p className="mt-1 line-clamp-2 text-[10.5px] leading-4.5 text-muted-foreground">
-              {task.description}
+              {draft.description}
             </p>
           ) : null}
 
-          {task.result ? (
-            <p className="mt-1 line-clamp-2 text-[10.5px] leading-4.5 text-foreground/80">
-              {task.result}
-            </p>
-          ) : null}
-
-          {task.linkedConversationId ? (
+          {!assignedAgentLabel && (
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {isLive ? "Live run attached" : "Run linked"}
+              Choose an agent when you are ready to execute it.
+            </p>
+          )}
+
+          {assignedAgentLabel && !canStartNow ? (
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Assigned agent is not visible in this scope right now.
             </p>
           ) : null}
 
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {task.status === "pending" ? (
-              <Button
-                size="sm"
-                className="h-7 px-2 text-[10px]"
-                onClick={() => onRun(task)}
-                disabled={pendingRun}
-              >
-                {pendingRun ? (
-                  <Loader2 data-icon="inline-start" className="animate-spin" />
-                ) : (
-                  <Play data-icon="inline-start" />
-                )}
-                Run now
-              </Button>
-            ) : null}
-
-            {task.status === "in_progress" && canOpenRun ? (
+            {!assignedAgentLabel ? (
               <Button
                 variant="outline"
                 size="sm"
                 className="h-7 px-2 text-[10px]"
-                onClick={() => onOpenRun(task)}
+                onClick={onAssign}
+                disabled={busy}
               >
-                <ArrowUpRight data-icon="inline-start" />
-                Open run
+                <Send data-icon="inline-start" />
+                Assign
               </Button>
             ) : null}
 
-            {task.status === "in_progress" && !canOpenRun ? (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-[10px]"
-                  onClick={() => onUpdateStatus(task, "completed")}
-                  disabled={pendingUpdate}
-                >
-                  {pendingUpdate ? (
-                    <Loader2 data-icon="inline-start" className="animate-spin" />
-                  ) : (
-                    <CheckCircle2 data-icon="inline-start" />
-                  )}
-                  Mark done
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-[10px] text-destructive hover:text-destructive"
-                  onClick={() => onUpdateStatus(task, "failed")}
-                  disabled={pendingUpdate}
-                >
-                  <XCircle data-icon="inline-start" />
-                  Mark failed
-                </Button>
-              </>
+            {assignedAgentLabel ? (
+              <Button
+                size="sm"
+                className="h-7 px-2 text-[10px]"
+                onClick={onStartNow}
+                disabled={busy || !canStartNow}
+              >
+                {busy ? (
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                ) : (
+                  <Play data-icon="inline-start" />
+                )}
+                Start now
+              </Button>
             ) : null}
 
-            {(task.status === "completed" || task.status === "failed") && canOpenRun ? (
+            {assignedAgentLabel ? (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-[10px]"
-                onClick={() => onOpenRun(task)}
+                onClick={onChangeAssignment}
+                disabled={busy}
               >
-                <ArrowUpRight data-icon="inline-start" />
-                View run
+                Change
               </Button>
             ) : null}
           </div>
@@ -459,54 +576,91 @@ function TaskCard({
   );
 }
 
-function TaskLane({
-  status,
-  tasks,
-  liveConversationIds,
-  agentByKey,
-  onRun,
-  onOpenRun,
-  onUpdateStatus,
-  runningTaskId,
-  updatingTaskId,
-  headerAction,
+function ConversationRow({
+  conversation,
+  agentLabel,
+  cabinetName,
+  onOpen,
 }: {
-  status: TaskStatus;
-  tasks: AgentTask[];
-  liveConversationIds: Set<string>;
-  agentByKey: Map<string, AgentListItem>;
-  onRun: (task: AgentTask) => void;
-  onOpenRun: (task: AgentTask) => void;
-  onUpdateStatus: (task: AgentTask, status: TaskStatus) => void;
-  runningTaskId: string | null;
-  updatingTaskId: string | null;
-  headerAction?: ReactNode;
+  conversation: ConversationMeta;
+  agentLabel: string;
+  cabinetName: string | null;
+  onOpen: () => void;
 }) {
-  const lane = LANE_COPY[status];
-  const Icon = lane.icon;
+  return (
+    <button
+      onClick={onOpen}
+      className="relative flex w-full items-start gap-2 border-b border-border/70 px-3 py-2 text-left transition-colors hover:bg-accent/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+    >
+      <div className="mt-0.5 shrink-0">
+        <ConversationStatusIcon status={conversation.status} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-[11.5px] font-medium leading-[1.35] text-foreground">
+            {conversation.title}
+          </p>
+          <span
+            aria-label={TRIGGER_LABELS[conversation.trigger]}
+            title={TRIGGER_LABELS[conversation.trigger]}
+            className={cn(
+              "inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full",
+              TRIGGER_STYLES[conversation.trigger]
+            )}
+          >
+            <TriggerIcon trigger={conversation.trigger} className="h-2.75 w-2.75" />
+          </span>
+        </div>
+        <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+          <p className="truncate">
+            {agentLabel}
+            {cabinetName ? ` · ${cabinetName}` : ""}
+          </p>
+          <span className="shrink-0">{formatRelative(conversation.startedAt)}</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function BoardLane({
+  lane,
+  count,
+  headerAction,
+  emptyState,
+  children,
+}: {
+  lane: BoardLane;
+  count: number;
+  headerAction?: ReactNode;
+  emptyState: string;
+  children: ReactNode;
+}) {
+  const copy = LANE_COPY[lane];
+  const Icon = copy.icon;
 
   return (
-    <section className="flex min-w-[260px] flex-1 flex-col overflow-hidden border-r border-border/70 bg-background last:border-r-0">
+    <section className="flex min-w-[300px] flex-1 flex-col overflow-hidden border-r border-border/70 bg-background last:border-r-0">
       <div className="flex items-start justify-between gap-3 border-b border-border/70 bg-muted/30 px-3 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Icon
               className={cn(
                 "size-4 shrink-0 text-muted-foreground",
-                status === "in_progress" && tasks.length > 0 && "animate-spin"
+                lane === "running" && count > 0 && "animate-spin"
               )}
             />
-            <h3 className="text-[14px] font-semibold text-foreground">{lane.title}</h3>
+            <h3 className="text-[14px] font-semibold text-foreground">{copy.title}</h3>
             <span
               className={cn(
                 "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                lane.badge
+                copy.badge
               )}
             >
-              {tasks.length}
+              {count}
             </span>
           </div>
-          <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{lane.description}</p>
+          <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{copy.description}</p>
         </div>
 
         {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
@@ -514,47 +668,12 @@ function TaskLane({
 
       <div className="min-h-0 flex-1 overflow-hidden">
         <ScrollArea className="h-full">
-          {tasks.length === 0 ? (
+          {count === 0 ? (
             <div className="px-3 py-8 text-[12px] leading-6 text-muted-foreground">
-              {status === "pending"
-                ? "No inbox tasks yet. Click Add to queue the next task."
-                : status === "in_progress"
-                  ? "Nothing is running right now."
-                  : status === "completed"
-                    ? "Completed tasks will collect here as runs finish."
-                    : "Failed runs will surface here so they are easy to retry."}
+              {emptyState}
             </div>
           ) : (
-            <div>
-              {tasks.map((task) => {
-                const agent =
-                  agentByKey.get(scopedAgentKey(task.cabinetPath, task.toAgent)) || null;
-                const cabinetLabel =
-                  agent?.cabinetPath && agent.cabinetPath !== ROOT_CABINET_PATH
-                    ? agent.cabinetName || startCase(agent.cabinetPath.split("/").pop())
-                    : null;
-
-                return (
-                  <TaskCard
-                    key={`${task.cabinetPath || ROOT_CABINET_PATH}::${task.toAgent}::${task.id}`}
-                    task={task}
-                    isLive={Boolean(
-                      task.linkedConversationId &&
-                        liveConversationIds.has(
-                          `${task.linkedConversationCabinetPath || task.cabinetPath || ROOT_CABINET_PATH}::${task.linkedConversationId}`
-                        )
-                    )}
-                    agentLabel={agent?.name || startCase(task.toAgent)}
-                    cabinetLabel={cabinetLabel}
-                    onRun={onRun}
-                    onOpenRun={onOpenRun}
-                    onUpdateStatus={onUpdateStatus}
-                    runningTaskId={runningTaskId}
-                    updatingTaskId={updatingTaskId}
-                  />
-                );
-              })}
-            </div>
+            <div>{children}</div>
           )}
         </ScrollArea>
       </div>
@@ -580,21 +699,21 @@ export function TasksBoard({
       : cabinetVisibilityModes[effectiveCabinetPath] || "own";
 
   const [overview, setOverview] = useState<CabinetOverview | null>(null);
-  const [tasks, setTasks] = useState<AgentTask[]>([]);
+  const [drafts, setDrafts] = useState<HumanInboxDraft[]>([]);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
-  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [runningTaskId, setRunningTaskId] = useState<string | null>(null);
-  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+  const [assignDraftId, setAssignDraftId] = useState<string | null>(null);
+  const [assignBusyAction, setAssignBusyAction] = useState<"save" | "start" | null>(null);
+  const [busyDraftId, setBusyDraftId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCreateAgentId, setSelectedCreateAgentId] = useState<string | null>(null);
-  const [selectedFilterAgentId, setSelectedFilterAgentId] = useState<string>("all");
   const [priority, setPriority] = useState<string>("3");
-  const syncInFlightRef = useRef<Set<string>>(new Set());
+  const [selectedAssignAgentId, setSelectedAssignAgentId] = useState<string | null>(null);
+  const [selectedFilterAgentId, setSelectedFilterAgentId] = useState<string>("all");
+  const [triggerFilter, setTriggerFilter] = useState<TriggerFilter>("all");
 
   const refreshOverview = useCallback(async () => {
     const params = new URLSearchParams({
@@ -611,21 +730,19 @@ export function TasksBoard({
     setOverview(data);
   }, [effectiveCabinetPath, effectiveVisibilityMode]);
 
-  const refreshTasks = useCallback(async () => {
-    const params = new URLSearchParams({ all: "true" });
-    params.set("cabinetPath", effectiveCabinetPath);
-    if (effectiveVisibilityMode !== "own") {
-      params.set("visibilityMode", effectiveVisibilityMode);
-    }
-
-    const response = await fetch(`/api/agents/tasks?${params.toString()}`, {
+  const refreshDrafts = useCallback(async () => {
+    const params = new URLSearchParams({
+      cabinetPath: effectiveCabinetPath,
+      visibilityMode: effectiveVisibilityMode,
+    });
+    const response = await fetch(`/api/agents/inbox-drafts?${params.toString()}`, {
       cache: "no-store",
     });
     if (!response.ok) {
-      throw new Error("Failed to load tasks");
+      throw new Error("Failed to load inbox drafts");
     }
     const data = await response.json();
-    setTasks((data.tasks || []) as AgentTask[]);
+    setDrafts((data.drafts || []) as HumanInboxDraft[]);
   }, [effectiveCabinetPath, effectiveVisibilityMode]);
 
   const refreshConversations = useCallback(async () => {
@@ -636,10 +753,14 @@ export function TasksBoard({
     if (effectiveVisibilityMode !== "own") {
       params.set("visibilityMode", effectiveVisibilityMode);
     }
+
     const response = await fetch(`/api/agents/conversations?${params.toString()}`, {
       cache: "no-store",
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      throw new Error("Failed to load conversations");
+    }
+
     const data = await response.json();
     setConversations((data.conversations || []) as ConversationMeta[]);
   }, [effectiveCabinetPath, effectiveVisibilityMode]);
@@ -654,7 +775,7 @@ export function TasksBoard({
       }
 
       try {
-        await Promise.all([refreshOverview(), refreshTasks(), refreshConversations()]);
+        await Promise.all([refreshOverview(), refreshDrafts(), refreshConversations()]);
       } finally {
         if (initial) {
           setLoading(false);
@@ -663,7 +784,7 @@ export function TasksBoard({
         }
       }
     },
-    [refreshConversations, refreshOverview, refreshTasks]
+    [refreshConversations, refreshDrafts, refreshOverview]
   );
 
   useEffect(() => {
@@ -679,43 +800,7 @@ export function TasksBoard({
     };
   }, [refreshBoard]);
 
-  useEffect(() => {
-    fetch("/api/agents/config")
-      .then((response) => response.json())
-      .then((data) => {
-        const nextName = [
-          data?.person?.name,
-          data?.user?.name,
-          data?.owner?.name,
-          data?.company?.name,
-          typeof data?.company === "string" ? data.company : null,
-        ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
-
-        if (nextName) {
-          setDisplayName(nextName);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   const visibleAgents = useMemo(() => overview?.agents || [], [overview]);
-
-  useEffect(() => {
-    if (visibleAgents.length === 0) {
-      setSelectedCreateAgentId(null);
-      return;
-    }
-
-    const stillVisible = visibleAgents.some((agent) => agent.scopedId === selectedCreateAgentId);
-    if (stillVisible) return;
-
-    const preferredAgent =
-      visibleAgents.find((agent) => agent.cabinetDepth === 0 && agent.active) ||
-      visibleAgents.find((agent) => agent.active) ||
-      visibleAgents[0];
-
-    setSelectedCreateAgentId(preferredAgent?.scopedId || null);
-  }, [selectedCreateAgentId, visibleAgents]);
 
   useEffect(() => {
     if (
@@ -726,27 +811,50 @@ export function TasksBoard({
     }
   }, [selectedFilterAgentId, visibleAgents]);
 
-  const agentByKey = useMemo<Map<string, AgentListItem>>(
+  const activeAssignDraft = useMemo(
+    () => drafts.find((draft) => draft.id === assignDraftId) || null,
+    [assignDraftId, drafts]
+  );
+
+  useEffect(() => {
+    if (!activeAssignDraft) {
+      setSelectedAssignAgentId(null);
+      return;
+    }
+
+    const existingAssignment = activeAssignDraft.assignedAgentSlug
+      ? scopedAgentKey(
+          activeAssignDraft.assignedAgentCabinetPath,
+          activeAssignDraft.assignedAgentSlug
+        )
+      : null;
+
+    if (
+      existingAssignment &&
+      visibleAgents.some((agent) => agent.scopedId === existingAssignment)
+    ) {
+      setSelectedAssignAgentId(existingAssignment);
+      return;
+    }
+
+    const preferredAgent =
+      visibleAgents.find((agent) => agent.cabinetDepth === 0 && agent.active) ||
+      visibleAgents.find((agent) => agent.active) ||
+      visibleAgents[0];
+
+    setSelectedAssignAgentId(preferredAgent?.scopedId || null);
+  }, [activeAssignDraft, visibleAgents]);
+
+  const agentByKey = useMemo(
     () =>
-      new Map(
-        visibleAgents.map((agent) => [scopedAgentKey(agent.cabinetPath, agent.slug), agent])
-      ),
+      new Map(visibleAgents.map((agent) => [scopedAgentKey(agent.cabinetPath, agent.slug), agent])),
     [visibleAgents]
   );
 
-  const selectedCreateAgent =
-    visibleAgents.find((agent) => agent.scopedId === selectedCreateAgentId) || null;
   const selectedFilterAgent =
     selectedFilterAgentId === "all"
       ? null
       : visibleAgents.find((agent) => agent.scopedId === selectedFilterAgentId) || null;
-
-  const filteredTasks = useMemo(() => {
-    if (selectedFilterAgentId === "all") return tasks;
-    return tasks.filter(
-      (task) => scopedAgentKey(task.cabinetPath, task.toAgent) === selectedFilterAgentId
-    );
-  }, [selectedFilterAgentId, tasks]);
 
   const filterAgentItems = useMemo(
     () => [
@@ -768,194 +876,187 @@ export function TasksBoard({
     []
   );
 
-  const groupedTasks = useMemo(() => {
-    return LANE_ORDER.reduce<Record<TaskStatus, AgentTask[]>>(
-      (acc, status) => {
-        acc[status] = filteredTasks.filter((task) => task.status === status);
-        return acc;
-      },
-      {
-        pending: [],
-        in_progress: [],
-        completed: [],
-        failed: [],
+  const filteredConversations = useMemo(() => {
+    return conversations.filter((conversation) => {
+      if (conversation.status === "cancelled") return false;
+      if (
+        selectedFilterAgentId !== "all" &&
+        scopedAgentKey(conversation.cabinetPath, conversation.agentSlug) !== selectedFilterAgentId
+      ) {
+        return false;
       }
-    );
-  }, [filteredTasks]);
-
-  const conversationByKey = useMemo(() => {
-    return new Map(
-      conversations.map((conversation) => [
-        `${conversation.cabinetPath || ROOT_CABINET_PATH}::${conversation.id}`,
-        conversation,
-      ])
-    );
-  }, [conversations]);
-
-  const liveConversationIds = useMemo(() => {
-    return new Set(
-      conversations
-        .filter((conversation) => conversation.status === "running")
-        .map(
-          (conversation) => `${conversation.cabinetPath || ROOT_CABINET_PATH}::${conversation.id}`
-        )
-    );
-  }, [conversations]);
-
-  useEffect(() => {
-    const completedTasks = tasks.filter(
-      (task) =>
-        task.status === "in_progress" &&
-        task.linkedConversationId &&
-        !syncInFlightRef.current.has(task.id)
-    );
-
-    const updates = completedTasks.flatMap((task) => {
-      const conversationKey = `${task.linkedConversationCabinetPath || task.cabinetPath || ROOT_CABINET_PATH}::${task.linkedConversationId}`;
-      const conversation = conversationByKey.get(conversationKey);
-      if (!conversation || conversation.status === "running") return [];
-
-      const nextStatus = conversation.status === "completed" ? "completed" : "failed";
-      const result =
-        conversation.summary ||
-        conversation.contextSummary ||
-        (conversation.status === "completed" ? "Run completed." : "Run failed.");
-
-      return [{ task, nextStatus, result }] as const;
+      if (triggerFilter !== "all" && conversation.trigger !== triggerFilter) {
+        return false;
+      }
+      return true;
     });
+  }, [conversations, selectedFilterAgentId, triggerFilter]);
 
-    if (updates.length === 0) return;
+  const groupedConversations = useMemo(
+    () => ({
+      running: filteredConversations.filter((conversation) => conversation.status === "running"),
+      completed: filteredConversations.filter((conversation) => conversation.status === "completed"),
+      failed: filteredConversations.filter((conversation) => conversation.status === "failed"),
+    }),
+    [filteredConversations]
+  );
 
-    updates.forEach(({ task }) => syncInFlightRef.current.add(task.id));
+  const resolveAgentForDraft = useCallback(
+    (draft: HumanInboxDraft): VisibleAgent | null => {
+      if (!draft.assignedAgentSlug) return null;
+      return (
+        agentByKey.get(
+          scopedAgentKey(draft.assignedAgentCabinetPath, draft.assignedAgentSlug)
+        ) || null
+      );
+    },
+    [agentByKey]
+  );
 
-    void Promise.all(
-      updates.map(async ({ task, nextStatus, result }) => {
-        await fetch("/api/agents/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "update",
-            agent: task.toAgent,
-            taskId: task.id,
-            cabinetPath: task.cabinetPath,
-            status: nextStatus,
-            result,
-          }),
-        });
-      })
-    ).finally(() => {
-      updates.forEach(({ task }) => syncInFlightRef.current.delete(task.id));
-      void refreshTasks();
-    });
-  }, [conversationByKey, refreshTasks, tasks]);
-
-  async function createTask() {
-    if (!title.trim() || !selectedCreateAgent) return;
+  async function createDraft() {
+    if (!title.trim()) return;
 
     setCreating(true);
     try {
-      await fetch("/api/agents/tasks", {
+      const response = await fetch("/api/agents/inbox-drafts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fromAgent: "human",
-          fromEmoji: "🧑",
-          fromName: displayName || "You",
-          toAgent: selectedCreateAgent.slug,
           title: title.trim(),
           description: description.trim(),
           priority: Number(priority),
-          cabinetPath: selectedCreateAgent.cabinetPath || effectiveCabinetPath,
+          cabinetPath: effectiveCabinetPath,
         }),
       });
+
+      if (!response.ok) {
+        throw new Error("Failed to create inbox draft");
+      }
+
       setTitle("");
       setDescription("");
       setPriority("3");
       setCreateDialogOpen(false);
-      await refreshTasks();
+      await refreshDrafts();
     } finally {
       setCreating(false);
     }
   }
 
-  async function runTask(task: AgentTask) {
-    setRunningTaskId(task.id);
-    try {
-      const conversationResponse = await fetch("/api/agents/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentSlug: task.toAgent,
-          userMessage: taskPrompt(task),
-          mentionedPaths: task.kbRefs || [],
-          cabinetPath: task.cabinetPath || effectiveCabinetPath,
-        }),
-      });
+  async function saveAssignment(
+    draft: HumanInboxDraft,
+    agent: VisibleAgent
+  ): Promise<HumanInboxDraft> {
+    const response = await fetch("/api/agents/inbox-drafts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update",
+        draftId: draft.id,
+        cabinetPath: draft.cabinetPath || effectiveCabinetPath,
+        assignedAgentSlug: agent.slug,
+        assignedAgentCabinetPath: agent.cabinetPath || effectiveCabinetPath,
+      }),
+    });
 
-      if (!conversationResponse.ok) return;
-      const data = await conversationResponse.json();
-      const conversation = data.conversation as ConversationMeta | undefined;
-      if (!conversation?.id) return;
+    if (!response.ok) {
+      throw new Error("Failed to assign inbox draft");
+    }
 
-      await fetch("/api/agents/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update",
-          agent: task.toAgent,
-          taskId: task.id,
-          cabinetPath: task.cabinetPath,
-          status: "in_progress",
-          linkedConversationId: conversation.id,
-          linkedConversationCabinetPath:
-            conversation.cabinetPath || task.cabinetPath || effectiveCabinetPath,
-          startedAt: new Date().toISOString(),
-        }),
-      });
+    const data = await response.json();
+    return data.draft as HumanInboxDraft;
+  }
 
-      await Promise.all([refreshTasks(), refreshConversations()]);
-    } finally {
-      setRunningTaskId(null);
+  async function removeDraft(draft: HumanInboxDraft) {
+    const response = await fetch("/api/agents/inbox-drafts", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        draftId: draft.id,
+        cabinetPath: draft.cabinetPath || effectiveCabinetPath,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to remove inbox draft");
     }
   }
 
-  async function updateTaskStatus(task: AgentTask, status: TaskStatus) {
-    setUpdatingTaskId(task.id);
+  async function startDraftConversation(draft: HumanInboxDraft, agent: VisibleAgent) {
+    await saveAssignment(draft, agent);
+
+    const response = await fetch("/api/agents/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        agentSlug: agent.slug,
+        userMessage: draftPrompt(draft),
+        cabinetPath: agent.cabinetPath || effectiveCabinetPath,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to start conversation from inbox draft");
+    }
+
+    await removeDraft(draft);
+    await Promise.all([refreshDrafts(), refreshConversations()]);
+  }
+
+  async function handleSaveAssignment() {
+    if (!activeAssignDraft || !selectedAssignAgentId) return;
+    const agent = visibleAgents.find((entry) => entry.scopedId === selectedAssignAgentId) || null;
+    if (!agent) return;
+
+    setBusyDraftId(activeAssignDraft.id);
+    setAssignBusyAction("save");
     try {
-      await fetch("/api/agents/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update",
-          agent: task.toAgent,
-          taskId: task.id,
-          cabinetPath: task.cabinetPath,
-          status,
-          result:
-            status === "completed"
-              ? task.result || "Marked complete from the task board."
-              : status === "failed"
-                ? task.result || "Marked failed from the task board."
-                : task.result,
-        }),
-      });
-      await refreshTasks();
+      await saveAssignment(activeAssignDraft, agent);
+      setAssignDraftId(null);
+      await refreshDrafts();
     } finally {
-      setUpdatingTaskId(null);
+      setBusyDraftId(null);
+      setAssignBusyAction(null);
     }
   }
 
-  function openRun(task: AgentTask) {
-    if (!task.linkedConversationId) return;
-    const targetCabinetPath =
-      task.linkedConversationCabinetPath || task.cabinetPath || effectiveCabinetPath;
+  async function handleStartFromDialog() {
+    if (!activeAssignDraft || !selectedAssignAgentId) return;
+    const agent = visibleAgents.find((entry) => entry.scopedId === selectedAssignAgentId) || null;
+    if (!agent) return;
+
+    setBusyDraftId(activeAssignDraft.id);
+    setAssignBusyAction("start");
+    try {
+      await startDraftConversation(activeAssignDraft, agent);
+      setAssignDraftId(null);
+    } finally {
+      setBusyDraftId(null);
+      setAssignBusyAction(null);
+    }
+  }
+
+  async function handleStartAssignedDraft(draft: HumanInboxDraft) {
+    const agent = resolveAgentForDraft(draft);
+    if (!agent) return;
+
+    setBusyDraftId(draft.id);
+    try {
+      await startDraftConversation(draft, agent);
+    } finally {
+      setBusyDraftId(null);
+    }
+  }
+
+  function openConversation(conversation: ConversationMeta) {
+    const targetCabinetPath = conversation.cabinetPath || effectiveCabinetPath;
     setSection({
       type: "agent",
       mode: "cabinet",
-      slug: task.toAgent,
+      slug: conversation.agentSlug,
       cabinetPath: targetCabinetPath,
-      agentScopedId: `${targetCabinetPath}::agent::${task.toAgent}`,
-      conversationId: task.linkedConversationId,
+      agentScopedId: `${targetCabinetPath}::agent::${conversation.agentSlug}`,
+      conversationId: conversation.id,
     });
   }
 
@@ -969,26 +1070,60 @@ export function TasksBoard({
     "Own agents only";
   const boardTitle =
     resolvedWorkspaceMode === "cabinet" ? `${cabinetName} Task Board` : "All Cabinets Task Board";
+  const runsLabel =
+    triggerFilter === "all"
+      ? `${filteredConversations.length} run${filteredConversations.length === 1 ? "" : "s"}`
+      : triggerFilter === "job"
+        ? `${filteredConversations.length} job run${filteredConversations.length === 1 ? "" : "s"}`
+        : `${filteredConversations.length} ${triggerFilter} run${filteredConversations.length === 1 ? "" : "s"}`;
   const boardDescription = selectedFilterAgent
-    ? `${selectedFilterAgent.name} only. ${filteredTasks.length} task${filteredTasks.length === 1 ? "" : "s"} in view.`
+    ? `${drafts.length} inbox draft${drafts.length === 1 ? "" : "s"}. ${runsLabel} for ${selectedFilterAgent.name}.`
     : resolvedWorkspaceMode === "cabinet"
-      ? `${scopeLabel}. ${filteredTasks.length} task${filteredTasks.length === 1 ? "" : "s"} across ${visibleAgents.length} visible agent${visibleAgents.length === 1 ? "" : "s"}.`
-      : `${filteredTasks.length} task${filteredTasks.length === 1 ? "" : "s"} across ${visibleAgents.length} visible agent${visibleAgents.length === 1 ? "" : "s"} in all cabinets.`;
+      ? `${scopeLabel}. ${drafts.length} inbox draft${drafts.length === 1 ? "" : "s"} and ${runsLabel} across ${visibleAgents.length} visible agent${visibleAgents.length === 1 ? "" : "s"}.`
+      : `${drafts.length} inbox draft${drafts.length === 1 ? "" : "s"} and ${runsLabel} across ${visibleAgents.length} visible agent${visibleAgents.length === 1 ? "" : "s"} in all cabinets.`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="border-b border-border/70 bg-background/95 px-4 py-5 sm:px-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="font-body-serif text-[1.9rem] leading-none tracking-tight text-foreground sm:text-[2.2rem]">
-              {boardTitle}
-            </h1>
-            <p className="pt-2 text-sm leading-6 text-muted-foreground">
-              {boardDescription}
-            </p>
-          </div>
+        <div className="min-w-0">
+          <h1 className="font-body-serif text-[1.9rem] leading-none tracking-tight text-foreground sm:text-[2.2rem]">
+            {boardTitle}
+          </h1>
+          <p className="pt-2 text-sm leading-6 text-muted-foreground">
+            {boardDescription}
+          </p>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          {TRIGGER_FILTERS.map((filter) => (
+            <TriggerChip
+              key={filter}
+              filter={filter}
+              active={triggerFilter === filter}
+              onClick={() => setTriggerFilter(filter)}
+            >
+              {filter === "all" ? (
+                "All"
+              ) : filter === "manual" ? (
+                <>
+                  <TriggerIcon trigger="manual" className={cn("size-3", triggerFilter !== "manual" && "text-sky-400")} />
+                  Manual
+                </>
+              ) : filter === "job" ? (
+                <>
+                  <TriggerIcon trigger="job" className={cn("size-3", triggerFilter !== "job" && "text-emerald-400")} />
+                  Jobs
+                </>
+              ) : (
+                <>
+                  <TriggerIcon trigger="heartbeat" className={cn("size-3", triggerFilter !== "heartbeat" && "text-pink-400")} />
+                  Heartbeat
+                </>
+              )}
+            </TriggerChip>
+          ))}
+
+          <div className="ml-auto flex items-center gap-2">
             <Select
               items={filterAgentItems}
               value={selectedFilterAgentId}
@@ -996,10 +1131,10 @@ export function TasksBoard({
                 setSelectedFilterAgentId(typeof value === "string" ? value : "all")
               }
             >
-              <SelectTrigger className="min-w-[230px] bg-background">
+              <SelectTrigger size="sm" className="bg-background">
                 <SelectValue placeholder="All visible agents" />
               </SelectTrigger>
-              <SelectContent align="end">
+              <SelectContent align="end" className="min-w-[280px]">
                 <SelectGroup>
                   <SelectItem value="all">All visible agents</SelectItem>
                   {visibleAgents.map((agent) => (
@@ -1026,7 +1161,7 @@ export function TasksBoard({
                   )
                 }
               >
-                <SelectTrigger className="min-w-[170px] bg-background">
+                <SelectTrigger size="sm" className="bg-background">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="end">
@@ -1044,7 +1179,7 @@ export function TasksBoard({
             <Button
               variant="outline"
               size="sm"
-              className="h-8"
+              className="h-7"
               onClick={() => void refreshBoard()}
               disabled={refreshing}
             >
@@ -1058,12 +1193,9 @@ export function TasksBoard({
         </div>
       </div>
 
-      <CreateTaskDialog
+      <CreateDraftDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        visibleAgents={visibleAgents}
-        selectedCreateAgentId={selectedCreateAgentId}
-        onSelectedCreateAgentIdChange={setSelectedCreateAgentId}
         title={title}
         onTitleChange={setTitle}
         description={description}
@@ -1071,47 +1203,140 @@ export function TasksBoard({
         priority={priority}
         onPriorityChange={setPriority}
         creating={creating}
-        onSubmit={() => void createTask()}
+        onSubmit={() => void createDraft()}
+      />
+
+      <AssignDraftDialog
+        open={Boolean(activeAssignDraft)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAssignDraftId(null);
+          }
+        }}
+        draft={activeAssignDraft}
+        visibleAgents={visibleAgents}
+        selectedAgentId={selectedAssignAgentId}
+        onSelectedAgentIdChange={setSelectedAssignAgentId}
+        busyAction={assignBusyAction}
+        onSaveForLater={() => void handleSaveAssignment()}
+        onStartNow={() => void handleStartFromDialog()}
       />
 
       <div className="min-h-0 flex-1 overflow-x-auto">
         {loading ? (
           <div className="flex h-full items-center justify-center gap-3 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            Loading the task board…
+            Loading the task board...
           </div>
         ) : (
           <div className="flex h-full min-w-max">
-            {LANE_ORDER.map((status) => (
-              <TaskLane
-                key={status}
-                status={status}
-                tasks={groupedTasks[status]}
-                liveConversationIds={liveConversationIds}
-                agentByKey={agentByKey}
-                onRun={(task) => void runTask(task)}
-                onOpenRun={openRun}
-                onUpdateStatus={(task, nextStatus) =>
-                  void updateTaskStatus(task, nextStatus)
-                }
-                runningTaskId={runningTaskId}
-                updatingTaskId={updatingTaskId}
-                headerAction={
-                  status === "pending" ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-[10px]"
-                      onClick={() => setCreateDialogOpen(true)}
-                      disabled={visibleAgents.length === 0}
-                    >
-                      <Plus data-icon="inline-start" />
-                      Add
-                    </Button>
-                  ) : undefined
-                }
-              />
-            ))}
+            <BoardLane
+              lane="inbox"
+              count={drafts.length}
+              emptyState="No inbox tasks yet. Click Add to queue the next thing you want to execute."
+              headerAction={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[10px]"
+                  onClick={() => setCreateDialogOpen(true)}
+                >
+                  <Plus data-icon="inline-start" />
+                  Add
+                </Button>
+              }
+            >
+              {drafts.map((draft) => {
+                const assignedAgent = resolveAgentForDraft(draft);
+                const fallbackAssignedName = draft.assignedAgentSlug
+                  ? startCase(draft.assignedAgentSlug)
+                  : null;
+                const assignedCabinetName = visibleAgentCabinetLabel(
+                  assignedAgent,
+                  draft.assignedAgentCabinetPath || draft.cabinetPath
+                );
+
+                return (
+                  <DraftRow
+                    key={`${draft.cabinetPath || ROOT_CABINET_PATH}::draft::${draft.id}`}
+                    draft={draft}
+                    assignedAgentLabel={assignedAgent?.name || fallbackAssignedName}
+                    assignedCabinetLabel={assignedCabinetName}
+                    canStartNow={Boolean(assignedAgent)}
+                    busy={busyDraftId === draft.id}
+                    onAssign={() => setAssignDraftId(draft.id)}
+                    onChangeAssignment={() => setAssignDraftId(draft.id)}
+                    onStartNow={() => void handleStartAssignedDraft(draft)}
+                  />
+                );
+              })}
+            </BoardLane>
+
+            <BoardLane
+              lane="running"
+              count={groupedConversations.running.length}
+              emptyState="Nothing is running right now."
+            >
+              {groupedConversations.running.map((conversation) => {
+                const agent =
+                  agentByKey.get(scopedAgentKey(conversation.cabinetPath, conversation.agentSlug)) ||
+                  null;
+
+                return (
+                  <ConversationRow
+                    key={buildConversationInstanceKey(conversation)}
+                    conversation={conversation}
+                    agentLabel={agent?.name || startCase(conversation.agentSlug)}
+                    cabinetName={visibleAgentCabinetLabel(agent, conversation.cabinetPath)}
+                    onOpen={() => openConversation(conversation)}
+                  />
+                );
+              })}
+            </BoardLane>
+
+            <BoardLane
+              lane="completed"
+              count={groupedConversations.completed.length}
+              emptyState="Completed runs will collect here as they finish."
+            >
+              {groupedConversations.completed.map((conversation) => {
+                const agent =
+                  agentByKey.get(scopedAgentKey(conversation.cabinetPath, conversation.agentSlug)) ||
+                  null;
+
+                return (
+                  <ConversationRow
+                    key={buildConversationInstanceKey(conversation)}
+                    conversation={conversation}
+                    agentLabel={agent?.name || startCase(conversation.agentSlug)}
+                    cabinetName={visibleAgentCabinetLabel(agent, conversation.cabinetPath)}
+                    onOpen={() => openConversation(conversation)}
+                  />
+                );
+              })}
+            </BoardLane>
+
+            <BoardLane
+              lane="failed"
+              count={groupedConversations.failed.length}
+              emptyState="Failed runs will surface here so they are easy to retry."
+            >
+              {groupedConversations.failed.map((conversation) => {
+                const agent =
+                  agentByKey.get(scopedAgentKey(conversation.cabinetPath, conversation.agentSlug)) ||
+                  null;
+
+                return (
+                  <ConversationRow
+                    key={buildConversationInstanceKey(conversation)}
+                    conversation={conversation}
+                    agentLabel={agent?.name || startCase(conversation.agentSlug)}
+                    cabinetName={visibleAgentCabinetLabel(agent, conversation.cabinetPath)}
+                    onOpen={() => openConversation(conversation)}
+                  />
+                );
+              })}
+            </BoardLane>
           </div>
         )}
       </div>
