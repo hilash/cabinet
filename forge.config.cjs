@@ -151,9 +151,7 @@ module.exports = {
     asar: {
       unpackDir: ".next/standalone",
     },
-    // Multica Go server binary — uncomment and set the path once the binary
-    // is built for the target platform (e.g. via `GOOS=darwin GOARCH=arm64 go build`).
-    // extraResource: ["./build/multica-server"],
+    extraResource: ["./build/multica-server"],
     prune: true,
     ignore: PACKAGER_IGNORE,
     afterComplete: [codesignNativeBinaries, pruneMacLocales],
