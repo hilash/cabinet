@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-12] Added Gemini CLI as an agent provider. Gemini CLI can now be used alongside Claude Code and Codex CLI for AI editing and agent sessions. Uses `--yolo` flag for auto-approval and supports both one-shot (`-p` prompt) and interactive session modes.
+
 [2026-04-11] Added Storage tab to Settings with data directory picker. Users can view the current data dir path, browse for a new one, or type a path manually. The setting is persisted to `.cabinet-install.json` and read by `getManagedDataDir()` at startup (env var still takes priority). A restart banner shows when the path changes. Also updated the About tab to show the actual data dir path.
 
 [2026-04-11] Added Mermaid diagram viewer for .mermaid and .mmd files. Renders diagrams with the mermaid library, supports source toggle, copy source, and SVG export. Follows the current Cabinet theme (dark/light). Shows error state with fallback to source view if rendering fails.

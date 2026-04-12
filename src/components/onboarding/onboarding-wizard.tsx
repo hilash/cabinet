@@ -1221,7 +1221,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[
-                    { name: "Gemini CLI", type: "CLI", icon: "terminal" },
                     { name: "Anthropic API", type: "API", icon: "api" },
                     { name: "OpenAI API", type: "API", icon: "api" },
                     { name: "Google AI API", type: "API", icon: "api" },

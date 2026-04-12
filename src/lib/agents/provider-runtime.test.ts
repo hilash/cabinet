@@ -14,6 +14,7 @@ import {
 } from "./provider-runtime";
 import { claudeCodeProvider } from "./providers/claude-code";
 import { codexCliProvider } from "./providers/codex-cli";
+import { geminiCliProvider } from "./providers/gemini-cli";
 
 async function createExecutableScript(source: string): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "cabinet-provider-test-"));
@@ -61,6 +62,26 @@ test("Codex provider builds the expected launch arguments", () => {
   assert.ok(interactiveSession);
   assert.deepEqual(interactiveSession.args, ["--ephemeral"]);
   assert.equal(interactiveSession.initialPrompt, undefined);
+});
+
+test("Gemini provider builds expected one-shot args", () => {
+  const oneShot = geminiCliProvider.buildOneShotInvocation?.("Say OK", process.cwd());
+  assert.ok(oneShot);
+  assert.deepEqual(oneShot.args, ["--approval-mode=yolo", "Say OK"]);
+});
+
+test("Gemini provider uses -i for session mode with prompt", () => {
+  const session = geminiCliProvider.buildSessionInvocation?.("Edit this file", process.cwd());
+  assert.ok(session);
+  assert.deepEqual(session.args, ["--approval-mode=yolo", "-i", "Edit this file"]);
+  assert.equal(session.initialPrompt, undefined);
+});
+
+test("Gemini provider omits -i for session mode without prompt", () => {
+  const session = geminiCliProvider.buildSessionInvocation?.(undefined, process.cwd());
+  assert.ok(session);
+  assert.deepEqual(session.args, ["--approval-mode=yolo"]);
+  assert.equal(session.initialPrompt, undefined);
 });
 
 test("Claude provider keeps the prompt injection session contract", () => {

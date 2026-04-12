@@ -58,11 +58,11 @@ test("normalizeProviderSettings falls back to the first enabled provider when ne
     () => {
       const settings = normalizeProviderSettings({
         defaultProvider: "missing-provider",
-        disabledProviderIds: ["claude-code", "codex-cli"],
+        disabledProviderIds: ["claude-code", "codex-cli", "gemini-cli"],
       });
 
       assert.equal(settings.defaultProvider, "test-only-provider");
-      assert.deepEqual(settings.disabledProviderIds, ["claude-code", "codex-cli"]);
+      assert.deepEqual(settings.disabledProviderIds, ["claude-code", "codex-cli", "gemini-cli"]);
     }
   );
 
