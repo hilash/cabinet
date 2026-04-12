@@ -210,6 +210,7 @@ export function HomeScreen() {
         setPrompt("");
         setSection({
           type: "agent",
+          mode: "ops",
           slug: "general",
           conversationId: data.conversation?.id,
         });

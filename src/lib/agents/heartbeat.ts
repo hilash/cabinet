@@ -65,8 +65,8 @@ async function buildHeartbeatContext(slug: string, cabinetPath?: string): Promis
   let tasksContext = "";
   try {
     const { getTasksForAgent } = await import("./task-inbox");
-    const pendingTasks = await getTasksForAgent(slug, "pending");
-    const inProgressTasks = await getTasksForAgent(slug, "in_progress");
+    const pendingTasks = await getTasksForAgent(slug, "pending", cabinetPath);
+    const inProgressTasks = await getTasksForAgent(slug, "in_progress", cabinetPath);
     const allActive = [...pendingTasks, ...inProgressTasks];
     if (allActive.length > 0) {
       tasksContext = allActive.map((t) =>
@@ -192,7 +192,7 @@ async function processHeartbeatOutput(
     const messageMatches = memoryBlock.matchAll(/MESSAGE_TO\s+\[([^\]]+)\]:\s*(.*)/g);
     for (const match of messageMatches) {
       const { sendMessage } = await import("./persona-manager");
-      await sendMessage(slug, match[1], match[2].trim());
+      await sendMessage(slug, match[1], match[2].trim(), cabinetPath);
     }
 
     const slackMatches = memoryBlock.matchAll(/SLACK\s+\[([^\]]+)\]:\s*(.*)/g);
@@ -227,6 +227,7 @@ async function processHeartbeatOutput(
         fromAgent: slug, fromEmoji: persona.emoji, fromName: persona.name,
         toAgent, channel: persona.channels?.[0] || "general",
         title, description, kbRefs: [], priority,
+        cabinetPath,
       });
       await postMessage({
         channel: persona.channels?.[0] || "general",
@@ -240,7 +241,12 @@ async function processHeartbeatOutput(
     const taskCompleteMatches = memoryBlock.matchAll(/TASK_COMPLETE\s+\[([^\]]+)\]:\s*(.*)/g);
     for (const match of taskCompleteMatches) {
       const { updateTask } = await import("./task-inbox");
-      await updateTask(slug, match[1].trim(), { status: "completed", result: match[2].trim() });
+      await updateTask(
+        slug,
+        match[1].trim(),
+        { status: "completed", result: match[2].trim() },
+        cabinetPath
+      );
     }
   }
 

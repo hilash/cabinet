@@ -17,7 +17,7 @@ interface TreeState {
   showHiddenFiles: boolean;
 
   loadTree: () => Promise<void>;
-  selectPage: (path: string) => void;
+  selectPage: (path: string | null) => void;
   toggleExpand: (path: string) => void;
   expandPath: (path: string) => void;
   createPage: (parentPath: string, title: string) => Promise<void>;
@@ -72,7 +72,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }
   },
 
-  selectPage: (path: string) => {
+  selectPage: (path: string | null) => {
     set({ selectedPath: path });
   },
 

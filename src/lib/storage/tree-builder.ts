@@ -3,6 +3,7 @@ import path from "path";
 import matter from "gray-matter";
 import yaml from "js-yaml";
 import { CABINET_LINK_META_CANDIDATES, CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
+import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import type { TreeNode } from "@/types";
 import { DATA_DIR, virtualPathFromFs, isHiddenEntry } from "./path-utils";
 import { listDirectory, readFileContent, fileExists } from "./fs-operations";
@@ -91,6 +92,20 @@ async function readCabinetMeta(
   }
 
   return {};
+}
+
+async function readCabinetManifest(
+  dirPath: string
+): Promise<Record<string, unknown>> {
+  try {
+    const raw = await readFileContent(path.join(dirPath, CABINET_MANIFEST_FILE));
+    const parsed = yaml.load(raw);
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 async function buildTreeRecursive(
@@ -247,5 +262,34 @@ async function buildTreeRecursive(
 }
 
 export async function buildTree(showHidden = false): Promise<TreeNode[]> {
-  return buildTreeRecursive(DATA_DIR, new Set<string>(), showHidden);
+  const children = await buildTreeRecursive(DATA_DIR, new Set<string>(), showHidden);
+  const rootManifest = await readCabinetManifest(DATA_DIR);
+
+  if (Object.keys(rootManifest).length === 0) {
+    return children;
+  }
+
+  const rootIndexPath = path.join(DATA_DIR, "index.md");
+  const rootFrontmatter = (await fileExists(rootIndexPath))
+    ? await readFrontmatter(rootIndexPath)
+    : {};
+
+  return [
+    {
+      name:
+        (typeof rootManifest.name === "string" && rootManifest.name.trim()) ||
+        "Cabinet",
+      path: ROOT_CABINET_PATH,
+      type: "cabinet",
+      frontmatter: {
+        title:
+          (rootFrontmatter.title as string | undefined) ||
+          (rootManifest.name as string | undefined) ||
+          "Cabinet",
+        icon: rootFrontmatter.icon as string | undefined,
+        order: rootFrontmatter.order as number | undefined,
+      },
+      children,
+    },
+  ];
 }

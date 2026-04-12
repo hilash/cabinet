@@ -10,6 +10,7 @@ import {
   jobIdMatches,
   normalizeJobConfig,
 } from "@/lib/jobs/job-normalization";
+import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 
 export async function GET(
   req: NextRequest,
@@ -17,7 +18,10 @@ export async function GET(
 ) {
   const { id: slug, jobId } = await params;
   const { searchParams } = new URL(req.url);
-  const cabinetPath = searchParams.get("cabinetPath") || undefined;
+  const cabinetPath = normalizeCabinetPath(
+    searchParams.get("cabinetPath"),
+    false
+  );
   try {
     const jobs = await loadAgentJobsBySlug(slug, cabinetPath);
     const job = jobs.find((j) => jobIdMatches(j.id, jobId));
@@ -38,7 +42,10 @@ export async function PUT(
   const { id: slug, jobId } = await params;
   try {
     const body = await req.json();
-    const cabinetPath = typeof body.cabinetPath === "string" ? body.cabinetPath : undefined;
+    const cabinetPath = normalizeCabinetPath(
+      typeof body.cabinetPath === "string" ? body.cabinetPath : undefined,
+      false
+    );
 
     const jobs = await loadAgentJobsBySlug(slug, cabinetPath);
     const existing = jobs.find((j) => jobIdMatches(j.id, jobId));
@@ -57,7 +64,7 @@ export async function PUT(
     if (body.action === "toggle") {
       existing.enabled = !existing.enabled;
       existing.updatedAt = new Date().toISOString();
-      await saveAgentJob(slug, existing);
+      await saveAgentJob(slug, existing, cabinetPath || existing.cabinetPath);
       await reloadDaemonSchedules().catch(() => {});
       return NextResponse.json({ ok: true, job: existing });
     }
@@ -71,9 +78,13 @@ export async function PUT(
       updatedAt: new Date().toISOString(),
     };
     const normalized = normalizeJobConfig(updated, slug, existing.id);
-    await saveAgentJob(slug, normalized);
+    const saved = await saveAgentJob(
+      slug,
+      normalized,
+      cabinetPath || existing.cabinetPath
+    );
     await reloadDaemonSchedules().catch(() => {});
-    return NextResponse.json({ ok: true, job: normalized });
+    return NextResponse.json({ ok: true, job: saved });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -81,12 +92,16 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string; jobId: string }> }
 ) {
   const { id: slug, jobId } = await params;
   try {
-    await deleteAgentJob(slug, jobId);
+    const cabinetPath = normalizeCabinetPath(
+      req.nextUrl.searchParams.get("cabinetPath"),
+      false
+    );
+    await deleteAgentJob(slug, jobId, cabinetPath);
     await reloadDaemonSchedules().catch(() => {});
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -38,8 +38,10 @@ import { cronToHuman } from "@/lib/agents/cron-utils";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
 import type { TreeNode } from "@/types";
+import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
 import type { JobConfig } from "@/types/jobs";
 import type { AgentListItem, ProviderInfo } from "@/types/agents";
@@ -382,10 +384,12 @@ export function AgentsWorkspace({
   selectedAgentSlug,
   selectedScope = "all",
   cabinetPath,
+  workspaceMode,
 }: {
   selectedAgentSlug?: string | null;
   selectedScope?: "all" | "agent";
   cabinetPath?: string;
+  workspaceMode?: "ops" | "cabinet";
 }) {
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
@@ -450,7 +454,17 @@ export function AgentsWorkspace({
   const selectPage = useTreeStore((state) => state.selectPage);
   const section = useAppStore((state) => state.section);
   const setSection = useAppStore((state) => state.setSection);
-  const cabinetVisibilityMode = useAppStore((state) => state.cabinetVisibilityMode);
+  const cabinetVisibilityModes = useAppStore((state) => state.cabinetVisibilityModes);
+  const resolvedWorkspaceMode =
+    workspaceMode || (cabinetPath ? "cabinet" : "ops");
+  const effectiveCabinetPath =
+    cabinetPath || (resolvedWorkspaceMode === "ops" ? ROOT_CABINET_PATH : undefined);
+  const cabinetVisibilityMode =
+    (effectiveCabinetPath
+      ? cabinetVisibilityModes[effectiveCabinetPath]
+      : undefined) || "own";
+  const effectiveVisibilityMode: CabinetVisibilityMode =
+    resolvedWorkspaceMode === "ops" ? "all" : cabinetVisibilityMode;
 
   const allPages = flattenTree(treeNodes);
   const settingsAgentSlug =
@@ -492,12 +506,16 @@ export function AgentsWorkspace({
 
   async function refreshAgents() {
     try {
-      if (cabinetPath) {
-        const params = new URLSearchParams({ path: cabinetPath, visibility: "all" });
+      if (effectiveCabinetPath) {
+        const params = new URLSearchParams({
+          path: effectiveCabinetPath,
+          visibility: effectiveVisibilityMode,
+        });
         const response = await fetch(`/api/cabinets/overview?${params.toString()}`);
         if (!response.ok) return;
         const data = await response.json();
         const cabinetAgents = (data.agents || []).map((a: Record<string, unknown>) => ({
+          scopedId: a.scopedId as string | undefined,
           name: a.name as string,
           slug: a.slug as string,
           emoji: a.emoji as string || "🤖",
@@ -546,10 +564,10 @@ export function AgentsWorkspace({
     try {
       const params = new URLSearchParams();
       if (activeAgentSlug) params.set("agent", activeAgentSlug);
-      if (cabinetPath) {
-        params.set("cabinetPath", cabinetPath);
-        if (cabinetVisibilityMode !== "own") {
-          params.set("visibilityMode", cabinetVisibilityMode);
+      if (effectiveCabinetPath) {
+        params.set("cabinetPath", effectiveCabinetPath);
+        if (effectiveVisibilityMode !== "own") {
+          params.set("visibilityMode", effectiveVisibilityMode);
         }
       }
       const trigger = triggerFromFilter(triggerFilter);
@@ -624,7 +642,9 @@ export function AgentsWorkspace({
       return;
     }
 
-    const cabinetQuery = cabinetPath ? `?cabinetPath=${encodeURIComponent(cabinetPath)}` : "";
+    const cabinetQuery = effectiveCabinetPath
+      ? `?cabinetPath=${encodeURIComponent(effectiveCabinetPath)}`
+      : "";
     const [personaResponse, jobsResponse] = await Promise.all([
       fetch(`/api/agents/personas/${agentSlug}${cabinetQuery}`),
       fetch(`/api/agents/${agentSlug}/jobs${cabinetQuery}`),
@@ -703,7 +723,7 @@ export function AgentsWorkspace({
   useEffect(() => {
     void refreshConversations();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cabinetVisibilityMode]);
+  }, [effectiveVisibilityMode]);
 
   useEffect(() => {
     const pendingConvId = section.conversationId || null;
@@ -720,14 +740,50 @@ export function AgentsWorkspace({
     }
   }, [selectedAgentSlug, selectedScope, section.conversationId]);
 
-  function openAgentWorkspace(agentSlug: string) {
+  function buildAgentSection(agentSlug: string, agentCabinetPath?: string) {
+    if (agentCabinetPath) {
+      return {
+        type: "agent" as const,
+        mode: "cabinet" as const,
+        slug: agentSlug,
+        cabinetPath: agentCabinetPath,
+        agentScopedId: `${agentCabinetPath}::agent::${agentSlug}`,
+      };
+    }
+
+    return {
+      type: "agent" as const,
+      mode: "ops" as const,
+      slug: agentSlug,
+    };
+  }
+
+  function buildAgentsSection(nextCabinetPath?: string) {
+    return nextCabinetPath
+      ? ({
+          type: "agents" as const,
+          mode: "cabinet" as const,
+          cabinetPath: nextCabinetPath,
+        })
+      : ({ type: "agents" as const, mode: "ops" as const });
+  }
+
+  function openAgentWorkspace(target: AgentListItem | string) {
+    const targetAgent =
+      typeof target === "string"
+        ? agents.find((agent) => agent.slug === target) || null
+        : target;
+    const agentSlug = typeof target === "string" ? target : target.slug;
+    const agentCabinetPath =
+      targetAgent?.cabinetPath ||
+      (resolvedWorkspaceMode === "cabinet" ? effectiveCabinetPath : undefined);
+
     setActiveAgentSlug(agentSlug);
     setSelectedConversationId(null);
     setSelectedConversation(null);
-    // Note: setSection below preserves cabinetPath from parent
     setSettingsTarget(agentSlug);
     setMode("settings");
-    setSection({ type: "agent", slug: agentSlug, cabinetPath });
+    setSection(buildAgentSection(agentSlug, agentCabinetPath));
   }
 
   function openAgentComposer(agentSlug: string) {
@@ -743,19 +799,21 @@ export function AgentsWorkspace({
   // Listen for notification toast clicks to open a specific conversation
   useEffect(() => {
     function handler(event: Event) {
-      const { conversationId, agentSlug } = (event as CustomEvent).detail as {
+      const { conversationId, agentSlug, cabinetPath: conversationCabinetPath } = (event as CustomEvent).detail as {
         conversationId: string;
         agentSlug: string;
+        cabinetPath?: string;
       };
       setActiveAgentSlug(agentSlug);
       setSettingsTarget(agentSlug);
       setSelectedConversationId(conversationId);
       setMode("conversation");
+      setSection(buildAgentSection(agentSlug, conversationCabinetPath));
       void refreshConversations();
     }
     window.addEventListener("cabinet:open-conversation", handler);
     return () => window.removeEventListener("cabinet:open-conversation", handler);
-  }, []);
+  }, [setSection]);
 
   useEffect(() => {
     if (mode === "settings" && settingsAgentSlug) {
@@ -879,7 +937,7 @@ export function AgentsWorkspace({
         fetch(`/api/agents/personas/${settingsAgentSlug}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ setupComplete: true, cabinetPath }),
+          body: JSON.stringify({ setupComplete: true, cabinetPath: effectiveCabinetPath }),
         }).catch(() => {});
       }
       setSettingsEditorDraft(null);
@@ -943,13 +1001,17 @@ export function AgentsWorkspace({
     setAgentFlowError(null);
     setAddingAgentSlug(template.slug);
     try {
-      const res = await fetch(`/api/agents/library/${template.slug}/add`, { method: "POST" });
+      const res = await fetch(`/api/agents/library/${template.slug}/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cabinetPath: effectiveCabinetPath }),
+      });
       if (!res.ok) {
         if (res.status === 409) {
           // Agent already exists — just open its settings
           setAddAgentDialogOpen(false);
           await refreshAgents();
-          setSection({ type: "agent", slug: template.slug, cabinetPath });
+          setSection(buildAgentSection(template.slug, effectiveCabinetPath));
           openAgentSettings(template.slug);
           await refreshSettings(template.slug);
           handleSettingsEditorOpenChange(true);
@@ -962,7 +1024,7 @@ export function AgentsWorkspace({
       }
       setAddAgentDialogOpen(false);
       await refreshAgents();
-      setSection({ type: "agent", slug: template.slug });
+      setSection(buildAgentSection(template.slug, effectiveCabinetPath));
       openAgentSettings(template.slug);
       await refreshSettings(template.slug);
       handleSettingsEditorOpenChange(true);
@@ -1031,6 +1093,7 @@ export function AgentsWorkspace({
           agentSlug: targetAgentSlug,
           userMessage: composerInput.trim(),
           mentionedPaths,
+          cabinetPath: effectiveCabinetPath,
         }),
       });
 
@@ -1041,7 +1104,7 @@ export function AgentsWorkspace({
       setMentionedPaths([]);
       setQuickSendAgent(null);
       setActiveAgentSlug(targetAgentSlug);
-      setSection({ type: "agent", slug: targetAgentSlug, cabinetPath });
+      setSection(buildAgentSection(targetAgentSlug, effectiveCabinetPath));
       setSelectedConversationId(conversation.id);
       setMode("conversation");
       await refreshConversations();
@@ -1082,7 +1145,7 @@ export function AgentsWorkspace({
       const response = await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, cabinetPath }),
+        body: JSON.stringify({ ...payload, cabinetPath: effectiveCabinetPath }),
       });
       if (!response.ok) {
         setAgentFlowError(
@@ -1110,7 +1173,7 @@ export function AgentsWorkspace({
     await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "toggle", cabinetPath }),
+      body: JSON.stringify({ action: "toggle", cabinetPath: effectiveCabinetPath }),
     });
     await refreshAgents();
     await refreshSettings(settingsAgentSlug, { resetJobEditor: false });
@@ -1121,13 +1184,13 @@ export function AgentsWorkspace({
     const response = await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "run", cabinetPath }),
+      body: JSON.stringify({ action: "run", cabinetPath: effectiveCabinetPath }),
     });
     if (!response.ok) return;
     const data = await response.json();
     if (data.sessionId) {
       setActiveAgentSlug(settingsAgentSlug);
-      setSection({ type: "agent", slug: settingsAgentSlug, cabinetPath });
+      setSection(buildAgentSection(settingsAgentSlug, effectiveCabinetPath));
       setSettingsTarget(null);
       setSelectedConversationId(data.sessionId as string);
       setMode("conversation");
@@ -1192,6 +1255,7 @@ export function AgentsWorkspace({
         body: JSON.stringify({
           ...jobDraft,
           id: jobDraft.id || undefined,
+          cabinetPath: effectiveCabinetPath,
         }),
       });
       if (!response.ok) return;
@@ -1211,7 +1275,11 @@ export function AgentsWorkspace({
     if (!settingsAgentSlug) return;
     setDeletingJobId(jobId);
     try {
-      await fetch(`/api/agents/${settingsAgentSlug}/jobs/${jobId}`, {
+      const params = new URLSearchParams();
+      if (effectiveCabinetPath) {
+        params.set("cabinetPath", effectiveCabinetPath);
+      }
+      await fetch(`/api/agents/${settingsAgentSlug}/jobs/${jobId}${params.toString() ? `?${params.toString()}` : ""}`, {
         method: "DELETE",
       });
       if (selectedJobId === jobId) {
@@ -1229,7 +1297,7 @@ export function AgentsWorkspace({
     await fetch(`/api/agents/${settingsAgentSlug}/jobs/${job.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "toggle" }),
+      body: JSON.stringify({ action: "toggle", cabinetPath: effectiveCabinetPath }),
     });
     await refreshSettings(settingsAgentSlug, { resetJobEditor: false });
     await refreshConversations();
@@ -1242,13 +1310,13 @@ export function AgentsWorkspace({
       const response = await fetch(`/api/agents/${settingsAgentSlug}/jobs/${jobId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run", cabinetPath }),
+        body: JSON.stringify({ action: "run", cabinetPath: effectiveCabinetPath }),
       });
       if (!response.ok) return;
       const data = await response.json();
       if (data.run?.id) {
         setActiveAgentSlug(settingsAgentSlug);
-        setSection({ type: "agent", slug: settingsAgentSlug, cabinetPath });
+        setSection(buildAgentSection(settingsAgentSlug, effectiveCabinetPath));
         setSettingsTarget(null);
         setSelectedConversationId(data.run.id as string);
         setMode("conversation");
@@ -1266,7 +1334,7 @@ export function AgentsWorkspace({
     setAgentFlowError(null);
     if (agents.some((agent) => agent.slug === slug)) {
       handleCustomAgentDialogOpenChange(false);
-      setSection({ type: "agent", slug, cabinetPath });
+      setSection(buildAgentSection(slug, effectiveCabinetPath));
       openAgentSettings(slug);
       await refreshSettings(slug);
       handleSettingsEditorOpenChange(true);
@@ -1300,6 +1368,7 @@ export function AgentsWorkspace({
           body:
             newAgentDraft.body.trim() ||
             `You are ${newAgentDraft.name.trim()}. ${newAgentDraft.role.trim()}`,
+          cabinetPath: effectiveCabinetPath,
         }),
       });
 
@@ -1311,7 +1380,7 @@ export function AgentsWorkspace({
       }
       handleCustomAgentDialogOpenChange(false);
       await refreshAgents();
-      setSection({ type: "agent", slug, cabinetPath });
+      setSection(buildAgentSection(slug, effectiveCabinetPath));
       openAgentSettings(slug);
       await refreshSettings(slug);
       handleSettingsEditorOpenChange(true);
@@ -1326,13 +1395,20 @@ export function AgentsWorkspace({
     if (!settingsAgentSlug || settingsAgentSlug === "general") return;
     setDeletingAgent(true);
     try {
-      const response = await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
+      const params = new URLSearchParams();
+      if (effectiveCabinetPath) {
+        params.set("cabinetPath", effectiveCabinetPath);
+      }
+      const response = await fetch(
+        `/api/agents/personas/${settingsAgentSlug}${params.toString() ? `?${params.toString()}` : ""}`,
+        {
         method: "DELETE",
-      });
+        }
+      );
       if (!response.ok) return;
       if (activeAgentSlug === settingsAgentSlug) {
         setActiveAgentSlug(null);
-        setSection({ type: "agents", cabinetPath });
+        setSection(buildAgentsSection(effectiveCabinetPath));
       }
       setSelectedConversationId(null);
       setSelectedConversation(null);
@@ -2088,7 +2164,15 @@ export function AgentsWorkspace({
                   detail={selectedConversation}
                   onOpenArtifact={(artifactPath) => {
                     selectPage(artifactPath);
-                    setSection({ type: "page" });
+                    setSection(
+                      effectiveCabinetPath
+                        ? {
+                            type: "page",
+                            mode: "cabinet",
+                            cabinetPath: effectiveCabinetPath,
+                          }
+                        : { type: "page" }
+                    );
                   }}
                 />
               ) : (

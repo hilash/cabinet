@@ -42,6 +42,36 @@ function formatGithubStars(stars: number) {
   return new Intl.NumberFormat("en-US").format(stars);
 }
 
+/* ── Star burst explosion particles ── */
+const BURST_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+
+function StarExplosion() {
+  return (
+    <span className="pointer-events-none absolute inset-0" aria-hidden="true">
+      {BURST_ANGLES.map((angle, i) => {
+        const rad = (angle * Math.PI) / 180;
+        const dist = i % 2 === 0 ? 18 : 14;
+        const tx = Math.round(Math.cos(rad) * dist);
+        const ty = Math.round(Math.sin(rad) * dist);
+        return (
+          <span
+            key={angle}
+            className="absolute left-1/2 top-1/2 text-[7px] leading-none text-amber-400"
+            style={{
+              "--sb-x": `${tx}px`,
+              "--sb-y": `${ty}px`,
+              animation: "cabinet-star-burst 0.65s ease-out forwards",
+              animationDelay: `${i * 25}ms`,
+            } as React.CSSProperties}
+          >
+            ✦
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 export function StatusBar() {
   const { saveStatus, currentPath } = useEditorStore();
   const loadTree = useTreeStore((s) => s.loadTree);
@@ -50,6 +80,10 @@ export function StatusBar() {
   const [pullStatus, setPullStatus] = useState<"idle" | "pulling" | "pulled" | "up-to-date" | "error">("idle");
   const [pulling, setPulling] = useState(false);
   const [githubStars, setGithubStars] = useState(GITHUB_STARS_FALLBACK);
+  const [displayStars, setDisplayStars] = useState(0);
+  const [starsExploding, setStarsExploding] = useState(false);
+  const starsAnimRef = useRef<number | null>(null);
+  const starsAnimated = useRef(false);
   const didAutoPullRef = useRef(false);
   const [appAlive, setAppAlive] = useState(true);
   const [daemonAlive, setDaemonAlive] = useState(true);
@@ -205,6 +239,32 @@ export function StatusBar() {
       window.removeEventListener("focus", handleFocus);
     };
   }, [fetchGitHubStats]);
+
+  // Animate stars counter from 0 → real value once real data arrives
+  useEffect(() => {
+    if (githubStars === GITHUB_STARS_FALLBACK) return;
+    if (starsAnimated.current) return;
+    starsAnimated.current = true;
+    const target = githubStars;
+    const duration = 2000;
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayStars(Math.round(target * eased));
+      if (progress < 1) {
+        starsAnimRef.current = requestAnimationFrame(tick);
+      } else {
+        setDisplayStars(target);
+        setStarsExploding(true);
+        setTimeout(() => setStarsExploding(false), 900);
+      }
+    };
+    starsAnimRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (starsAnimRef.current !== null) cancelAnimationFrame(starsAnimRef.current);
+    };
+  }, [githubStars]);
 
   return (
     <div className="flex items-center justify-between px-3 py-1 border-t border-border text-[11px] text-muted-foreground/60 bg-background">
@@ -511,11 +571,12 @@ export function StatusBar() {
           rel="noopener noreferrer"
           aria-label={`Star Cabinet on GitHub (${formatGithubStars(githubStars)} stars)`}
           title={`Star on GitHub (${formatGithubStars(githubStars)} stars)`}
-          className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-500/35 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
+          className="relative inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-500/35 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
         >
+          {starsExploding && <StarExplosion />}
           <Star className="h-3.5 w-3.5 fill-current" />
           <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            {formatGithubStars(githubStars)} stars
+            {formatGithubStars(displayStars || githubStars)} stars
           </span>
         </a>
       </div>

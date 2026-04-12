@@ -550,3 +550,10 @@ html[data-custom-theme] .font-logo,
 .electron-desktop .sidebar-header {
   padding-left: 80px;
 }
+
+/* ── GitHub stars burst animation ── */
+@keyframes cabinet-star-burst {
+  0%   { transform: translate(-50%, -50%) translate(0px, 0px) scale(1.6); opacity: 1; }
+  60%  { opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) translate(var(--sb-x, 20px), var(--sb-y, 0px)) scale(0); opacity: 0; }
+}

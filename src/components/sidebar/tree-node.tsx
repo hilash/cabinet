@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import type { TreeNode as TreeNodeType } from "@/types";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
+import { useAppStore } from "@/stores/app-store";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -51,9 +52,14 @@ import { getDataDir } from "@/lib/data-dir-cache";
 interface TreeNodeProps {
   node: TreeNodeType;
   depth: number;
+  contextCabinetPath?: string | null;
 }
 
-export function TreeNode({ node, depth }: TreeNodeProps) {
+export function TreeNode({
+  node,
+  depth,
+  contextCabinetPath = null,
+}: TreeNodeProps) {
   const {
     selectedPath,
     expandedPaths,
@@ -67,6 +73,7 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
     renamePage,
   } = useTreeStore();
   const loadPage = useEditorStore((s) => s.loadPage);
+  const setSection = useAppStore((s) => s.setSection);
   const [subPageOpen, setSubPageOpen] = useState(false);
   const [subPageTitle, setSubPageTitle] = useState("");
   const [creating, setCreating] = useState(false);
@@ -85,9 +92,29 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
       toggleExpand(node.path);
     }
     selectPage(node.path);
-    if (node.type === "file" || node.type === "directory" || node.type === "cabinet") {
+    if (node.type === "cabinet") {
+      loadPage(node.path);
+      setSection({
+        type: "cabinet",
+        mode: "cabinet",
+        cabinetPath: node.path,
+      });
+      return;
+    }
+
+    if (node.type === "file" || node.type === "directory") {
       loadPage(node.path);
     }
+
+    setSection(
+      contextCabinetPath
+        ? {
+            type: "page",
+            mode: "cabinet",
+            cabinetPath: contextCabinetPath,
+          }
+        : { type: "page" }
+    );
   };
 
   const handleDelete = () => {
@@ -109,7 +136,18 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
-      loadPage(`${node.path}/${slug}`);
+      const nextPath = `${node.path}/${slug}`;
+      selectPage(nextPath);
+      loadPage(nextPath);
+      setSection(
+        contextCabinetPath
+          ? {
+              type: "page",
+              mode: "cabinet",
+              cabinetPath: contextCabinetPath,
+            }
+          : { type: "page" }
+      );
       setSubPageTitle("");
       setSubPageOpen(false);
     } catch (error) {
@@ -288,7 +326,12 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
       {hasChildren && isExpanded && (
         <div>
           {node.children!.map((child) => (
-            <TreeNode key={child.path} node={child} depth={depth + 1} />
+            <TreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              contextCabinetPath={contextCabinetPath}
+            />
           ))}
         </div>
       )}

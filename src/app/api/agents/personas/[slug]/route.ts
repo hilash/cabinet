@@ -90,7 +90,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   }
 
   if (body.action === "sendMessage") {
-    await sendMessage(slug, body.to, body.message);
+    await sendMessage(slug, body.to, body.message, cabinetPath);
     return NextResponse.json({ ok: true });
   }
 
@@ -105,9 +105,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
   const { slug } = await params;
-  await deletePersona(slug);
+  const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
+  await deletePersona(slug, cabinetPath);
   await reloadDaemonSchedules().catch(() => {});
   return NextResponse.json({ ok: true });
 }

@@ -18,9 +18,10 @@ export async function GET(req: NextRequest) {
     | "failed"
     | null;
   const all = searchParams.get("all");
+  const cabinetPath = searchParams.get("cabinetPath") || undefined;
 
   if (all === "true") {
-    const tasks = await getAllTasks(status ?? undefined);
+    const tasks = await getAllTasks(status ?? undefined, cabinetPath);
     return NextResponse.json({ tasks });
   }
 
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const tasks = await getTasksForAgent(agent, status ?? undefined);
+  const tasks = await getTasksForAgent(agent, status ?? undefined, cabinetPath);
   return NextResponse.json({ tasks });
 }
 
@@ -42,14 +43,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   if (body.action === "update") {
-    const { agent, taskId, status, result } = body;
+    const { agent, taskId, status, result, cabinetPath } = body;
     if (!agent || !taskId || !status) {
       return NextResponse.json(
         { error: "agent, taskId, and status required" },
         { status: 400 }
       );
     }
-    const updated = await updateTask(agent, taskId, { status, result });
+    const updated = await updateTask(agent, taskId, { status, result }, cabinetPath);
     if (!updated) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
 
   // Create new task
   const { fromAgent, toAgent, title, description, kbRefs, priority, channel,
+    cabinetPath,
     fromEmoji, fromName } = body;
 
   if (!fromAgent || !toAgent || !title) {
@@ -77,6 +79,7 @@ export async function POST(req: NextRequest) {
     description: description || "",
     kbRefs: kbRefs || [],
     priority: priority || 3,
+    cabinetPath,
   });
 
   return NextResponse.json({ task });

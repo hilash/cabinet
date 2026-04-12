@@ -38,9 +38,25 @@ export function KeyboardShortcuts() {
       if (isMod && e.key === "m" && !e.shiftKey) {
         e.preventDefault();
         if (section.type === "agents") {
-          setSection({ type: "page" });
+          if (section.mode === "cabinet" && section.cabinetPath) {
+            setSection({
+              type: "cabinet",
+              mode: "cabinet",
+              cabinetPath: section.cabinetPath,
+            });
+          } else {
+            setSection({ type: "home" });
+          }
         } else {
-          setSection({ type: "agents" });
+          if (section.mode === "cabinet" && section.cabinetPath) {
+            setSection({
+              type: "agents",
+              mode: "cabinet",
+              cabinetPath: section.cabinetPath,
+            });
+          } else {
+            setSection({ type: "agents", mode: "ops" });
+          }
         }
       }
 

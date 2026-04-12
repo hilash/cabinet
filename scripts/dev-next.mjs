@@ -54,6 +54,76 @@ function clearRuntimeService(service, pid) {
   });
 }
 
+function getNextDevLockPath() {
+  return path.join(PROJECT_ROOT, ".next", "dev", "lock");
+}
+
+function readNextDevLock() {
+  try {
+    const raw = fs.readFileSync(getNextDevLockPath(), "utf8");
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function originResponds(origin) {
+  const normalized = String(origin || "").replace(/\/+$/, "");
+  if (!normalized) return false;
+  try {
+    const response = await fetch(`${normalized}/api/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    return response.ok;
+  } catch {
+    try {
+      const response = await fetch(`${normalized}/`, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(1500),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+async function maybeReuseExistingNextDevServer() {
+  const lock = readNextDevLock();
+  if (!lock?.pid || !lock?.port) return null;
+
+  if (!isProcessAlive(lock.pid)) {
+    fs.rmSync(getNextDevLockPath(), { force: true });
+    return null;
+  }
+
+  const lockOrigin = typeof lock.appUrl === "string" && lock.appUrl.trim()
+    ? lock.appUrl.replace(/\/+$/, "")
+    : `http://127.0.0.1:${lock.port}`;
+  const preferredOrigin = `http://127.0.0.1:${lock.port}`;
+
+  if (await originResponds(lockOrigin) || await originResponds(preferredOrigin)) {
+    return {
+      pid: lock.pid,
+      port: lock.port,
+      origin: preferredOrigin,
+    };
+  }
+
+  return null;
+}
+
 function isPortFree(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -94,6 +164,20 @@ async function findAvailablePort(startPort) {
 }
 
 async function main() {
+  const existingServer = await maybeReuseExistingNextDevServer();
+  if (existingServer) {
+    updateRuntimeService("app", {
+      port: existingServer.port,
+      origin: existingServer.origin,
+      pid: existingServer.pid,
+      updatedAt: new Date().toISOString(),
+    });
+    console.log(
+      `[cabinet] Reusing existing Next dev server at ${existingServer.origin}.`
+    );
+    return;
+  }
+
   const preferredPort = parsePort(
     process.env.CABINET_APP_PORT || process.env.PORT,
     4000

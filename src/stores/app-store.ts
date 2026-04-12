@@ -1,14 +1,25 @@
 import { create } from "zustand";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
+import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 
-export type SectionType = "home" | "page" | "agents" | "agent" | "jobs" | "settings";
+export type SectionType =
+  | "home"
+  | "cabinet"
+  | "page"
+  | "agents"
+  | "agent"
+  | "jobs"
+  | "settings";
+export type SectionMode = "ops" | "cabinet";
 
-const CABINET_VISIBILITY_STORAGE_KEY = "cabinet.visibility.mode";
+const CABINET_VISIBILITY_STORAGE_KEY = "cabinet.visibility.modes";
 
 export interface SelectedSection {
   type: SectionType;
   slug?: string; // agent slug when type === "agent"
-  cabinetPath?: string; // cabinet scope for agent/agents/jobs sections
+  mode?: SectionMode;
+  cabinetPath?: string; // cabinet scope for cabinet/page/agent/agents/jobs sections
+  agentScopedId?: string;
   conversationId?: string; // auto-select this conversation on mount
 }
 
@@ -25,7 +36,7 @@ interface AppState {
   activeTerminalTab: string | null;
   sidebarCollapsed: boolean;
   aiPanelCollapsed: boolean;
-  cabinetVisibilityMode: CabinetVisibilityMode;
+  cabinetVisibilityModes: Record<string, CabinetVisibilityMode>;
   setSection: (section: SelectedSection) => void;
   toggleTerminal: () => void;
   closeTerminal: () => void;
@@ -35,20 +46,45 @@ interface AppState {
   openAgentTab: (taskTitle: string, prompt: string) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setAiPanelCollapsed: (collapsed: boolean) => void;
-  setCabinetVisibilityMode: (mode: CabinetVisibilityMode) => void;
+  setCabinetVisibilityMode: (
+    cabinetPath: string,
+    mode: CabinetVisibilityMode
+  ) => void;
 }
 
-function loadCabinetVisibilityMode(): CabinetVisibilityMode {
-  if (typeof window === "undefined") return "own";
+function normalizeVisibilityCabinetPath(cabinetPath?: string): string {
+  return cabinetPath?.trim() || ROOT_CABINET_PATH;
+}
+
+function loadCabinetVisibilityModes(): Record<string, CabinetVisibilityMode> {
+  if (typeof window === "undefined") {
+    return { [ROOT_CABINET_PATH]: "own" };
+  }
   try {
     const stored = window.localStorage.getItem(CABINET_VISIBILITY_STORAGE_KEY);
-    return stored === "children-1" ||
-      stored === "children-2" ||
-      stored === "all"
-      ? stored
-      : "own";
+    if (!stored) {
+      return { [ROOT_CABINET_PATH]: "own" };
+    }
+
+    const parsed = JSON.parse(stored) as Record<string, unknown>;
+    const next: Record<string, CabinetVisibilityMode> = {};
+
+    for (const [cabinetPath, value] of Object.entries(parsed)) {
+      if (
+        value === "children-1" ||
+        value === "children-2" ||
+        value === "all" ||
+        value === "own"
+      ) {
+        next[normalizeVisibilityCabinetPath(cabinetPath)] = value;
+      }
+    }
+
+    return Object.keys(next).length > 0
+      ? next
+      : { [ROOT_CABINET_PATH]: "own" };
   } catch {
-    return "own";
+    return { [ROOT_CABINET_PATH]: "own" };
   }
 }
 
@@ -59,7 +95,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTerminalTab: null,
   sidebarCollapsed: false,
   aiPanelCollapsed: false,
-  cabinetVisibilityMode: loadCabinetVisibilityMode(),
+  cabinetVisibilityModes: loadCabinetVisibilityModes(),
 
   setSection: (section) => set({ section }),
 
@@ -111,13 +147,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   setAiPanelCollapsed: (collapsed) => set({ aiPanelCollapsed: collapsed }),
-  setCabinetVisibilityMode: (mode) => {
+  setCabinetVisibilityMode: (cabinetPath, mode) => {
+    const normalizedCabinetPath = normalizeVisibilityCabinetPath(cabinetPath);
+    const nextModes = {
+      ...get().cabinetVisibilityModes,
+      [normalizedCabinetPath]: mode,
+    };
     try {
-      window.localStorage.setItem(CABINET_VISIBILITY_STORAGE_KEY, mode);
+      window.localStorage.setItem(
+        CABINET_VISIBILITY_STORAGE_KEY,
+        JSON.stringify(nextModes)
+      );
     } catch {
       // ignore storage failures
     }
-    set({ cabinetVisibilityMode: mode });
+    set({ cabinetVisibilityModes: nextModes });
   },
 
   openAgentTab: (taskTitle: string, prompt: string) => {

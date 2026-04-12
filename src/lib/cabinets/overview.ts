@@ -2,13 +2,19 @@ import path from "path";
 import matter from "gray-matter";
 import yaml from "js-yaml";
 import { CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
+import {
+  buildCabinetScopedId,
+  normalizeCabinetPath,
+} from "@/lib/cabinets/paths";
+import {
+  cabinetPathFromFs,
+  resolveCabinetDir,
+} from "@/lib/cabinets/server-paths";
 import { cabinetVisibilityModeToDepth } from "@/lib/cabinets/visibility";
 import { fileExists, listDirectory, readFileContent } from "@/lib/storage/fs-operations";
 import {
   DATA_DIR,
   isHiddenEntry,
-  resolveContentPath,
-  virtualPathFromFs,
 } from "@/lib/storage/path-utils";
 import type {
   CabinetAgentSummary,
@@ -34,15 +40,6 @@ type CabinetDiscoveryEntry = {
 
 function trimString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function buildScopedId(
-  cabinetPath: string,
-  entity: "agent" | "job",
-  slug: string
-): string {
-  const cabinetKey = cabinetPath || "__root__";
-  return `${cabinetKey}::${entity}::${slug}`;
 }
 
 async function listDirectorySafe(dirPath: string): Promise<DirectoryEntry[]> {
@@ -115,7 +112,7 @@ async function readCabinetReferenceByPath(
   virtualPath: string,
   cabinetDepth?: number
 ): Promise<CabinetReference | null> {
-  const manifest = await readCabinetManifestAtDir(resolveContentPath(virtualPath));
+  const manifest = await readCabinetManifestAtDir(resolveCabinetDir(virtualPath));
   if (!manifest) return null;
 
   return {
@@ -131,14 +128,15 @@ async function readCabinetReferenceByPath(
 async function findParentCabinetReference(
   cabinetVirtualPath: string
 ): Promise<CabinetReference | null> {
-  const cabinetDir = resolveContentPath(cabinetVirtualPath);
+  const cabinetDir = resolveCabinetDir(cabinetVirtualPath);
   let cursor = path.dirname(cabinetDir);
 
-  while (cursor.startsWith(DATA_DIR) && cursor !== DATA_DIR) {
+  while (cursor.startsWith(DATA_DIR)) {
     if (await fileExists(path.join(cursor, CABINET_MANIFEST_FILE))) {
-      return readCabinetReferenceByPath(virtualPathFromFs(cursor));
+      return readCabinetReferenceByPath(cabinetPathFromFs(cursor));
     }
 
+    if (cursor === DATA_DIR) break;
     const next = path.dirname(cursor);
     if (next === cursor) break;
     cursor = next;
@@ -162,7 +160,7 @@ async function discoverNestedCabinets(
 
     if (childManifest) {
       results.push({
-        path: virtualPathFromFs(childDir),
+        path: cabinetPathFromFs(childDir),
         dirPath: childDir,
         manifest: childManifest,
         cabinetDepth: currentCabinetDepth + 1,
@@ -180,7 +178,7 @@ async function listDescendantCabinets(
   cabinetVirtualPath: string
 ): Promise<CabinetDiscoveryEntry[]> {
   const results: CabinetDiscoveryEntry[] = [];
-  await discoverNestedCabinets(resolveContentPath(cabinetVirtualPath), 0, results);
+  await discoverNestedCabinets(resolveCabinetDir(cabinetVirtualPath), 0, results);
 
   return results.sort((left, right) => {
     if (left.cabinetDepth !== right.cabinetDepth) {
@@ -202,13 +200,13 @@ function normalizeJob(
   const ownerAgent = trimString(parsed.ownerAgent) || trimString(parsed.agentSlug);
 
   return {
-    scopedId: buildScopedId(cabinetPath, "job", id),
+    scopedId: buildCabinetScopedId(cabinetPath, "job", id),
     id,
     name: trimString(parsed.name) || fallbackId,
     description: trimString(parsed.description),
     ownerAgent,
     ownerScopedId: ownerAgent
-      ? buildScopedId(cabinetPath, "agent", ownerAgent)
+      ? buildCabinetScopedId(cabinetPath, "agent", ownerAgent)
       : undefined,
     enabled: parsed.enabled !== false,
     schedule: trimString(parsed.schedule) || "",
@@ -273,8 +271,8 @@ async function readAgentPersona(
     const name = trimString(data.name) || slug;
     const role = trimString(data.role) || content.trim().split("\n")[0] || "Cabinet agent";
 
-    return {
-      scopedId: buildScopedId(cabinetPath, "agent", slug),
+      return {
+      scopedId: buildCabinetScopedId(cabinetPath, "agent", slug),
       name,
       slug,
       emoji: trimString(data.emoji) || "🤖",
@@ -311,34 +309,17 @@ async function listCabinetAgents(
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
 
-    if (entry.isDirectory) {
-      const slug = entry.name;
-      const agentDir = path.join(agentsDir, slug);
-      const personaPath = path.join(agentDir, "persona.md");
-      if (!(await fileExists(personaPath))) continue;
+    if (!entry.isDirectory) continue;
 
-      const persona = await readAgentPersona(
-        slug,
-        personaPath,
-        agentDir,
-        jobCounts.get(slug) || 0,
-        cabinetPath,
-        cabinetName,
-        cabinetDepth,
-        inherited
-      );
-      if (persona) agents.push(persona);
-      continue;
-    }
+    const slug = entry.name;
+    const agentDir = path.join(agentsDir, slug);
+    const personaPath = path.join(agentDir, "persona.md");
+    if (!(await fileExists(personaPath))) continue;
 
-    if (!entry.name.endsWith(".md")) continue;
-
-    const slug = entry.name.replace(/\.md$/i, "");
-    const personaPath = path.join(agentsDir, entry.name);
     const persona = await readAgentPersona(
       slug,
       personaPath,
-      path.join(agentsDir, slug),
+      agentDir,
       jobCounts.get(slug) || 0,
       cabinetPath,
       cabinetName,
@@ -399,22 +380,27 @@ export async function readCabinetOverview(
   virtualPath: string,
   options: { visibilityMode?: CabinetVisibilityMode } = {}
 ): Promise<CabinetOverview> {
-  const cabinetDir = resolveContentPath(virtualPath);
+  const cabinetPath = normalizeCabinetPath(virtualPath, true);
+  if (!cabinetPath) {
+    throw new Error("Cabinet path is required");
+  }
+
+  const cabinetDir = resolveCabinetDir(cabinetPath);
   const manifest = await readCabinetManifestAtDir(cabinetDir);
 
   if (!manifest) {
-    throw new Error(`Cabinet not found: ${virtualPath}`);
+    throw new Error(`Cabinet not found: ${cabinetPath}`);
   }
 
   const visibilityMode = options.visibilityMode || "own";
   const descendantDepth = cabinetVisibilityModeToDepth(visibilityMode);
   const currentCabinet: CabinetDiscoveryEntry = {
-    path: virtualPath,
+    path: cabinetPath,
     dirPath: cabinetDir,
     manifest,
     cabinetDepth: 0,
   };
-  const allDescendants = await listDescendantCabinets(virtualPath);
+  const allDescendants = await listDescendantCabinets(cabinetPath);
   const visibleDescendants = allDescendants.filter((entry) =>
     descendantDepth === null ? true : entry.cabinetDepth <= descendantDepth
   );
@@ -443,9 +429,9 @@ export async function readCabinetOverview(
   return {
     cabinet: {
       ...manifest,
-      path: virtualPath,
+      path: cabinetPath,
     },
-    parent: await findParentCabinetReference(virtualPath),
+    parent: await findParentCabinetReference(cabinetPath),
     children: allDescendants
       .filter((entry) => entry.cabinetDepth === 1)
       .map(toCabinetReference),

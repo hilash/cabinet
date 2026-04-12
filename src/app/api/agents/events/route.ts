@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listPersonas } from "@/lib/agents/persona-manager";
+import { listAllPersonas } from "@/lib/agents/persona-manager";
 import { getGoalState } from "@/lib/agents/goal-manager";
 import { getMessages } from "@/lib/agents/slack-manager";
 import { getRespondingAgents } from "@/app/api/agents/slack/route";
@@ -56,7 +56,7 @@ export async function GET() {
 
         try {
           // Gather current state
-          const personas = await listPersonas();
+          const personas = await listAllPersonas();
           const registered = personas
             .filter((persona) => persona.active && !!persona.heartbeat)
             .map((persona) => persona.slug);
@@ -79,7 +79,13 @@ export async function GET() {
           const completedNotifications = drainConversationNotifications();
           if (completedNotifications.length > 0) {
             const enriched = completedNotifications.map((n) => {
-              const persona = personas.find((p) => p.slug === n.agentSlug);
+              const persona = personas.find(
+                (p) =>
+                  p.slug === n.agentSlug &&
+                  (typeof n.cabinetPath !== "string" ||
+                    !n.cabinetPath ||
+                    p.cabinetPath === n.cabinetPath)
+              ) || personas.find((p) => p.slug === n.agentSlug);
               return {
                 ...n,
                 agentName: persona?.name || n.agentSlug,

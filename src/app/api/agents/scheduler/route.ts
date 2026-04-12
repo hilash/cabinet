@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  listPersonas,
+  listAllPersonas,
   writePersona,
 } from "@/lib/agents/persona-manager";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
@@ -9,10 +9,14 @@ import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
  * GET /api/agents/scheduler — Get scheduler status
  */
 export async function GET() {
-  const personas = await listPersonas();
+  const personas = await listAllPersonas();
   const registered = personas
     .filter((persona) => persona.active && !!persona.heartbeat)
-    .map((persona) => persona.slug);
+    .map((persona) => ({
+      slug: persona.slug,
+      cabinetPath: persona.cabinetPath,
+      scopedId: `${persona.cabinetPath || "."}::agent::${persona.slug}`,
+    }));
 
   const active = personas.filter((p) => p.active);
   const paused = personas.filter((p) => !p.active);
@@ -25,10 +29,15 @@ export async function GET() {
     pausedCount: paused.length,
     agents: personas.map((p) => ({
       slug: p.slug,
+      cabinetPath: p.cabinetPath,
+      scopedId: `${p.cabinetPath || "."}::agent::${p.slug}`,
       name: p.name,
       emoji: p.emoji,
       active: p.active,
-      scheduled: registered.includes(p.slug),
+      scheduled: registered.some(
+        (agent) =>
+          agent.slug === p.slug && agent.cabinetPath === p.cabinetPath
+      ),
       heartbeat: p.heartbeat,
       lastHeartbeat: p.lastHeartbeat,
       nextHeartbeat: p.nextHeartbeat,
@@ -46,7 +55,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action, slugs, exclude = [] } = body;
 
-  const personas = await listPersonas();
+  const personas = await listAllPersonas();
 
   switch (action) {
     case "start-all": {
@@ -55,7 +64,7 @@ export async function POST(req: NextRequest) {
         (p) => !p.active && !exclude.includes(p.slug)
       );
       for (const p of toActivate) {
-        await writePersona(p.slug, { active: true });
+        await writePersona(p.slug, { active: true }, p.cabinetPath);
       }
       await reloadDaemonSchedules().catch(() => {});
       const newRegistered = personas
@@ -72,7 +81,7 @@ export async function POST(req: NextRequest) {
       // Pause and unregister all agents
       for (const p of personas) {
         if (p.active) {
-          await writePersona(p.slug, { active: false });
+          await writePersona(p.slug, { active: false }, p.cabinetPath);
         }
       }
       await reloadDaemonSchedules().catch(() => {});
@@ -86,7 +95,7 @@ export async function POST(req: NextRequest) {
       for (const slug of targetSlugs) {
         const p = personas.find((pp) => pp.slug === slug);
         if (p && !p.active) {
-          await writePersona(slug, { active: true });
+          await writePersona(slug, { active: true }, p.cabinetPath);
           count++;
         }
       }
@@ -101,7 +110,7 @@ export async function POST(req: NextRequest) {
       for (const slug of targetSlugs) {
         const p = personas.find((pp) => pp.slug === slug);
         if (p && p.active) {
-          await writePersona(slug, { active: false });
+          await writePersona(slug, { active: false }, p.cabinetPath);
           count++;
         }
       }

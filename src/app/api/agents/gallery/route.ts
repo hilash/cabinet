@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { listPersonas } from "@/lib/agents/persona-manager";
+import { listAllPersonas } from "@/lib/agents/persona-manager";
 
 interface GalleryItem {
   name: string;
@@ -149,14 +149,23 @@ async function fileExists(p: string): Promise<boolean> {
 
 export async function GET() {
   try {
-    const personas = await listPersonas();
+    const personas = await listAllPersonas();
     const allItems: GalleryItem[] = [];
 
     for (const persona of personas) {
       if (persona.slug === "editor") continue;
 
-      const workspaceDir = path.join(DATA_DIR, ".agents", persona.slug, "workspace");
-      const basePath = `.agents/${persona.slug}/workspace`;
+      const workspaceDir = path.join(
+        DATA_DIR,
+        persona.cabinetPath && persona.cabinetPath !== "." ? persona.cabinetPath : "",
+        ".agents",
+        persona.slug,
+        "workspace"
+      );
+      const basePath =
+        persona.cabinetPath && persona.cabinetPath !== "."
+          ? `${persona.cabinetPath}/.agents/${persona.slug}/workspace`
+          : `.agents/${persona.slug}/workspace`;
       const items = await scanWorkspace(
         workspaceDir,
         persona.name,

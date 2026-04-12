@@ -3,6 +3,7 @@ name: Release Readiness Review
 enabled: false
 schedule: 0 15 * * 4
 provider: claude-code
+ownerAgent: devops
 agentSlug: devops
 timeout: 600
 prompt: |-
@@ -13,5 +14,6 @@ prompt: |-
   - notification reliability concerns
   - whether this build earns user trust
   Save the review in /release-checklist.
+cabinetPath: example-text-your-mom/app-development
 createdAt: '2026-04-11T00:00:00.000Z'
 updatedAt: '2026-04-11T00:00:00.000Z'

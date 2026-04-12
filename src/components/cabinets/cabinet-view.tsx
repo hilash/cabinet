@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Archive,
   ArrowLeft,
   Bot,
   CheckCircle2,
@@ -10,6 +11,7 @@ import {
   HeartPulse,
   Loader2,
   MessageSquare,
+  Users,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -80,7 +82,7 @@ function StatPill({ label, value, highlight }: { label: string; value: number; h
   );
 }
 
-/* ─── Org Chart ─── */
+/* ─── Agents List ─── */
 function CompactOrgChart({
   cabinetName,
   agents,
@@ -91,28 +93,11 @@ function CompactOrgChart({
   onAgentClick?: (agent: CabinetAgentSummary) => void;
 }) {
   const chiefAgent = findChiefAgent(agents);
-  const orgRoot: CabinetAgentSummary = chiefAgent || {
-    scopedId: "__cabinet_ceo__",
-    name: "CEO",
-    slug: "__cabinet_ceo__",
-    emoji: "👑",
-    role: "Executive lead not configured yet",
-    department: "executive",
-    type: "lead",
-    active: false,
-    heartbeat: undefined,
-    workspace: undefined,
-    jobCount: 0,
-    taskCount: 0,
-    cabinetPath: "",
-    cabinetName,
-    cabinetDepth: 0,
-    inherited: false,
-  };
+  const allAgents = [...agents].sort(sortOrgAgents);
 
-  const orgAgents = agents.filter((a) => a.slug !== orgRoot.slug).sort(sortOrgAgents);
+  // Group by department for section labels
   const grouped = Object.entries(
-    orgAgents.reduce<Record<string, CabinetAgentSummary[]>>((acc, agent) => {
+    allAgents.reduce<Record<string, CabinetAgentSummary[]>>((acc, agent) => {
       const dept = agent.department || "general";
       if (!acc[dept]) acc[dept] = [];
       acc[dept].push(agent);
@@ -120,6 +105,8 @@ function CompactOrgChart({
     }, {})
   )
     .sort(([l], [r]) => {
+      if (l === "executive") return -1;
+      if (r === "executive") return 1;
       if (l === "general") return 1;
       if (r === "general") return -1;
       return startCase(l).localeCompare(startCase(r));
@@ -133,99 +120,73 @@ function CompactOrgChart({
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       {/* Section header */}
-      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
-        <Crown className="h-4 w-4 text-muted-foreground" />
-        <div>
-          <p className="text-sm font-semibold">Org Chart</p>
-          <p className="text-xs text-muted-foreground">{cabinetName}</p>
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-semibold">Agents</p>
         </div>
+        <span className="text-xs text-muted-foreground">{agents.length}</span>
       </div>
 
-      <ScrollArea className="max-h-[460px]">
-        <div className="p-3 space-y-3">
-
-          {/* CEO card */}
-          <div
-            className={cn(
-              "rounded-lg border border-border bg-muted/40 p-3.5",
-              onAgentClick && "cursor-pointer hover:bg-muted/70 transition-colors"
-            )}
-            onClick={() => onAgentClick?.(orgRoot)}
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-2xl leading-none pt-0.5">{orgRoot.emoji || "👑"}</span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold truncate">{orgRoot.name}</p>
-                  <span className="shrink-0 rounded-full bg-background border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                    <Crown className="h-2.5 w-2.5" /> CEO
-                  </span>
-                  <span
-                    className={cn(
-                      "ml-auto h-2 w-2 shrink-0 rounded-full",
-                      orgRoot.active ? "bg-emerald-500" : "bg-muted-foreground/30"
-                    )}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{orgRoot.role}</p>
-                {orgRoot.heartbeat && (
-                  <div className="mt-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                      <Zap className="h-2.5 w-2.5" />
-                      {cronToShortLabel(orgRoot.heartbeat)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Department groups */}
-          {grouped.length > 0 ? (
-            grouped.map((group) => (
-              <div key={group.dept}>
-                <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                  {group.label}
-                </p>
-                <div className="space-y-1.5">
-                  {group.agents.map((agent) => (
+      <ScrollArea className="max-h-[480px]">
+        {allAgents.length === 0 ? (
+          <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+            No agents configured for this cabinet.
+          </p>
+        ) : (
+          grouped.map((group, gi) => (
+            <div key={group.dept}>
+              {/* Department label */}
+              <p className={cn(
+                "px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/50 bg-muted/30",
+                gi > 0 && "border-t border-border/50"
+              )}>
+                {group.label}
+              </p>
+              <div className="divide-y divide-border/40">
+                {group.agents.map((agent) => {
+                  const isChief = agent.slug === chiefAgent?.slug;
+                  return (
                     <div
                       key={agent.scopedId}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5",
-                        onAgentClick && "cursor-pointer hover:border-border hover:bg-card transition-colors"
+                        "flex items-center gap-3 px-4 py-2.5",
+                        onAgentClick && "cursor-pointer hover:bg-muted/40 transition-colors"
                       )}
                       onClick={() => onAgentClick?.(agent)}
                     >
-                      <span className="text-xl leading-none shrink-0">{agent.emoji || "🤖"}</span>
+                      <span className="text-lg leading-none w-6 text-center shrink-0">
+                        {agent.emoji || "🤖"}
+                      </span>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <p className="truncate text-sm font-medium">{agent.name}</p>
-                          <span
-                            className={cn(
-                              "ml-auto h-1.5 w-1.5 shrink-0 rounded-full",
-                              agent.active ? "bg-emerald-500" : "bg-muted-foreground/25"
-                            )}
-                          />
+                          {isChief && (
+                            <Crown className="h-3 w-3 shrink-0 text-amber-500" />
+                          )}
                         </div>
-                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{agent.role}</p>
+                        <p className="line-clamp-1 text-xs text-muted-foreground">{agent.role}</p>
                       </div>
-                      {agent.heartbeat && (
-                        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                          {cronToShortLabel(agent.heartbeat)}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {agent.heartbeat && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                            {cronToShortLabel(agent.heartbeat)}
+                          </span>
+                        )}
+                        <span
+                          className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            agent.active ? "bg-emerald-500" : "bg-muted-foreground/25"
+                          )}
+                        />
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            ))
-          ) : (
-            <p className="px-1 py-2 text-center text-xs text-muted-foreground">
-              Add more agents to build this cabinet&apos;s team.
-            </p>
-          )}
-        </div>
+            </div>
+          ))
+        )}
       </ScrollArea>
     </div>
   );
@@ -695,17 +656,44 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
   const selectPage = useTreeStore((state) => state.selectPage);
   const loadPage = useEditorStore((state) => state.loadPage);
   const setSection = useAppStore((state) => state.setSection);
-  const cabinetVisibilityMode = useAppStore((state) => state.cabinetVisibilityMode);
+  const cabinetVisibilityModes = useAppStore((state) => state.cabinetVisibilityModes);
   const setCabinetVisibilityMode = useAppStore((state) => state.setCabinetVisibilityMode);
+  const cabinetVisibilityMode = cabinetVisibilityModes[cabinetPath] || "own";
 
   const openCabinet = useCallback(
     (path: string) => {
       selectPage(path);
-      loadPage(path);
-      setSection({ type: "page" });
+      void loadPage(path);
+      setSection({
+        type: "cabinet",
+        mode: "cabinet",
+        cabinetPath: path,
+      });
     },
     [loadPage, selectPage, setSection]
   );
+
+  const openCabinetAgent = useCallback(
+    (agent: CabinetAgentSummary) => {
+      const targetCabinetPath = agent.cabinetPath || cabinetPath;
+      setSection({
+        type: "agent",
+        mode: "cabinet",
+        slug: agent.slug,
+        cabinetPath: targetCabinetPath,
+        agentScopedId: agent.scopedId || `${targetCabinetPath}::agent::${agent.slug}`,
+      });
+    },
+    [cabinetPath, setSection]
+  );
+
+  const openCabinetAgentsWorkspace = useCallback(() => {
+    setSection({
+      type: "agents",
+      mode: "cabinet",
+      cabinetPath,
+    });
+  }, [cabinetPath, setSection]);
 
   const loadOverview = useCallback(async () => {
     setLoading(true);
@@ -746,6 +734,9 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
     "Portable software layer for agents, jobs, and knowledge.";
   const activeAgents = overview?.agents.filter((a) => a.active).length ?? 0;
   const heartbeatCount = overview?.agents.filter((a) => Boolean(a.heartbeat)).length ?? 0;
+  const childCabinetCount = overview?.children.length ?? 0;
+  const visibleCabinetCount = overview?.visibleCabinets.length ?? 0;
+  const cabinetPathLabel = cabinetPath === "." ? "/" : `/${cabinetPath}`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -759,108 +750,111 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+          <div className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
+            <div className="h-24 bg-gradient-to-r from-primary/14 via-primary/8 to-transparent sm:h-28" />
+            <div className="-mt-8 px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="space-y-4">
+                {overview?.parent ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openCabinet(overview.parent!.path)}
+                    className="-ml-2 h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Back to {overview.parent.name}
+                  </Button>
+                ) : null}
 
-          {/* ── Page Header ── */}
-          <div className="space-y-4">
-            {overview?.parent && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openCabinet(overview.parent!.path)}
-                className="-ml-2 h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back
-              </Button>
-            )}
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="min-w-0 space-y-3">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-background shadow-sm">
+                        <Archive className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="min-w-0 space-y-2">
+                        <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+                          {overview?.cabinet.kind || "cabinet"}
+                        </span>
+                        <div>
+                          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-[2.45rem]">
+                            {cabinetName}
+                          </h1>
+                          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                            {cabinetDescription}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-            <div className="flex items-start justify-between gap-6">
-              <div className="space-y-1 min-w-0">
-                <h1 className="text-2xl font-semibold tracking-tight">{cabinetName}</h1>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
-                  {cabinetDescription}
-                </p>
-              </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatPill value={overview?.agents.length ?? 0} label="agents" />
+                      <StatPill value={activeAgents} label="active" highlight />
+                      <StatPill value={overview?.jobs.length ?? 0} label="jobs" />
+                      <StatPill value={heartbeatCount} label="heartbeats" />
+                      <StatPill value={childCabinetCount} label="child cabinets" />
+                      <StatPill value={visibleCabinetCount} label="visible cabinets" />
+                      <span className="rounded-full bg-muted px-3 py-1 font-mono text-[11px] text-muted-foreground">
+                        {cabinetPathLabel}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Visibility scope */}
-              <div className="shrink-0 flex flex-col items-end gap-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Scope
-                </p>
-                <div className="flex items-center rounded-lg border border-border bg-muted/50 p-0.5 gap-0.5">
-                  {CABINET_VISIBILITY_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setCabinetVisibilityMode(option.value)}
-                      className={cn(
-                        "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
-                        cabinetVisibilityMode === option.value
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
+                  <div className="shrink-0 space-y-3 xl:min-w-[260px]">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Visible Agent Scope
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {CABINET_VISIBILITY_OPTIONS.find((option) => option.value === cabinetVisibilityMode)?.label ||
+                          "Own agents only"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {CABINET_VISIBILITY_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => setCabinetVisibilityMode(cabinetPath, option.value)}
+                          className={cn(
+                            "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                            cabinetVisibilityMode === option.value
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {option.shortLabel}
+                        </button>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-full justify-start gap-2"
+                      onClick={openCabinetAgentsWorkspace}
                     >
-                      {option.shortLabel}
-                    </button>
-                  ))}
+                      <Users className="h-4 w-4" />
+                      Open Agents Workspace
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Stats pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              <StatPill value={overview?.agents.length ?? 0} label="agents" />
-              <StatPill value={activeAgents} label="active" highlight />
-              <StatPill value={overview?.jobs.length ?? 0} label="jobs" />
-              <StatPill value={heartbeatCount} label="heartbeats" />
-              <span className="rounded-full bg-muted px-3 py-1 font-mono text-[11px] text-muted-foreground">
-                /{cabinetPath}
-              </span>
-            </div>
           </div>
 
-          {/* ── Task Composer ── */}
-          {overview && (
-            <CabinetTaskComposer
-              cabinetPath={cabinetPath}
-              agents={overview.agents}
-              cabinetName={cabinetName}
-              onNavigate={(slug, agentCabinetPath, conversationId) =>
-                setSection({ type: "agent", slug, cabinetPath: agentCabinetPath, conversationId })
-              }
-            />
-          )}
-
-          {/* ── Recent Conversations ── */}
-          <RecentConversations
-            cabinetPath={cabinetPath}
-            visibilityMode={cabinetVisibilityMode}
-            agents={overview?.agents ?? []}
-            onOpen={(conv) =>
-              setSection({
-                type: "agent",
-                slug: conv.agentSlug,
-                cabinetPath: conv.cabinetPath || cabinetPath,
-                conversationId: conv.id,
-              })
-            }
-          />
-
-          {/* ── Main Grid ── */}
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-
-            {/* Notes / Editor */}
             <div className="flex min-h-[680px] flex-col overflow-hidden rounded-xl border border-border bg-card">
               <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
                 <Bot className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-semibold">Cabinet Notes</p>
-                  <p className="text-xs text-muted-foreground">Index page for this cabinet</p>
+                  <p className="text-xs text-muted-foreground">
+                    Showing this cabinet&apos;s index page for now
+                  </p>
                 </div>
               </div>
               <KBEditor />
             </div>
 
-            {/* Right sidebar */}
             <div className="flex flex-col gap-4">
               {loading && !overview ? (
                 <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card py-16 text-sm text-muted-foreground">
@@ -876,13 +870,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
                   <CompactOrgChart
                     cabinetName={cabinetName}
                     agents={overview.agents}
-                    onAgentClick={(agent) =>
-                      setSection({
-                        type: "agent",
-                        slug: agent.slug,
-                        cabinetPath: agent.cabinetPath || cabinetPath,
-                      })
-                    }
+                    onAgentClick={openCabinetAgent}
                   />
                   <SchedulesPanel
                     cabinetPath={cabinetPath}

@@ -2,6 +2,8 @@ import path from "path";
 import matter from "gray-matter";
 import cron from "node-cron";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { discoverCabinetPaths } from "@/lib/cabinets/discovery";
+import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import {
   readFileContent,
   writeFileContent,
@@ -70,6 +72,7 @@ export interface AgentPersona {
   channels: string[];     // Agent Slack channels
   workspace: string;      // relative path under data/.agents/{slug}/
   setupComplete: boolean; // false until agent settings are saved for the first time
+  cabinetPath?: string;
   // Computed
   slug: string;
   body: string; // markdown body (persona instructions)
@@ -150,10 +153,6 @@ function computeNextCronRun(cronExpr: string, after: Date): Date | null {
 // Active cron jobs for agents
 const heartbeatJobs = new Map<string, ReturnType<typeof cron.schedule>>();
 
-function slugFromFilename(filename: string): string {
-  return filename.replace(/\.md$/, "");
-}
-
 export async function initAgentsDir(): Promise<void> {
   await ensureDirectory(AGENTS_DIR);
   await ensureDirectory(MEMORY_DIR);
@@ -161,39 +160,43 @@ export async function initAgentsDir(): Promise<void> {
   await ensureDirectory(HISTORY_DIR);
 }
 
-export async function listPersonas(): Promise<AgentPersona[]> {
-  await initAgentsDir();
-  const entries = await listDirectory(AGENTS_DIR);
+export async function listPersonas(cabinetPath?: string): Promise<AgentPersona[]> {
+  const agentsDir = resolveAgentsDir(cabinetPath);
+  await ensureDirectory(agentsDir);
+  const entries = await listDirectory(agentsDir);
   const personas: AgentPersona[] = [];
 
   for (const entry of entries) {
-    // Directory-based agents: {slug}/persona.md (PRD format)
     if (entry.isDirectory && !entry.name.startsWith(".")) {
-      const personaPath = path.join(AGENTS_DIR, entry.name, "persona.md");
+      const personaPath = path.join(agentsDir, entry.name, "persona.md");
       if (await fileExists(personaPath)) {
-        const persona = await readPersona(entry.name);
+        const persona = await readPersona(entry.name, cabinetPath);
         if (persona && persona.role) personas.push(persona);
       }
-      continue;
     }
-    // Legacy flat-file agents: {slug}.md
-    if (!entry.name.endsWith(".md") || entry.isDirectory) continue;
-    const persona = await readPersona(slugFromFilename(entry.name));
-    if (persona && persona.role) personas.push(persona);
   }
 
   return personas;
 }
 
+export async function listAllPersonas(): Promise<AgentPersona[]> {
+  const cabinetPaths = await discoverCabinetPaths();
+  const personaGroups = await Promise.all(
+    cabinetPaths.map((cabinetPath) => listPersonas(cabinetPath))
+  );
+
+  return personaGroups.flat().sort((left, right) => {
+    if ((left.workdir || "").localeCompare(right.workdir || "") !== 0) {
+      return (left.workdir || "").localeCompare(right.workdir || "");
+    }
+    return left.name.localeCompare(right.name);
+  });
+}
+
 export async function readPersona(slug: string, cabinetPath?: string): Promise<AgentPersona | null> {
   const agentsDir = resolveAgentsDir(cabinetPath);
-  // Try directory-based first: {slug}/persona.md
-  let filePath = path.join(agentsDir, slug, "persona.md");
-  if (!(await fileExists(filePath))) {
-    // Fall back to legacy flat file: {slug}.md
-    filePath = path.join(agentsDir, `${slug}.md`);
-    if (!(await fileExists(filePath))) return null;
-  }
+  const filePath = path.join(agentsDir, slug, "persona.md");
+  if (!(await fileExists(filePath))) return null;
 
   const raw = await readFileContent(filePath);
   const { data, content } = matter(raw);
@@ -218,6 +221,7 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
     channels: (data.channels as string[]) || ["general"],
     workspace: (data.workspace as string) || `workspace`,
     setupComplete: data.setupComplete === true,
+    cabinetPath: normalizeCabinetPath(cabinetPath, true),
     slug,
     body: content.trim(),
   };
@@ -291,17 +295,10 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
   await writeFileContent(filePath, md);
 }
 
-export async function deletePersona(slug: string): Promise<void> {
+export async function deletePersona(slug: string, cabinetPath?: string): Promise<void> {
   const fs = await import("fs/promises");
-  // Try directory-based first
-  const agentDir = path.join(AGENTS_DIR, slug);
-  try {
-    await fs.rm(agentDir, { recursive: true, force: true });
-  } catch {
-    // Fall back to legacy flat file
-    const filePath = path.join(AGENTS_DIR, `${slug}.md`);
-    await fs.unlink(filePath).catch(() => {});
-  }
+  const agentDir = path.join(resolveAgentsDir(cabinetPath), slug);
+  await fs.rm(agentDir, { recursive: true, force: true });
   unregisterHeartbeat(slug);
 }
 
@@ -330,8 +327,13 @@ export async function listMemoryFiles(slug: string, cabinetPath?: string): Promi
 
 // --- Messages ---
 
-export async function sendMessage(from: string, to: string, message: string): Promise<void> {
-  const inboxDir = path.join(MESSAGES_DIR, to);
+export async function sendMessage(
+  from: string,
+  to: string,
+  message: string,
+  cabinetPath?: string
+): Promise<void> {
+  const inboxDir = path.join(resolveMessagesDir(cabinetPath), to);
   await ensureDirectory(inboxDir);
   const timestamp = new Date().toISOString();
   const filename = `${timestamp.replace(/[:.]/g, "-")}_from_${from}.md`;

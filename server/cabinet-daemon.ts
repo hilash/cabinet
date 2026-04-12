@@ -21,11 +21,17 @@ import chokidar from "chokidar";
 import matter from "gray-matter";
 import { getDb, closeDb } from "./db";
 import { DATA_DIR } from "../src/lib/storage/path-utils";
+import { discoverCabinetPathsSync } from "../src/lib/cabinets/discovery";
+import { resolveCabinetDir } from "../src/lib/cabinets/server-paths";
 import {
   getAppOrigin,
   getDaemonPort,
 } from "../src/lib/runtime/runtime-config";
-import { getSessionLaunchSpec, resolveProviderId } from "../src/lib/agents/provider-runtime";
+import {
+  getOneShotLaunchSpec,
+  getSessionLaunchSpec,
+  resolveProviderId,
+} from "../src/lib/agents/provider-runtime";
 import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
 import {
   appendConversationTranscript,
@@ -44,7 +50,6 @@ import {
 } from "../src/lib/jobs/job-normalization";
 
 const PORT = getDaemonPort();
-const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 const CABINET_MANIFEST_FILE = ".cabinet";
 
 interface CabinetEntry {
@@ -55,37 +60,10 @@ interface CabinetEntry {
 }
 
 function discoverAllCabinets(): CabinetEntry[] {
-  const cabinets: CabinetEntry[] = [];
-
-  // Always include root
-  cabinets.push({ relPath: "", absDir: DATA_DIR });
-
-  function walk(dir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-
-      const childDir = path.join(dir, entry.name);
-      const manifestPath = path.join(childDir, CABINET_MANIFEST_FILE);
-
-      if (fs.existsSync(manifestPath)) {
-        const relPath = path.relative(DATA_DIR, childDir);
-        cabinets.push({ relPath, absDir: childDir });
-      }
-
-      // Always recurse — cabinets can be nested at any depth
-      walk(childDir);
-    }
-  }
-
-  walk(DATA_DIR);
-  return cabinets;
+  return discoverCabinetPathsSync().map((relPath) => ({
+    relPath,
+    absDir: resolveCabinetDir(relPath),
+  }));
 }
 
 function isLoopbackOrigin(origin: string): boolean {
@@ -153,6 +131,9 @@ interface PtySession {
   resolvedStatus?: "completed" | "failed";
   resolvingStatus?: boolean;
   readyStrategy?: "claude";
+  outputMode?: "plain" | "claude-stream-json";
+  structuredOutputBuffer?: string;
+  streamedText?: string;
 }
 
 const sessions = new Map<string, PtySession>();
@@ -172,7 +153,7 @@ function resolveSessionCwd(input?: string): string {
 function applyCors(req: http.IncomingMessage, res: http.ServerResponse): void {
   const origin = req.headers.origin;
   if (browserOriginAllowed(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Origin", origin ?? "");
     res.setHeader("Vary", "Origin");
   }
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -226,6 +207,134 @@ function transcriptShowsCompletedRun(output: string, prompt?: string): boolean {
   return (
     claudeIdlePromptVisible(plain)
   );
+}
+
+function extractClaudeDeltaText(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+
+  const parsed = payload as {
+    type?: string;
+    event?: {
+      type?: string;
+      delta?: { type?: string; text?: string };
+    };
+  };
+
+  if (
+    parsed.type === "stream_event" &&
+    parsed.event?.type === "content_block_delta" &&
+    parsed.event.delta?.type === "text_delta"
+  ) {
+    return parsed.event.delta.text || "";
+  }
+
+  return "";
+}
+
+function extractClaudeToolResultText(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+
+  const parsed = payload as {
+    type?: string;
+    tool_use_result?: {
+      stdout?: string;
+      stderr?: string;
+    };
+  };
+
+  if (parsed.type === "user" && parsed.tool_use_result) {
+    return [parsed.tool_use_result.stdout, parsed.tool_use_result.stderr]
+      .filter((value) => typeof value === "string" && value.trim())
+      .join("\n");
+  }
+
+  return "";
+}
+
+function extractClaudeFinalText(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+
+  const parsed = payload as {
+    type?: string;
+    result?: string;
+    message?: { content?: Array<{ type?: string; text?: string }> };
+  };
+
+  if (parsed.type === "assistant") {
+    return (
+      parsed.message?.content
+        ?.filter((item) => item?.type === "text" && typeof item.text === "string")
+        .map((item) => item.text || "")
+        .join("") || ""
+    );
+  }
+
+  if (parsed.type === "result" && typeof parsed.result === "string") {
+    return parsed.result;
+  }
+
+  return "";
+}
+
+function consumeStructuredOutput(session: PtySession, chunk: string): string {
+  if (session.outputMode !== "claude-stream-json") {
+    return chunk;
+  }
+
+  session.structuredOutputBuffer = `${session.structuredOutputBuffer || ""}${chunk}`;
+  const lines = session.structuredOutputBuffer.split(/\r?\n/);
+  session.structuredOutputBuffer = lines.pop() || "";
+
+  let display = "";
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const payload = JSON.parse(trimmed);
+      const deltaText = extractClaudeDeltaText(payload);
+      const toolText = extractClaudeToolResultText(payload);
+      const finalText =
+        (session.streamedText || "").length === 0
+          ? extractClaudeFinalText(payload)
+          : "";
+
+      if (deltaText) {
+        display += deltaText;
+        continue;
+      }
+
+      if (toolText) {
+        display += toolText.endsWith("\n") ? toolText : `${toolText}\n`;
+        continue;
+      }
+
+      if (finalText) {
+        display += finalText;
+      }
+    } catch {
+      // Ignore malformed partial lines and non-JSON diagnostics.
+    }
+  }
+
+  return display;
+}
+
+function flushStructuredOutput(session: PtySession): string {
+  if (session.outputMode !== "claude-stream-json" || !session.structuredOutputBuffer) {
+    return "";
+  }
+
+  const buffered = session.structuredOutputBuffer;
+  session.structuredOutputBuffer = "";
+
+  try {
+    if ((session.streamedText || "").length > 0) {
+      return "";
+    }
+    return extractClaudeFinalText(JSON.parse(buffered.trim()));
+  } catch {
+    return "";
+  }
 }
 
 function submitInitialPrompt(session: PtySession): void {
@@ -443,14 +552,51 @@ function createDetachedSession(input: {
   cwd?: string;
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
+  launchMode?: "session" | "one-shot";
 }): PtySession {
   const cwd = resolveSessionCwd(input.cwd);
-  const launch = getSessionLaunchSpec({
-    providerId: input.providerId,
-    prompt: input.prompt,
-    workdir: cwd,
-  });
+  let launch =
+    input.launchMode === "one-shot" && input.prompt?.trim()
+      ? getOneShotLaunchSpec({
+          providerId: input.providerId,
+          prompt: input.prompt,
+          workdir: cwd,
+        })
+      : getSessionLaunchSpec({
+          providerId: input.providerId,
+          prompt: input.prompt,
+          workdir: cwd,
+        });
   const resolvedProviderId = resolveProviderId(input.providerId);
+
+  if (
+    input.launchMode === "one-shot" &&
+    resolvedProviderId === "claude-code"
+  ) {
+    const nextArgs: string[] = [];
+    for (let index = 0; index < launch.args.length; index += 1) {
+      const arg = launch.args[index];
+      if (arg === "--output-format") {
+        index += 1;
+        continue;
+      }
+      if (arg === "text" && launch.args[index - 1] === "--output-format") {
+        continue;
+      }
+      nextArgs.push(arg);
+    }
+
+    nextArgs.push(
+      "--verbose",
+      "--output-format",
+      "stream-json",
+      "--include-partial-messages"
+    );
+    launch = {
+      ...launch,
+      args: nextArgs,
+    };
+  }
 
   const term = pty.spawn(launch.command, launch.args, {
     name: "xterm-256color",
@@ -481,11 +627,21 @@ function createDetachedSession(input: {
     promptSubmittedOutputLength: 0,
     autoExitRequested: false,
     readyStrategy: launch.readyStrategy,
+    outputMode:
+      input.launchMode === "one-shot" && resolvedProviderId === "claude-code"
+        ? "claude-stream-json"
+        : "plain",
+    structuredOutputBuffer: "",
+    streamedText: "",
   };
   sessions.set(input.sessionId, session);
 
   term.onData((data: string) => {
-    session.output.push(data);
+    const displayChunk = consumeStructuredOutput(session, data);
+    if (displayChunk) {
+      session.output.push(displayChunk);
+      session.streamedText = `${session.streamedText || ""}${displayChunk}`;
+    }
     if (
       session.initialPrompt &&
       !session.initialPromptSent &&
@@ -495,11 +651,13 @@ function createDetachedSession(input: {
       submitInitialPrompt(session);
     }
     maybeAutoExitClaudeSession(session);
-    void syncConversationChunk(input.sessionId, data).catch(() => {});
-    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-      session.ws.send(data);
+    if (displayChunk) {
+      void syncConversationChunk(input.sessionId, displayChunk).catch(() => {});
+      if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+        session.ws.send(displayChunk);
+      }
     }
-    input.onData?.(data);
+    input.onData?.(displayChunk);
   });
 
   term.onExit(({ exitCode }) => {
@@ -517,6 +675,13 @@ function createDetachedSession(input: {
     if (session.autoExitFallbackTimer) {
       clearTimeout(session.autoExitFallbackTimer);
       delete session.autoExitFallbackTimer;
+    }
+
+    const trailingDisplay = flushStructuredOutput(session);
+    if (trailingDisplay) {
+      session.output.push(trailingDisplay);
+      session.streamedText = `${session.streamedText || ""}${trailingDisplay}`;
+      void syncConversationChunk(input.sessionId, trailingDisplay).catch(() => {});
     }
 
     const plain = stripAnsi(session.output.join(""));
@@ -628,9 +793,7 @@ function stopScheduledTasks(): void {
 }
 
 function scheduleJob(job: JobConfig): void {
-  const key = job.cabinetPath
-    ? `${job.cabinetPath}::job::${job.agentSlug}/${job.id}`
-    : `::job::${job.agentSlug}/${job.id}`;
+  const key = `${job.cabinetPath}::job::${job.agentSlug}/${job.id}`;
   const existingTask = scheduledJobs.get(key);
   if (existingTask) existingTask.stop();
 
@@ -644,7 +807,7 @@ function scheduleJob(job: JobConfig): void {
     void putJson(`${getAppOrigin()}/api/agents/${job.agentSlug}/jobs/${job.id}`, {
       action: "run",
       source: "scheduler",
-      cabinetPath: job.cabinetPath || undefined,
+      cabinetPath: job.cabinetPath,
     }).catch((error) => {
       console.error(`Failed to trigger scheduled job ${key}:`, error);
     });
@@ -655,9 +818,7 @@ function scheduleJob(job: JobConfig): void {
 }
 
 function scheduleHeartbeat(slug: string, cronExpr: string, cabinetPath: string): void {
-  const key = cabinetPath
-    ? `${cabinetPath}::heartbeat::${slug}`
-    : `::heartbeat::${slug}`;
+  const key = `${cabinetPath}::heartbeat::${slug}`;
 
   if (!cron.validate(cronExpr)) {
     console.warn(`Invalid heartbeat schedule for ${key}: ${cronExpr}`);
@@ -669,7 +830,7 @@ function scheduleHeartbeat(slug: string, cronExpr: string, cabinetPath: string):
     void putJson(`${getAppOrigin()}/api/agents/personas/${slug}`, {
       action: "run",
       source: "scheduler",
-      cabinetPath: cabinetPath || undefined,
+      cabinetPath,
     }).catch((error) => {
       console.error(`Failed to trigger heartbeat ${key}:`, error);
     });
@@ -689,7 +850,7 @@ async function reloadSchedules(): Promise<void> {
   for (const cabinet of cabinets) {
     const agentsDir = path.join(cabinet.absDir, ".agents");
 
-    // --- Heartbeats + agent-scoped jobs from .agents/*/persona.md ---
+    // --- Heartbeats from .agents/*/persona.md ---
     if (fs.existsSync(agentsDir)) {
       let agentEntries: fs.Dirent[];
       try {
@@ -714,38 +875,6 @@ async function reloadSchedules(): Promise<void> {
             }
           } catch {
             // Skip malformed personas.
-          }
-        }
-
-        // Legacy agent-scoped jobs: .agents/{slug}/jobs/*.yaml
-        const agentJobsDir = path.join(agentsDir, entry.name, "jobs");
-        if (fs.existsSync(agentJobsDir)) {
-          let jobFiles: string[];
-          try {
-            jobFiles = fs.readdirSync(agentJobsDir);
-          } catch {
-            jobFiles = [];
-          }
-          for (const jf of jobFiles) {
-            if (!jf.endsWith(".yaml") && !jf.endsWith(".yml")) continue;
-            try {
-              const raw = fs.readFileSync(path.join(agentJobsDir, jf), "utf-8");
-              const config: JobConfig = {
-                ...normalizeJobConfig(
-                  yaml.load(raw) as Partial<JobConfig>,
-                  entry.name,
-                  normalizeJobId(path.basename(jf, path.extname(jf)))
-                ),
-                agentSlug: entry.name,
-                cabinetPath: cabinet.relPath,
-              };
-              if (config.id && config.enabled && config.schedule) {
-                scheduleJob(config);
-                jobCount++;
-              }
-            } catch {
-              // Skip malformed jobs.
-            }
           }
         }
       }
@@ -932,6 +1061,7 @@ const server = http.createServer(async (req, res) => {
             prompt,
             cwd,
             timeoutSeconds,
+            launchMode: prompt ? "one-shot" : "session",
           });
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -1014,6 +1144,7 @@ const server = http.createServer(async (req, res) => {
             providerId,
             prompt,
             timeoutSeconds,
+            launchMode: "one-shot",
           });
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ ok: true, sessionId, agentSlug: agentSlug || "manual" }));

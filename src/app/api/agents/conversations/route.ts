@@ -128,9 +128,19 @@ export async function POST(req: NextRequest) {
       onComplete: async (completion) => {
         if (agentSlug === "general" || !completion.meta.contextSummary) return;
         const timestamp = new Date().toISOString();
-        const existingContext = await readMemory(agentSlug, "context.md");
+        const completionCabinetPath = completion.meta.cabinetPath || cabinetPath;
+        const existingContext = await readMemory(
+          agentSlug,
+          "context.md",
+          completionCabinetPath
+        );
         const nextEntry = `\n\n## ${timestamp}\n${completion.meta.contextSummary}`;
-        await writeMemory(agentSlug, "context.md", existingContext + nextEntry);
+        await writeMemory(
+          agentSlug,
+          "context.md",
+          existingContext + nextEntry,
+          completionCabinetPath
+        );
       },
     });
 

@@ -7,6 +7,7 @@ import type {
   ConversationStatus,
   ConversationTrigger,
 } from "../../types/conversations";
+import { discoverCabinetPaths } from "../cabinets/discovery";
 import { DATA_DIR, sanitizeFilename, virtualPathFromFs } from "../storage/path-utils";
 import {
   deleteFileOrDir,
@@ -28,6 +29,7 @@ function resolveConversationsDir(cabinetPath?: string): string {
 export interface ConversationNotification {
   id: string;
   agentSlug: string;
+  cabinetPath?: string;
   title: string;
   status: ConversationStatus;
   summary?: string;
@@ -319,23 +321,37 @@ export async function readConversationMeta(
   id: string,
   cabinetPath?: string
 ): Promise<ConversationMeta | null> {
-  const filePath = metaPath(id, cabinetPath);
-  if (!(await fileExists(filePath))) {
-    // Fall back to global conversations dir if not found in cabinet
-    if (cabinetPath) {
-      const globalPath = metaPath(id);
-      if (await fileExists(globalPath)) {
-        try { return JSON.parse(await readFileContent(globalPath)) as ConversationMeta; } catch { return null; }
-      }
-    }
-    return null;
-  }
+  const resolvedCabinetPath = await resolveConversationCabinetPath(id, cabinetPath);
+  if (resolvedCabinetPath === null) return null;
+
+  const filePath = metaPath(id, resolvedCabinetPath);
   try {
     const raw = await readFileContent(filePath);
-    return JSON.parse(raw) as ConversationMeta;
+    const parsed = JSON.parse(raw) as ConversationMeta;
+    if (!parsed.cabinetPath && typeof resolvedCabinetPath === "string") {
+      parsed.cabinetPath = resolvedCabinetPath;
+    }
+    return parsed;
   } catch {
     return null;
   }
+}
+
+async function resolveConversationCabinetPath(
+  id: string,
+  cabinetPath?: string
+): Promise<string | null> {
+  if (typeof cabinetPath === "string") {
+    return (await fileExists(metaPath(id, cabinetPath))) ? cabinetPath : null;
+  }
+
+  for (const candidate of await discoverCabinetPaths()) {
+    if (await fileExists(metaPath(id, candidate))) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 function stripAnsiText(str: string): string {
@@ -526,9 +542,10 @@ async function maybeResolveCompletedConversation(
 ): Promise<ConversationMeta | null> {
   if (!meta) return meta;
 
-  const transcript = await readConversationTranscript(meta.id);
-  const prompt = (await fileExists(promptPathFs(meta.id)))
-    ? await readFileContent(promptPathFs(meta.id))
+  const cabinetPath = meta.cabinetPath;
+  const transcript = await readConversationTranscript(meta.id, cabinetPath);
+  const prompt = (await fileExists(promptPathFs(meta.id, cabinetPath)))
+    ? await readFileContent(promptPathFs(meta.id, cabinetPath))
     : "";
   if (meta.status === "running" && !transcriptShowsCompletedRun(transcript, prompt)) {
     return meta;
@@ -553,7 +570,7 @@ async function maybeResolveCompletedConversation(
       status: meta.status === "running" ? "completed" : meta.status,
       exitCode: meta.status === "running" ? 0 : meta.exitCode,
       output: transcript,
-    })
+    }, cabinetPath)
   ) || meta;
 }
 
@@ -625,6 +642,7 @@ export async function finalizeConversation(
     notificationQueue.push({
       id: meta.id,
       agentSlug: meta.agentSlug,
+      cabinetPath: meta.cabinetPath,
       title: meta.title,
       status: meta.status,
       summary: meta.summary,
@@ -636,7 +654,10 @@ export async function finalizeConversation(
 }
 
 export async function readConversationTranscript(id: string, cabinetPath?: string): Promise<string> {
-  const filePath = transcriptPathFs(id, cabinetPath);
+  const resolvedCabinetPath = await resolveConversationCabinetPath(id, cabinetPath);
+  if (resolvedCabinetPath === null) return "";
+
+  const filePath = transcriptPathFs(id, resolvedCabinetPath);
   if (!(await fileExists(filePath))) return "";
   return readFileContent(filePath);
 }
@@ -690,19 +711,31 @@ export async function readConversationDetail(
 export async function listConversationMetas(
   filters: ListConversationFilters = {}
 ): Promise<ConversationMeta[]> {
-  const convsDir = resolveConversationsDir(filters.cabinetPath);
-  await ensureDirectory(convsDir);
-  const entries = await listDirectory(convsDir);
+  const cabinetPaths = filters.cabinetPath
+    ? [filters.cabinetPath]
+    : await discoverCabinetPaths();
 
-  const metas = (
-    await Promise.all(
-      entries
-        .filter((entry) => entry.isDirectory)
-        .map(async (entry) =>
-          maybeResolveCompletedConversation(await readConversationMeta(entry.name, filters.cabinetPath))
+  const groups = await Promise.all(
+    cabinetPaths.map(async (cabinetPath) => {
+      const convsDir = resolveConversationsDir(cabinetPath);
+      await ensureDirectory(convsDir);
+      const entries = await listDirectory(convsDir);
+
+      return (
+        await Promise.all(
+          entries
+            .filter((entry) => entry.isDirectory)
+            .map(async (entry) =>
+              maybeResolveCompletedConversation(
+                await readConversationMeta(entry.name, cabinetPath)
+              )
+            )
         )
-    )
-  ).filter(Boolean) as ConversationMeta[];
+      ).filter(Boolean) as ConversationMeta[];
+    })
+  );
+
+  const metas = groups.flat();
 
   const filtered = metas.filter((meta) => {
     if (filters.agentSlug && meta.agentSlug !== filters.agentSlug) return false;
@@ -729,8 +762,10 @@ export async function getRunningConversationCounts(): Promise<Record<string, num
 }
 
 export async function deleteConversation(id: string, cabinetPath?: string): Promise<boolean> {
-  const dir = conversationDir(id, cabinetPath);
-  if (!(await fileExists(metaPath(id, cabinetPath)))) return false;
+  const meta = await readConversationMeta(id, cabinetPath);
+  if (!meta) return false;
+
+  const dir = conversationDir(id, meta.cabinetPath || cabinetPath);
   await deleteFileOrDir(dir);
   return true;
 }

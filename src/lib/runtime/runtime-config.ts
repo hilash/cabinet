@@ -111,7 +111,9 @@ export function getAppPort(): number {
   const runtimePort = readRuntimePorts().app?.port;
   return parsePort(
     process.env.CABINET_APP_PORT || process.env.PORT,
-    Number.isFinite(runtimePort) ? runtimePort : 4000
+    typeof runtimePort === "number" && Number.isFinite(runtimePort)
+      ? runtimePort
+      : 4000
   );
 }
 
@@ -119,7 +121,9 @@ export function getDaemonPort(): number {
   const runtimePort = readRuntimePorts().daemon?.port;
   return parsePort(
     process.env.CABINET_DAEMON_PORT,
-    Number.isFinite(runtimePort) ? runtimePort : 4100
+    typeof runtimePort === "number" && Number.isFinite(runtimePort)
+      ? runtimePort
+      : 4100
   );
 }
 

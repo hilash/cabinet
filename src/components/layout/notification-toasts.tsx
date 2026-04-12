@@ -8,6 +8,7 @@ import { useAppStore } from "@/stores/app-store";
 interface TaskNotification {
   id: string;
   agentSlug: string;
+  cabinetPath?: string;
   agentName: string;
   agentEmoji: string;
   title: string;
@@ -113,10 +114,24 @@ export function NotificationToasts() {
           key={toast._key}
           type="button"
           onClick={() => {
-            setSection({ type: "agent", slug: toast.agentSlug });
+            if (toast.cabinetPath) {
+              setSection({
+                type: "agent",
+                mode: "cabinet",
+                slug: toast.agentSlug,
+                cabinetPath: toast.cabinetPath,
+                agentScopedId: `${toast.cabinetPath}::agent::${toast.agentSlug}`,
+              });
+            } else {
+              setSection({ type: "agent", mode: "ops", slug: toast.agentSlug });
+            }
             window.dispatchEvent(
               new CustomEvent("cabinet:open-conversation", {
-                detail: { conversationId: toast.id, agentSlug: toast.agentSlug },
+                detail: {
+                  conversationId: toast.id,
+                  agentSlug: toast.agentSlug,
+                  cabinetPath: toast.cabinetPath,
+                },
               })
             );
             dismiss(toast._key);

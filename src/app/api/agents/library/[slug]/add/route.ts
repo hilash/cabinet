@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
+import { normalizeCabinetPath } from "@/lib/cabinets/paths";
+import { resolveCabinetDir } from "@/lib/cabinets/server-paths";
 
 const LIBRARY_DIR = path.join(PROJECT_ROOT, "src", "lib", "agents", "library");
-const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const cabinetPath = normalizeCabinetPath(
+      typeof body.cabinetPath === "string" ? body.cabinetPath : undefined,
+      true
+    );
     const templateDir = path.join(LIBRARY_DIR, slug);
-    const targetDir = path.join(AGENTS_DIR, slug);
+    const targetDir = path.join(resolveCabinetDir(cabinetPath), ".agents", slug);
 
     // Verify template exists
     const personaPath = path.join(templateDir, "persona.md");
@@ -45,7 +50,7 @@ export async function POST(
 
     await ensureAgentScaffold(targetDir);
 
-    return NextResponse.json({ ok: true, slug }, { status: 201 });
+    return NextResponse.json({ ok: true, slug, cabinetPath }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

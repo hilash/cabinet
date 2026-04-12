@@ -56,6 +56,14 @@ export function normalizeJobConfig(
       typeof input.provider === "string" && input.provider.trim()
         ? input.provider.trim()
         : "claude-code",
+    ownerAgent:
+      typeof agentSlug === "string" && agentSlug.trim()
+        ? agentSlug.trim()
+        : typeof input.ownerAgent === "string" && input.ownerAgent.trim()
+          ? input.ownerAgent.trim()
+          : typeof input.agentSlug === "string" && input.agentSlug.trim()
+            ? input.agentSlug.trim()
+            : undefined,
     agentSlug:
       typeof agentSlug === "string" && agentSlug.trim()
         ? agentSlug.trim()
@@ -78,6 +86,10 @@ export function normalizeJobConfig(
         : "",
     on_complete: Array.isArray(input.on_complete) ? input.on_complete : undefined,
     on_failure: Array.isArray(input.on_failure) ? input.on_failure : undefined,
+    cabinetPath:
+      typeof input.cabinetPath === "string" && input.cabinetPath.trim()
+        ? input.cabinetPath.trim()
+        : undefined,
     createdAt:
       typeof input.createdAt === "string" && input.createdAt.trim()
         ? input.createdAt

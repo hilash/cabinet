@@ -48,6 +48,7 @@ export type AgentType = "lead" | "specialist" | "support";
 
 /** Lightweight agent summary used in list/card views */
 export interface AgentListItem {
+  scopedId?: string;
   name: string;
   slug: string;
   emoji: string;

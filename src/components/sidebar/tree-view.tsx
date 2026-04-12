@@ -54,7 +54,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cronToShortLabel } from "@/lib/agents/cron-utils";
-import { findDeepestCabinetNode, findParentCabinetNode } from "@/lib/cabinets/tree";
+import {
+  findNodeByPath,
+  findParentCabinetNode,
+  findRootCabinetNode,
+} from "@/lib/cabinets/tree";
+import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { cabinetVisibilityModeLabel } from "@/lib/cabinets/visibility";
 import { getDataDir } from "@/lib/data-dir-cache";
 import type { CabinetOverview } from "@/types/cabinets";
@@ -122,7 +127,7 @@ export function TreeView() {
   const loadPage = useEditorStore((s) => s.loadPage);
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
-  const cabinetVisibilityMode = useAppStore((s) => s.cabinetVisibilityMode);
+  const cabinetVisibilityModes = useAppStore((s) => s.cabinetVisibilityModes);
 
   const [cabinetExpanded, setCabinetExpanded] = useState(true);
   const [agentsExpanded, setAgentsExpanded] = useState(true);
@@ -134,87 +139,55 @@ export function TreeView() {
   const [kbCreating, setKbCreating] = useState(false);
   const [linkRepoOpen, setLinkRepoOpen] = useState(false);
 
-  // Find the active cabinet: either from the selected page path, or the first
-  // top-level cabinet node in the tree (since root always has .cabinet now).
+  const rootCabinet = useMemo(() => findRootCabinetNode(nodes), [nodes]);
+  const routeCabinetPath = section.mode === "cabinet" ? section.cabinetPath : undefined;
   const activeCabinet = useMemo(() => {
-    if (selectedPath) {
-      const deepest = findDeepestCabinetNode(nodes, selectedPath);
-      if (deepest) return deepest;
-    }
-    // Fall back to the first top-level cabinet node
-    return nodes.find((n) => n.type === "cabinet") || null;
-  }, [nodes, selectedPath]);
+    if (!routeCabinetPath) return null;
+    return findNodeByPath(nodes, routeCabinetPath);
+  }, [nodes, routeCabinetPath]);
   const parentCabinet = useMemo(() => {
     if (!activeCabinet) return null;
     return findParentCabinetNode(nodes, activeCabinet.path);
   }, [activeCabinet, nodes]);
-  const visibleTreeNodes = activeCabinet?.children || nodes;
+  const cabinetVisibilityMode = activeCabinet
+    ? cabinetVisibilityModes[activeCabinet.path] || "own"
+    : "own";
+  const visibleTreeNodes = activeCabinet?.children || rootCabinet?.children || nodes;
   const kbSectionLabel = activeCabinet ? "Data" : "Knowledge Base";
-
-  // When a KB page is clicked (via TreeNode), switch section to "page"
-  useEffect(() => {
-    const unsub = useTreeStore.subscribe((state, prevState) => {
-      if (state.selectedPath !== prevState.selectedPath && state.selectedPath) {
-        setSection({ type: "page" });
-      }
-    });
-    return unsub;
-  }, [setSection]);
 
   /* ── agent polling ─────────────────────────────────────────── */
 
   const loadAgents = useCallback(async () => {
     try {
-      if (activeCabinet) {
-        const params = new URLSearchParams({
-          path: activeCabinet.path,
-          visibility: cabinetVisibilityMode,
-        });
-        const res = await fetch(`/api/cabinets/overview?${params.toString()}`, {
-          cache: "no-store",
-        });
-        if (res.ok) {
-          const data = (await res.json()) as CabinetOverview;
-          setCabinetAgentScopeName(data.cabinet.name);
-          setAgents(
-            (data.agents || []).map((agent) => ({
-              scopedId: agent.scopedId,
-              name: agent.name,
-              slug: agent.slug,
-              emoji: agent.emoji,
-              active: agent.active,
-              runningCount: 0,
-              jobCount: agent.jobCount || 0,
-              taskCount: agent.taskCount || 0,
-              heartbeat: agent.heartbeat || "",
-              cabinetPath: agent.cabinetPath,
-              cabinetName: agent.cabinetName,
-              inherited: agent.inherited,
-            }))
-          );
-          return;
-        }
-
-        setCabinetAgentScopeName(
-          activeCabinet.frontmatter?.title || activeCabinet.name
-        );
-        setAgents([]);
-        return;
-      }
-
-      const res = await fetch("/api/agents/personas");
+      const params = new URLSearchParams({
+        path: activeCabinet?.path || ROOT_CABINET_PATH,
+        visibility: activeCabinet ? cabinetVisibilityMode : "all",
+      });
+      const res = await fetch(`/api/cabinets/overview?${params.toString()}`, {
+        cache: "no-store",
+      });
       if (res.ok) {
-        const data = await res.json();
-        setCabinetAgentScopeName(null);
+        const data = (await res.json()) as CabinetOverview;
+        setCabinetAgentScopeName(
+          activeCabinet ? data.cabinet.name : "All cabinets"
+        );
         setAgents(
-          (data.personas || []).map((p: AgentSummary) => ({
-            name: p.name,
-            slug: p.slug,
-            emoji: p.emoji,
-            active: p.active,
-            runningCount: p.runningCount || 0,
+          (data.agents || []).map((agent) => ({
+            scopedId: agent.scopedId,
+            name: agent.name,
+            slug: agent.slug,
+            emoji: agent.emoji,
+            active: agent.active,
+            runningCount: 0,
+            jobCount: agent.jobCount || 0,
+            taskCount: agent.taskCount || 0,
+            heartbeat: agent.heartbeat || "",
+            cabinetPath: agent.cabinetPath,
+            cabinetName: agent.cabinetName,
+            inherited: agent.inherited,
           }))
         );
+        return;
       }
     } catch {
       if (activeCabinet) {
@@ -254,20 +227,31 @@ export function TreeView() {
 
   // depth-based padding matching TreeNode: depth * 16 + 8
   const pad = (depth: number) => ({ paddingLeft: `${depth * 16 + 8}px` });
-  const dataRootPath = activeCabinet?.path || "";
+  const cabinetPath = activeCabinet?.path || rootCabinet?.path || ROOT_CABINET_PATH;
+  const dataRootPath = activeCabinet
+    ? activeCabinet.path === ROOT_CABINET_PATH
+      ? ""
+      : activeCabinet.path
+    : "";
+  const selectedAgentScopedId =
+    section.agentScopedId ||
+    (section.type === "agent" && section.cabinetPath && section.slug
+      ? `${section.cabinetPath}::agent::${section.slug}`
+      : null);
 
-  const openCabinetOverview = () => {
-    if (!activeCabinet) return;
-    selectPage(activeCabinet.path);
-    loadPage(activeCabinet.path);
-    setSection({ type: "page" });
+  const openCabinetOverview = (targetCabinetPath = cabinetPath) => {
+    selectPage(targetCabinetPath);
+    void loadPage(targetCabinetPath);
+    setSection({
+      type: "cabinet",
+      mode: "cabinet",
+      cabinetPath: targetCabinetPath,
+    });
   };
 
   const openParentCabinet = () => {
     if (!parentCabinet) return;
-    selectPage(parentCabinet.path);
-    loadPage(parentCabinet.path);
-    setSection({ type: "page" });
+    openCabinetOverview(parentCabinet.path);
   };
 
   return (
@@ -291,13 +275,7 @@ export function TreeView() {
         <button
           onClick={() => {
             setCabinetExpanded(!cabinetExpanded);
-            if (activeCabinet) {
-              selectPage(activeCabinet.path);
-              loadPage(activeCabinet.path);
-              setSection({ type: "page" });
-            } else {
-              setSection({ type: "home" });
-            }
+            openCabinetOverview(activeCabinet?.path || cabinetPath);
           }}
           className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2 pb-1 w-full text-left flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
           style={pad(0)}
@@ -325,10 +303,15 @@ export function TreeView() {
               <button
                 onClick={() => {
                   setAgentsExpanded(!agentsExpanded);
-                  setSection({
-                    type: "agents",
-                    cabinetPath: activeCabinet?.path,
-                  });
+                  if (activeCabinet) {
+                    setSection({
+                      type: "agents",
+                      mode: "cabinet",
+                      cabinetPath: activeCabinet.path,
+                    });
+                    return;
+                  }
+                  setSection({ type: "agents", mode: "ops" });
                 }}
                 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
               >
@@ -348,7 +331,7 @@ export function TreeView() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSection({ type: "agents" });
+                    setSection({ type: "agents", mode: "ops" });
                     setTimeout(() => {
                       window.dispatchEvent(new CustomEvent("cabinet:open-add-agent"));
                     }, 100);
@@ -384,13 +367,20 @@ export function TreeView() {
                         onClick={() =>
                           setSection({
                             type: "agent",
+                            mode: "cabinet",
                             slug: agent.slug,
                             cabinetPath: agent.cabinetPath || activeCabinet?.path,
+                            agentScopedId:
+                              agent.scopedId ||
+                              `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`,
                           })
                         }
                         className={cn(
                           "flex w-full items-start gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent/50",
-                          section.type === "agent" && section.slug === agent.slug && "bg-accent text-accent-foreground"
+                          selectedAgentScopedId ===
+                            (agent.scopedId ||
+                              `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`) &&
+                            "bg-accent text-accent-foreground"
                         )}
                         style={pad(2)}
                       >
@@ -439,7 +429,7 @@ export function TreeView() {
                     {/* General agent (depth 2) */}
                     <button
                       onClick={() =>
-                        setSection({ type: "agent", slug: "general" })
+                        setSection({ type: "agent", mode: "ops", slug: "general" })
                       }
                       className={itemClass(
                         section.type === "agent" && section.slug === "general"
@@ -456,12 +446,31 @@ export function TreeView() {
                       ...agents.filter((a) => a.slug !== "editor"),
                     ].map((agent) => (
                       <button
-                        key={agent.slug}
-                        onClick={() =>
-                          setSection({ type: "agent", slug: agent.slug })
-                        }
+                        key={agent.scopedId || agent.slug}
+                        onClick={() => {
+                          if (agent.cabinetPath) {
+                            setSection({
+                              type: "agent",
+                              mode: "cabinet",
+                              slug: agent.slug,
+                              cabinetPath: agent.cabinetPath,
+                              agentScopedId:
+                                agent.scopedId ||
+                                `${agent.cabinetPath}::agent::${agent.slug}`,
+                            });
+                            return;
+                          }
+                          setSection({ type: "agent", mode: "ops", slug: agent.slug });
+                        }}
                         className={itemClass(
-                          section.type === "agent" && section.slug === agent.slug
+                          selectedAgentScopedId ===
+                            (agent.scopedId ||
+                              (agent.cabinetPath
+                                ? `${agent.cabinetPath}::agent::${agent.slug}`
+                                : null)) ||
+                            (section.mode === "ops" &&
+                              section.type === "agent" &&
+                              section.slug === agent.slug)
                         )}
                         style={pad(2)}
                       >
@@ -495,9 +504,11 @@ export function TreeView() {
                 <button
                   onClick={() => {
                     setKbExpanded(!kbExpanded);
-                    selectPage(dataRootPath);
-                    loadPage(dataRootPath);
-                    setSection({ type: "page" });
+                    if (activeCabinet) {
+                      openCabinetOverview(activeCabinet.path);
+                      return;
+                    }
+                    setSection({ type: "home" });
                   }}
                   className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2 pb-1 w-full text-left flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
                   style={pad(1)}
@@ -562,7 +573,12 @@ export function TreeView() {
                   </button>
                 ) : (
                   visibleTreeNodes.map((node) => (
-                    <TreeNode key={node.path} node={node} depth={2} />
+                    <TreeNode
+                      key={node.path}
+                      node={node}
+                      depth={2}
+                      contextCabinetPath={activeCabinet?.path || null}
+                    />
                   ))
                 )}
               </>
@@ -592,9 +608,17 @@ export function TreeView() {
                 .replace(/[^a-z0-9]+/g, "-")
                 .replace(/^-|-$/g, "");
               const nextPath = dataRootPath ? `${dataRootPath}/${slug}` : slug;
-              loadPage(nextPath);
               selectPage(nextPath);
-              setSection({ type: "page" });
+              await loadPage(nextPath);
+              setSection(
+                activeCabinet
+                  ? {
+                      type: "page",
+                      mode: "cabinet",
+                      cabinetPath: activeCabinet.path,
+                    }
+                  : { type: "page" }
+              );
               setKbSubPageTitle("");
               setKbSubPageOpen(false);
             } catch (error) {

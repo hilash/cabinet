@@ -4,6 +4,11 @@ function pathMatchesNode(targetPath: string, nodePath: string): boolean {
   return targetPath === nodePath || targetPath.startsWith(`${nodePath}/`);
 }
 
+export function findRootCabinetNode(nodes: TreeNode[]): TreeNode | null {
+  const root = nodes[0];
+  return root?.type === "cabinet" && root.path === "." ? root : null;
+}
+
 export function findNodeByPath(nodes: TreeNode[], path: string): TreeNode | null {
   for (const node of nodes) {
     if (node.path === path) return node;
