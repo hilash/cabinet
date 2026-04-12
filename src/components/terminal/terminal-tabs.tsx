@@ -2,7 +2,7 @@
 
 import { Plus, X, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "./web-terminal";
 import { useCallback, useRef, useState } from "react";

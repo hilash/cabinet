@@ -32,6 +32,18 @@ export function KeyboardShortcuts() {
         toggleAI();
       }
 
+      // Cmd+Shift+I — go to Issues
+      if (isMod && e.shiftKey && e.key === "i") {
+        e.preventDefault();
+        setSection({ type: "issues" });
+      }
+
+      // Cmd+Shift+P — go to Projects
+      if (isMod && e.shiftKey && e.key === "p") {
+        e.preventDefault();
+        setSection({ type: "projects" });
+      }
+
       // Cmd+M — toggle Agents view
       if (isMod && e.key === "m" && !e.shiftKey) {
         e.preventDefault();

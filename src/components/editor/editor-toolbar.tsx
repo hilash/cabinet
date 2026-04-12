@@ -1,8 +1,8 @@
 "use client";
 
 import { type Editor } from "@tiptap/react";
-import { Toggle } from "@/components/ui/toggle";
-import { Separator } from "@/components/ui/separator";
+import { Toggle } from "@multica/ui/components/ui/toggle";
+import { Separator } from "@multica/ui/components/ui/separator";
 import {
   Bold,
   Italic,

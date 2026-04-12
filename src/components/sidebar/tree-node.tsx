@@ -35,15 +35,15 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
   ContextMenuSeparator,
-} from "@/components/ui/context-menu";
+} from "@multica/ui/components/ui/context-menu";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+} from "@multica/ui/components/ui/dialog";
+import { Input } from "@multica/ui/components/ui/input";
+import { Button } from "@multica/ui/components/ui/button";
 import { LinkRepoDialog } from "./link-repo-dialog";
 import { getDataDir } from "@/lib/data-dir-cache";
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@multica/ui/components/ui/dialog";
+import { Button } from "@multica/ui/components/ui/button";
 import { UpdateSummary } from "@/components/system/update-summary";
 import type { UpdateCheckResult } from "@/types";
 

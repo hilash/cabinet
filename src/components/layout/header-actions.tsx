@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles, Search, Terminal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
 import { useAppStore } from "@/stores/app-store";
 import { ThemePicker } from "@/components/layout/theme-picker";

@@ -30,7 +30,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { GoalBar } from "./goal-bar";
 import { EditAgentDialog } from "./edit-agent-dialog";
 import { cronToHuman } from "@/lib/agents/cron-utils";

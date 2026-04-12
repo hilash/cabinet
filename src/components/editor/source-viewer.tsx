@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { ExternalLink, Download, WrapText, Copy, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { HeaderActions } from "@/components/layout/header-actions";
 import { common, createLowlight } from "lowlight";
 import { toHtml } from "hast-util-to-html";

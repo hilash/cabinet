@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { History, X, GitCommit, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@multica/ui/components/ui/button";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { useEditorStore } from "@/stores/editor-store";
 
 interface GitLogEntry {

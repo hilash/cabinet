@@ -8,8 +8,8 @@ import {
   Library,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@multica/ui/components/ui/button";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
 import type { AgentListItem } from "@/types/agents";

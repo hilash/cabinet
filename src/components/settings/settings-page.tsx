@@ -29,9 +29,9 @@ import {
   FolderOpen,
   RotateCw,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@multica/ui/components/ui/button";
+import { Input } from "@multica/ui/components/ui/input";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { UpdateSummary } from "@/components/system/update-summary";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useTheme } from "next-themes";

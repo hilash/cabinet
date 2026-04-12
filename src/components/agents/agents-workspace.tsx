@@ -23,15 +23,15 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@multica/ui/components/ui/dialog";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
 import { cronToHuman } from "@/lib/agents/cron-utils";

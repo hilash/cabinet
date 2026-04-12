@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Gauge, Plus, RefreshCw, Zap, MessageSquare, Loader2, BookOpen, Power, Pause, PlayCircle, FolderOpen, Upload, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";

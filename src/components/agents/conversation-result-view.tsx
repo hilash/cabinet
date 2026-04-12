@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, FileText, Files, PackageOpen, Sparkles, CheckCircle, XCircle, Clock } from "lucide-react";
 import type { ConversationDetail } from "@/types/conversations";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@multica/ui/components/ui/button";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 
 function StatusBadge({ status }: { status: string }) {
   const isCompleted = status === "completed";

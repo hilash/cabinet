@@ -16,6 +16,18 @@ import { HomeScreen } from "@/components/home/home-screen";
 import { AgentsWorkspace } from "@/components/agents/agents-workspace";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
+import dynamic from "next/dynamic";
+
+const InboxPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.InboxPage), { ssr: false });
+const MyIssuesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MyIssuesPage), { ssr: false });
+const MulticaAgentsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MulticaAgentsPage), { ssr: false });
+const RuntimesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.RuntimesPage), { ssr: false });
+const SkillsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.SkillsPage), { ssr: false });
+const MulticaSettingsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MulticaSettingsPage), { ssr: false });
+const IssuesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.IssuesPage), { ssr: false });
+const IssueDetail = dynamic(() => import("@/components/integrations/multica-views").then(m => m.IssueDetail), { ssr: false });
+const ProjectsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.ProjectsPage), { ssr: false });
+const ProjectDetail = dynamic(() => import("@/components/integrations/multica-views").then(m => m.ProjectDetail), { ssr: false });
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
 import { AIPanel } from "@/components/ai-panel/ai-panel";
 import { SearchDialog } from "@/components/search/search-dialog";
@@ -24,6 +36,7 @@ import { StatusBar } from "@/components/layout/status-bar";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
+import { MulticaModals } from "@/components/integrations/multica-modals";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useHashRoute } from "@/hooks/use-hash-route";
 import { useTreeStore } from "@/stores/tree-store";
@@ -197,6 +210,21 @@ export function AppShell() {
       );
     }
     if (section.type === "jobs") return <JobsManager />;
+    if (section.type === "inbox") return <InboxPage />;
+    if (section.type === "my-issues") return <MyIssuesPage />;
+    if (section.type === "issues") return <IssuesPage />;
+    if (section.type === "issue-detail") {
+      return section.id ? <IssueDetail issueId={section.id} /> : <IssuesPage />;
+    }
+    if (section.type === "projects") return <ProjectsPage />;
+    if (section.type === "project-detail") {
+      return section.id ? <ProjectDetail projectId={section.id} /> : <ProjectsPage />;
+    }
+    if (section.type === "agents-multica") return <MulticaAgentsPage />;
+    if (section.type === "agent-multica") return <MulticaAgentsPage />;
+    if (section.type === "runtimes") return <RuntimesPage />;
+    if (section.type === "skills") return <SkillsPage />;
+    if (section.type === "multica-settings") return <MulticaSettingsPage />;
 
     // Page-based views (when a KB page is selected)
     if (isApp && selectedNode) {
@@ -326,6 +354,7 @@ export function AppShell() {
         onLater={handleUpdateLater}
       />
       <NotificationToasts />
+      <MulticaModals />
     </div>
   );
 }

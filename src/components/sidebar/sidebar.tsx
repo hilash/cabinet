@@ -13,9 +13,10 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { TreeView } from "./tree-view";
 import { NewPageDialog } from "./new-page-dialog";
+import { MulticaNav } from "./multica-nav";
 import { useAppStore } from "@/stores/app-store";
 
 function useIsMobile() {
@@ -135,6 +136,9 @@ export function Sidebar() {
           </Button>
         </div>
         <TreeView />
+        <div className="border-t border-border">
+          <MulticaNav />
+        </div>
 
         <div className="p-2 flex items-center gap-1">
           <div className="flex-1">

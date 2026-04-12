@@ -4,22 +4,22 @@ import { useEffect, useState, useCallback } from "react";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useAppStore } from "@/stores/app-store";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { TreeNode } from "./tree-node";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+} from "@multica/ui/components/ui/context-menu";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+} from "@multica/ui/components/ui/dialog";
+import { Input } from "@multica/ui/components/ui/input";
+import { Button } from "@multica/ui/components/ui/button";
 import { LinkRepoDialog } from "./link-repo-dialog";
 import {
   ChevronRight,

@@ -6,7 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@multica/ui/components/ui/dropdown-menu";
 import { useEditorStore } from "@/stores/editor-store";
 import { VersionHistory } from "@/components/editor/version-history";
 import { HeaderActions } from "@/components/layout/header-actions";

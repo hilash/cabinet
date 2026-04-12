@@ -1,0 +1,72 @@
+{
+  "name": "@multica/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "exports": {
+    ".": "./index.ts",
+    "./types": "./types/index.ts",
+    "./types/*": "./types/*.ts",
+    "./api": "./api/index.ts",
+    "./api/client": "./api/client.ts",
+    "./api/ws-client": "./api/ws-client.ts",
+    "./auth": "./auth/index.ts",
+    "./workspace": "./workspace/index.ts",
+    "./workspace/queries": "./workspace/queries.ts",
+    "./workspace/mutations": "./workspace/mutations.ts",
+    "./workspace/hooks": "./workspace/hooks.ts",
+    "./issues": "./issues/index.ts",
+    "./issues/queries": "./issues/queries.ts",
+    "./issues/mutations": "./issues/mutations.ts",
+    "./issues/ws-updaters": "./issues/ws-updaters.ts",
+    "./issues/config": "./issues/config/index.ts",
+    "./issues/config/status": "./issues/config/status.ts",
+    "./issues/config/priority": "./issues/config/priority.ts",
+    "./issues/stores": "./issues/stores/index.ts",
+    "./issues/stores/view-store-context": "./issues/stores/view-store-context.tsx",
+    "./issues/stores/*": "./issues/stores/*.ts",
+    "./inbox": "./inbox/index.ts",
+    "./inbox/queries": "./inbox/queries.ts",
+    "./inbox/mutations": "./inbox/mutations.ts",
+    "./inbox/ws-updaters": "./inbox/ws-updaters.ts",
+    "./chat": "./chat/index.ts",
+    "./chat/queries": "./chat/queries.ts",
+    "./chat/mutations": "./chat/mutations.ts",
+    "./runtimes": "./runtimes/index.ts",
+    "./runtimes/queries": "./runtimes/queries.ts",
+    "./runtimes/mutations": "./runtimes/mutations.ts",
+    "./runtimes/hooks": "./runtimes/hooks.ts",
+    "./projects": "./projects/index.ts",
+    "./projects/queries": "./projects/queries.ts",
+    "./projects/mutations": "./projects/mutations.ts",
+    "./projects/config": "./projects/config.ts",
+    "./realtime": "./realtime/index.ts",
+    "./navigation": "./navigation/index.ts",
+    "./modals": "./modals/index.ts",
+    "./hooks": "./hooks.tsx",
+    "./hooks/*": "./hooks/*.ts",
+    "./query-client": "./query-client.ts",
+    "./provider": "./provider.tsx",
+    "./logger": "./logger.ts",
+    "./utils": "./utils.ts",
+    "./constants/*": "./constants/*.ts",
+    "./platform": "./platform/index.ts"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.96.0",
+    "@tanstack/react-query-devtools": "^5.96.2",
+    "zustand": "^5.0.12"
+  },
+  "peerDependencies": {
+    "react": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

@@ -28,6 +28,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Passthrough multica API and auth routes (handled by multica Go server)
+  if (pathname.startsWith("/multica-api/") || pathname.startsWith("/multica-auth/")) {
+    return NextResponse.next();
+  }
+
   // Check auth cookie
   const token = req.cookies.get("kb-auth")?.value;
   const expected = await hashToken(password);

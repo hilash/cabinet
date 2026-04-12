@@ -13,8 +13,8 @@ import {
   X,
   Bot,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@multica/ui/components/ui/button";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import {

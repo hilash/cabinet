@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import {
   X,
   Send,
@@ -14,13 +15,18 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import type { TreeNode } from "@/types";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
+
+const EmbeddedChatWindow = dynamic(
+  () => import("./embedded-chat-window").then((m) => m.EmbeddedChatWindow),
+  { ssr: false }
+);
 
 interface FlatPage {
   path: string;
@@ -64,6 +70,9 @@ export function AIPanel() {
     clearAllSessions,
   } = useAIPanelStore();
   const { currentPath, loadPage } = useEditorStore();
+  const section = useAppStore((s) => s.section);
+  const [activeTab, setActiveTab] = useState<"editor" | "multica">("editor");
+  const prevSectionTypeRef = useRef(section.type);
   const [input, setInput] = useState("");
   const [mentionedPages, setMentionedPages] = useState<string[]>([]);
   const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
@@ -170,7 +179,7 @@ export function AIPanel() {
       }
     };
     restore();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load pages for @ mentions
   useEffect(() => {
@@ -191,6 +200,29 @@ export function AIPanel() {
   useEffect(() => {
     void loadPastSessions();
   }, [loadPastSessions]);
+
+  // Auto-switch tab when section type changes
+  useEffect(() => {
+    if (section.type === prevSectionTypeRef.current) return;
+    prevSectionTypeRef.current = section.type;
+
+    const multicaSections = new Set([
+      "issues",
+      "issue-detail",
+      "projects",
+      "project-detail",
+      "agents-multica",
+      "inbox",
+      "my-issues",
+    ]);
+    const editorSections = new Set(["page", "home", "agents"]);
+
+    if (multicaSections.has(section.type)) {
+      setActiveTab("multica");
+    } else if (editorSections.has(section.type)) {
+      setActiveTab("editor");
+    }
+  }, [section.type]);
 
   const filteredPages = allPages.filter(
     (p) =>
@@ -296,6 +328,8 @@ export function AIPanel() {
         pagePath: currentPath,
         userMessage: instruction,
         prompt: conversation.title,
+        // Event handlers can stamp sessions at creation time.
+        // eslint-disable-next-line react-hooks/purity
         timestamp: Date.now(),
         status: "running",
         reconnect: true,
@@ -447,162 +481,286 @@ export function AIPanel() {
         </div>
       </div>
 
-      {/* Sessions */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto" ref={scrollRef}>
-        <div className={cn("p-3 space-y-3", currentPageSessions.length > 0 ? "flex-1 flex flex-col" : "")}>
-          {!hasAnySessions && (
-            <div className="text-center py-8 space-y-2">
-              <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/40" />
-              <p className="text-[13px] text-muted-foreground">
-                Tell me how you&apos;d like to edit this page.
-              </p>
-              <p className="text-xs text-muted-foreground/60">
-                Use{" "}
-                <span className="font-mono bg-muted px-1 rounded">@</span> to
-                reference other pages as context.
-              </p>
-              <p className="text-xs text-muted-foreground/60">
-                Sessions persist across pages and show in Editor Agent.
-              </p>
-            </div>
+      <div className="flex border-b border-border">
+        <button
+          className={cn(
+            "flex-1 px-3 py-2 text-xs font-medium transition-colors",
+            activeTab === "editor"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
-
-          {/* Running sessions on OTHER pages */}
-          {otherPageRunningSessions.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">
-                Running on other pages
-              </div>
-              {otherPageRunningSessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => {
-                    // Navigate to the page where this session is running
-                    useAppStore.getState().setSection({ type: "page" });
-                    loadPage(session.pagePath);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 border border-[#ffffff08] rounded-lg text-[12px] hover:bg-accent/30 transition-colors cursor-pointer text-left"
-                >
-                  <Loader2 className="h-3 w-3 text-primary animate-spin shrink-0" />
-                  <span className="truncate flex-1 text-muted-foreground">
-                    {session.userMessage}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/50 shrink-0">
-                    {session.pagePath.split("/").pop()}
-                  </span>
-                  <span
-                    role="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSession(session.sessionId);
-                    }}
-                    className="text-muted-foreground/40 hover:text-destructive shrink-0"
-                  >
-                    <X className="h-3 w-3" />
-                  </span>
-                </button>
-              ))}
-            </div>
+          onClick={() => setActiveTab("editor")}
+        >
+          Editor AI
+        </button>
+        <button
+          className={cn(
+            "flex-1 px-3 py-2 text-xs font-medium transition-colors",
+            activeTab === "multica"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
-
-          {/* Past sessions for current page (collapsed by default) */}
-          {pastSessions.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">
-                Previous Sessions
-              </div>
-              {pastSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="border border-[#ffffff08] rounded-lg overflow-hidden"
-                >
-                  <button
-                    onClick={() => togglePastExpanded(session.id)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent/30 transition-colors"
-                  >
-                    {expandedPast.has(session.id) ? (
-                      <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                    )}
-                    <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
-                    <span className="text-[12px] truncate flex-1">
-                      {session.instruction}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/60 shrink-0">
-                      {formatDate(session.timestamp)}{" "}
-                      {formatTime(session.timestamp)}
-                    </span>
-                  </button>
-                  {expandedPast.has(session.id) && (
-                    <div
-                      className="border-t"
-                      style={{
-                        borderColor: "var(--border)",
-                        backgroundColor: "var(--background)",
-                        color: "var(--foreground)",
-                      }}
-                    >
-                      <pre className="max-h-[300px] overflow-y-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-foreground/85">
-                        {pastSessionDetails[session.id] || session.summary || "(No output captured)"}
-                      </pre>
-                      <div
-                        className="flex items-center gap-3 border-t px-3 py-1.5 text-[10px] text-muted-foreground/60"
-                        style={{ borderColor: "var(--border)" }}
-                      >
-                        {session.duration !== undefined && (
-                          <span>
-                            <Clock className="h-2.5 w-2.5 inline mr-1" />
-                            {session.duration}s
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Divider */}
-          {pastSessions.length > 0 && currentPageSessions.length > 0 && (
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1 pt-2">
-              Current Sessions
-            </div>
-          )}
-
-          {/* Live sessions for current page — these render terminals */}
-          {currentPageSessions.map((session, i) => (
-            <div key={session.id} className={cn("space-y-2 flex flex-col", i === currentPageSessions.length - 1 ? "flex-1 min-h-0" : "")}>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="bg-accent/50 rounded-lg px-3 py-2 text-[13px] leading-relaxed flex-1">
-                  {session.userMessage}
-                </div>
-                <button
-                  onClick={() => {
-                    removeSession(session.sessionId);
-                  }}
-                  className="text-muted-foreground/40 hover:text-destructive shrink-0 p-1"
-                  title="Dismiss"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <div className="flex-1 min-h-[200px] overflow-hidden rounded-lg border border-border/70 bg-background">
-                <WebTerminal
-                  sessionId={session.sessionId}
-                  prompt={session.prompt}
-                  displayPrompt={session.userMessage}
-                  reconnect={session.reconnect}
-                  themeSurface="page"
-                  onClose={() => handleSessionEnd(session.sessionId)}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+          onClick={() => setActiveTab("multica")}
+        >
+          Multica Chat
+        </button>
       </div>
+
+      {activeTab === "editor" ? (
+        <>
+          {/* Sessions */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto" ref={scrollRef}>
+            <div className={cn("p-3 space-y-3", currentPageSessions.length > 0 ? "flex-1 flex flex-col" : "")}>
+              {!hasAnySessions && (
+                <div className="text-center py-8 space-y-2">
+                  <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/40" />
+                  <p className="text-[13px] text-muted-foreground">
+                    Tell me how you&apos;d like to edit this page.
+                  </p>
+                  <p className="text-xs text-muted-foreground/60">
+                    Use{" "}
+                    <span className="font-mono bg-muted px-1 rounded">@</span> to
+                    reference other pages as context.
+                  </p>
+                  <p className="text-xs text-muted-foreground/60">
+                    Sessions persist across pages and show in Editor Agent.
+                  </p>
+                </div>
+              )}
+
+              {/* Running sessions on OTHER pages */}
+              {otherPageRunningSessions.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">
+                    Running on other pages
+                  </div>
+                  {otherPageRunningSessions.map((session) => (
+                    <button
+                      key={session.id}
+                      onClick={() => {
+                        // Navigate to the page where this session is running
+                        useAppStore.getState().setSection({ type: "page" });
+                        loadPage(session.pagePath);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 border border-[#ffffff08] rounded-lg text-[12px] hover:bg-accent/30 transition-colors cursor-pointer text-left"
+                    >
+                      <Loader2 className="h-3 w-3 text-primary animate-spin shrink-0" />
+                      <span className="truncate flex-1 text-muted-foreground">
+                        {session.userMessage}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                        {session.pagePath.split("/").pop()}
+                      </span>
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSession(session.sessionId);
+                        }}
+                        className="text-muted-foreground/40 hover:text-destructive shrink-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Past sessions for current page (collapsed by default) */}
+              {pastSessions.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">
+                    Previous Sessions
+                  </div>
+                  {pastSessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="border border-[#ffffff08] rounded-lg overflow-hidden"
+                    >
+                      <button
+                        onClick={() => togglePastExpanded(session.id)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent/30 transition-colors"
+                      >
+                        {expandedPast.has(session.id) ? (
+                          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                        )}
+                        <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
+                        <span className="text-[12px] truncate flex-1">
+                          {session.instruction}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/60 shrink-0">
+                          {formatDate(session.timestamp)}{" "}
+                          {formatTime(session.timestamp)}
+                        </span>
+                      </button>
+                      {expandedPast.has(session.id) && (
+                        <div
+                          className="border-t"
+                          style={{
+                            borderColor: "var(--border)",
+                            backgroundColor: "var(--background)",
+                            color: "var(--foreground)",
+                          }}
+                        >
+                          <pre className="max-h-[300px] overflow-y-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-foreground/85">
+                            {pastSessionDetails[session.id] || session.summary || "(No output captured)"}
+                          </pre>
+                          <div
+                            className="flex items-center gap-3 border-t px-3 py-1.5 text-[10px] text-muted-foreground/60"
+                            style={{ borderColor: "var(--border)" }}
+                          >
+                            {session.duration !== undefined && (
+                              <span>
+                                <Clock className="h-2.5 w-2.5 inline mr-1" />
+                                {session.duration}s
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Divider */}
+              {pastSessions.length > 0 && currentPageSessions.length > 0 && (
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1 pt-2">
+                  Current Sessions
+                </div>
+              )}
+
+              {/* Live sessions for current page — these render terminals */}
+              {currentPageSessions.map((session, i) => (
+                <div key={session.id} className={cn("space-y-2 flex flex-col", i === currentPageSessions.length - 1 ? "flex-1 min-h-0" : "")}>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="bg-accent/50 rounded-lg px-3 py-2 text-[13px] leading-relaxed flex-1">
+                      {session.userMessage}
+                    </div>
+                    <button
+                      onClick={() => {
+                        removeSession(session.sessionId);
+                      }}
+                      className="text-muted-foreground/40 hover:text-destructive shrink-0 p-1"
+                      title="Dismiss"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 min-h-[200px] overflow-hidden rounded-lg border border-border/70 bg-background">
+                    <WebTerminal
+                      sessionId={session.sessionId}
+                      prompt={session.prompt}
+                      displayPrompt={session.userMessage}
+                      reconnect={session.reconnect}
+                      themeSurface="page"
+                      onClose={() => handleSessionEnd(session.sessionId)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Input */}
+          <div className="border-t border-border p-3 shrink-0">
+            {mentionedPages.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {mentionedPages.map((pagePath) => {
+                  const page = allPages.find((p) => p.path === pagePath);
+                  return (
+                    <span
+                      key={pagePath}
+                      className="inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded"
+                    >
+                      <FileText className="h-2.5 w-2.5" />
+                      {page?.title || pagePath}
+                      <button
+                        onClick={() =>
+                          setMentionedPages((prev) =>
+                            prev.filter((p) => p !== pagePath)
+                          )
+                        }
+                        className="hover:text-destructive ml-0.5"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="relative">
+              {showMentions && filteredPages.length > 0 && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto py-1 z-50">
+                  {filteredPages.slice(0, 10).map((page, i) => (
+                    <button
+                      key={page.path}
+                      onClick={() => insertMention(page)}
+                      className={cn(
+                        "flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors",
+                        i === mentionIndex
+                          ? "bg-accent text-accent-foreground"
+                          : "hover:bg-accent/50"
+                      )}
+                    >
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-medium truncate">
+                          {page.title}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 truncate">
+                          {page.path}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  currentPath
+                    ? "Ask anything... use @ to reference pages"
+                    : "Select a page first..."
+                }
+                disabled={!currentPath}
+                rows={2}
+                className={cn(
+                  "w-full resize-none rounded-lg border border-border bg-muted/30 px-3 py-2.5 pr-10",
+                  "text-[13px] leading-relaxed placeholder:text-muted-foreground/50",
+                  "focus:outline-none focus:ring-1 focus:ring-ring",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+              />
+              <div className="absolute right-1.5 bottom-1.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  title="Send"
+                  onClick={handleSubmit}
+                  disabled={!input.trim() || !currentPath}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <EmbeddedChatWindow />
+        </div>
+      )}
 
       {/* All sessions on OTHER pages — keep WebTerminals mounted but hidden so connections stay alive */}
       {editorSessions
@@ -623,96 +781,6 @@ export function AIPanel() {
           </div>
         ))}
 
-      {/* Input */}
-      <div className="border-t border-border p-3 shrink-0">
-        {mentionedPages.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {mentionedPages.map((pagePath) => {
-              const page = allPages.find((p) => p.path === pagePath);
-              return (
-                <span
-                  key={pagePath}
-                  className="inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded"
-                >
-                  <FileText className="h-2.5 w-2.5" />
-                  {page?.title || pagePath}
-                  <button
-                    onClick={() =>
-                      setMentionedPages((prev) =>
-                        prev.filter((p) => p !== pagePath)
-                      )
-                    }
-                    className="hover:text-destructive ml-0.5"
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="relative">
-          {showMentions && filteredPages.length > 0 && (
-            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto py-1 z-50">
-              {filteredPages.slice(0, 10).map((page, i) => (
-                <button
-                  key={page.path}
-                  onClick={() => insertMention(page)}
-                  className={cn(
-                    "flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors",
-                    i === mentionIndex
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-medium truncate">
-                      {page.title}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/60 truncate">
-                      {page.path}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              currentPath
-                ? "Ask anything... use @ to reference pages"
-                : "Select a page first..."
-            }
-            disabled={!currentPath}
-            rows={2}
-            className={cn(
-              "w-full resize-none rounded-lg border border-border bg-muted/30 px-3 py-2.5 pr-10",
-              "text-[13px] leading-relaxed placeholder:text-muted-foreground/50",
-              "focus:outline-none focus:ring-1 focus:ring-ring",
-              "disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
-          />
-          <div className="absolute right-1.5 bottom-1.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title="Send"
-              onClick={handleSubmit}
-              disabled={!input.trim() || !currentPath}
-            >
-              <Send className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

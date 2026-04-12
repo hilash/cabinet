@@ -40,11 +40,23 @@ export const claudeCodeProvider: AgentProvider = {
   },
 
   buildSessionInvocation(prompt: string | undefined, _workdir: string) {
+    // When a prompt is provided (manual/scheduled/heartbeat runs), use -p
+    // non-interactive mode. This avoids Claude Code's first-run Bypass
+    // Permissions interactive warning that blocks node-pty sessions and
+    // results in exitCode 1 with "SUMMARY:..." template-only output.
+    const trimmed = prompt?.trim();
+    if (trimmed) {
+      return {
+        command: this.command || "claude",
+        args: ["--dangerously-skip-permissions", "-p", trimmed, "--output-format", "text"],
+      };
+    }
+    // No prompt = pure interactive session (AI panel chat). Keep legacy path.
     return {
       command: this.command || "claude",
       args: ["--dangerously-skip-permissions"],
-      initialPrompt: prompt?.trim() || undefined,
-      readyStrategy: prompt ? "claude" : undefined,
+      initialPrompt: undefined,
+      readyStrategy: undefined,
     };
   },
 

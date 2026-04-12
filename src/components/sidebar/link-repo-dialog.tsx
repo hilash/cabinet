@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, FolderOpen, Loader2, TriangleAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+} from "@multica/ui/components/ui/dialog";
+import { Input } from "@multica/ui/components/ui/input";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { cn } from "@/lib/utils";

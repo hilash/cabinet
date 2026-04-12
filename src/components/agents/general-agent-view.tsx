@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Terminal, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@multica/ui/components/ui/button";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 
 export function GeneralAgentView() {
   const [prompt, setPrompt] = useState("");
