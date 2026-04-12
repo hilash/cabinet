@@ -364,6 +364,7 @@ async function createWindow() {
   if (multicaPort) {
     const multicaUrl = `http://127.0.0.1:${multicaPort}`;
     process.env.MULTICA_API_URL = multicaUrl;
+    process.env.MULTICA_WS_URL = `ws://127.0.0.1:${multicaPort}/ws`;
     console.log(`[multica] MULTICA_API_URL set to ${multicaUrl}`);
   }
 

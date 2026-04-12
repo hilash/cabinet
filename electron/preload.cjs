@@ -3,4 +3,5 @@ const { contextBridge } = require("electron");
 
 contextBridge.exposeInMainWorld("CabinetDesktop", {
   runtime: "electron",
+  multicaWsUrl: process.env.MULTICA_WS_URL || null,
 });
