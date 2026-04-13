@@ -150,6 +150,7 @@ export async function buildEditorConversationPrompt(input: {
     "",
     `You are editing the page at /data/${input.pagePath}.`,
     `Prefer making the requested changes directly in ${input.pagePath} unless the task clearly belongs in another KB file.`,
+    "Do not assume the target is markdown. Follow the actual file type and Cabinet structure when choosing what to edit.",
     "Work in the Cabinet knowledge base at /data.",
     "Edit KB files directly and reflect useful outputs in the KB, not only in terminal text.",
     buildCabinetEpilogueInstructions(),

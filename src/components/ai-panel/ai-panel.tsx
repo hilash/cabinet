@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   X,
   Sparkles,
@@ -34,6 +34,46 @@ interface PastSession {
   summary: string;
 }
 
+interface PendingLiveSession {
+  id: string;
+  pagePath: string;
+  userMessage: string;
+  agentSlug: string;
+  timestamp: number;
+  status: "starting" | "failed";
+  error?: string;
+}
+
+type LiveSessionView =
+  | {
+      kind: "pending";
+      id: string;
+      pagePath: string;
+      agentSlug: string;
+      userMessage: string;
+      timestamp: number;
+      status: "starting" | "failed";
+      error?: string;
+    }
+  | {
+      kind: "running";
+      id: string;
+      sessionId: string;
+      pagePath: string;
+      agentSlug: string;
+      userMessage: string;
+      prompt: string;
+      timestamp: number;
+      reconnect?: boolean;
+    };
+
+function startCase(value: string | undefined, fallback = "Editor"): string {
+  if (!value) return fallback;
+  const words = value.trim().split(/[\s_-]+/).filter(Boolean);
+  if (words.length === 0) return fallback;
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+
 export function AIPanel() {
   const {
     isOpen,
@@ -50,7 +90,10 @@ export function AIPanel() {
   const [pastSessions, setPastSessions] = useState<PastSession[]>([]);
   const [expandedPast, setExpandedPast] = useState<Set<string>>(new Set());
   const [pastSessionDetails, setPastSessionDetails] = useState<Record<string, string>>({});
+  const [pendingSessions, setPendingSessions] = useState<PendingLiveSession[]>([]);
+  const [selectedLiveSessionId, setSelectedLiveSessionId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const previousCurrentPathRef = useRef<string | null>(null);
 
   // Build mentionable items from tree + agents
   const mentionItems: MentionableItem[] = [
@@ -115,13 +158,46 @@ export function AIPanel() {
     } catch {}
   }, [currentPath, isOpen]);
 
-  // Sessions for the current page
-  const currentPageSessions = editorSessions.filter(
-    (s) => s.pagePath === currentPath && s.status === "running"
+  const runningSessions = useMemo(
+    () => editorSessions.filter((session) => session.status === "running"),
+    [editorSessions]
   );
-  // Sessions for OTHER pages (shown as a summary)
-  const otherPageRunningSessions = editorSessions.filter(
-    (s) => s.pagePath !== currentPath && s.status === "running"
+
+  const liveSessions = useMemo<LiveSessionView[]>(() => {
+    const pending = pendingSessions.map((session) => ({
+      kind: "pending" as const,
+      id: session.id,
+      pagePath: session.pagePath,
+      agentSlug: session.agentSlug,
+      userMessage: session.userMessage,
+      timestamp: session.timestamp,
+      status: session.status,
+      error: session.error,
+    }));
+
+    const running = runningSessions.map((session) => ({
+      kind: "running" as const,
+      id: session.sessionId,
+      sessionId: session.sessionId,
+      pagePath: session.pagePath,
+      agentSlug: session.agentSlug || "editor",
+      userMessage: session.userMessage,
+      prompt: session.prompt,
+      timestamp: session.timestamp,
+      reconnect: session.reconnect,
+    }));
+
+    return [...pending, ...running].sort((left, right) => {
+      const leftCurrent = left.pagePath === currentPath ? 0 : 1;
+      const rightCurrent = right.pagePath === currentPath ? 0 : 1;
+      if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent;
+      return right.timestamp - left.timestamp;
+    });
+  }, [currentPath, pendingSessions, runningSessions]);
+
+  const selectedLiveSession = useMemo(
+    () => liveSessions.find((session) => session.id === selectedLiveSessionId) || null,
+    [liveSessions, selectedLiveSessionId]
   );
 
   // Restore sessions from sessionStorage on mount and validate against terminal server
@@ -162,7 +238,7 @@ export function AIPanel() {
       }
     };
     restore();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load agents for @ mentions
   useEffect(() => {
@@ -191,6 +267,25 @@ export function AIPanel() {
     void loadPastSessions();
   }, [loadPastSessions]);
 
+  useEffect(() => {
+    const selectedStillExists =
+      !!selectedLiveSessionId && liveSessions.some((session) => session.id === selectedLiveSessionId);
+    if (selectedStillExists) return;
+
+    const fallbackSession =
+      liveSessions.find((session) => session.pagePath === currentPath) || liveSessions[0] || null;
+    setSelectedLiveSessionId(fallbackSession?.id || null);
+  }, [currentPath, liveSessions, selectedLiveSessionId]);
+
+  useEffect(() => {
+    if (previousCurrentPathRef.current === currentPath) return;
+    previousCurrentPathRef.current = currentPath;
+    const currentPageLive = liveSessions.find((session) => session.pagePath === currentPath);
+    if (currentPageLive) {
+      setSelectedLiveSessionId(currentPageLive.id);
+    }
+  }, [currentPath, liveSessions]);
+
   const composer = useComposer({
     items: mentionItems,
     disabled: !currentPath,
@@ -199,63 +294,95 @@ export function AIPanel() {
 
       // If user @-mentioned an agent, route to that agent instead of editor
       const targetAgent = mentionedAgents.length > 0 ? mentionedAgents[0] : null;
+      const nextAgentSlug = targetAgent || "editor";
+      const pendingId = `pending-${Date.now()}-${crypto.randomUUID()}`;
 
-      const response = await fetch("/api/agents/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          targetAgent
-            ? {
-                agentSlug: targetAgent,
-                userMessage: message,
-                mentionedPaths,
-              }
-            : {
-                source: "editor",
-                pagePath: currentPath,
-                userMessage: message,
-                mentionedPaths,
-              }
-        ),
-      });
-
-      if (!response.ok) throw new Error("Failed to start conversation");
-
-      const data = await response.json();
-      const conversation = data.conversation as { id: string; title: string };
-
-      addEditorSession({
-        id: conversation.id,
-        sessionId: conversation.id,
-        pagePath: currentPath,
-        userMessage: message,
-        prompt: conversation.title,
-        timestamp: Date.now(),
-        status: "running",
-        reconnect: true,
-      });
-
-      setTimeout(() => {
+      setPendingSessions((prev) => [
+        ...prev,
+        {
+          id: pendingId,
+          pagePath: currentPath,
+          userMessage: message,
+          agentSlug: nextAgentSlug,
+          timestamp: Date.now(),
+          status: "starting",
+        },
+      ]);
+      setSelectedLiveSessionId(pendingId);
+      requestAnimationFrame(() => {
         if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          scrollRef.current.scrollTop = 0;
         }
-      }, 100);
+      });
+
+      try {
+        const response = await fetch("/api/agents/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            targetAgent
+              ? {
+                  agentSlug: targetAgent,
+                  userMessage: message,
+                  mentionedPaths,
+                }
+              : {
+                  source: "editor",
+                  pagePath: currentPath,
+                  userMessage: message,
+                  mentionedPaths,
+                }
+          ),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to start conversation");
+        }
+
+        const data = await response.json();
+        const conversation = data.conversation as ConversationMeta;
+
+        setPendingSessions((prev) => prev.filter((session) => session.id !== pendingId));
+        addEditorSession({
+          id: conversation.id,
+          sessionId: conversation.id,
+          pagePath: currentPath,
+          agentSlug: conversation.agentSlug,
+          userMessage: message,
+          prompt: conversation.title,
+          timestamp: Date.now(),
+          status: "running",
+          reconnect: true,
+        });
+        setSelectedLiveSessionId(conversation.id);
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message ? error.message : "Failed to start conversation";
+        setPendingSessions((prev) =>
+          prev.map((session) =>
+            session.id === pendingId
+              ? { ...session, status: "failed", error: message }
+              : session
+          )
+        );
+        throw error;
+      }
     },
   });
 
-  // Auto-scroll on new sessions
+  // Keep newest live work visible
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTop = 0;
     }
-  }, [currentPageSessions.length]);
+  }, [liveSessions.length]);
 
   // Focus input when panel opens
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => composer.textareaRef.current?.focus(), 100);
     }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [composer.textareaRef, isOpen]);
 
   const handleSessionEnd = useCallback(
     async (sessionId: string) => {
@@ -316,9 +443,17 @@ export function AIPanel() {
   if (!isOpen) return null;
 
   const hasAnySessions =
-    currentPageSessions.length > 0 ||
+    liveSessions.length > 0 ||
     pastSessions.length > 0 ||
-    otherPageRunningSessions.length > 0;
+    runningSessions.length > 0;
+
+  const dismissLiveSession = (session: LiveSessionView) => {
+    if (session.kind === "pending") {
+      setPendingSessions((prev) => prev.filter((entry) => entry.id !== session.id));
+      return;
+    }
+    removeSession(session.sessionId);
+  };
 
   return (
     <div className="w-[480px] min-w-[420px] border-l border-border bg-background flex flex-col">
@@ -344,6 +479,8 @@ export function AIPanel() {
               title="Clear all sessions"
               onClick={() => {
                 clearAllSessions();
+                setPendingSessions([]);
+                setSelectedLiveSessionId(null);
                 setPastSessions([]);
               }}
             >
@@ -363,7 +500,7 @@ export function AIPanel() {
 
       {/* Sessions */}
       <div className="flex-1 min-h-0 flex flex-col overflow-y-auto" ref={scrollRef}>
-        <div className={cn("p-3 space-y-3", currentPageSessions.length > 0 ? "flex-1 flex flex-col" : "")}>
+        <div className="p-3 space-y-4">
           {!hasAnySessions && (
             <div className="text-center py-8 space-y-2">
               <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/40" />
@@ -381,41 +518,175 @@ export function AIPanel() {
             </div>
           )}
 
-          {/* Running sessions on OTHER pages */}
-          {otherPageRunningSessions.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">
-                Running on other pages
+          {liveSessions.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                  Live Sessions
+                </div>
+                <span className="text-[10px] text-muted-foreground/50">
+                  {liveSessions.length} active
+                </span>
               </div>
-              {otherPageRunningSessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => {
-                    // Navigate to the page where this session is running
-                    useAppStore.getState().setSection({ type: "page" });
-                    loadPage(session.pagePath);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 border border-[#ffffff08] rounded-lg text-[12px] hover:bg-accent/30 transition-colors cursor-pointer text-left"
-                >
-                  <Loader2 className="h-3 w-3 text-primary animate-spin shrink-0" />
-                  <span className="truncate flex-1 text-muted-foreground">
-                    {session.userMessage}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/50 shrink-0">
-                    {session.pagePath.split("/").pop()}
-                  </span>
-                  <span
-                    role="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSession(session.sessionId);
-                    }}
-                    className="text-muted-foreground/40 hover:text-destructive shrink-0"
-                  >
-                    <X className="h-3 w-3" />
-                  </span>
-                </button>
-              ))}
+
+              <div className="space-y-1.5">
+                {liveSessions.map((session) => {
+                  const isSelected = selectedLiveSessionId === session.id;
+                  const isCurrentPage = session.pagePath === currentPath;
+                  const agentLabel =
+                    session.agentSlug === "editor" ? "Editor" : startCase(session.agentSlug);
+
+                  return (
+                    <button
+                      key={session.id}
+                      onClick={() => setSelectedLiveSessionId(session.id)}
+                      className={cn(
+                        "w-full rounded-xl border px-3 py-2 text-left transition-colors",
+                        isSelected
+                          ? "border-primary/40 bg-primary/8"
+                          : "border-border/60 hover:bg-accent/30"
+                      )}
+                    >
+                      <div className="flex items-start gap-2">
+                        {session.kind === "pending" ? (
+                          <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
+                        ) : (
+                          <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-emerald-500" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-[12px] font-medium text-foreground">
+                              {session.userMessage}
+                            </span>
+                            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
+                              {agentLabel}
+                            </span>
+                            {isCurrentPage ? (
+                              <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-primary">
+                                Here
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                            <span className="truncate">{session.pagePath}</span>
+                            <span className="shrink-0">
+                              {session.kind === "pending" && session.status === "failed"
+                                ? "Failed"
+                                : session.kind === "pending"
+                                  ? "Starting"
+                                  : "Streaming"}
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            dismissLiveSession(session);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              dismissLiveSession(session);
+                            }
+                          }}
+                          className="shrink-0 p-1 text-muted-foreground/40 transition-colors hover:text-destructive"
+                          title="Dismiss"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedLiveSession && (
+                <div className="space-y-2 rounded-xl border border-border/70 bg-card/50 p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="rounded-lg bg-accent/50 px-3 py-2 text-[13px] leading-relaxed flex-1">
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                        {selectedLiveSession.kind === "pending"
+                          ? selectedLiveSession.status === "failed"
+                            ? "Unable to start"
+                            : "Starting live session..."
+                          : "Live stream"}
+                      </div>
+                      <div className="mt-1.5 text-foreground">
+                        {selectedLiveSession.userMessage}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                        <span>{selectedLiveSession.pagePath}</span>
+                        <span>
+                          {selectedLiveSession.agentSlug === "editor"
+                            ? "Editor"
+                            : startCase(selectedLiveSession.agentSlug)}
+                        </span>
+                        <span>{formatDate(selectedLiveSession.timestamp)} {formatTime(selectedLiveSession.timestamp)}</span>
+                      </div>
+                    </div>
+                    {selectedLiveSession.pagePath !== currentPath ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 shrink-0 text-[11px]"
+                        onClick={() => {
+                          useAppStore.getState().setSection({ type: "page" });
+                          void loadPage(selectedLiveSession.pagePath);
+                        }}
+                      >
+                        Open Page
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  {selectedLiveSession.kind === "pending" ? (
+                    <div className="min-h-[220px] rounded-lg border border-dashed border-border/70 bg-background/80 p-4">
+                      <div className="flex h-full min-h-[188px] flex-col items-center justify-center gap-3 text-center">
+                        {selectedLiveSession.status === "failed" ? (
+                          <>
+                            <X className="h-8 w-8 text-destructive" />
+                            <div className="space-y-1">
+                              <p className="text-[13px] font-medium text-foreground">
+                                The session did not start.
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {selectedLiveSession.error || "Try sending the request again."}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <div className="space-y-1">
+                              <p className="text-[13px] font-medium text-foreground">
+                                Starting the live editor stream...
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                The panel will switch to terminal output as soon as the daemon session is ready.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="min-h-[260px] overflow-hidden rounded-lg border border-border/70 bg-background">
+                      <WebTerminal
+                        sessionId={selectedLiveSession.sessionId}
+                        prompt={selectedLiveSession.prompt}
+                        displayPrompt={selectedLiveSession.userMessage}
+                        reconnect={selectedLiveSession.reconnect}
+                        themeSurface="page"
+                        onClose={() => handleSessionEnd(selectedLiveSession.sessionId)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -477,50 +748,16 @@ export function AIPanel() {
               ))}
             </div>
           )}
-
-          {/* Divider */}
-          {pastSessions.length > 0 && currentPageSessions.length > 0 && (
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1 pt-2">
-              Current Sessions
-            </div>
-          )}
-
-          {/* Live sessions for current page — these render terminals */}
-          {currentPageSessions.map((session, i) => (
-            <div key={session.id} className={cn("space-y-2 flex flex-col", i === currentPageSessions.length - 1 ? "flex-1 min-h-0" : "")}>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="bg-accent/50 rounded-lg px-3 py-2 text-[13px] leading-relaxed flex-1">
-                  {session.userMessage}
-                </div>
-                <button
-                  onClick={() => {
-                    removeSession(session.sessionId);
-                  }}
-                  className="text-muted-foreground/40 hover:text-destructive shrink-0 p-1"
-                  title="Dismiss"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <div className="flex-1 min-h-[200px] overflow-hidden rounded-lg border border-border/70 bg-background">
-                <WebTerminal
-                  sessionId={session.sessionId}
-                  prompt={session.prompt}
-                  displayPrompt={session.userMessage}
-                  reconnect={session.reconnect}
-                  themeSurface="page"
-                  onClose={() => handleSessionEnd(session.sessionId)}
-                />
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
-      {/* All sessions on OTHER pages — keep WebTerminals mounted but hidden so connections stay alive */}
-      {editorSessions
-        .filter((s) => s.pagePath !== currentPath && s.status === "running")
+      {/* Non-selected running sessions stay mounted in the background so their streams stay alive */}
+      {runningSessions
+        .filter((session) =>
+          selectedLiveSession?.kind === "running"
+            ? session.sessionId !== selectedLiveSession.sessionId
+            : true
+        )
         .map((session) => (
           <div
             key={`hidden-${session.id}`}
