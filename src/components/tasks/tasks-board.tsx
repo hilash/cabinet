@@ -564,7 +564,7 @@ function ConversationRow({
 }) {
   const hasActions = onStop || onRestart;
   return (
-    <div className="group relative flex w-full items-stretch border-b border-border/70 last:border-b-0 hover:bg-accent/35 transition-colors">
+    <div className="group flex w-full items-center border-b border-border/70 last:border-b-0 hover:bg-accent/35 transition-colors">
       <button
         onClick={onOpen}
         className="flex min-w-0 flex-1 items-start gap-2 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
@@ -574,7 +574,7 @@ function ConversationRow({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className={cn("truncate text-[11.5px] font-medium leading-[1.35] text-foreground", hasActions && "group-hover:pr-14")}>
+            <p className="truncate text-[11.5px] font-medium leading-[1.35] text-foreground">
               {conversation.title}
             </p>
             <span
@@ -598,8 +598,9 @@ function ConversationRow({
         </div>
       </button>
 
+      {/* Action buttons: always in flow (no layout shift), invisible until hover */}
       {hasActions && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded-md border border-border/50 bg-background px-0.5 py-0.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+        <div className="flex shrink-0 items-center gap-0.5 pr-2 opacity-0 transition-opacity group-hover:opacity-100">
           {onStop && (
             <button
               onClick={(e) => { e.stopPropagation(); onStop(); }}
