@@ -50,6 +50,15 @@ import type { ConversationDetail, ConversationMeta } from "@/types/conversations
 import type { JobConfig } from "@/types/jobs";
 import type { AgentListItem, ProviderInfo } from "@/types/agents";
 import { flattenTree } from "@/lib/tree-utils";
+import { CABINET_VISIBILITY_OPTIONS } from "@/lib/cabinets/visibility";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ComposerInput } from "@/components/composer/composer-input";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
 
@@ -428,6 +437,23 @@ export function AgentsWorkspace({
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const [agentJobsMap, setAgentJobsMap] = useState<Record<string, JobConfig[]>>({});
+  const [orgChartJobDialog, setOrgChartJobDialog] = useState<{
+    agentSlug: string;
+    agentName: string;
+    cabinetPath?: string;
+    draft: JobConfig;
+  } | null>(null);
+  const [orgChartHeartbeatDialog, setOrgChartHeartbeatDialog] = useState<{
+    agentSlug: string;
+    agentName: string;
+    cabinetPath?: string;
+    heartbeat: string;
+    active: boolean;
+  } | null>(null);
+  const [orgChartJobRunning, setOrgChartJobRunning] = useState(false);
+  const [orgChartJobSaving, setOrgChartJobSaving] = useState(false);
+  const [orgChartHeartbeatRunning, setOrgChartHeartbeatRunning] = useState(false);
+  const [orgChartHeartbeatSaving, setOrgChartHeartbeatSaving] = useState(false);
   const lastSavedSettingsRef = useRef<string | null>(null);
   const conversationsPanel = useHorizontalResize(340, 260, 520, "right");
   const treeNodes = useTreeStore((state) => state.nodes);
@@ -435,6 +461,7 @@ export function AgentsWorkspace({
   const section = useAppStore((state) => state.section);
   const setSection = useAppStore((state) => state.setSection);
   const cabinetVisibilityModes = useAppStore((state) => state.cabinetVisibilityModes);
+  const setCabinetVisibilityMode = useAppStore((state) => state.setCabinetVisibilityMode);
   const resolvedWorkspaceMode =
     workspaceMode || (cabinetPath ? "cabinet" : "ops");
   const effectiveCabinetPath =
@@ -1322,6 +1349,98 @@ export function AgentsWorkspace({
     }
   }
 
+  async function runOrgChartJob() {
+    if (!orgChartJobDialog) return;
+    const { agentSlug, cabinetPath, draft } = orgChartJobDialog;
+    setOrgChartJobRunning(true);
+    try {
+      const response = await fetch(`/api/agents/${agentSlug}/jobs/${draft.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run", cabinetPath }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.run?.id) {
+        setOrgChartJobDialog(null);
+        setActiveAgentSlug(agentSlug);
+        setSection(buildAgentSection(agentSlug, cabinetPath));
+        setSelectedConversationId(data.run.id as string);
+        setSelectedConversationCabinetPath(cabinetPath);
+        setMode("conversation");
+        await refreshConversations();
+      }
+    } finally {
+      setOrgChartJobRunning(false);
+    }
+  }
+
+  async function saveOrgChartJob() {
+    if (!orgChartJobDialog) return;
+    const { agentSlug, cabinetPath, draft } = orgChartJobDialog;
+    setOrgChartJobSaving(true);
+    try {
+      const query = cabinetPath ? `?cabinetPath=${encodeURIComponent(cabinetPath)}` : "";
+      const response = await fetch(`/api/agents/${agentSlug}/jobs/${draft.id}${query}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      if (!response.ok) return;
+      setOrgChartJobDialog(null);
+      setAgentJobsMap((prev) => ({
+        ...prev,
+        [agentSlug]: (prev[agentSlug] || []).map((j) => (j.id === draft.id ? draft : j)),
+      }));
+    } finally {
+      setOrgChartJobSaving(false);
+    }
+  }
+
+  async function runOrgChartHeartbeat() {
+    if (!orgChartHeartbeatDialog) return;
+    const { agentSlug, cabinetPath } = orgChartHeartbeatDialog;
+    setOrgChartHeartbeatRunning(true);
+    try {
+      const response = await fetch(`/api/agents/personas/${agentSlug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run", cabinetPath }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.sessionId) {
+        setOrgChartHeartbeatDialog(null);
+        setActiveAgentSlug(agentSlug);
+        setSection(buildAgentSection(agentSlug, cabinetPath));
+        setSelectedConversationId(data.sessionId as string);
+        setSelectedConversationCabinetPath(cabinetPath);
+        setMode("conversation");
+        await refreshConversations();
+      }
+    } finally {
+      setOrgChartHeartbeatRunning(false);
+    }
+  }
+
+  async function saveOrgChartHeartbeat() {
+    if (!orgChartHeartbeatDialog) return;
+    const { agentSlug, cabinetPath, heartbeat, active } = orgChartHeartbeatDialog;
+    setOrgChartHeartbeatSaving(true);
+    try {
+      const response = await fetch(`/api/agents/personas/${agentSlug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ heartbeat, active, cabinetPath }),
+      });
+      if (!response.ok) return;
+      setOrgChartHeartbeatDialog(null);
+      await refreshAgents();
+    } finally {
+      setOrgChartHeartbeatSaving(false);
+    }
+  }
+
   async function createAgent() {
     const slug = slugify(newAgentDraft.slug || newAgentDraft.name);
     if (!newAgentDraft.name.trim() || !newAgentDraft.role.trim() || !slug) return;
@@ -1549,7 +1668,44 @@ export function AgentsWorkspace({
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Select
+            items={CABINET_VISIBILITY_OPTIONS.map((opt) => ({
+              label: opt.shortLabel,
+              value: opt.value,
+            }))}
+            value={effectiveVisibilityMode}
+            onValueChange={(value) => {
+              if (effectiveCabinetPath) {
+                setCabinetVisibilityMode(
+                  effectiveCabinetPath,
+                  value as CabinetVisibilityMode
+                );
+              }
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              className="h-7 min-w-0 w-auto gap-1 rounded-md border-border/60 bg-transparent px-2 text-[11px] font-medium text-muted-foreground shadow-none hover:text-foreground"
+            >
+              <span className="text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                Depth
+              </span>
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent align="end" className="min-w-[200px]">
+              <SelectGroup>
+                {CABINET_VISIBILITY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <span className="font-medium">{opt.shortLabel}</span>
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      {opt.label}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
           <Button size="sm" className="h-8 gap-1 text-xs" onClick={openAddAgentDialog}>
             <Plus className="h-3.5 w-3.5" />
             Add agent
@@ -1625,17 +1781,42 @@ export function AgentsWorkspace({
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-1.5">
-                  {orgRoot.heartbeat ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-background/72 px-2 py-0.5 text-[10px] text-muted-foreground">
+                  {orgRoot.heartbeat && chiefAgent ? (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOrgChartHeartbeatDialog({
+                          agentSlug: chiefAgent.slug,
+                          agentName: chiefAgent.name,
+                          cabinetPath: chiefAgent.cabinetPath,
+                          heartbeat: orgRoot.heartbeat!,
+                          active: orgRoot.active,
+                        });
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); setOrgChartHeartbeatDialog({ agentSlug: chiefAgent.slug, agentName: chiefAgent.name, cabinetPath: chiefAgent.cabinetPath, heartbeat: orgRoot.heartbeat!, active: orgRoot.active }); } }}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-background/72 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-pink-500/15 hover:text-pink-300"
+                    >
                       <HeartPulse className="h-2.5 w-2.5 text-pink-400" />
                       {cronToHuman(orgRoot.heartbeat)}
-                    </span>
+                    </div>
                   ) : null}
                   {(agentJobsMap[orgRoot.slug] || []).slice(0, 3).map((job) => (
-                    <span key={job.id} className="inline-flex items-center gap-1 rounded-full bg-background/72 px-2 py-0.5 text-[10px] text-muted-foreground">
+                    <div
+                      key={job.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (chiefAgent) setOrgChartJobDialog({ agentSlug: chiefAgent.slug, agentName: chiefAgent.name, cabinetPath: chiefAgent.cabinetPath, draft: { ...job } });
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); if (chiefAgent) setOrgChartJobDialog({ agentSlug: chiefAgent.slug, agentName: chiefAgent.name, cabinetPath: chiefAgent.cabinetPath, draft: { ...job } }); } }}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-background/72 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-emerald-500/15 hover:text-emerald-300"
+                    >
                       <Clock3 className="h-2.5 w-2.5 text-emerald-400" />
                       {job.name}
-                    </span>
+                    </div>
                   ))}
                   {(agentJobsMap[orgRoot.slug] || []).length > 3 ? (
                     <span className="text-[10px] text-muted-foreground">
@@ -1733,16 +1914,35 @@ export function AgentsWorkspace({
 
                                   <div className="mt-3 flex flex-wrap items-center gap-1.5">
                                     {agent.heartbeat ? (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-background/76 px-2 py-0.5 text-[10px] text-muted-foreground">
+                                      <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOrgChartHeartbeatDialog({ agentSlug: agent.slug, agentName: agent.name, cabinetPath: agent.cabinetPath, heartbeat: agent.heartbeat!, active: agent.active });
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); setOrgChartHeartbeatDialog({ agentSlug: agent.slug, agentName: agent.name, cabinetPath: agent.cabinetPath, heartbeat: agent.heartbeat!, active: agent.active }); } }}
+                                        className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-background/76 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-pink-500/15 hover:text-pink-300"
+                                      >
                                         <HeartPulse className="h-2.5 w-2.5 text-pink-400" />
                                         {cronToHuman(agent.heartbeat)}
-                                      </span>
+                                      </div>
                                     ) : null}
                                     {(agentJobsMap[agent.slug] || []).slice(0, 2).map((job) => (
-                                      <span key={job.id} className="inline-flex items-center gap-1 rounded-full bg-background/76 px-2 py-0.5 text-[10px] text-muted-foreground">
+                                      <div
+                                        key={job.id}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOrgChartJobDialog({ agentSlug: agent.slug, agentName: agent.name, cabinetPath: agent.cabinetPath, draft: { ...job } });
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); setOrgChartJobDialog({ agentSlug: agent.slug, agentName: agent.name, cabinetPath: agent.cabinetPath, draft: { ...job } }); } }}
+                                        className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-background/76 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-emerald-500/15 hover:text-emerald-300"
+                                      >
                                         <Clock3 className="h-2.5 w-2.5 text-emerald-400" />
                                         {job.name}
-                                      </span>
+                                      </div>
                                     ))}
                                     {(agentJobsMap[agent.slug] || []).length > 2 ? (
                                       <span className="text-[10px] text-muted-foreground">
@@ -3071,6 +3271,153 @@ export function AgentsWorkspace({
           </div>
         )}
       </div>
+
+      {/* Org chart — job popup */}
+      {orgChartJobDialog ? (
+        <Dialog open onOpenChange={(open) => { if (!open) setOrgChartJobDialog(null); }}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <div className="flex items-center justify-between gap-3 pr-10">
+                <DialogTitle className="flex items-center gap-2">
+                  <Clock3 className="h-4 w-4 text-emerald-400" />
+                  {orgChartJobDialog.draft.name || "Job"}
+                  <span className="text-[11px] font-normal text-muted-foreground">· {orgChartJobDialog.agentName}</span>
+                </DialogTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 text-xs"
+                  onClick={() => void runOrgChartJob()}
+                  disabled={orgChartJobRunning}
+                >
+                  {orgChartJobRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                  Run now
+                </Button>
+              </div>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
+                <SchedulePicker
+                  value={orgChartJobDialog.draft.schedule || "0 9 * * 1-5"}
+                  onChange={(cron) =>
+                    setOrgChartJobDialog((prev) =>
+                      prev ? { ...prev, draft: { ...prev.draft, schedule: cron } } : prev
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Prompt</span>
+                <textarea
+                  value={orgChartJobDialog.draft.prompt}
+                  onChange={(e) =>
+                    setOrgChartJobDialog((prev) =>
+                      prev ? { ...prev, draft: { ...prev.draft, prompt: e.target.value } } : prev
+                    )
+                  }
+                  className="h-48 w-full resize-none rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
+                  placeholder="What should this job do?"
+                />
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-3">
+                <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={orgChartJobDialog.draft.enabled}
+                    onChange={(e) =>
+                      setOrgChartJobDialog((prev) =>
+                        prev ? { ...prev, draft: { ...prev.draft, enabled: e.target.checked } } : prev
+                      )
+                    }
+                  />
+                  Enabled
+                </label>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setOrgChartJobDialog(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => void saveOrgChartJob()}
+                    disabled={orgChartJobSaving}
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {orgChartJobSaving ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
+      {/* Org chart — heartbeat popup */}
+      {orgChartHeartbeatDialog ? (
+        <Dialog open onOpenChange={(open) => { if (!open) setOrgChartHeartbeatDialog(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center justify-between gap-3 pr-10">
+                <DialogTitle className="flex items-center gap-2">
+                  <HeartPulse className="h-4 w-4 text-pink-400" />
+                  Heartbeat
+                  <span className="text-[11px] font-normal text-muted-foreground">· {orgChartHeartbeatDialog.agentName}</span>
+                </DialogTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 text-xs"
+                  onClick={() => void runOrgChartHeartbeat()}
+                  disabled={orgChartHeartbeatRunning}
+                >
+                  {orgChartHeartbeatRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                  Run now
+                </Button>
+              </div>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
+                <SchedulePicker
+                  value={orgChartHeartbeatDialog.heartbeat}
+                  onChange={(cron) =>
+                    setOrgChartHeartbeatDialog((prev) => (prev ? { ...prev, heartbeat: cron } : prev))
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-3">
+                <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={orgChartHeartbeatDialog.active}
+                    onChange={(e) =>
+                      setOrgChartHeartbeatDialog((prev) =>
+                        prev ? { ...prev, active: e.target.checked } : prev
+                      )
+                    }
+                  />
+                  Active
+                </label>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setOrgChartHeartbeatDialog(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => void saveOrgChartHeartbeat()}
+                    disabled={orgChartHeartbeatSaving}
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {orgChartHeartbeatSaving ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       {/* Quick Send popup */}
       {quickSendAgent ? (() => {
