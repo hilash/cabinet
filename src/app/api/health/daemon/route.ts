@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDaemonUrl } from "@/lib/runtime/runtime-config";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const res = await fetch(`${getDaemonUrl()}/health`, {

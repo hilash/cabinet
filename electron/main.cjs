@@ -101,6 +101,10 @@ function packagedStandalonePath(...parts) {
   return path.join(process.resourcesPath, "app.asar.unpacked", ".next", "standalone", ...parts);
 }
 
+function getDarwinNodePtyPrebuildDir() {
+  return path.join("prebuilds", `darwin-${process.arch}`);
+}
+
 /**
  * macOS Sequoia+ blocks execution of native binaries inside .app bundles.
  * Copy node-pty to a writable location outside the bundle so spawn-helper
@@ -110,6 +114,7 @@ function extractNativeModules() {
   const externalModulesDir = path.join(app.getPath("userData"), "native-modules");
   const externalNodePty = path.join(externalModulesDir, "node-pty");
   const bundledNodePty = packagedStandalonePath(".native", "node-pty");
+  const prebuildDir = path.join(externalNodePty, getDarwinNodePtyPrebuildDir());
 
   // Check if bundled version has changed (by comparing package.json mtime)
   const bundledPkgPath = path.join(bundledNodePty, "package.json");
@@ -128,9 +133,8 @@ function extractNativeModules() {
     fs.cpSync(bundledNodePty, externalNodePty, { recursive: true });
 
     // Remove quarantine flags and ad-hoc codesign native binaries so macOS allows execution
-    const prebuildsDir = path.join(externalNodePty, "prebuilds", "darwin-arm64");
     for (const name of ["spawn-helper", "pty.node"]) {
-      const target = path.join(prebuildsDir, name);
+      const target = path.join(prebuildDir, name);
       if (fs.existsSync(target)) {
         try {
           execFileSync("xattr", ["-dr", "com.apple.quarantine", target]);
@@ -261,10 +265,29 @@ async function startEmbeddedCabinet() {
     NODE_PATH: [externalModulesDir, env.NODE_PATH].filter(Boolean).join(path.delimiter),
   };
 
-  spawnNodeBackend([serverEntry], env);
-  spawnNodeBackend([daemonEntry], daemonEnv);
+  const serverChild = spawnNodeBackend([serverEntry], env);
+  const daemonChild = spawnNodeBackend([daemonEntry], daemonEnv);
 
-  await waitForHealth(`${appOrigin}/api/health`);
+  // Race: either health check succeeds or a backend crashes early
+  const earlyExit = (label, child) =>
+    new Promise((_, reject) => {
+      child.on("exit", (code, signal) => {
+        reject(new Error(`${label} exited unexpectedly (code=${code}, signal=${signal})`));
+      });
+      child.on("error", (err) => {
+        reject(new Error(`${label} failed to spawn: ${err.message}`));
+      });
+    });
+
+  await Promise.race([
+    Promise.all([
+      waitForHealth(`${appOrigin}/api/health`),
+      waitForHealth(`${daemonOrigin}/health`),
+    ]),
+    earlyExit("Next.js server", serverChild),
+    earlyExit("Cabinet daemon", daemonChild),
+  ]);
+
   return { appUrl: appOrigin };
 }
 
@@ -411,12 +434,17 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(async () => {
-  configureAutoUpdates();
   await createWindow();
+  configureAutoUpdates();
 
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       await createWindow();
     }
   });
+}).catch((err) => {
+  console.error("[cabinet] Fatal startup error:", err);
+  cleanupBackends();
+  dialog.showErrorBox("Cabinet failed to start", err.message || String(err));
+  app.quit();
 });

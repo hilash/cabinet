@@ -5,8 +5,16 @@ const nextConfig: NextConfig = {
   output: "standalone",
   transpilePackages: ["@multica/core", "@multica/ui", "@multica/views"],
   serverExternalPackages: ["node-pty", "simple-git", "better-sqlite3"],
+  experimental: {
+    cpus: 2,
+    memoryBasedWorkersCount: true,
+    webpackMemoryOptimizations: true,
+    webpackBuildWorker: true,
+    staticGenerationMaxConcurrency: 2,
+    staticGenerationMinPagesPerWorker: 100,
+  },
   turbopack: {
-    root: path.resolve(__dirname, ".."),
+    root: __dirname,
   },
   async rewrites() {
     const multicaApiUrl =

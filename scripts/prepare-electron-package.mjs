@@ -1,5 +1,4 @@
 import { build as bundle } from "esbuild";
-import { execFileSync } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 
@@ -18,6 +17,7 @@ const stagedSeedDir = path.join(standaloneDir, ".seed");
 const bundledNodeBinaryPath = path.join(standaloneBinDir, "node");
 const rootNodePtyDir = path.join(projectRoot, "node_modules", "node-pty");
 const dataDir = path.join(projectRoot, "data");
+const darwinPrebuildDir = path.join("prebuilds", `darwin-${process.arch}`);
 
 const STANDALONE_PRUNE_PATHS = [
   ".agents",
@@ -127,13 +127,13 @@ async function stageDaemonRuntime() {
   await Promise.all([
     copyDirectory(path.join(rootNodePtyDir, "lib"), path.join(stagedNodePtyDir, "lib")),
     copyDirectory(
-      path.join(rootNodePtyDir, "prebuilds", "darwin-arm64"),
-      path.join(stagedNodePtyDir, "prebuilds", "darwin-arm64")
+      path.join(rootNodePtyDir, darwinPrebuildDir),
+      path.join(stagedNodePtyDir, darwinPrebuildDir)
     ),
     copyFile(path.join(rootNodePtyDir, "package.json"), path.join(stagedNodePtyDir, "package.json")),
   ]);
 
-  await fs.chmod(path.join(stagedNodePtyDir, "prebuilds", "darwin-arm64", "spawn-helper"), 0o755);
+  await fs.chmod(path.join(stagedNodePtyDir, darwinPrebuildDir, "spawn-helper"), 0o755);
 }
 
 async function stageBundledNodeRuntime() {
@@ -178,12 +178,61 @@ async function stageSeedContent() {
   await walk(stagedSeedDir);
 }
 
+/**
+ * When turbopack.root points above the project directory, Next.js standalone
+ * output nests the server files under a subdirectory named after the project
+ * folder (e.g. `.next/standalone/cabinet/`).  Hoist those files to the
+ * standalone root so that main.cjs can find server.js at the expected path.
+ */
+async function hoistNestedStandalone() {
+  const nestedDir = path.join(standaloneDir, path.basename(projectRoot));
+  if (!(await pathExists(path.join(nestedDir, "server.js")))) {
+    return; // already flat — nothing to hoist
+  }
+
+  async function mergeMove(src, dest) {
+    const srcStat = await fs.lstat(src);
+
+    if (!srcStat.isDirectory()) {
+      if (!(await pathExists(dest))) {
+        await fs.mkdir(path.dirname(dest), { recursive: true });
+        await fs.rename(src, dest);
+      } else {
+        await removePath(src);
+      }
+      return;
+    }
+
+    if (!(await pathExists(dest))) {
+      await fs.mkdir(path.dirname(dest), { recursive: true });
+      await fs.rename(src, dest);
+      return;
+    }
+
+    const destStat = await fs.lstat(dest);
+    if (!destStat.isDirectory()) {
+      await removePath(src);
+      return;
+    }
+
+    const entries = await fs.readdir(src, { withFileTypes: true });
+    for (const entry of entries) {
+      await mergeMove(path.join(src, entry.name), path.join(dest, entry.name));
+    }
+
+    await removePath(src);
+  }
+
+  await mergeMove(nestedDir, standaloneDir);
+}
+
 async function main() {
   if (!(await pathExists(standaloneDir))) {
     throw new Error("Expected .next/standalone to exist. Run `npm run build` first.");
   }
 
   await removePath(outDir);
+  await hoistNestedStandalone();
 
   await Promise.all([
     removePath(path.join(standaloneDir, ".next", "cache")),

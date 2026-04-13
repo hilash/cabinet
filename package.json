@@ -18,7 +18,7 @@
     "electron:start": "electron-forge start",
     "build:multica": "bash scripts/build-multica-server.sh",
     "electron:package": "npm run build:multica && npm run build && npm run electron:prep && electron-forge package",
-    "electron:make": "npm run build:multica && npm run build && npm run electron:prep && electron-forge make",
+    "electron:make": "npm run build:multica && npm run build && npm run electron:prep && node scripts/ensure-macos-alias-compatible.mjs && electron-forge make",
     "lint": "eslint",
     "test:unit": "tsx --test test/update-system.test.ts",
     "test": "tsx --test src/lib/agents/**/*.test.ts",
