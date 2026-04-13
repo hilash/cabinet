@@ -1,6 +1,6 @@
 id: weekly-sprint-plan
 name: Weekly Sprint Plan
-enabled: false
+enabled: true
 schedule: 0 9 * * 1
 provider: claude-code
 ownerAgent: devops
@@ -16,4 +16,4 @@ prompt: |-
   Save the sprint plan in /backlog or a weekly planning page.
 cabinetPath: example-text-your-mom/app-development
 createdAt: '2026-04-11T00:00:00.000Z'
-updatedAt: '2026-04-11T00:00:00.000Z'
+updatedAt: '2026-04-13T07:31:58.303Z'

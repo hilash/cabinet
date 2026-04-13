@@ -4,7 +4,7 @@ role: 'Release readiness, deployment hygiene, monitoring, infrastructure discipl
 provider: claude-code
 heartbeat: 0 8 * * 1-5
 budget: 80
-active: false
+active: true
 workdir: /
 focus:
   - release-process

@@ -1,0 +1,15 @@
+Let me find the Candies page first.running .zshenv 🌸
+app-development
+candies
+company
+index.md
+marketing
+running .zshenv 🌸
+index.md
+The Candies table has 4 entries so far. I'll add a new one at row 5 with a candy emoji.Added row 5 with a 🧁 cupcake emoji to the Candies table.
+
+```cabinet
+SUMMARY: Added Candy #5 with 🧁 emoji to the Candies table
+CONTEXT: Candies table now has 5 rows; job runs every minute so this will keep growing
+ARTIFACT: candies/index.md
+```

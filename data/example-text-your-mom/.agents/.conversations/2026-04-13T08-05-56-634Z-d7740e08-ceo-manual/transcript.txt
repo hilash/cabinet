@@ -1,0 +1,23 @@
+Let me check what we already have for people/team information in the KB.Good — we have a clear picture of the org. Now let me read a few key files to get the details right before building the employee directory.Now let me check if a people/team directory already exists.running .zshenv 🌸
+app-development
+candies
+company
+index.md
+marketing
+No people/team directory yet. Let me quickly check the agent persona files to get accurate details for each role.Got everything I need. Let me create the employee directory.running .zshenv 🌸
+Done. The team directory is live at `company/team/index.md`.
+
+**What's in it:**
+- 16 people across 4 departments — Executive Leadership, App Development, TikTok Growth, Reddit Community
+- 8 active, 8 paused (all paused roles are marketing)
+- Each entry shows role, focus areas, and current status
+- Headcount summary table at the bottom
+- Cross-links to the operations page (for the marketing activation decision) and finance page (for burn context)
+
+One thing worth flagging: half the company is idle. The marketing activation I ordered this week should flip those 8 paused roles to active. If it doesn't happen by Friday, we're running a 16-person org at 50% utilization — which is a polite way of saying we're paying for a company twice the size of the one that's actually working.
+
+```cabinet
+SUMMARY: Created full employee directory — 16 roles across 4 departments, 8 active / 8 paused
+CONTEXT: Marketing activation ordered for week of April 14 should bring paused count to zero
+ARTIFACT: company/team/index.md
+```

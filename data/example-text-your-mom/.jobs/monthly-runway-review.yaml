@@ -3,8 +3,8 @@ name: Monthly Runway Review
 enabled: true
 schedule: 0 10 1 * *
 provider: claude-code
-ownerAgent: ceo
-agentSlug: ceo
+ownerAgent: cfo
+agentSlug: cfo
 timeout: 600
 prompt: |-
   Review the KPI page and current assumptions for Text Your Mom.

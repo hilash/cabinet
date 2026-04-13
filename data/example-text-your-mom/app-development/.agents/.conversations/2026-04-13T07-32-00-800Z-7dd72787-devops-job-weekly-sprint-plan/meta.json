@@ -1,0 +1,22 @@
+{
+  "id": "2026-04-13T07-32-00-800Z-7dd72787-devops-job-weekly-sprint-plan",
+  "agentSlug": "devops",
+  "cabinetPath": "example-text-your-mom/app-development",
+  "title": "Weekly Sprint Plan",
+  "trigger": "job",
+  "status": "completed",
+  "startedAt": "2026-04-13T07:32:00.800Z",
+  "jobId": "weekly-sprint-plan",
+  "jobName": "Weekly Sprint Plan",
+  "promptPath": "example-text-your-mom/app-development/.agents/.conversations/2026-04-13T07-32-00-800Z-7dd72787-devops-job-weekly-sprint-plan/prompt.md",
+  "transcriptPath": "example-text-your-mom/app-development/.agents/.conversations/2026-04-13T07-32-00-800Z-7dd72787-devops-job-weekly-sprint-plan/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "backlog/sprint-2026-04-14/index.md",
+    "release-checklist/index.md"
+  ],
+  "completedAt": "2026-04-13T07:35:33.446Z",
+  "exitCode": 0,
+  "summary": "Weekly sprint plan for April 14 -- ship 4 small stories, start OB-1/OB-3, dry-run the release pipeline, push RT-4 investigation to a documented finding by Friday.",
+  "contextSummary": "All 26 stories were in Ready state. CTO took RT-4 ownership on Apr 13. CFO flagged effective CAC of $223 -- activation and retention are survival metrics. CEO watching P1 velocity as leading indicator. No releases have shipped from this backlog yet."
+}

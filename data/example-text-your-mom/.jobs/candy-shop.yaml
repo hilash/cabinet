@@ -1,0 +1,12 @@
+id: candy-shop
+name: candy
+enabled: false
+schedule: '*/1 * * * *'
+provider: claude-code
+ownerAgent: ceo
+agentSlug: ceo
+timeout: 600
+prompt: Add Candy to Candies with emoji.
+cabinetPath: example-text-your-mom
+createdAt: '2026-04-12T07:34:23.403Z'
+updatedAt: '2026-04-12T07:39:27.401Z'

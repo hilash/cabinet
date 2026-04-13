@@ -1,0 +1,35 @@
+Let me start by understanding the current state of the project - roadmap, backlog, PRDs, and any existing sprint plans.Now let me read the key documents in detail to build a proper sprint plan.Let me check the parent cabinet for KPI context and company-level strategy.Now I have a complete picture. Let me write the weekly sprint plan.Now let me check if there's already a weekly planning page or directory I should update.No existing weekly plan page. I'll create one inside the backlog directory. Let me write the sprint plan.running .zshenv 🌸
+index.md
+running .zshenv 🌸
+Now let me update the release checklist to reflect the dry-run plan.Now let me update the modified timestamp on the release checklist.Now update PROGRESS.md as required.Sprint plan created and release checklist updated.
+
+---
+
+**Sprint Plan: Week of April 14** -- saved to `backlog/sprint-2026-04-14/index.md`
+
+**Ship this week (4 small stories):**
+- OB-2: Emotional copy rewrite -- zero code risk, exercises the release pipeline first
+- OB-6: Onboarding analytics events -- must precede OB-1 so we capture baseline
+- OB-5: Fix nickname display bug -- small polish win
+- PC-3: Fix paywall dismiss button -- trust issue, < 1 day
+
+**Start this week, finish next:**
+- OB-1: Pick Your People flow -- the P1 centerpiece
+- OB-3: Delayed permission requests -- needs design spike, CTO flagged as M/L
+
+**Risk mitigation (not feature work):**
+1. First release dry run -- ship OB-2 through the full pipeline as a dress rehearsal
+2. Rollback strategy for P1 -- recommend feature flag on OB-1 before the A/B harness exists
+3. RT-4 investigation output -- CTO must document findings by Friday; the answer reshapes the P2 timeline
+4. Monitoring confirmation -- crash rate, funnel tracking, delivery health
+
+**Deferred:** All P2/P3/P4 stories, OB-4 and OB-7 (dependencies not met yet)
+
+**Release checklist** also updated with actionable items, staged rollout plan, and first-release instructions.
+
+```cabinet
+SUMMARY: Weekly sprint plan for April 14 -- ship 4 small stories, start OB-1/OB-3, dry-run the release pipeline, push RT-4 investigation to a documented finding by Friday.
+CONTEXT: All 26 stories were in Ready state. CTO took RT-4 ownership on Apr 13. CFO flagged effective CAC of $223 -- activation and retention are survival metrics. CEO watching P1 velocity as leading indicator. No releases have shipped from this backlog yet.
+ARTIFACT: backlog/sprint-2026-04-14/index.md
+ARTIFACT: release-checklist/index.md
+```

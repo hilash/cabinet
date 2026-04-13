@@ -1,0 +1,7 @@
+Let me find the relevant files first.I can see the Candies page with a table. I'll add a new candy entry with an emoji.Done — added Candy #2 to the Candies table with the 🍬 emoji.
+
+```cabinet
+SUMMARY: Added Candy to the Candies table with 🍬 emoji
+CONTEXT: Candies page tracks candy entries in a table with emoji column
+ARTIFACT: candies/index.md
+```

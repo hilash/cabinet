@@ -1,0 +1,19 @@
+{
+  "id": "2026-04-13T07-00-00-127Z-d7740e08-coo-heartbeat",
+  "agentSlug": "coo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "COO heartbeat",
+  "trigger": "heartbeat",
+  "status": "completed",
+  "startedAt": "2026-04-13T07:00:00.127Z",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T07-00-00-127Z-d7740e08-coo-heartbeat/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T07-00-00-127Z-d7740e08-coo-heartbeat/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "company/operations/index.md"
+  ],
+  "completedAt": "2026-04-13T07:03:54.772Z",
+  "exitCode": 0,
+  "summary": "Posted Week of April 13 operating review with marketing financial risk tracking. Sent handoff messages to CFO, CEO, and PM. Created activation checklist for paused cabinets.",
+  "contextSummary": "Five overdue items from April 12 now one week late. CTO owns RT-4. CFO needs pricing/burn/split data. Marketing activation is the highest-leverage unblock — both operationally and financially. April 26 check-in is the hard deadline for the Option A/B decision."
+}

@@ -1,7 +1,7 @@
 ---
 title: Backlog
 created: '2026-04-11T00:00:00Z'
-modified: '2026-04-12T00:00:00Z'
+modified: '2026-04-13T00:00:00Z'
 tags:
   - product
   - backlog
@@ -75,8 +75,8 @@ PRD: [[prds/paid-conversion-clarity]]
 
 | Bug | Severity | Blocks | Status |
 | --- | --- | --- | --- |
-| Reminder sent 2 hours late | Critical | RT-1 | Open |
-| Streak resets after timezone change | High | SK-3 | Investigating |
+| Reminder sent 2 hours late | Critical | RT-1 | Investigating (CTO owned, Apr 13) |
+| Streak resets after timezone change | High | SK-3 | Investigating (root cause documented, Apr 13) |
 | Trial paywall dismiss button clipped | High | PC-1 | Open |
 | Imported contact nickname not shown | Medium | OB-5 | Open |
 | Reply suggestion card flickers on refresh | Low | — | Backlog |

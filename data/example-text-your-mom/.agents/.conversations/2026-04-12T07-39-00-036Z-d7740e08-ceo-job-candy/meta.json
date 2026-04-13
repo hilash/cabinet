@@ -1,0 +1,21 @@
+{
+  "id": "2026-04-12T07-39-00-036Z-d7740e08-ceo-job-candy",
+  "agentSlug": "ceo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "candy",
+  "trigger": "job",
+  "status": "completed",
+  "startedAt": "2026-04-12T07:39:00.036Z",
+  "jobId": "candy-shop",
+  "jobName": "candy",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-12T07-39-00-036Z-d7740e08-ceo-job-candy/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-12T07-39-00-036Z-d7740e08-ceo-job-candy/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "candies/index.md"
+  ],
+  "completedAt": "2026-04-12T07:39:41.985Z",
+  "exitCode": 0,
+  "summary": "Added Candy #5 with 🧁 emoji to the Candies table",
+  "contextSummary": "Candies table now has 5 rows; job runs every minute so this will keep growing"
+}

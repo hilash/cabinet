@@ -1,6 +1,6 @@
 id: release-readiness-review
 name: Release Readiness Review
-enabled: false
+enabled: true
 schedule: 0 15 * * 4
 provider: claude-code
 ownerAgent: devops
@@ -16,4 +16,4 @@ prompt: |-
   Save the review in /release-checklist.
 cabinetPath: example-text-your-mom/app-development
 createdAt: '2026-04-11T00:00:00.000Z'
-updatedAt: '2026-04-11T00:00:00.000Z'
+updatedAt: '2026-04-13T07:31:57.400Z'

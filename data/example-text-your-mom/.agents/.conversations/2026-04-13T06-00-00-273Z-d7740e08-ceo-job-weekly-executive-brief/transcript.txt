@@ -1,0 +1,58 @@
+Let me start by surveying the knowledge base to understand what's already in place.running .zshenv 🌸
+total 16
+drwxr-xr-x@ 11 mybiblepath  staff   352 Apr 12 10:35 .
+drwxr-xr-x@ 18 mybiblepath  staff   576 Apr 12 21:39 ..
+drwxr-xr-x@ 10 mybiblepath  staff   320 Apr 12 00:42 .agents
+-rw-r--r--@  1 mybiblepath  staff   187 Apr 11 17:43 .cabinet
+drwxr-xr-x@  3 mybiblepath  staff    96 Apr 11 17:43 .cabinet-state
+drwxr-xr-x@  6 mybiblepath  staff   192 Apr 12 10:34 .jobs
+drwxr-xr-x@ 13 mybiblepath  staff   416 Apr 11 17:46 app-development
+drwxr-xr-x@  3 mybiblepath  staff    96 Apr 12 10:39 candies
+drwxr-xr-x@  8 mybiblepath  staff   256 Apr 12 00:46 company
+-rw-r--r--@  1 mybiblepath  staff  1414 Apr 12 00:46 index.md
+drwxr-xr-x@  6 mybiblepath  staff   192 Apr 12 08:04 marketing
+ all the key pages in parallel.Now let me readGood, I have a solid picture of the company state. Now let me read the child cabinet pages — app-development, marketing, roadmap, and backlog — plus check if there are any recent agent conversation outputs.Let me check for any recent agent outputs from today's heartbeats and the candies page.running .zshenv 🌸
+total 40
+drwxr-xr-x@  7 mybiblepath  staff   224 Apr 13 09:00 .
+drwxr-xr-x@ 12 mybiblepath  staff   384 Apr 13 09:00 ..
+-rw-r--r--@  1 mybiblepath  staff     2 Apr 13 09:00 artifacts.json
+-rw-r--r--@  1 mybiblepath  staff     2 Apr 13 09:00 mentions.json
+-rw-r--r--@  1 mybiblepath  staff   545 Apr 13 09:00 meta.json
+-rw-r--r--@  1 mybiblepath  staff  2406 Apr 13 09:00 prompt.md
+-rw-r--r--@  1 mybiblepath  staff   967 Apr 13 09:00 transcript.txt
+---
+total 40
+drwxr-xr-x@  7 mybiblepath  staff   224 Apr 13 09:00 .
+drwxr-xr-x@ 12 mybiblepath  staff   384 Apr 13 09:00 ..
+-rw-r--r--@  1 mybiblepath  staff     2 Apr 13 09:00 artifacts.json
+-rw-r--r--@  1 mybiblepath  staff     2 Apr 13 09:00 mentions.json
+-rw-r--r--@  1 mybiblepath  staff   545 Apr 13 09:00 meta.json
+-rw-r--r--@  1 mybiblepath  staff  2353 Apr 13 09:00 prompt.md
+-rw-r--r--@  1 mybiblepath  staff   790 Apr 13 09:00 transcript.txt
+---
+total 40
+drwxr-xr-x@  7 mybiblepath  staff   224 Apr 13 09:00 .
+drwxr-xr-x@ 12 mybiblepath  staff   384 Apr 13 09:00 ..
+-rw-r--r--@  1 mybiblepath  staff     2 Apr 13 09:00 artifacts.json
+-rw-r--r--@  1 mybiblepath  staff     2 Apr 13 09:00 mentions.json
+-rw-r--r--@  1 mybiblepath  staff   545 Apr 13 09:00 meta.json
+-rw-r--r--@  1 mybiblepath  staff  2741 Apr 13 09:00 prompt.md
+-rw-r--r--@  1 mybiblepath  staff   937 Apr 13 09:00 transcript.txt
+I have a complete picture now. Let me write the weekly executive brief.I'll append the new weekly brief to the CEO Updates page.Good. Now let me verify the file reads correctly and update the KPIs page with the latest observation. brief is saved. Let me verify the full content rendered properly.TheThe brief is clean and well-structured. Now let me update the goals page to reflect the sharpened reality check.The weekly executive brief is complete. Here's what I did:
+
+**Appended the Week of April 13 executive brief** to `company/updates/index.md` covering:
+
+- **What changed:** COO's strong operating review delivered, but zero P1 stories moved, both marketing cabinets still paused, RT-4 still unassigned, agent heartbeats fired but produced no outputs
+- **Biggest signal:** We are planning-complete and execution-empty — four PRDs, 26 stories, zero in progress
+- **Growth math:** Required weekly compound growth steepened from 9.5% to 10.5% with no MAU change (still 18,400)
+- **Top product risk:** RT-4 (reminder 2 hours late) is compounding — it blocks P2, P3, and P4 in sequence, and we don't even know how hard the fix is yet
+- **Decision for leadership:** Activate marketing this week (Option A) or revise the 50K MAU target downward (Option B) — no more carrying both positions
+
+**Updated `company/goals/index.md`** with an April 13 reality check noting that none of the three conditions from the April 12 check have been met.
+
+```cabinet
+SUMMARY: Weekly executive brief for April 13 — execution gap is the constraint, not strategy
+CONTEXT: Second week of zero execution progress despite complete planning. Marketing cabinets paused, all P1 stories still Ready, RT-4 unassigned. Decision forced: activate marketing or revise MAU target.
+ARTIFACT: company/updates/index.md
+ARTIFACT: company/goals/index.md
+```

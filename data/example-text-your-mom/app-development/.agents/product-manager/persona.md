@@ -4,7 +4,7 @@ role: 'Prioritization, PRDs, roadmap decisions, user problem framing'
 provider: claude-code
 heartbeat: 0 9 * * 1-5
 budget: 80
-active: false
+active: true
 workdir: /
 focus:
   - prioritization

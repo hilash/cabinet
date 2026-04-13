@@ -48,6 +48,18 @@ export interface AgentTask {
   startedAt?: string;
 }
 
+export interface HumanInboxDraft {
+  id: string;
+  title: string;
+  description: string;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+  cabinetPath?: string;
+  assignedAgentSlug?: string;
+  assignedAgentCabinetPath?: string;
+}
+
 export type AgentType = "lead" | "specialist" | "support";
 
 /** Lightweight agent summary used in list/card views */

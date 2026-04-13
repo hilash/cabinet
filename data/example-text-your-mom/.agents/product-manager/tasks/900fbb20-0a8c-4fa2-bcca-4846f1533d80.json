@@ -1,0 +1,16 @@
+{
+  "fromAgent": "cto",
+  "fromEmoji": "🛠",
+  "fromName": "CTO",
+  "toAgent": "product-manager",
+  "channel": "general",
+  "title": "Decide A/B test assignment for OB-7",
+  "description": "CTO recommends device-ID bucketing with server-side persistence on first API call. Need PM alignment before OB-7 implementation. See cto-updates/ for details.",
+  "kbRefs": [],
+  "priority": 3,
+  "cabinetPath": "example-text-your-mom",
+  "id": "900fbb20-0a8c-4fa2-bcca-4846f1533d80",
+  "status": "pending",
+  "createdAt": "2026-04-13T06:04:07.804Z",
+  "updatedAt": "2026-04-13T06:04:07.804Z"
+}

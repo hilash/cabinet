@@ -1,0 +1,19 @@
+{
+  "id": "2026-04-13T08-05-56-634Z-d7740e08-ceo-manual",
+  "agentSlug": "ceo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "have list of all emploess in the company.",
+  "trigger": "manual",
+  "status": "completed",
+  "startedAt": "2026-04-13T08:05:56.634Z",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T08-05-56-634Z-d7740e08-ceo-manual/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T08-05-56-634Z-d7740e08-ceo-manual/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "company/team/index.md"
+  ],
+  "completedAt": "2026-04-13T08:08:13.838Z",
+  "exitCode": 0,
+  "summary": "Created full employee directory — 16 roles across 4 departments, 8 active / 8 paused",
+  "contextSummary": "Marketing activation ordered for week of April 14 should bring paused count to zero"
+}

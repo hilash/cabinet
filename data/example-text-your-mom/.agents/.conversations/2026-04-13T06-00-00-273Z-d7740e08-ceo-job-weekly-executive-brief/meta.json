@@ -1,0 +1,22 @@
+{
+  "id": "2026-04-13T06-00-00-273Z-d7740e08-ceo-job-weekly-executive-brief",
+  "agentSlug": "ceo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "Weekly Executive Brief",
+  "trigger": "job",
+  "status": "completed",
+  "startedAt": "2026-04-13T06:00:00.273Z",
+  "jobId": "weekly-executive-brief",
+  "jobName": "Weekly Executive Brief",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T06-00-00-273Z-d7740e08-ceo-job-weekly-executive-brief/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T06-00-00-273Z-d7740e08-ceo-job-weekly-executive-brief/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "company/updates/index.md",
+    "company/goals/index.md"
+  ],
+  "completedAt": "2026-04-13T06:02:48.921Z",
+  "exitCode": 0,
+  "summary": "Weekly executive brief for April 13 — execution gap is the constraint, not strategy",
+  "contextSummary": "Second week of zero execution progress despite complete planning. Marketing cabinets paused, all P1 stories still Ready, RT-4 unassigned. Decision forced: activate marketing or revise MAU target."
+}

@@ -4,7 +4,7 @@ role: 'Cabinet-local technical leadership, architecture, shipping discipline'
 provider: claude-code
 heartbeat: 0 9 * * 1-5
 budget: 100
-active: false
+active: true
 workdir: /
 focus:
   - architecture

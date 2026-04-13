@@ -1,0 +1,19 @@
+{
+  "id": "2026-04-12T07-35-00-121Z-d7740e08-ceo-job-candy",
+  "agentSlug": "ceo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "candy",
+  "trigger": "job",
+  "status": "completed",
+  "startedAt": "2026-04-12T07:35:00.121Z",
+  "jobId": "candy-shop",
+  "jobName": "candy",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-12T07-35-00-121Z-d7740e08-ceo-job-candy/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-12T07-35-00-121Z-d7740e08-ceo-job-candy/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [],
+  "completedAt": "2026-04-12T07:35:27.945Z",
+  "exitCode": 0,
+  "summary": "Created Candies page and added first candy with emoji",
+  "contextSummary": "New recurring job \"candy-shop\" adds candies. Page created at /ies/index.md"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "2026-04-13T06-00-00-258Z-d7740e08-cfo-heartbeat",
+  "agentSlug": "cfo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "CFO heartbeat",
+  "trigger": "heartbeat",
+  "status": "completed",
+  "startedAt": "2026-04-13T06:00:00.258Z",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T06-00-00-258Z-d7740e08-cfo-heartbeat/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T06-00-00-258Z-d7740e08-cfo-heartbeat/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "company/finance/index.md",
+    "company/kpis/index.md"
+  ],
+  "completedAt": "2026-04-13T06:04:47.567Z",
+  "exitCode": 0,
+  "summary": "First CFO heartbeat — created unit economics analysis showing ~$223 effective CAC per paying user and ~45 month payback. Recommended hold on paid spend. Fixed job routing. Added financial commentary to KPIs.",
+  "contextSummary": "Unit economics are structurally broken for paid acquisition. Content-led organic growth is existential. Pricing and burn rate are undocumented gaps. RT-4 investigation started by CTO is the most important financial unblock. P1-P4 sequence is financially correct."
+}

@@ -1,0 +1,17 @@
+Let me survey the full cabinet to build the operating review.Good, I have a full picture. Let me read the current operations page and the latest updates to build on what's there.Let me check the sprint plan and backlog for the latest status.Now I have the full picture. Let me write the CEO's operating review.Now let me update the PROGRESS.md file.The operating review is published. Here's the summary:
+
+**Wins:** DevOps delivered a strong sprint plan for April 14, CTO took RT-4 with a written hypothesis and Friday deadline, CFO surfaced real unit economics ($223 effective CAC, 45-month payback), COO added financial risk tracking to the operating review, and the sprint plan addresses release readiness proactively.
+
+**Blockers:** Marketing cabinets paused (week 2), P1 stories still "Ready" (week 2), RT-4 under investigation but no findings yet, CFO still missing pricing/burn/split data.
+
+**Overdue:** Five items are one week overdue — marketing activation, OB-1/OB-2 to In Progress, and four-state status system. Three of these are addressed by the new sprint plan.
+
+**CEO Decision:** Option A is now official. TikTok first content brief by Wednesday April 15. Reddit first monitored thread by Tuesday. Both cabinets to activate immediately. If marketing produces zero output by Friday, the 50K MAU target gets revised down at the April 26 check-in.
+
+**Process Fix:** Tuesday proof-of-life — each active cabinet posts one sentence answering "what shipped or moved since Monday?" Catches stalls two days earlier.
+
+```cabinet
+SUMMARY: CEO operating review — wins in diagnostics, decision to activate marketing, Tuesday proof-of-life process fix
+CONTEXT: Third week of planning-complete/execution-empty. DevOps sprint plan for Apr 14 is the strongest execution signal. Marketing activation ordered with Wednesday/Tuesday deadlines. April 26 is the hard checkpoint for MAU target revision. CFO still needs pricing/burn/split data.
+ARTIFACT: company/operations/index.md
+```

@@ -1,7 +1,7 @@
 ---
 title: Company Goals
 created: '2026-04-11T00:00:00Z'
-modified: '2026-04-12T00:00:00Z'
+modified: '2026-04-13T00:00:00Z'
 tags:
   - goals
   - company
@@ -38,3 +38,13 @@ If marketing stays paused through April, the 50K target becomes unrealistic. We 
 - Number of Reddit engagements (comments, not lurking)
 - P1 story velocity (stories completed per week)
 - Activation rate trend (weekly cohorts)
+
+## CEO Reality Check (April 13)
+
+One week later: none of the three conditions above have been met. Marketing is still paused, P1 stories are still in "Ready," and no content channel has produced volume. The required weekly compound growth rate has steepened from ~9.5% to ~10.5%.
+
+**Decision due this week:** Activate marketing now (Option A) or revise the 50K target downward (Option B). The April 26 check-in is the hard deadline for this decision either way. See the [[company/updates|Week of April 13 CEO Update]] for the full analysis.
+
+## CEO Decision (April 13 — Operating Review)
+
+**Option A confirmed: marketing activates this week.** Both TikTok and Reddit cabinets are being activated immediately. The 50K MAU target stands through April 26, at which point we reassess with actual execution data. See [[company/operations|CEO Operating Review]] for full details, CFO data answers, and the April 26 check-in criteria.

@@ -1,0 +1,21 @@
+{
+  "id": "2026-04-13T08-00-00-266Z-d7740e08-ceo-job-weekly-operating-review",
+  "agentSlug": "ceo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "Weekly Operating Review",
+  "trigger": "job",
+  "status": "completed",
+  "startedAt": "2026-04-13T08:00:00.266Z",
+  "jobId": "weekly-operating-review",
+  "jobName": "Weekly Operating Review",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T08-00-00-266Z-d7740e08-ceo-job-weekly-operating-review/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T08-00-00-266Z-d7740e08-ceo-job-weekly-operating-review/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "company/operations/index.md"
+  ],
+  "completedAt": "2026-04-13T08:04:13.296Z",
+  "exitCode": 0,
+  "summary": "CEO operating review — wins in diagnostics, decision to activate marketing, Tuesday proof-of-life process fix",
+  "contextSummary": "Third week of planning-complete/execution-empty. DevOps sprint plan for Apr 14 is the strongest execution signal. Marketing activation ordered with Wednesday/Tuesday deadlines. April 26 is the hard checkpoint for MAU target revision. CFO still needs pricing/burn/split data."
+}

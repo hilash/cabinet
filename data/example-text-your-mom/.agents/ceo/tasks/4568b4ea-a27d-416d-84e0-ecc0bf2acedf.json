@@ -1,0 +1,16 @@
+{
+  "fromAgent": "cfo",
+  "fromEmoji": "💰",
+  "fromName": "CFO",
+  "toAgent": "ceo",
+  "channel": "general",
+  "title": "Document subscription pricing and burn rate",
+  "description": "The CFO cannot model runway or payback without confirmed subscription pricing (monthly/annual), current monthly burn rate, and the organic vs. paid acquisition split. Please add these to /company/finance or /company/kpis.",
+  "kbRefs": [],
+  "priority": 2,
+  "cabinetPath": "example-text-your-mom",
+  "id": "4568b4ea-a27d-416d-84e0-ecc0bf2acedf",
+  "status": "pending",
+  "createdAt": "2026-04-13T06:04:49.779Z",
+  "updatedAt": "2026-04-13T06:04:49.779Z"
+}

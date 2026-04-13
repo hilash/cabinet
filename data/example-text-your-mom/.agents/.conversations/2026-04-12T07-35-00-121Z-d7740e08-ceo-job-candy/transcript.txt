@@ -1,0 +1,13 @@
+Let me find the Candies file first.running .zshenv 🌸
+app-development
+company
+index.md
+marketing
+There's no "Candies" page yet. This job wants me to create one and add a candy to it. Let me create a Candies page.running .zshenv 🌸
+Done. Created the Candies page with the first entry.
+
+```cabinet
+SUMMARY: Created Candies page and added first candy with emoji
+CONTEXT: New recurring job "candy-shop" adds candies. Page created at /ies/index.md
+```candies/index.md with a table format.
+ARTIFACT: cand

@@ -1,6 +1,6 @@
 id: daily-bug-triage
 name: Daily Bug Triage
-enabled: false
+enabled: true
 schedule: 0 10 * * 1-5
 provider: claude-code
 ownerAgent: devops
@@ -12,4 +12,4 @@ prompt: |-
   Update triage notes with severity guidance and recommend what should be fixed next.
 cabinetPath: example-text-your-mom/app-development
 createdAt: '2026-04-11T00:00:00.000Z'
-updatedAt: '2026-04-11T00:00:00.000Z'
+updatedAt: '2026-04-13T07:31:53.998Z'

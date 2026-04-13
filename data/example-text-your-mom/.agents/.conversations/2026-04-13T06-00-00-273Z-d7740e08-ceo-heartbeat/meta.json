@@ -1,0 +1,21 @@
+{
+  "id": "2026-04-13T06-00-00-273Z-d7740e08-ceo-heartbeat",
+  "agentSlug": "ceo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "CEO heartbeat",
+  "trigger": "heartbeat",
+  "status": "completed",
+  "startedAt": "2026-04-13T06:00:00.273Z",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T06-00-00-273Z-d7740e08-ceo-heartbeat/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T06-00-00-273Z-d7740e08-ceo-heartbeat/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "company/updates/index.md",
+    ".jobs/weekly-operating-review.yaml",
+    ".jobs/monthly-runway-review.yaml"
+  ],
+  "completedAt": "2026-04-13T06:03:15.987Z",
+  "exitCode": 0,
+  "summary": "CEO heartbeat — reviewed full state, fixed job routing, confirmed zero execution progress, escalated three non-negotiable actions for the week with Tuesday/Friday deadlines.",
+  "contextSummary": "Planning-complete, execution-empty. 9 weeks to Q2 close. Marketing activation is the binding constraint on 50K MAU. April 26 is the honest checkpoint."
+}

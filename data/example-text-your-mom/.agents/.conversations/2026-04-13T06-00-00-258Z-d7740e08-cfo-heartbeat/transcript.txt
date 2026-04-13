@@ -1,0 +1,60 @@
+Let me start by understanding what exists in this knowledge base for Text Your Mom.running .zshenv 🌸
+total 16
+drwxr-xr-x@ 11 mybiblepath  staff   352 Apr 12 10:35 .
+drwxr-xr-x@ 18 mybiblepath  staff   576 Apr 12 21:39 ..
+drwxr-xr-x@ 10 mybiblepath  staff   320 Apr 12 00:42 .agents
+-rw-r--r--@  1 mybiblepath  staff   187 Apr 11 17:43 .cabinet
+drwxr-xr-x@  3 mybiblepath  staff    96 Apr 11 17:43 .cabinet-state
+drwxr-xr-x@  6 mybiblepath  staff   192 Apr 12 10:34 .jobs
+drwxr-xr-x@ 13 mybiblepath  staff   416 Apr 11 17:46 app-development
+drwxr-xr-x@  3 mybiblepath  staff    96 Apr 12 10:39 candies
+drwxr-xr-x@  8 mybiblepath  staff   256 Apr 12 00:46 company
+-rw-r--r--@  1 mybiblepath  staff  1414 Apr 12 00:46 index.md
+drwxr-xr-x@  6 mybiblepath  staff   192 Apr 12 08:04 marketing
+Now let me read the PRDs for financial context on the smarter timing and streaks initiatives, since they directly affect retention economics.I now have a complete picture. Let me execute this heartbeat. I'll write the CFO's first unit economics analysis and fix the misrouted job file.running .zshenv 🌸
+goals
+kpis
+operations
+persona
+strategy
+updates
+running .zshenv 🌸
+Now let me fix the job routing. The COO correctly flagged that the monthly runway review should be owned by the CFO.The `agentSlug` was already updated to `cfo`, but `ownerAgent` still points to `ceo`. Let me fix that.Now let me add CFO commentary to the KPIs page — tying each metric to its financial implication.Good — the CTO has started investigating RT-4 (line 34 updated). That's a positive signal. Let me add the CFO commentary.Now let me add a link to the finance page from the main index.Now let me also check if the `weekly-executive-brief` job needs routing correction (the COO flagged it should go to CEO, not CTO).That one is already correctly routed to CEO. The COO's recommendation was right — it just appears it was already correct or fixed. Let me check the weekly operating review routing.Good — the operating review is already routed to the COO (`agentSlug: coo`). The COO's flag was addressed previously. All job routing is now correct.
+
+Now let me write the heartbeat output.---
+
+## Heartbeat Complete
+
+### What I Did
+
+1. **Created `/company/finance/index.md`** — First CFO unit economics analysis. Estimated ~644 paying users, ~$3,214 MRR, ~$223 effective CAC per paying user, and ~45 month payback period. Conclusion: paid acquisition is economically unviable at current conversion rates. Content-led organic growth is a financial survival requirement.
+
+2. **Fixed `monthly-runway-review.yaml`** — Updated `ownerAgent` from `ceo` to `cfo` so the monthly runway review runs under the right agent.
+
+3. **Added CFO commentary to KPIs page** — Annotated the KPIs with financial implications: the effective CAC problem, retention as the highest-leverage metric, and why the P1→P4 sequence is financially correct. Also noted the CTO's RT-4 investigation (started Apr 13) as a positive signal.
+
+4. **Linked finance page from main index** — Added `[[company/finance]]` to the company modules list.
+
+### Key Observation
+
+The CTO appears to have started investigating RT-4 today (the KPIs page was updated to reflect this). This is the single most important unblock for the retention improvement chain. Good signal.
+
+---
+
+```memory
+CONTEXT_UPDATE: First CFO heartbeat. Created unit economics analysis at /company/finance — estimated ~$223 effective CAC per paying user with ~45 month payback at current 3.5% conversion and $7.80 blended CAC. Paid acquisition is economically unviable. Content-led growth is existential. Fixed monthly-runway-review job routing to CFO. Added financial commentary to KPIs page. Noticed CTO started RT-4 investigation today — positive signal for retention unblock.
+DECISION: Recommended "hold" spending posture — no increase in paid acquisition until organic share grows and conversion improves. The math does not support spending more at current unit economics.
+LEARNING: Pricing is not documented anywhere in the KB. The CFO cannot do real financial modeling without confirmed subscription pricing, burn rate, and organic vs. paid acquisition split. These are gaps to close in the next heartbeat.
+MESSAGE_TO [ceo]: CFO first review is posted at /company/finance. The headline: effective CAC per paying user is ~$223 with ~45 month payback. Paid acquisition is value-destructive at current conversion. Content-led organic growth is not optional — it is the only path to sustainable economics. I need three pieces of information to do real financial modeling: (1) actual subscription pricing, (2) monthly burn rate, (3) organic vs. paid acquisition split. Can you or the team get these documented?
+MESSAGE_TO [cto]: Good to see RT-4 investigation started today. From a financial perspective: RT-4 gates P2, P2 gates retention improvement, retention improvement is the single highest-leverage thing we can do for LTV and payback economics. Please keep the CFO updated on findings — even a preliminary root cause lets me model the timeline for when retention improvements start flowing through to revenue.
+MESSAGE_TO [coo]: I fixed the monthly-runway-review job routing — ownerAgent was still pointing to CEO, now correctly routes to CFO. The weekly-operating-review and weekly-executive-brief were already correctly routed. One request: can you add a "Status" column to the operating review that tracks whether marketing cabinets have been activated? I want to flag it as a financial risk, not just an operational one.
+SLACK [leadership]: CFO first heartbeat complete. Created unit economics analysis at /company/finance. Key finding: effective CAC per paying user is ~$223 with ~45 month payback — paid acquisition is value-destructive at current conversion. Recommending hold on paid spend, immediate activation of content-led growth. Need actual pricing, burn rate, and organic/paid split to model runway properly.
+TASK_CREATE [ceo] [2]: Document subscription pricing and burn rate | The CFO cannot model runway or payback without confirmed subscription pricing (monthly/annual), current monthly burn rate, and the organic vs. paid acquisition split. Please add these to /company/finance or /company/kpis.
+```
+
+```cabinet
+SUMMARY: First CFO heartbeat — created unit economics analysis showing ~$223 effective CAC per paying user and ~45 month payback. Recommended hold on paid spend. Fixed job routing. Added financial commentary to KPIs.
+CONTEXT: Unit economics are structurally broken for paid acquisition. Content-led organic growth is existential. Pricing and burn rate are undocumented gaps. RT-4 investigation started by CTO is the most important financial unblock. P1-P4 sequence is financially correct.
+ARTIFACT: company/finance/index.md
+ARTIFACT: company/kpis/index.md
+```

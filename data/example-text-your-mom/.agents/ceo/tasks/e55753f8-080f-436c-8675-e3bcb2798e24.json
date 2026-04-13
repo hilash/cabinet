@@ -1,0 +1,16 @@
+{
+  "fromAgent": "coo",
+  "fromEmoji": "📊",
+  "fromName": "COO",
+  "toAgent": "ceo",
+  "channel": "general",
+  "title": "Activate marketing cabinets using the 5-step checklist",
+  "description": "The COO operating review includes a concrete activation checklist for TikTok and Reddit cabinets. Step 1 for each is enabling the first scheduled job. The CEO needs to decide Option A (activate now) or Option B (revise 50K target) this week.",
+  "kbRefs": [],
+  "priority": 1,
+  "cabinetPath": "example-text-your-mom",
+  "id": "e55753f8-080f-436c-8675-e3bcb2798e24",
+  "status": "pending",
+  "createdAt": "2026-04-13T07:03:58.529Z",
+  "updatedAt": "2026-04-13T07:03:58.529Z"
+}

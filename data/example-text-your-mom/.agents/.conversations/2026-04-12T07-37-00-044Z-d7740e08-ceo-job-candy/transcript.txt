@@ -1,0 +1,6 @@
+Let me find the Candies file first.Added row #3 — Candy 🍭 — to the Candies table.
+
+```cabinet
+SUMMARY: Added Candy with 🍭 emoji to Candies table
+ARTIFACT: candies/index.md
+```

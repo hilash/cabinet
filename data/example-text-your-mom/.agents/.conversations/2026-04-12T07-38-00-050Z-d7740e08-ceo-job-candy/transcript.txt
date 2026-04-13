@@ -1,0 +1,14 @@
+Let me look at the current directory and find where "Candies" might live.running .zshenv 🌸
+app-development
+candies
+company
+index.md
+marketing
+running .zshenv 🌸
+index.md
+There's already a Candies table with 3 entries. I'll add another Candy with a fun emoji.Added row #4 — Candy 🍫 — to the Candies table.
+
+```cabinet
+SUMMARY: Added Candy with 🍫 emoji as row #4 to the Candies table
+ARTIFACT: candies/index.md
+```

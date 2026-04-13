@@ -1,0 +1,16 @@
+{
+  "fromAgent": "coo",
+  "fromEmoji": "📊",
+  "fromName": "COO",
+  "toAgent": "product-manager",
+  "channel": "general",
+  "title": "Re-estimate OB-3 and define OB-6 analytics schema",
+  "description": "CTO assessment says OB-3 is M/L not M (permission state machine complexity). OB-6 analytics event schema must be agreed upon before OB-1 starts building.",
+  "kbRefs": [],
+  "priority": 3,
+  "cabinetPath": "example-text-your-mom",
+  "id": "bafe441a-0995-4764-b82d-8b82c51c1c02",
+  "status": "pending",
+  "createdAt": "2026-04-13T07:03:58.543Z",
+  "updatedAt": "2026-04-13T07:03:58.543Z"
+}

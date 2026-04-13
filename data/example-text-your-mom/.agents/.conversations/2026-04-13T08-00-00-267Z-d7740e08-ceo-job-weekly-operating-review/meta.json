@@ -1,0 +1,22 @@
+{
+  "id": "2026-04-13T08-00-00-267Z-d7740e08-ceo-job-weekly-operating-review",
+  "agentSlug": "ceo",
+  "cabinetPath": "example-text-your-mom",
+  "title": "Weekly Operating Review",
+  "trigger": "job",
+  "status": "completed",
+  "startedAt": "2026-04-13T08:00:00.267Z",
+  "jobId": "weekly-operating-review",
+  "jobName": "Weekly Operating Review",
+  "promptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T08-00-00-267Z-d7740e08-ceo-job-weekly-operating-review/prompt.md",
+  "transcriptPath": "example-text-your-mom/.agents/.conversations/2026-04-13T08-00-00-267Z-d7740e08-ceo-job-weekly-operating-review/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "company/operations/index.md",
+    "company/goals/index.md"
+  ],
+  "completedAt": "2026-04-13T08:03:01.828Z",
+  "exitCode": 0,
+  "summary": "CEO operating review — confirmed marketing activation (Option A), answered CFO data gaps, introduced decision-deadline process for blockers, set April 26 reassessment criteria",
+  "contextSummary": "Week 2 of planning-complete/execution-empty phase. All diagnostics excellent. Marketing activating this week. Sprint plan starts Monday with OB-2. April 26 is the hard checkpoint for 50K MAU target viability."
+}

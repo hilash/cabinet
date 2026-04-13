@@ -31,6 +31,7 @@ This imported child cabinet owns product planning, engineering execution, QA, an
 - `roadmap/`
 - `backlog/`
 - `prds/`
+- `cto-updates/` — Technical assessments and engineering direction
 - `qa/bug-triage.csv`
 - `release-checklist/`
 - `sprint-board/`

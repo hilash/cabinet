@@ -25,6 +25,7 @@ Text Your Mom is a playful consumer app that helps people stay close to family a
 - [[company/goals]]
 - [[company/persona]]
 - [[company/kpis]]
+- [[company/finance]]
 - [[company/updates]]
 - [[company/operations]]
 - [[marketing]]

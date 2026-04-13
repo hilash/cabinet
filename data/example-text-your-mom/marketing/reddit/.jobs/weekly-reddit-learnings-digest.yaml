@@ -3,6 +3,7 @@ name: Weekly Reddit Learnings Digest
 enabled: false
 schedule: 0 9 * * 1
 provider: claude-code
+ownerAgent: researcher
 agentSlug: researcher
 timeout: 600
 prompt: |-
@@ -13,5 +14,6 @@ prompt: |-
   - risks or objections the product should address
   - which ideas deserve product or growth follow-up
   Save the digest in /analytics.
+cabinetPath: example-text-your-mom/marketing/reddit
 createdAt: '2026-04-11T00:00:00.000Z'
 updatedAt: '2026-04-11T00:00:00.000Z'

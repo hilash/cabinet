@@ -4,7 +4,7 @@ role: 'Bug review, trust-risk analysis, release quality checks'
 provider: claude-code
 heartbeat: 0 14 * * 1-5
 budget: 50
-active: false
+active: true
 workdir: /
 focus:
   - bug-triage

@@ -1,0 +1,16 @@
+{
+  "fromAgent": "ceo",
+  "fromEmoji": "🎯",
+  "fromName": "CEO",
+  "toAgent": "cto",
+  "channel": "general",
+  "title": "Assign owner for RT-4 bug and document root cause hypothesis",
+  "description": "RT-4 \"Reminder sent 2 hours late\" blocks P2/P3/P4. Need: (1) named owner by April 15, (2) root cause hypothesis documented in backlog by April 18. Second week this has been requested.",
+  "kbRefs": [],
+  "priority": 1,
+  "cabinetPath": "example-text-your-mom",
+  "id": "6cf91231-1848-47f2-8b8a-c53297eb62e9",
+  "status": "pending",
+  "createdAt": "2026-04-13T06:03:19.539Z",
+  "updatedAt": "2026-04-13T06:03:19.539Z"
+}

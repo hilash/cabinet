@@ -1,0 +1,55 @@
+I'll start by exploring the current state of the Text Your Mom knowledge base to understand what exists and what needs attention.running .zshenv 🌸
+total 16
+drwxr-xr-x@ 11 mybiblepath  staff   352 Apr 12 10:35 .
+drwxr-xr-x@ 18 mybiblepath  staff   576 Apr 12 21:39 ..
+drwxr-xr-x@ 10 mybiblepath  staff   320 Apr 12 00:42 .agents
+-rw-r--r--@  1 mybiblepath  staff   187 Apr 11 17:43 .cabinet
+drwxr-xr-x@  3 mybiblepath  staff    96 Apr 11 17:43 .cabinet-state
+drwxr-xr-x@  6 mybiblepath  staff   192 Apr 12 10:34 .jobs
+drwxr-xr-x@ 13 mybiblepath  staff   416 Apr 11 17:46 app-development
+drwxr-xr-x@  3 mybiblepath  staff    96 Apr 12 10:39 candies
+drwxr-xr-x@  8 mybiblepath  staff   256 Apr 12 00:46 company
+-rw-r--r--@  1 mybiblepath  staff  1414 Apr 12 00:46 index.md
+drwxr-xr-x@  6 mybiblepath  staff   192 Apr 12 08:04 marketing
+Good. Let me now read the key pages — the app-development hub, roadmap, backlog, PRDs, and any existing CTO persona or decisions.Now let me check the existing agent memory and operations page for any prior context, plus the app-development jobs.I now have a full picture. Let me check if there's an existing CTO updates page or if I need to create one, and also look at the job config issue flagged by the COO.Good news: the job routing has already been corr owns exec brief. That flag is resolved.
+
+Now let me take action. I'll create the CTO updatesected — COO owns operating review, CFO owns runway review, CEO page with my first technical assessment.running .zshenv 🌸
+Now let me update the backlog to reflect my ownership of RT-4, and update the roadmap's bug table accordingly.Now update the roadmap bug table to reflect CTO ownership of RT-4. the app-development hub page to reference the CTO updates and reflect current focusNow update.Now let me update the KPI page to reflect my ownership of the retention lever (week-4 retention, blocked by RT-4).Good. Now let me check if there's a PROGRESS.md file as required by the project instructions.Now let me finalize the heartbeat output.---
+
+## Heartbeat Summary
+
+**What I did:**
+
+1. **Full technical review** — Read all 4 PRDs, the complete backlog (26 stories + 5 bugs), KPIs, goals, CEO/COO updates, release checklist, and job configurations.
+
+2. **Took ownership of RT-4** (reminder sent 2 hours late, Critical) — Documented a hypothesis (OS-level background task throttling), an investigation plan (pull delivery logs, check alarm type, correlate with device state), and a recommended fix direction (migrate to server-triggered push notifications). Updated the backlog and roadmap to reflect CTO ownership.
+
+3. **Documented SK-2 root cause** (streak timezone bug) — The cause is local time comparison. Fix is UTC-based streak calculations with client-side display conversion. Recommended SK-6 (timezone test suite) ships alongside SK-2, not after.
+
+4. **Flagged P1 technical risks** — OB-3 (delayed permissions) is undersized at M, should be M/L due to iOS re-prompt limits. OB-7 (A/B test) needs a decision on experiment assignment approach. OB-6 (analytics) should be defined before OB-1 starts to capture baseline.
+
+5. **Identified architectural risk** — Local-first reminder scheduling is fundamentally unreliable. Recommended migrating to server-triggered push during or after P2. This affects the entire "smarter timing" initiative.
+
+6. **Created `app-development/cto-updates/`** — First technical assessment published. Updated backlog, roadmap, and KPI pages with investigation status.
+
+7. **Verified job routing** — COO's flag about misrouted jobs is resolved; all three root-level jobs (operating review, runway review, exec brief) are correctly assigned.
+
+---
+
+```memory
+CONTEXT_UPDATE: First CTO heartbeat. Completed full technical review of all 4 PRDs, 26 stories, 5 bugs, and company-level KPIs/goals. Took ownership of RT-4 (reminder 2h late, Critical) — hypothesis is OS background task throttling, recommended fix is server-triggered push notifications. Documented SK-2 timezone bug root cause (local time comparison, fix is UTC migration). Flagged OB-3 sizing risk and need for analytics schema before P1 build starts. Created cto-updates/ KB section. All backlog stories still at Ready status — engineering velocity is zero.
+DECISION: Reminder delivery should migrate from device-local scheduling to server-triggered push notifications. Local scheduling is fundamentally unreliable on both iOS (BGTaskScheduler) and Android (WorkManager/Doze). This architectural change should be planned during P2 since the entire smarter timing initiative depends on reliable, observable delivery.
+DECISION: SK-2 and SK-6 (timezone test suite) should ship together as a single unit, not sequentially. You cannot trust a timezone fix without the test coverage.
+LEARNING: The planning quality in this project is unusually high — 4 complete PRDs with acceptance criteria, sized backlog, explicit dependency chain. The constraint is execution velocity, not planning depth. Future heartbeats should focus on unblocking work and tracking story movement, not adding more planning artifacts.
+MESSAGE_TO [ceo]: CTO here. I've taken ownership of RT-4 (reminder 2h late). Initial hypothesis: we're relying on OS background task scheduling which has no timing guarantees. I'll confirm with delivery logs. Bigger picture: I'm recommending we move reminder delivery to server-side push during P2 — it's the only way to make smart timing reliable. Also flagging that OB-3 (delayed permissions) is undersized and OB-6 (analytics schema) should be defined this week before we start building. Full assessment at app-development/cto-updates/.
+MESSAGE_TO [product-manager]: Two flags for P1 sprint planning: (1) OB-3 (delayed permissions) should be M/L, not M — iOS only allows one permission prompt per session, so the re-prompt and degradation logic is nontrivial. (2) Please define the OB-6 analytics event schema before OB-1 starts so we capture the baseline. Also need a decision on OB-7 A/B test assignment — I recommend device ID bucketing with server-side persistence. Details in cto-updates/.
+SLACK [engineering]: First CTO assessment published at app-development/cto-updates/. Key actions: (1) I own RT-4 investigation, (2) SK-2 root cause documented — UTC migration needed, (3) OB-3 is undersized, (4) recommend server-side push migration for P2. All 26 stories still at Ready — let's get OB-1 and OB-2 moving this week.
+TASK_CREATE [product-manager] [2]: Define OB-6 analytics event schema | Analytics events need to be defined before OB-1 development starts so we capture baseline measurements for the A/B test. Schema should cover: step entry/exit, permission prompt shown/accepted/declined, time-per-step, and completion/abandonment.
+TASK_CREATE [product-manager] [3]: Decide A/B test assignment for OB-7 | CTO recommends device-ID bucketing with server-side persistence on first API call. Need PM alignment before OB-7 implementation. See cto-updates/ for details.
+```
+
+```cabinet
+SUMMARY: First CTO heartbeat — took ownership of RT-4 critical bug, documented SK-2 root cause, flagged P1 sizing and analytics risks, recommended server-side push migration for P2, published full technical assessment.
+CONTEXT: RT-4 investigation in progress (hypothesis: OS background task throttling). SK-2 fix approach documented (UTC migration). OB-3 undersized. Zero stories in progress — execution velocity is the binding constraint. Job routing verified correct.
+ARTIFACT: app-development/cto-updates/index.md
+```

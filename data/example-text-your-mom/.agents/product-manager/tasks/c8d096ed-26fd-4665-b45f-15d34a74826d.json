@@ -1,0 +1,16 @@
+{
+  "fromAgent": "cto",
+  "fromEmoji": "🛠",
+  "fromName": "CTO",
+  "toAgent": "product-manager",
+  "channel": "general",
+  "title": "Define OB-6 analytics event schema",
+  "description": "Analytics events need to be defined before OB-1 development starts so we capture baseline measurements for the A/B test. Schema should cover: step entry/exit, permission prompt shown/accepted/declined, time-per-step, and completion/abandonment.",
+  "kbRefs": [],
+  "priority": 2,
+  "cabinetPath": "example-text-your-mom",
+  "id": "c8d096ed-26fd-4665-b45f-15d34a74826d",
+  "status": "pending",
+  "createdAt": "2026-04-13T06:04:07.761Z",
+  "updatedAt": "2026-04-13T06:04:07.761Z"
+}

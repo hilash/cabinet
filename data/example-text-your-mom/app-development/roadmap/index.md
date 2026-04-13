@@ -1,7 +1,7 @@
 ---
 title: Roadmap
 created: '2026-04-11T00:00:00Z'
-modified: '2026-04-12T00:00:00Z'
+modified: '2026-04-13T00:00:00Z'
 tags:
   - product
   - roadmap
@@ -40,8 +40,8 @@ P1 Onboarding v2  ──────────────────►  P2 
 
 | Bug | Severity | Blocks |
 | --- | --- | --- |
-| Reminder sent 2 hours late | Critical | P2 (must fix before smart timing) |
-| Streak resets after timezone change | High | P3 (must fix before streak UI) |
+| Reminder sent 2 hours late | Critical | P2 (CTO investigating — likely local scheduling issue) |
+| Streak resets after timezone change | High | P3 (root cause: local time comparison, fix: UTC migration) |
 | Paywall dismiss button clipped on small screens | High | P4 (must fix before new paywall) |
 
 ## Sprint Suggestion: First Sprint
