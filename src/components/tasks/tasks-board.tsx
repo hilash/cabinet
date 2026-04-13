@@ -601,15 +601,15 @@ function ConversationRow({
         </span>
       </div>
 
-      {/* Action buttons — absolutely cover the trigger icon slot on hover, higher z-index */}
+      {/* Action buttons — float left of trigger icon, transparent container, each button has its own bg */}
       {hasActions && (
-        <div className="absolute inset-y-0 right-0 z-10 flex items-center gap-0.5 pr-3 pl-1 opacity-0 transition-opacity group-hover:opacity-100 bg-accent/80 rounded-r-[inherit]">
+        <div className="absolute inset-y-0 right-[50px] z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           {onStop && (
             <button
               onClick={(e) => { e.stopPropagation(); onStop(); }}
               disabled={busy}
               title="Stop"
-              className="rounded p-1 text-muted-foreground hover:bg-destructive/15 hover:text-destructive disabled:opacity-50"
+              className="rounded p-1 text-muted-foreground bg-background hover:bg-destructive/15 hover:text-destructive disabled:opacity-50"
             >
               {busy ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -623,7 +623,7 @@ function ConversationRow({
               onClick={(e) => { e.stopPropagation(); onRestart(); }}
               disabled={busy}
               title="Restart"
-              className="rounded p-1 text-muted-foreground hover:bg-primary/15 hover:text-primary disabled:opacity-50"
+              className="rounded p-1 text-muted-foreground bg-background hover:bg-primary/15 hover:text-primary disabled:opacity-50"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
