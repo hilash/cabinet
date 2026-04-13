@@ -443,17 +443,8 @@ export function AgentsWorkspace({
     cabinetPath?: string;
     draft: JobConfig;
   } | null>(null);
-  const [orgChartHeartbeatDialog, setOrgChartHeartbeatDialog] = useState<{
-    agentSlug: string;
-    agentName: string;
-    cabinetPath?: string;
-    heartbeat: string;
-    active: boolean;
-  } | null>(null);
   const [orgChartJobRunning, setOrgChartJobRunning] = useState(false);
   const [orgChartJobSaving, setOrgChartJobSaving] = useState(false);
-  const [orgChartHeartbeatRunning, setOrgChartHeartbeatRunning] = useState(false);
-  const [orgChartHeartbeatSaving, setOrgChartHeartbeatSaving] = useState(false);
   const lastSavedSettingsRef = useRef<string | null>(null);
   const conversationsPanel = useHorizontalResize(340, 260, 520, "right");
   const treeNodes = useTreeStore((state) => state.nodes);
@@ -1397,48 +1388,10 @@ export function AgentsWorkspace({
     }
   }
 
-  async function runOrgChartHeartbeat() {
-    if (!orgChartHeartbeatDialog) return;
-    const { agentSlug, cabinetPath } = orgChartHeartbeatDialog;
-    setOrgChartHeartbeatRunning(true);
-    try {
-      const response = await fetch(`/api/agents/personas/${agentSlug}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run", cabinetPath }),
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (data.sessionId) {
-        setOrgChartHeartbeatDialog(null);
-        setActiveAgentSlug(agentSlug);
-        setSection(buildAgentSection(agentSlug, cabinetPath));
-        setSelectedConversationId(data.sessionId as string);
-        setSelectedConversationCabinetPath(cabinetPath);
-        setMode("conversation");
-        await refreshConversations();
-      }
-    } finally {
-      setOrgChartHeartbeatRunning(false);
-    }
-  }
-
-  async function saveOrgChartHeartbeat() {
-    if (!orgChartHeartbeatDialog) return;
-    const { agentSlug, cabinetPath, heartbeat, active } = orgChartHeartbeatDialog;
-    setOrgChartHeartbeatSaving(true);
-    try {
-      const response = await fetch(`/api/agents/personas/${agentSlug}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ heartbeat, active, cabinetPath }),
-      });
-      if (!response.ok) return;
-      setOrgChartHeartbeatDialog(null);
-      await refreshAgents();
-    } finally {
-      setOrgChartHeartbeatSaving(false);
-    }
+  async function openAgentEditorFromOrgChart(agent: AgentListItem) {
+    openAgentWorkspace(agent);
+    await refreshSettings(agent.slug, { resetJobEditor: false });
+    handleSettingsEditorOpenChange(true);
   }
 
   async function createAgent() {
@@ -1785,17 +1738,8 @@ export function AgentsWorkspace({
                     <div
                       role="button"
                       tabIndex={0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOrgChartHeartbeatDialog({
-                          agentSlug: chiefAgent.slug,
-                          agentName: chiefAgent.name,
-                          cabinetPath: chiefAgent.cabinetPath,
-                          heartbeat: orgRoot.heartbeat!,
-                          active: orgRoot.active,
-                        });
-                      }}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); setOrgChartHeartbeatDialog({ agentSlug: chiefAgent.slug, agentName: chiefAgent.name, cabinetPath: chiefAgent.cabinetPath, heartbeat: orgRoot.heartbeat!, active: orgRoot.active }); } }}
+                      onClick={(e) => { e.stopPropagation(); void openAgentEditorFromOrgChart(chiefAgent); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); void openAgentEditorFromOrgChart(chiefAgent); } }}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-background/72 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-pink-500/15 hover:text-pink-300"
                     >
                       <HeartPulse className="h-2.5 w-2.5 text-pink-400" />
@@ -1917,11 +1861,8 @@ export function AgentsWorkspace({
                                       <div
                                         role="button"
                                         tabIndex={0}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setOrgChartHeartbeatDialog({ agentSlug: agent.slug, agentName: agent.name, cabinetPath: agent.cabinetPath, heartbeat: agent.heartbeat!, active: agent.active });
-                                        }}
-                                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); setOrgChartHeartbeatDialog({ agentSlug: agent.slug, agentName: agent.name, cabinetPath: agent.cabinetPath, heartbeat: agent.heartbeat!, active: agent.active }); } }}
+                                        onClick={(e) => { e.stopPropagation(); void openAgentEditorFromOrgChart(agent); }}
+                                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); void openAgentEditorFromOrgChart(agent); } }}
                                         className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-background/76 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-pink-500/15 hover:text-pink-300"
                                       >
                                         <HeartPulse className="h-2.5 w-2.5 text-pink-400" />
@@ -3345,72 +3286,6 @@ export function AgentsWorkspace({
                   >
                     <Save className="h-3.5 w-3.5" />
                     {orgChartJobSaving ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      ) : null}
-
-      {/* Org chart — heartbeat popup */}
-      {orgChartHeartbeatDialog ? (
-        <Dialog open onOpenChange={(open) => { if (!open) setOrgChartHeartbeatDialog(null); }}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-3 pr-10">
-                <DialogTitle className="flex items-center gap-2">
-                  <HeartPulse className="h-4 w-4 text-pink-400" />
-                  Heartbeat
-                  <span className="text-[11px] font-normal text-muted-foreground">· {orgChartHeartbeatDialog.agentName}</span>
-                </DialogTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1 text-xs"
-                  onClick={() => void runOrgChartHeartbeat()}
-                  disabled={orgChartHeartbeatRunning}
-                >
-                  {orgChartHeartbeatRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                  Run now
-                </Button>
-              </div>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
-                <SchedulePicker
-                  value={orgChartHeartbeatDialog.heartbeat}
-                  onChange={(cron) =>
-                    setOrgChartHeartbeatDialog((prev) => (prev ? { ...prev, heartbeat: cron } : prev))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-3">
-                <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={orgChartHeartbeatDialog.active}
-                    onChange={(e) =>
-                      setOrgChartHeartbeatDialog((prev) =>
-                        prev ? { ...prev, active: e.target.checked } : prev
-                      )
-                    }
-                  />
-                  Active
-                </label>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setOrgChartHeartbeatDialog(null)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1 text-xs"
-                    onClick={() => void saveOrgChartHeartbeat()}
-                    disabled={orgChartHeartbeatSaving}
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {orgChartHeartbeatSaving ? "Saving..." : "Save"}
                   </Button>
                 </div>
               </div>
