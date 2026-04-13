@@ -1446,7 +1446,7 @@ export function TasksBoard({
         </div>
 
         {/* Content */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+        <div className={cn("min-h-0 flex-1", scheduleView === "calendar" ? "flex flex-col p-4 sm:p-6" : "overflow-y-auto px-4 py-6 sm:px-6")}>
           {scheduleView === "calendar" ? (
             <ScheduleCalendar
               mode={calendarMode}

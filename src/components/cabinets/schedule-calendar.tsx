@@ -161,7 +161,7 @@ function TimeGridView({
   const todayIndex = days.findIndex((d) => isSameDay(d, now));
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/50">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/50">
       {/* Column headers */}
       <div
         className="grid border-b border-border/50 bg-muted/20"
@@ -199,8 +199,7 @@ function TimeGridView({
       {/* Time grid */}
       <div
         ref={scrollRef}
-        className="relative overflow-y-auto"
-        style={{ maxHeight: fullscreen ? "calc(100vh - 180px)" : 520 }}
+        className="relative min-h-0 flex-1 overflow-y-auto"
       >
         <div
           className="relative grid"
@@ -363,7 +362,7 @@ function MonthView({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/50">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/50">
       {/* Day name headers */}
       <div className="grid grid-cols-7 border-b border-border/50 bg-muted/20">
         {DAY_NAMES_SHORT.map((name) => (
