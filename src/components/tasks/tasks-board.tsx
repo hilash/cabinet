@@ -21,6 +21,7 @@ import {
   RotateCcw,
   Send,
   Square,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { buildConversationInstanceKey } from "@/lib/agents/conversation-identity";
@@ -552,6 +553,7 @@ function ConversationRow({
   onOpen,
   onStop,
   onRestart,
+  onDelete,
   busy,
 }: {
   conversation: ConversationMeta;
@@ -560,9 +562,10 @@ function ConversationRow({
   onOpen: () => void;
   onStop?: () => void;
   onRestart?: () => void;
+  onDelete?: () => void;
   busy?: boolean;
 }) {
-  const hasActions = onStop || onRestart;
+  const hasActions = onStop || onRestart || onDelete;
   return (
     <div className="group relative flex w-full items-stretch border-b border-border/70 last:border-b-0 hover:bg-accent/35 transition-colors">
       {/* Main clickable area — title + meta, no trigger icon inside */}
@@ -626,6 +629,16 @@ function ConversationRow({
               className="rounded-md p-1.5 text-muted-foreground bg-muted hover:bg-primary/20 hover:text-primary disabled:opacity-50 transition-colors"
             >
               <RotateCcw className="h-4 w-4" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              disabled={busy}
+              title="Delete"
+              className="rounded-md p-1.5 text-muted-foreground bg-muted hover:bg-destructive/20 hover:text-destructive disabled:opacity-50 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -1014,6 +1027,20 @@ export function TasksBoard({
     }
   }
 
+  async function deleteConversation(conversation: ConversationMeta) {
+    setBusyConversationIds((prev) => new Set([...prev, conversation.id]));
+    try {
+      const params = new URLSearchParams();
+      if (conversation.cabinetPath) params.set("cabinetPath", conversation.cabinetPath);
+      await fetch(`/api/agents/conversations/${conversation.id}?${params.toString()}`, {
+        method: "DELETE",
+      });
+      await refreshConversations();
+    } finally {
+      setBusyConversationIds((prev) => { const next = new Set(prev); next.delete(conversation.id); return next; });
+    }
+  }
+
   async function killAllRunning() {
     const running = groupedConversations.running;
     if (running.length === 0) return;
@@ -1323,6 +1350,7 @@ export function TasksBoard({
                       onOpen={() => openConversation(conversation)}
                       onStop={() => void stopConversation(conversation)}
                       onRestart={() => void restartConversation(conversation)}
+                      onDelete={() => void deleteConversation(conversation)}
                       busy={busyConversationIds.has(conversation.id)}
                     />
                   );
@@ -1347,6 +1375,7 @@ export function TasksBoard({
                       cabinetName={visibleAgentCabinetLabel(agent, conversation.cabinetPath)}
                       onOpen={() => openConversation(conversation)}
                       onRestart={() => void restartConversation(conversation)}
+                      onDelete={() => void deleteConversation(conversation)}
                       busy={busyConversationIds.has(conversation.id)}
                     />
                   );
@@ -1383,6 +1412,7 @@ export function TasksBoard({
                       cabinetName={visibleAgentCabinetLabel(agent, conversation.cabinetPath)}
                       onOpen={() => openConversation(conversation)}
                       onRestart={() => void restartConversation(conversation)}
+                      onDelete={() => void deleteConversation(conversation)}
                       busy={busyConversationIds.has(conversation.id)}
                     />
                   );
