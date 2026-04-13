@@ -1728,15 +1728,15 @@ export function TasksBoard({
                 lane="inbox"
                 count={drafts.length}
                 emptyState={
-                  <div className="flex flex-col items-start gap-3">
-                    <span>No inbox tasks yet.</span>
+                  <div className="flex flex-col items-center gap-4 py-4 w-full text-center">
+                    <p className="text-[12px] text-muted-foreground">No inbox tasks yet.</p>
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="h-7 px-2.5 text-[11px]"
+                      size="default"
+                      className="w-full gap-2 font-semibold"
                       onClick={() => setCreateDialogOpen(true)}
                     >
-                      <Plus data-icon="inline-start" />
+                      <Plus className="h-4 w-4" />
                       Add task
                     </Button>
                   </div>
