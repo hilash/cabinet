@@ -56,6 +56,15 @@ export async function listDaemonSessions(): Promise<
   >;
 }
 
+export async function stopDaemonSession(id: string): Promise<boolean> {
+  try {
+    const response = await daemonFetch(`/session/${id}/stop`, { method: "POST" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function reloadDaemonSchedules(): Promise<void> {
   const response = await daemonFetch("/reload-schedules", {
     method: "POST",

@@ -1082,6 +1082,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // DELETE /session/:id — kill a running PTY session
+  const stopMatch = url.pathname.match(/^\/session\/([^/]+)\/stop$/);
+  if (stopMatch && req.method === "POST") {
+    const sessionId = stopMatch[1];
+    const session = sessions.get(sessionId);
+    if (!session || session.exited) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Session not found or already exited" }));
+      return;
+    }
+    try {
+      session.pty.kill();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, sessionId }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: msg }));
+    }
+    return;
+  }
+
   // GET /sessions — list all active sessions
   if (url.pathname === "/sessions" && req.method === "GET") {
     const activeSessions = Array.from(sessions.values()).map((s) => ({

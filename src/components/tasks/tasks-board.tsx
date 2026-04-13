@@ -18,7 +18,9 @@ import {
   Play,
   Plus,
   RefreshCw,
+  RotateCcw,
   Send,
+  Square,
   X,
   XCircle,
 } from "lucide-react";
@@ -552,45 +554,83 @@ function ConversationRow({
   agentLabel,
   cabinetName,
   onOpen,
+  onStop,
+  onRestart,
+  busy,
 }: {
   conversation: ConversationMeta;
   agentLabel: string;
   cabinetName: string | null;
   onOpen: () => void;
+  onStop?: () => void;
+  onRestart?: () => void;
+  busy?: boolean;
 }) {
+  const hasActions = onStop || onRestart;
   return (
-    <button
-      onClick={onOpen}
-      className="relative flex w-full items-start gap-2 border-b border-border/70 px-3 py-2 text-left transition-colors hover:bg-accent/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-    >
-      <div className="mt-0.5 shrink-0">
-        <ConversationStatusIcon status={conversation.status} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-[11.5px] font-medium leading-[1.35] text-foreground">
-            {conversation.title}
-          </p>
-          <span
-            aria-label={TRIGGER_LABELS[conversation.trigger]}
-            title={TRIGGER_LABELS[conversation.trigger]}
-            className={cn(
-              "inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full",
-              TRIGGER_STYLES[conversation.trigger]
-            )}
-          >
-            <TriggerIcon trigger={conversation.trigger} className="h-2.75 w-2.75" />
-          </span>
+    <div className="group relative flex w-full items-stretch border-b border-border/70 last:border-b-0 hover:bg-accent/35 transition-colors">
+      <button
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-start gap-2 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <div className="mt-0.5 shrink-0">
+          <ConversationStatusIcon status={conversation.status} />
         </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-          <p className="truncate">
-            {agentLabel}
-            {cabinetName ? ` · ${cabinetName}` : ""}
-          </p>
-          <span className="shrink-0">{formatRelative(conversation.startedAt)}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className={cn("truncate text-[11.5px] font-medium leading-[1.35] text-foreground", hasActions && "group-hover:pr-14")}>
+              {conversation.title}
+            </p>
+            <span
+              aria-label={TRIGGER_LABELS[conversation.trigger]}
+              title={TRIGGER_LABELS[conversation.trigger]}
+              className={cn(
+                "inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full",
+                TRIGGER_STYLES[conversation.trigger]
+              )}
+            >
+              <TriggerIcon trigger={conversation.trigger} className="h-2.75 w-2.75" />
+            </span>
+          </div>
+          <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+            <p className="truncate">
+              {agentLabel}
+              {cabinetName ? ` · ${cabinetName}` : ""}
+            </p>
+            <span className="shrink-0">{formatRelative(conversation.startedAt)}</span>
+          </div>
         </div>
-      </div>
-    </button>
+      </button>
+
+      {hasActions && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded-md border border-border/50 bg-background px-0.5 py-0.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+          {onStop && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onStop(); }}
+              disabled={busy}
+              title="Stop"
+              className="rounded p-1 text-muted-foreground hover:bg-destructive/15 hover:text-destructive disabled:opacity-50"
+            >
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Square className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
+          {onRestart && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRestart(); }}
+              disabled={busy}
+              title="Restart"
+              className="rounded p-1 text-muted-foreground hover:bg-primary/15 hover:text-primary disabled:opacity-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -684,6 +724,7 @@ export function TasksBoard({
   const [panelConversation, setPanelConversation] = useState<ConversationMeta | null>(null);
   const [panelDetail, setPanelDetail] = useState<ConversationDetail | null>(null);
   const [panelLoading, setPanelLoading] = useState(false);
+  const [busyConversationIds, setBusyConversationIds] = useState<Set<string>>(new Set());
 
   const refreshOverview = useCallback(async () => {
     const params = new URLSearchParams({
@@ -983,6 +1024,50 @@ export function TasksBoard({
     await Promise.all([refreshDrafts(), refreshConversations()]);
   }
 
+  async function stopConversation(conversation: ConversationMeta) {
+    setBusyConversationIds((prev) => new Set([...prev, conversation.id]));
+    try {
+      const params = new URLSearchParams();
+      if (conversation.cabinetPath) params.set("cabinetPath", conversation.cabinetPath);
+      await fetch(`/api/agents/conversations/${conversation.id}?${params.toString()}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop" }),
+      });
+      await refreshConversations();
+    } finally {
+      setBusyConversationIds((prev) => { const next = new Set(prev); next.delete(conversation.id); return next; });
+    }
+  }
+
+  async function restartConversation(conversation: ConversationMeta) {
+    setBusyConversationIds((prev) => new Set([...prev, conversation.id]));
+    try {
+      const params = new URLSearchParams();
+      if (conversation.cabinetPath) params.set("cabinetPath", conversation.cabinetPath);
+      await fetch(`/api/agents/conversations/${conversation.id}?${params.toString()}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restart" }),
+      });
+      await refreshConversations();
+    } finally {
+      setBusyConversationIds((prev) => { const next = new Set(prev); next.delete(conversation.id); return next; });
+    }
+  }
+
+  async function killAllRunning() {
+    const running = groupedConversations.running;
+    if (running.length === 0) return;
+    await Promise.all(running.map((c) => stopConversation(c)));
+  }
+
+  async function restartAllRunning() {
+    const running = groupedConversations.running;
+    if (running.length === 0) return;
+    await Promise.all(running.map((c) => restartConversation(c)));
+  }
+
   async function handleSaveAssignment() {
     if (!activeAssignDraft || !selectedAssignAgentId) return;
     const agent = visibleAgents.find((entry) => entry.scopedId === selectedAssignAgentId) || null;
@@ -1194,9 +1279,79 @@ export function TasksBoard({
         onStartNow={() => void handleStartFromDialog()}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Board lanes */}
-        <div className={cn("min-h-0 flex-1 overflow-x-auto", panelConversation && "max-w-[55%]")}>
+      {panelConversation ? (
+        /* Full-width task detail panel */
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-border/70 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <ConversationStatusIcon status={panelConversation.status} />
+                <p className="truncate text-[13px] font-medium text-foreground">
+                  {panelConversation.title}
+                </p>
+              </div>
+              <p className="mt-0.5 truncate pl-6 text-[11px] text-muted-foreground">
+                {startCase(panelConversation.agentSlug)}
+                {cabinetLabel(panelConversation.cabinetPath)
+                  ? ` · ${cabinetLabel(panelConversation.cabinetPath)}`
+                  : ""}
+                {" · "}
+                {formatRelative(panelConversation.startedAt)}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 shrink-0 p-0"
+              onClick={closePanel}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-hidden">
+            {panelConversation.status === "running" ? (
+              <WebTerminal
+                sessionId={panelConversation.id}
+                displayPrompt={panelConversation.title}
+                reconnect
+                themeSurface="page"
+                onClose={() => {
+                  void refreshBoard();
+                }}
+              />
+            ) : panelLoading ? (
+              <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Loading...
+              </div>
+            ) : panelDetail ? (
+              <ConversationResultView
+                detail={panelDetail}
+                onOpenArtifact={(artifactPath) => {
+                  const { selectPage } = useTreeStore.getState();
+                  selectPage(artifactPath);
+                  setSection(
+                    effectiveCabinetPath
+                      ? {
+                          type: "page",
+                          mode: "cabinet",
+                          cabinetPath: effectiveCabinetPath,
+                        }
+                      : { type: "page" }
+                  );
+                }}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Could not load conversation detail.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Board lanes */
+        <div className="min-h-0 flex-1 overflow-x-auto">
           {loading ? (
             <div className="flex h-full items-center justify-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
@@ -1250,6 +1405,28 @@ export function TasksBoard({
                 lane="running"
                 count={groupedConversations.running.length}
                 emptyState="Nothing is running right now."
+                headerAction={
+                  groupedConversations.running.length > 0 ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => void killAllRunning()}
+                        title="Stop all running tasks"
+                        className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"
+                      >
+                        <Square className="h-3 w-3" />
+                        Kill All
+                      </button>
+                      <button
+                        onClick={() => void restartAllRunning()}
+                        title="Restart all running tasks"
+                        className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-muted-foreground hover:bg-primary/15 hover:text-primary transition-colors"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Restart All
+                      </button>
+                    </div>
+                  ) : null
+                }
               >
                 {groupedConversations.running.map((conversation) => {
                   const agent =
@@ -1263,6 +1440,9 @@ export function TasksBoard({
                       agentLabel={agent?.name || startCase(conversation.agentSlug)}
                       cabinetName={visibleAgentCabinetLabel(agent, conversation.cabinetPath)}
                       onOpen={() => openConversation(conversation)}
+                      onStop={() => void stopConversation(conversation)}
+                      onRestart={() => void restartConversation(conversation)}
+                      busy={busyConversationIds.has(conversation.id)}
                     />
                   );
                 })}
@@ -1285,6 +1465,8 @@ export function TasksBoard({
                       agentLabel={agent?.name || startCase(conversation.agentSlug)}
                       cabinetName={visibleAgentCabinetLabel(agent, conversation.cabinetPath)}
                       onOpen={() => openConversation(conversation)}
+                      onRestart={() => void restartConversation(conversation)}
+                      busy={busyConversationIds.has(conversation.id)}
                     />
                   );
                 })}
@@ -1307,6 +1489,8 @@ export function TasksBoard({
                       agentLabel={agent?.name || startCase(conversation.agentSlug)}
                       cabinetName={visibleAgentCabinetLabel(agent, conversation.cabinetPath)}
                       onOpen={() => openConversation(conversation)}
+                      onRestart={() => void restartConversation(conversation)}
+                      busy={busyConversationIds.has(conversation.id)}
                     />
                   );
                 })}
@@ -1314,79 +1498,7 @@ export function TasksBoard({
             </div>
           )}
         </div>
-
-        {/* Task detail panel */}
-        {panelConversation && (
-          <div className="flex min-w-[380px] flex-1 flex-col border-l border-border/70 bg-background">
-            <div className="flex items-center gap-2 border-b border-border/70 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <ConversationStatusIcon status={panelConversation.status} />
-                  <p className="truncate text-[13px] font-medium text-foreground">
-                    {panelConversation.title}
-                  </p>
-                </div>
-                <p className="mt-0.5 truncate pl-6 text-[11px] text-muted-foreground">
-                  {startCase(panelConversation.agentSlug)}
-                  {cabinetLabel(panelConversation.cabinetPath)
-                    ? ` · ${cabinetLabel(panelConversation.cabinetPath)}`
-                    : ""}
-                  {" · "}
-                  {formatRelative(panelConversation.startedAt)}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 shrink-0 p-0"
-                onClick={closePanel}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-
-            <div className="flex-1 overflow-hidden">
-              {panelConversation.status === "running" ? (
-                <WebTerminal
-                  sessionId={panelConversation.id}
-                  displayPrompt={panelConversation.title}
-                  reconnect
-                  themeSurface="page"
-                  onClose={() => {
-                    void refreshBoard();
-                  }}
-                />
-              ) : panelLoading ? (
-                <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Loading...
-                </div>
-              ) : panelDetail ? (
-                <ConversationResultView
-                  detail={panelDetail}
-                  onOpenArtifact={(artifactPath) => {
-                    const { selectPage } = useTreeStore.getState();
-                    selectPage(artifactPath);
-                    setSection(
-                      effectiveCabinetPath
-                        ? {
-                            type: "page",
-                            mode: "cabinet",
-                            cabinetPath: effectiveCabinetPath,
-                          }
-                        : { type: "page" }
-                    );
-                  }}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  Could not load conversation detail.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
