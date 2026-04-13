@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
+import yaml from "js-yaml";
 import {
   DATA_DIR,
   resolveContentPath,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/storage/path-utils";
 import { downloadRegistryTemplate } from "@/lib/registry/github-fetch";
 import { REGISTRY_TEMPLATES } from "@/lib/registry/registry-manifest";
+import { CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
 
 interface ImportRequest {
   slug: string;
@@ -54,6 +56,19 @@ export async function POST(req: NextRequest) {
 
     // Download template from GitHub
     await downloadRegistryTemplate(slug, targetDir);
+
+    // If the user gave a custom name, update the .cabinet manifest's name field
+    if (body.name && body.name.trim() !== template.name) {
+      const manifestPath = path.join(targetDir, CABINET_MANIFEST_FILE);
+      try {
+        const raw = await fs.readFile(manifestPath, "utf-8");
+        const parsed = yaml.load(raw) as Record<string, unknown>;
+        parsed.name = body.name.trim();
+        await fs.writeFile(manifestPath, yaml.dump(parsed), "utf-8");
+      } catch {
+        // Non-fatal: manifest may not exist for all templates
+      }
+    }
 
     // Ensure .cabinet-state exists
     await fs

@@ -27,6 +27,7 @@ import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
 import { CabinetView } from "@/components/cabinets/cabinet-view";
+import { RegistryBrowser } from "@/components/registry/registry-browser";
 import { findNodeByPath } from "@/lib/cabinets/tree";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useHashRoute } from "@/hooks/use-hash-route";
@@ -177,6 +178,7 @@ export function AppShell() {
   const renderContent = () => {
     // System sections (non-page views)
     if (section.type === "home") return <HomeScreen />;
+    if (section.type === "registry") return <RegistryBrowser />;
     if (section.type === "settings") return <SettingsPage />;
     if (section.type === "cabinet" && section.cabinetPath) {
       return <CabinetView cabinetPath={section.cabinetPath} />;

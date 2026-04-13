@@ -11,7 +11,8 @@ export type SectionType =
   | "agent"
   | "tasks"
   | "jobs"
-  | "settings";
+  | "settings"
+  | "registry";
 export type SectionMode = "ops" | "cabinet";
 
 const CABINET_VISIBILITY_STORAGE_KEY = "cabinet.visibility.modes";

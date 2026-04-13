@@ -148,10 +148,14 @@ function ImportDialog({
   template,
   open,
   onOpenChange,
+  onImportStart,
+  onImportEnd,
 }: {
   template: RegistryTemplate | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onImportStart: () => void;
+  onImportEnd: () => void;
 }) {
   const [name, setName] = useState("");
   const [importing, setImporting] = useState(false);
@@ -168,6 +172,8 @@ function ImportDialog({
     if (!template) return;
     setImporting(true);
     setError(null);
+    onImportStart();
+    onOpenChange(false);
 
     try {
       const res = await fetch("/api/registry/import", {
@@ -183,28 +189,26 @@ function ImportDialog({
         const data = await res.json();
         setError(data.error || "Import failed");
         setImporting(false);
+        onImportEnd();
+        onOpenChange(true);
         return;
       }
 
-      const data = await res.json();
-      await loadTree();
-      selectPage(data.path);
-      setSection({
-        type: "cabinet",
-        mode: "cabinet",
-        cabinetPath: data.path,
-      });
-      onOpenChange(false);
+      await res.json();
+      onImportEnd();
+      window.location.reload();
     } catch {
       setError("Import failed. Check your internet connection.");
       setImporting(false);
+      onImportEnd();
+      onOpenChange(true);
     }
   };
 
   if (!template) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!importing) onOpenChange(v); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Import {template.name}</DialogTitle>
@@ -229,6 +233,9 @@ function ImportDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="Cabinet name..."
             />
+            <p className="text-[11px] text-muted-foreground/70">
+              Cabinet names can&apos;t be renamed later (for now). Choose wisely.
+            </p>
           </div>
           {error && (
             <p className="text-xs text-destructive">{error}</p>
@@ -245,17 +252,8 @@ function ImportDialog({
               onClick={handleImport}
               disabled={importing || !name.trim()}
             >
-              {importing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Import
-                </>
-              )}
+              <Download className="mr-2 h-4 w-4" />
+              Import
             </Button>
           </div>
         </div>
@@ -275,6 +273,7 @@ export function HomeScreen() {
   const [importTemplate, setImportTemplate] =
     useState<RegistryTemplate | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     fetch("/api/agents/config")
@@ -399,9 +398,17 @@ export function HomeScreen() {
       </div>
 
       <div className="w-screen pb-8 pt-4 space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground text-center">
-          Import a pre-made zero-human team
-        </h2>
+        <div className="flex items-center justify-center gap-3">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Import a pre-made zero-human team
+          </h2>
+          <button
+            onClick={() => setSection({ type: "registry" })}
+            className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            Browse all &rarr;
+          </button>
+        </div>
         <RegistryCarousel
           templates={registryTemplates}
           onSelect={(template) => {
@@ -416,9 +423,26 @@ export function HomeScreen() {
         open={importOpen}
         onOpenChange={(open) => {
           setImportOpen(open);
-          if (!open) setImportTemplate(null);
+          if (!open && !importing) setImportTemplate(null);
         }}
+        onImportStart={() => setImporting(true)}
+        onImportEnd={() => setImporting(false)}
       />
+
+      {importing && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-4 text-sm font-medium text-foreground">
+            Importing {importTemplate?.name || "cabinet"}...
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Downloading agents, jobs, and content from the registry
+          </p>
+          <p className="mt-3 text-[11px] text-muted-foreground/60">
+            Please do not refresh the page while importing
+          </p>
+        </div>
+      )}
     </div>
   );
 }
