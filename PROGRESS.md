@@ -1,5 +1,9 @@
 # Progress
 
+[2026-04-14] Onboarding Step 2: removed "Coming soon" blur from the team carousel, connected it to live registry templates from /api/registry, made cards clickable with an inline import dialog (POST /api/registry/import), and added a "Browse all" button that opens the full RegistryBrowser in a dialog.
+
+[2026-04-14] Added ai-hedge-fund cabinet to data/ — a full multi-agent stock analysis system inspired by virattt/ai-hedge-fund. Includes 12 agents (Portfolio Manager, Risk Manager, 6 legendary investor personas: Buffett/Munger/Graham/Lynch/Burry/Wood, and 4 analyst agents: Fundamentals/Valuation/Sentiment/Technicals), 3 scheduled jobs, example signals.csv with live-format data for AAPL/NVDA/META, portfolio tracking, investor philosophy research pages, and risk management parameters.
+
 [2026-04-14] Extracted scaffoldCabinet() to src/lib/storage/cabinet-scaffold.ts — unified duplicated cabinet bootstrap logic (dirs, .cabinet manifest, index.md) previously spread across onboarding/setup and cabinets/create API routes. Both routes now call the shared utility.
 
 [2026-04-14] Fixed onboarding to comply with cabinet protocol: `POST /api/onboarding/setup` now creates the root `.cabinet` YAML manifest (schemaVersion, id, name, kind, version, description, entry), `index.md` entry point, and `.cabinet-state/` runtime directory — all three were previously missing from root cabinet initialization.

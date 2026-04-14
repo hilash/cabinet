@@ -1,0 +1,74 @@
+%%{init: {"theme": "dark", "flowchart": {"curve": "basis"}}}%%
+flowchart TB
+
+    %% ── Limited Partners ──────────────────────────────────────────
+    subgraph LPs["💰 Limited Partners — $200M Committed"]
+        direction TB
+        ENDOW["🎓 University Endowments\n4 LPs · $60M · 30%\n(BEACON-ENDOW, NOVA-ENDOW…)"]
+        FO["🏛️ Family Offices\n6 LPs · $50M · 25%\n(CRESTVIEW-FO, GRANITE-FO…)"]
+        FOF["📦 Fund of Funds\n3 LPs · $40M · 20%\n(MERIDIAN-FoF…)"]
+        CORP["🏢 Corporate Strategics\n2 LPs · $24M · 12%\n(AXIOM-CORP…)"]
+        HNW["👤 High-Net-Worth Individuals\n8 LPs · $26M · 13%\n(SUMMIT-HNW…)"]
+    end
+
+    %% ── Capital Calls ─────────────────────────────────────────────
+    subgraph CALLS["📞 Capital Calls — $70.2M Called"]
+        CC1["CC #1 · $28M\nQ2 2024 ✅"]
+        CC2["CC #2 · $22M\nQ4 2024 ✅"]
+        CC3["CC #3 · $12M\nQ2 2025 ✅"]
+        CC4["CC #4 · $8.2M\nApr 30, 2026 ⏳"]
+    end
+
+    %% ── Fund II ───────────────────────────────────────────────────
+    FUND(["🚀 Warp Ventures Fund II\n$200M Fund · $67M Deployed\n$133M Dry Powder Remaining\nFund Life: 10 yr · 2% / 20% Economics"])
+
+    %% ── GP Economics ──────────────────────────────────────────────
+    subgraph GP_ECON["🏦 GP Economics"]
+        MGMT["Management Fees\n~$4M/yr · 2% on committed\n(drops to 1.5% after yr 5)\nCovers ops + team"]
+        CARRY["Carried Interest\n20% of profits\nabove 8% hurdle\n~$36M total fees est."]
+    end
+
+    %% ── Portfolio Companies ───────────────────────────────────────
+    subgraph PORT["📊 Portfolio — $67M Deployed · 5 Companies · Est. TVPI 1.4x"]
+        ML["MintLayer\n💳 B2B Fintech · Series B\n$25M invested · Q2 2024\nARR $8.5M · 120% YoY\nRunway 30mo 🟢\nGP: Sam"]
+        NF["NeuralFlow\n🧠 AI/ML · Series A\n$18M invested · Q3 2024\nARR $2.1M · 180% YoY\nRunway 18mo 🟡\nGP: Jordan"]
+        GP2["GreenPulse\n🌿 Climate · Series A\n$15M invested · Q4 2024\nARR $1.2M · 150% YoY\nRunway 20mo 🟢\nGP: Rafael"]
+        DF["DevForge\n🔧 DevTools · Seed\n$5M invested · Q1 2025\nARR $800K · 300% YoY\nRunway 16mo 🟡\nGP: Sam"]
+        DS["DataStream\n📡 Data Infra · Seed\n$4M invested · Q2 2025\nARR $450K · 220% YoY\nRunway 22mo 🟢\nGP: Jordan"]
+    end
+
+    %% ── Future Deployment ─────────────────────────────────────────
+    FUTURE["🔭 Future Investments\n$133M Dry Powder\n5–7 target companies\nAvg check $12–18M\nInvestment period ends 2029"]
+
+    %% ── Returns ───────────────────────────────────────────────────
+    RETURNS["📈 LP Returns at Exit\n8% preferred return hurdle\nthen 80/20 split LP/GP\nTarget: 25%+ gross IRR\nCurrent est: ~22% gross"]
+
+    %% ── Flows ─────────────────────────────────────────────────────
+    LPs -->|"Capital calls\n$70.2M drawn to date"| CALLS
+    CALLS -->|"Wired to fund\nupon call notice"| FUND
+
+    FUND -->|"2% annual mgmt fee\n~$4M/yr"| MGMT
+    FUND -->|"$25M · Q2 2024"| ML
+    FUND -->|"$18M · Q3 2024"| NF
+    FUND -->|"$15M · Q4 2024"| GP2
+    FUND -->|"$5M · Q1 2025"| DF
+    FUND -->|"$4M · Q2 2025"| DS
+    FUND -.->|"Reserved · pending\nnew investments"| FUTURE
+
+    PORT -->|"Exit proceeds\nafter hurdle"| CARRY
+    CARRY -->|"Remaining 80%\nback to LPs"| RETURNS
+
+    %% ── Styling ───────────────────────────────────────────────────
+    classDef lpStyle fill:#1e3a5f,stroke:#4a9eff,color:#e8f4ff
+    classDef callStyle fill:#2d2040,stroke:#9b59b6,color:#f0e8ff
+    classDef fundStyle fill:#1a3a2a,stroke:#2ecc71,color:#e8fff2,font-weight:bold
+    classDef portfolioStyle fill:#2a2a1a,stroke:#f1c40f,color:#fffde8
+    classDef gpStyle fill:#3a1a1a,stroke:#e74c3c,color:#ffe8e8
+    classDef futureStyle fill:#1a2a3a,stroke:#7f8c8d,color:#e8eaed,stroke-dasharray:5 5
+
+    class ENDOW,FO,FOF,CORP,HNW lpStyle
+    class CC1,CC2,CC3,CC4 callStyle
+    class FUND fundStyle
+    class ML,NF,GP2,DF,DS portfolioStyle
+    class MGMT,CARRY,RETURNS gpStyle
+    class FUTURE futureStyle

@@ -24,6 +24,7 @@ export const claudeCodeProvider: AgentProvider = {
     { id: "opus", name: "Claude Opus", description: "Most intelligent" },
     { id: "haiku", name: "Claude Haiku", description: "Fastest responses" },
   ],
+  detachedPromptLaunchMode: "session",
   effortLevels: [
     { id: "low", name: "Low", description: "Quick, minimal reasoning" },
     { id: "medium", name: "Medium", description: "Balanced" },

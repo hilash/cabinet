@@ -3,6 +3,10 @@ import type { AgentProvider, CliProviderInvocation } from "./provider-interface"
 import { providerRegistry } from "./provider-registry";
 import { resolveCliCommand, RUNTIME_PATH } from "./provider-cli";
 import {
+  resolveDetachedPromptLaunchMode,
+  type DetachedLaunchMode,
+} from "./detached-launch-mode";
+import {
   getConfiguredDefaultProviderId,
   readProviderSettingsSync,
   resolveEnabledProviderId,
@@ -86,6 +90,14 @@ export function getDefaultProviderId(): string {
 
 export function resolveProviderId(providerId?: string): string {
   return resolveProviderOrThrow(providerId).id;
+}
+
+export function getDetachedPromptLaunchMode(input: {
+  providerId?: string;
+  prompt?: string;
+}): DetachedLaunchMode {
+  const provider = resolveProviderOrThrow(input.providerId);
+  return resolveDetachedPromptLaunchMode(provider, input.prompt);
 }
 
 export function getSessionLaunchSpec(input: {

@@ -1,7 +1,7 @@
 ---
 title: Finance
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T00:00:00Z'
+modified: '2026-04-14T00:00:00Z'
 tags:
   - finance
   - fund
@@ -82,8 +82,15 @@ Key assumptions:
 
 ---
 
+## Fund Flow Diagram
+
+See [[fund-flow]] for the full LP → Fund → Portfolio money flow diagram — shows capital call mechanics, GP economics (2%/20%), and deployment to all five portfolio companies.
+
+---
+
 ## Files
 
+- [[fund-flow]] — LP → Fund II → Portfolio money flow diagram
 - [[irr-model.csv]] — IRR sensitivity model
 - [[fees-expenses.csv]] — Management fees and expense tracker
 - [[cap-table.csv]] — Fund II cap table by investment

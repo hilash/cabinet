@@ -10,6 +10,10 @@ import type {
 } from "../../types/conversations";
 import { discoverCabinetPaths } from "../cabinets/discovery";
 import { buildConversationInstanceKey } from "./conversation-identity";
+import {
+  dedupeConversationNotifications,
+  shouldEnqueueConversationNotification,
+} from "./conversation-notification-utils";
 import { DATA_DIR, sanitizeFilename, virtualPathFromFs } from "../storage/path-utils";
 import {
   deleteFileOrDir,
@@ -41,7 +45,9 @@ export interface ConversationNotification {
 const notificationQueue: ConversationNotification[] = [];
 
 export function drainConversationNotifications(): ConversationNotification[] {
-  return notificationQueue.splice(0, notificationQueue.length);
+  return dedupeConversationNotifications(
+    notificationQueue.splice(0, notificationQueue.length)
+  );
 }
 
 interface CreateConversationInput {
@@ -136,28 +142,39 @@ export function extractConversationRequest(prompt: string): string {
 }
 
 function normalizeArtifactPath(rawPath: string): string | null {
-  const trimmed = rawPath.trim();
+  const trimmed = sanitizeCabinetFieldValue(rawPath).trim();
   if (!trimmed) return null;
   if (trimmed === PLACEHOLDER_ARTIFACT_HINT) return null;
   if (trimmed.includes("for every KB file")) return null;
 
-  if (trimmed.startsWith("/data/")) {
-    return trimmed.replace(/^\/data\//, "");
+  const candidate = (() => {
+    const extensionMatch = trimmed.match(/^(.+?\.[A-Za-z0-9]+)(?:\s|$)/);
+    if (extensionMatch?.[1]) {
+      return extensionMatch[1];
+    }
+    return trimmed;
+  })();
+
+  if (candidate.startsWith("/data/")) {
+    return candidate.replace(/^\/data\//, "");
   }
 
-  if (trimmed.startsWith(DATA_DIR)) {
-    return virtualPathFromFs(trimmed);
+  if (candidate.startsWith(DATA_DIR)) {
+    return virtualPathFromFs(candidate);
   }
 
-  const normalized = trimmed.replace(/^\.?\//, "");
+  const normalized = candidate.replace(/^\.?\//, "");
   if (!normalized || normalized.startsWith("..")) return null;
   return normalized;
 }
 
 function sanitizeCabinetFieldValue(value: string): string {
   return value
+    .replace(/\s+[✢✳✶✻✽·].*$/g, "")
+    .replace(/\s*⎿\s*Tip:.*$/g, "")
+    .replace(/\s*Tip:\s.*$/g, "")
+    .replace(/\s*[─-]{8,}.*$/g, "")
     .replace(/\s*❯\s*$/g, "")
-    .replace(/\s*[─-]{8,}\s*$/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -648,7 +665,7 @@ export async function finalizeConversation(
   ]);
 
   // Push notification for terminal statuses
-  if (meta.status === "completed" || meta.status === "failed") {
+  if (shouldEnqueueConversationNotification(previousStatus, meta.status)) {
     notificationQueue.push({
       id: meta.id,
       agentSlug: meta.agentSlug,
@@ -712,6 +729,7 @@ export async function readConversationDetail(
     meta,
     prompt,
     request: extractConversationRequest(prompt),
+    rawTranscript: transcript,
     transcript: formatConversationTranscriptForDisplay(transcript, prompt),
     mentions,
     artifacts,

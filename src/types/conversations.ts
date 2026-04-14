@@ -36,6 +36,7 @@ export interface ConversationDetail {
   prompt: string;
   request: string;
   transcript: string;
+  rawTranscript: string;
   mentions: string[];
   artifacts: ConversationArtifact[];
 }

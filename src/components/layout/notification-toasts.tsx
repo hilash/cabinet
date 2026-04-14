@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { CheckCircle2, XCircle, X } from "lucide-react";
+import { dedupeConversationNotifications } from "@/lib/agents/conversation-notification-utils";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 
@@ -85,11 +86,11 @@ export function NotificationToasts() {
     function handler(event: Event) {
       const detail = (event as CustomEvent).detail as Omit<TaskNotification, "_key">[];
       if (!detail?.length) return;
-      const newToasts = detail.map((n) => ({
+      const newToasts = dedupeConversationNotifications(detail).map((n) => ({
         ...n,
-        _key: `${n.id}-${Date.now()}`,
+        _key: `${crypto.randomUUID()}-${n.id}`,
       }));
-      setToasts((prev) => [...prev, ...newToasts]);
+      setToasts((prev) => dedupeConversationNotifications([...prev, ...newToasts]));
 
       // Play sound for the first notification in the batch
       const first = newToasts[0];

@@ -44,6 +44,31 @@ function buildCabinetEpilogueInstructions(): string {
   ].join("\n");
 }
 
+function buildKnowledgeBaseScopeInstructions(
+  baseCwd: string,
+  cabinetPath?: string
+): string[] {
+  if (cabinetPath) {
+    return [
+      `Work only inside the cabinet-scoped knowledge base rooted at /data/${cabinetPath}.`,
+      `For local filesystem work, treat ${baseCwd} as the root for this run.`,
+      "Do not create or modify files in sibling cabinets or the global /data root unless the user explicitly asks.",
+    ];
+  }
+
+  return [
+    "Work in the Cabinet knowledge base rooted at /data.",
+    `For local filesystem work, treat ${baseCwd} as the root for this run.`,
+  ];
+}
+
+function buildDiagramOutputInstructions(): string[] {
+  return [
+    "If you create Mermaid diagrams, make sure the source is renderable.",
+    "Prefer Mermaid edge labels like `A -->|label| B` or `A -.->|label| B` instead of mixed forms such as `A -- \"label\" --> B`.",
+  ];
+}
+
 function buildAgentContextHeader(persona: AgentPersona | null, agentSlug: string): string {
   if (!persona) {
     return [
@@ -109,8 +134,9 @@ export async function buildManualConversationPrompt(input: {
   const prompt = [
     buildAgentContextHeader(persona, input.agentSlug),
     "",
-    "Work in the Cabinet knowledge base at /data.",
+    ...buildKnowledgeBaseScopeInstructions(baseCwd, input.cabinetPath),
     "Reflect useful outputs in KB files, not only in terminal text.",
+    ...buildDiagramOutputInstructions(),
     buildCabinetEpilogueInstructions(),
     "",
     `User request:\n${input.userMessage}${mentionContext}`,
@@ -157,8 +183,9 @@ export async function buildEditorConversationPrompt(input: {
     `You are editing the page at /data/${input.pagePath}.`,
     `Prefer making the requested changes directly in ${input.pagePath} unless the task clearly belongs in another KB file.`,
     "Do not assume the target is markdown. Follow the actual file type and Cabinet structure when choosing what to edit.",
-    "Work in the Cabinet knowledge base at /data.",
+    ...buildKnowledgeBaseScopeInstructions(baseCwd, input.cabinetPath),
     "Edit KB files directly and reflect useful outputs in the KB, not only in terminal text.",
+    ...buildDiagramOutputInstructions(),
     buildCabinetEpilogueInstructions(),
     "",
     `User request:\n${input.userMessage}${mentionContext}`,
@@ -332,7 +359,9 @@ export async function startJobConversation(job: JobConfig): Promise<JobRun> {
     buildAgentContextHeader(persona, job.agentSlug || "agent"),
     "",
     "This is a scheduled or manual Cabinet job.",
+    ...buildKnowledgeBaseScopeInstructions(baseCwd, job.cabinetPath),
     "Reflect the results in KB files whenever useful.",
+    ...buildDiagramOutputInstructions(),
     buildCabinetEpilogueInstructions(),
     "",
     `Job instructions:\n${jobPrompt}`,

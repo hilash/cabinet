@@ -28,6 +28,7 @@ import {
   getDaemonPort,
 } from "../src/lib/runtime/runtime-config";
 import {
+  getDetachedPromptLaunchMode,
   getOneShotLaunchSpec,
   getSessionLaunchSpec,
   resolveProviderId,
@@ -1087,13 +1088,17 @@ const server = http.createServer(async (req, res) => {
         }
 
         try {
+          const launchMode = getDetachedPromptLaunchMode({
+            providerId,
+            prompt,
+          });
           createDetachedSession({
             sessionId,
             providerId,
             prompt,
             cwd,
             timeoutSeconds,
-            launchMode: prompt ? "one-shot" : "session",
+            launchMode,
           });
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -1200,12 +1205,16 @@ const server = http.createServer(async (req, res) => {
         const { agentSlug, jobId, prompt, providerId, timeoutSeconds } = JSON.parse(body);
         if (prompt) {
           const sessionId = jobId || `manual-${Date.now()}`;
+          const launchMode = getDetachedPromptLaunchMode({
+            providerId,
+            prompt,
+          });
           createDetachedSession({
             sessionId,
             providerId,
             prompt,
             timeoutSeconds,
-            launchMode: "one-shot",
+            launchMode,
           });
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ ok: true, sessionId, agentSlug: agentSlug || "manual" }));

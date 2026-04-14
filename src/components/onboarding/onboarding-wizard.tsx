@@ -27,6 +27,14 @@ import {
   Zap,
 } from "lucide-react";
 import type { ProviderInfo } from "@/types/agents";
+import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
+import { RegistryBrowser } from "@/components/registry/registry-browser";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface OnboardingAnswers {
   name: string;
@@ -252,9 +260,19 @@ function TerminalCommand({ command }: { command: string }) {
   );
 }
 
-function TeamCarousel() {
+function TeamCarousel({
+  templates,
+  onSelect,
+}: {
+  templates: RegistryTemplate[];
+  onSelect: (t: RegistryTemplate) => void;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Use real templates if loaded, otherwise fall back to hardcoded placeholders
+  const items = templates.length > 0 ? templates : PRE_MADE_TEAMS;
+  const isReal = templates.length > 0;
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -277,7 +295,7 @@ function TeamCarousel() {
     return () => cancelAnimationFrame(animationId);
   }, [isPaused]);
 
-  const doubled = [...PRE_MADE_TEAMS, ...PRE_MADE_TEAMS];
+  const doubled = [...items, ...items];
 
   return (
     <div
@@ -286,36 +304,42 @@ function TeamCarousel() {
       onMouseLeave={() => setIsPaused(false)}
     >
       <div ref={scrollRef} className="flex gap-2 will-change-transform">
-        {doubled.map((team, i) => {
-          const colors = TEAM_DOMAIN_COLORS[team.domain] || { bg: WEB.accentBg, text: WEB.accent };
+        {doubled.map((item, i) => {
+          const domain = "domain" in item ? item.domain : "";
+          const agentCount = "agentCount" in item ? item.agentCount : ("agents" in item ? (item as PreMadeTeam).agents : 0);
+          const colors = TEAM_DOMAIN_COLORS[domain] || { bg: WEB.accentBg, text: WEB.accent };
           return (
-            <div
-              key={`${team.name}-${i}`}
-              className="flex-shrink-0 w-44 rounded-lg p-3 flex flex-col"
+            <button
+              key={`${item.name}-${i}`}
+              className="flex-shrink-0 w-44 rounded-lg p-3 flex flex-col text-left transition-all hover:-translate-y-0.5"
               style={{
                 border: `1px solid ${WEB.border}`,
                 background: WEB.bgCard,
                 height: 88,
+                cursor: isReal ? "pointer" : "default",
+              }}
+              onClick={() => {
+                if (isReal) onSelect(item as RegistryTemplate);
               }}
             >
               <p className="text-[11px] font-medium leading-tight" style={{ color: WEB.text }}>
-                {team.name}
+                {item.name}
               </p>
               <p className="text-[10px] mt-1 leading-snug line-clamp-2" style={{ color: WEB.textSecondary }}>
-                {team.description}
+                {item.description}
               </p>
               <div className="flex items-center justify-between mt-auto">
                 <span
                   className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
                   style={{ background: colors.bg, color: colors.text }}
                 >
-                  {team.domain}
+                  {domain}
                 </span>
                 <span className="text-[9px]" style={{ color: WEB.textTertiary }}>
-                  {team.agents} agents
+                  {agentCount} agents
                 </span>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -475,6 +499,7 @@ function TeamBuildStep({
   toggleAgent,
   onBack,
   onNext,
+  onImportComplete,
 }: {
   agentsLoading: boolean;
   suggestedAgents: SuggestedAgent[];
@@ -485,23 +510,71 @@ function TeamBuildStep({
   toggleAgent: (slug: string) => void;
   onBack: () => void;
   onNext: () => void;
+  onImportComplete: () => void;
 }) {
   const [phase, setPhase] = useState(0);
   // phase 0: title
   // phase 1: "import" label
-  // phase 2: carousel visible (no blur yet)
-  // phase 3: blur + coming soon appear
+  // phase 2: carousel visible
+  // phase 3: (reserved)
   // phase 4: "or pick" label + agents
+
+  const [registryTemplates, setRegistryTemplates] = useState<RegistryTemplate[]>([]);
+  const [importTemplate, setImportTemplate] = useState<RegistryTemplate | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importName, setImportName] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importedSlugs, setImportedSlugs] = useState<Set<string>>(new Set());
+  const [registryOpen, setRegistryOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/registry")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.templates) setRegistryTemplates(data.templates);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase(1), 600),
       setTimeout(() => setPhase(2), 1200),
-      setTimeout(() => setPhase(3), 2200),
-      setTimeout(() => setPhase(4), 3200),
+      setTimeout(() => setPhase(4), 2200),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
+
+  const handleImport = async () => {
+    if (!importTemplate) return;
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const res = await fetch("/api/registry/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: importTemplate.slug,
+          name: importName.trim() !== importTemplate.name ? importName.trim() : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setImportError(data?.error || "Import failed");
+        setImportBusy(false);
+        return;
+      }
+      setImportedSlugs((prev) => new Set(prev).add(importTemplate.slug));
+      setImportOpen(false);
+      setImportTemplate(null);
+      onImportComplete();
+    } catch {
+      setImportError("Import failed. Check your connection.");
+    } finally {
+      setImportBusy(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -525,42 +598,132 @@ function TeamBuildStep({
           transform: phase >= 1 ? "translateY(0)" : "translateY(12px)",
         }}
       >
-        <p
-          className="text-[11px] font-semibold uppercase tracking-wider text-center"
-          style={{ color: WEB.textTertiary }}
+        <div className="flex items-center justify-center gap-3">
+          <p
+            className="text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: WEB.textTertiary }}
+          >
+            Import a pre-made zero-human team
+          </p>
+          <button
+            onClick={() => setRegistryOpen(true)}
+            className="text-[11px] font-semibold transition-colors"
+            style={{ color: WEB.accent }}
+          >
+            Browse all &rarr;
+          </button>
+        </div>
+        <div
+          className="transition-opacity duration-500"
+          style={{ opacity: phase >= 2 ? 1 : 0 }}
         >
-          Import a pre-made zero-human team
-        </p>
-        <div className="relative w-full overflow-hidden rounded-xl">
-          {/* Carousel always scrolls */}
-          <div
-            className="transition-opacity duration-500"
-            style={{ opacity: phase >= 2 ? 1 : 0 }}
-          >
-            <TeamCarousel />
-          </div>
-          {/* Blur overlay fades in at phase 3 */}
-          <div
-            className="absolute inset-0 backdrop-blur-[1.5px] hover:backdrop-blur-[0.5px] transition-all duration-1000 z-10"
-            style={{ opacity: phase >= 3 ? 1 : 0 }}
+          <TeamCarousel
+            templates={registryTemplates}
+            onSelect={(t) => {
+              setImportTemplate(t);
+              setImportName(t.name);
+              setImportError(null);
+              setImportOpen(true);
+            }}
           />
-          <div
-            className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none transition-opacity duration-1000"
-            style={{ opacity: phase >= 3 ? 1 : 0 }}
+        </div>
+        {importedSlugs.size > 0 && (
+          <p
+            className="text-[10px] font-medium text-center mt-1"
+            style={{ color: WEB.accent }}
           >
-            <span
-              className="text-sm font-semibold uppercase tracking-wider px-4 py-1.5 rounded-full"
-              style={{
-                color: WEB.textSecondary,
-                background: `${WEB.bg}CC`,
-                border: `1px solid ${WEB.border}`,
-              }}
+            <CheckCircle2 className="inline size-3 mr-1 -mt-px" />
+            {importedSlugs.size} cabinet{importedSlugs.size > 1 ? "s" : ""} imported
+          </p>
+        )}
+      </div>
+
+      {/* Import dialog */}
+      <Dialog open={importOpen} onOpenChange={(v) => { if (!importBusy) setImportOpen(v); }}>
+        <DialogContent
+          className="sm:max-w-md"
+          style={{ background: WEB.bg, border: `1px solid ${WEB.border}`, color: WEB.text }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: WEB.text }}>
+              Import {importTemplate?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {importTemplate && (
+            <div className="space-y-4">
+              <p className="text-sm" style={{ color: WEB.textSecondary }}>
+                {importTemplate.description}
+              </p>
+              <div className="flex gap-4 text-xs" style={{ color: WEB.textTertiary }}>
+                <span>{importTemplate.agentCount} agents</span>
+                <span>{importTemplate.jobCount} jobs</span>
+                {importTemplate.childCount > 0 && (
+                  <span>{importTemplate.childCount} sub-cabinets</span>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium" style={{ color: WEB.textSecondary }}>
+                  Cabinet name
+                </label>
+                <input
+                  value={importName}
+                  onChange={(e) => setImportName(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 text-sm"
+                  style={{
+                    border: `1px solid ${WEB.border}`,
+                    background: WEB.bgCard,
+                    color: WEB.text,
+                    outline: "none",
+                  }}
+                />
+              </div>
+              {importError && (
+                <p className="text-xs" style={{ color: "#c0392b" }}>{importError}</p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setImportOpen(false)}
+                  disabled={importBusy}
+                  className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+                  style={{ color: WEB.textSecondary }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImport}
+                  disabled={importBusy || !importName.trim()}
+                  className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white transition-all disabled:opacity-40"
+                  style={{ background: WEB.accent }}
+                >
+                  {importBusy ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowRight className="size-3.5" />}
+                  Import
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Registry browser — full-screen overlay */}
+      {registryOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: WEB.bg }}>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${WEB.border}` }}>
+            <h2 className="font-logo text-xl italic" style={{ color: WEB.text }}>
+              Browse cabinets
+            </h2>
+            <button
+              onClick={() => setRegistryOpen(false)}
+              className="flex items-center justify-center size-8 rounded-full transition-colors"
+              style={{ color: WEB.textSecondary, background: WEB.bgWarm }}
             >
-              Coming soon
-            </span>
+              <XCircle className="size-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto">
+            <RegistryBrowser />
           </div>
         </div>
-      </div>
+      )}
 
       {/* Agent selection */}
       <div
@@ -1302,6 +1465,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               toggleAgent={toggleAgent}
               onBack={() => setStep(1)}
               onNext={() => setStep(3)}
+              onImportComplete={launch}
             />
           )}
 

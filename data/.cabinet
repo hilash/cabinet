@@ -1,7 +1,7 @@
 schemaVersion: 1
-id: cabinet-root
-name: Cabinet
+id: pizza-root
+name: Pizza
 kind: root
 version: 0.1.0
-description: Root cabinet.
+description: Develop
 entry: index.md

@@ -1,7 +1,7 @@
 ---
 title: Deal Flow
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T00:00:00Z'
+modified: '2026-04-14T00:00:00Z'
 tags:
   - deal-flow
   - pipeline
@@ -23,6 +23,12 @@ Active investment pipeline for Warp Ventures Fund II. 11 active deals across all
 | Due Diligence | 1 | $5M |
 | Term Sheet | 1 | $3M |
 | **Active Total** | **11** | **$38.5M** |
+
+---
+
+## Seed Round Process
+
+Seven stages from first signal to wired check — see the full step-by-step diagram: [[seed-round-steps.mermaid|Seed Round Steps]]
 
 ---
 
