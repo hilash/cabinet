@@ -11,6 +11,7 @@ import { QueryProvider } from "../provider";
 import { createLogger } from "../logger";
 import { defaultStorage } from "./storage";
 import { AuthInitializer } from "./auth-initializer";
+import { createLocalWorkspace, isLocalToken } from "./local-mode";
 import type { CoreProviderProps } from "./types";
 import type { StorageAdapter } from "../types/storage";
 
@@ -48,6 +49,16 @@ function initCore(
 
   workspaceStore = createWorkspaceStore(api, { storage });
   registerWorkspaceStore(workspaceStore);
+
+  if (isLocalToken(token)) {
+    const localWorkspace = createLocalWorkspace();
+    api.setWorkspaceId(localWorkspace.id);
+    storage.setItem("multica_workspace_id", localWorkspace.id);
+    workspaceStore.setState({
+      workspace: localWorkspace,
+      workspaces: [localWorkspace],
+    });
+  }
 
   chatStore = createChatStore({ storage });
   registerChatStore(chatStore);

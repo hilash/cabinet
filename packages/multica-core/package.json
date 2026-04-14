@@ -55,7 +55,8 @@
     "./logger": "./logger.ts",
     "./utils": "./utils.ts",
     "./constants/*": "./constants/*.ts",
-    "./platform": "./platform/index.ts"
+    "./platform": "./platform/index.ts",
+    "./platform/local-mode": "./platform/local-mode.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.96.0",

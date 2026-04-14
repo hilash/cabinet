@@ -21,6 +21,11 @@ import { useAuthStore } from "@multica/core/auth";
 import { useWorkspaceStore } from "@multica/core/workspace";
 import { api } from "@multica/core/api";
 import type { User } from "@multica/core/types";
+import {
+  LOCAL_USER_STORAGE_KEY,
+  createLocalUser,
+  createLocalWorkspace,
+} from "@multica/core/platform/local-mode";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,7 +130,7 @@ export function LoginPage({
     async (e?: React.FormEvent) => {
       e?.preventDefault();
       if (!email) {
-        setError("Email is required");
+        setError("请输入用户名");
         return;
       }
       setLoading(true);
@@ -135,17 +140,31 @@ export function LoginPage({
         setStep("code");
         setCode("");
         setCooldown(10);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to send code. Make sure the server is running.",
+      } catch {
+        // 本地模式：服务端不可用时直接以输入的名称登录
+        const fallbackName = email.includes("@") ? email.split("@")[0] : email;
+        const localUser = createLocalUser(fallbackName);
+        const localWorkspace = createLocalWorkspace(localUser.name);
+        const fakeToken = `local-${Date.now()}`;
+        localStorage.setItem("multica_token", fakeToken);
+        localStorage.setItem(
+          LOCAL_USER_STORAGE_KEY,
+          JSON.stringify(localUser),
         );
+        api.setToken(fakeToken);
+        useAuthStore.getState().setUser(localUser);
+        useWorkspaceStore
+          .getState()
+          .hydrateWorkspace([localWorkspace], localWorkspace.id);
+        onTokenObtained?.();
+        setLoading(false);
+        onSuccess();
+        return;
       } finally {
         setLoading(false);
       }
     },
-    [email],
+    [email, onSuccess],
   );
 
   const handleVerify = useCallback(
@@ -168,6 +187,7 @@ export function LoginPage({
         await useAuthStore.getState().verifyCode(email, value);
         const wsList = await api.listWorkspaces();
         useWorkspaceStore.getState().hydrateWorkspace(wsList, lastWorkspaceId);
+        localStorage.removeItem(LOCAL_USER_STORAGE_KEY);
         onTokenObtained?.();
         onSuccess();
       } catch (err) {
@@ -226,9 +246,9 @@ export function LoginPage({
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
             {logo && <div className="mx-auto mb-4">{logo}</div>}
-            <CardTitle className="text-2xl">Authorize CLI</CardTitle>
+            <CardTitle className="text-2xl">授权 CLI</CardTitle>
             <CardDescription>
-              Allow the CLI to access Multica as{" "}
+              允许 CLI 以此账户访问 Multica：{" "}
               <span className="font-medium text-foreground">
                 {existingUser.email}
               </span>
@@ -242,7 +262,7 @@ export function LoginPage({
               className="w-full"
               size="lg"
             >
-              {loading ? "Authorizing..." : "Authorize"}
+              {loading ? "授权中..." : "授权"}
             </Button>
             <Button
               variant="ghost"
@@ -252,7 +272,7 @@ export function LoginPage({
                 setStep("email");
               }}
             >
-              Use a different account
+              使用其他账户
             </Button>
           </CardContent>
         </Card>
@@ -270,9 +290,9 @@ export function LoginPage({
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
             {logo && <div className="mx-auto mb-4">{logo}</div>}
-            <CardTitle className="text-2xl">Check your email</CardTitle>
+            <CardTitle className="text-2xl">检查你的邮箱</CardTitle>
             <CardDescription>
-              We sent a verification code to{" "}
+              验证码已发送至{" "}
               <span className="font-medium text-foreground">{email}</span>
             </CardDescription>
           </CardHeader>
@@ -305,7 +325,7 @@ export function LoginPage({
                 disabled={cooldown > 0}
                 className="text-primary underline-offset-4 hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed"
               >
-                {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+                {cooldown > 0 ? `重新发送 ( ${cooldown}s` : "重新发送"}
               </button>
             </div>
           </CardContent>
@@ -337,19 +357,19 @@ export function LoginPage({
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           {logo && <div className="mx-auto mb-4">{logo}</div>}
-          <CardTitle className="text-2xl">Sign in to Multica</CardTitle>
+          <CardTitle className="text-2xl">登录 Multica</CardTitle>
           <CardDescription>
-            Enter your email to get a login code
+            输入用户名直接登录
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form id="login-form" onSubmit={handleSendCode} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
+              <Label htmlFor="login-email">用户名</Label>
               <Input
                 id="login-email"
-                type="email"
-                placeholder="you@example.com"
+                type="text"
+                placeholder="输入用户名"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoFocus
@@ -369,7 +389,7 @@ export function LoginPage({
             size="lg"
             disabled={!email || loading}
           >
-            {loading ? "Sending code..." : "Continue"}
+            {loading ? "发送中..." : "继续"}
           </Button>
           {google && (
             <>
@@ -378,7 +398,7 @@ export function LoginPage({
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                  <span className="bg-card px-2 text-muted-foreground">或</span>
                 </div>
               </div>
               <Button
@@ -407,7 +427,7 @@ export function LoginPage({
                     fill="#EA4335"
                   />
                 </svg>
-                Continue with Google
+                使用 Google 登录
               </Button>
             </>
           )}
