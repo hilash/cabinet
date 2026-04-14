@@ -43,6 +43,7 @@ import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
 import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
 import type { TreeNode } from "@/types";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
@@ -458,7 +459,6 @@ export function AgentsWorkspace({
   const lastSavedSettingsRef = useRef<string | null>(null);
   const conversationsPanel = useHorizontalResize(340, 260, 520, "right");
   const treeNodes = useTreeStore((state) => state.nodes);
-  const selectPage = useTreeStore((state) => state.selectPage);
   const section = useAppStore((state) => state.section);
   const setSection = useAppStore((state) => state.setSection);
   const cabinetVisibilityModes = useAppStore((state) => state.cabinetVisibilityModes);
@@ -2324,8 +2324,8 @@ export function AgentsWorkspace({
                 <ConversationResultView
                   detail={selectedConversation}
                   onOpenArtifact={(artifactPath) => {
-                    selectPage(artifactPath);
-                    setSection(
+                    void openArtifactPath(
+                      artifactPath,
                       effectiveCabinetPath
                         ? {
                             type: "page",

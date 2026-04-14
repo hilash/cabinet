@@ -21,9 +21,9 @@ import {
   buildConversationInstanceKey,
 } from "@/lib/agents/conversation-identity";
 import { cronToHuman } from "@/lib/agents/cron-utils";
-import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
 import { cn } from "@/lib/utils";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
@@ -149,8 +149,6 @@ export function JobsManager({
   const [runningHeartbeat, setRunningHeartbeat] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
-  const selectPage = useTreeStore((state) => state.selectPage);
-  const setSection = useAppStore((state) => state.setSection);
   const cabinetVisibilityModes = useAppStore((state) => state.cabinetVisibilityModes);
   const resolvedWorkspaceMode = workspaceMode || (cabinetPath ? "cabinet" : "ops");
   const effectiveCabinetPath = cabinetPath || ROOT_CABINET_PATH;
@@ -649,8 +647,8 @@ export function JobsManager({
                     <button
                       key={artifact.path}
                       onClick={() => {
-                        selectPage(artifact.path);
-                        setSection(
+                        void openArtifactPath(
+                          artifact.path,
                           effectiveCabinetPath
                             ? {
                                 type: "page",
@@ -683,8 +681,8 @@ export function JobsManager({
                 <ConversationResultView
                   detail={selectedConversation}
                   onOpenArtifact={(artifactPath) => {
-                    selectPage(artifactPath);
-                    setSection(
+                    void openArtifactPath(
+                      artifactPath,
                       effectiveCabinetPath
                         ? {
                             type: "page",

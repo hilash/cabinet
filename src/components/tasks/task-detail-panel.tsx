@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
-import { useTreeStore } from "@/stores/tree-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
 import { Button } from "@/components/ui/button";
 import type { ConversationDetail, ConversationStatus } from "@/types/conversations";
+import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
 
 function StatusDot({ status }: { status: ConversationStatus }) {
   if (status === "running") {
@@ -43,37 +43,34 @@ function startCase(value: string | undefined, fallback = "General"): string {
 export function TaskDetailPanel() {
   const conversation = useAppStore((s) => s.taskPanelConversation);
   const setTaskPanelConversation = useAppStore((s) => s.setTaskPanelConversation);
-  const setSection = useAppStore((s) => s.setSection);
 
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Fetch full detail when a completed/failed conversation is selected
   useEffect(() => {
-    if (!conversation) {
-      setDetail(null);
-      return;
-    }
-    if (conversation.status === "running") {
-      setDetail(null);
+    if (!conversation || conversation.status === "running") {
       return;
     }
     let cancelled = false;
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (conversation.cabinetPath) {
-      params.set("cabinetPath", conversation.cabinetPath);
-    }
-    fetch(`/api/agents/conversations/${conversation.id}?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+    void (async () => {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (conversation.cabinetPath) {
+        params.set("cabinetPath", conversation.cabinetPath);
+      }
+      try {
+        const response = await fetch(
+          `/api/agents/conversations/${conversation.id}?${params.toString()}`
+        );
+        const data = response.ok ? ((await response.json()) as ConversationDetail) : null;
         if (!cancelled && data) {
-          setDetail(data as ConversationDetail);
+          setDetail(data);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -127,10 +124,7 @@ export function TaskDetailPanel() {
           <ConversationResultView
             detail={detail}
             onOpenArtifact={(artifactPath) => {
-              const { selectPage } = useTreeStore.getState();
-              selectPage(artifactPath);
-              setTaskPanelConversation(null);
-              setSection({ type: "page" });
+              void openArtifactPath(artifactPath, { type: "page" });
             }}
           />
         ) : (
