@@ -55,6 +55,11 @@ data/**
 !data/CLAUDE.md
 data/**/.DS_Store
 
+# playwright
+test-results/
+playwright-report/
+blob-report/
+
 # claude code
 .claude/
 

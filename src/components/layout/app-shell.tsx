@@ -16,6 +16,18 @@ import { HomeScreen } from "@/components/home/home-screen";
 import { AgentsWorkspace } from "@/components/agents/agents-workspace";
 import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
+import dynamic from "next/dynamic";
+
+const InboxPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.InboxPage), { ssr: false });
+const MyIssuesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MyIssuesPage), { ssr: false });
+const MulticaAgentsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MulticaAgentsPage), { ssr: false });
+const RuntimesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.RuntimesPage), { ssr: false });
+const SkillsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.SkillsPage), { ssr: false });
+const MulticaSettingsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MulticaSettingsPage), { ssr: false });
+const IssuesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.IssuesPage), { ssr: false });
+const IssueDetail = dynamic(() => import("@/components/integrations/multica-views").then(m => m.IssueDetail), { ssr: false });
+const ProjectsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.ProjectsPage), { ssr: false });
+const ProjectDetail = dynamic(() => import("@/components/integrations/multica-views").then(m => m.ProjectDetail), { ssr: false });
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
 import { AIPanel } from "@/components/ai-panel/ai-panel";
 import { SearchDialog } from "@/components/search/search-dialog";
@@ -24,6 +36,8 @@ import { StatusBar } from "@/components/layout/status-bar";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
+import { MulticaModals } from "@/components/integrations/multica-modals";
+import { MulticaAuthGuard } from "@/components/integrations/multica-auth-guard";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useHashRoute } from "@/hooks/use-hash-route";
 import { useTreeStore } from "@/stores/tree-store";
@@ -197,6 +211,21 @@ export function AppShell() {
       );
     }
     if (section.type === "jobs") return <JobsManager />;
+    if (section.type === "inbox") return <MulticaAuthGuard><InboxPage /></MulticaAuthGuard>;
+    if (section.type === "my-issues") return <MulticaAuthGuard><MyIssuesPage /></MulticaAuthGuard>;
+    if (section.type === "issues") return <MulticaAuthGuard><IssuesPage /></MulticaAuthGuard>;
+    if (section.type === "issue-detail") {
+      return <MulticaAuthGuard>{section.id ? <IssueDetail issueId={section.id} /> : <IssuesPage />}</MulticaAuthGuard>;
+    }
+    if (section.type === "projects") return <MulticaAuthGuard><ProjectsPage /></MulticaAuthGuard>;
+    if (section.type === "project-detail") {
+      return <MulticaAuthGuard>{section.id ? <ProjectDetail projectId={section.id} /> : <ProjectsPage />}</MulticaAuthGuard>;
+    }
+    if (section.type === "agents-multica") return <MulticaAuthGuard><MulticaAgentsPage /></MulticaAuthGuard>;
+    if (section.type === "agent-multica") return <MulticaAuthGuard><MulticaAgentsPage /></MulticaAuthGuard>;
+    if (section.type === "runtimes") return <MulticaAuthGuard><RuntimesPage /></MulticaAuthGuard>;
+    if (section.type === "skills") return <MulticaAuthGuard><SkillsPage /></MulticaAuthGuard>;
+    if (section.type === "multica-settings") return <MulticaAuthGuard><MulticaSettingsPage /></MulticaAuthGuard>;
 
     // Page-based views (when a KB page is selected)
     if (isApp && selectedNode) {
@@ -326,6 +355,7 @@ export function AppShell() {
         onLater={handleUpdateLater}
       />
       <NotificationToasts />
+      <MulticaModals />
     </div>
   );
 }

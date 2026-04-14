@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { listPersonas } from "@/lib/agents/persona-manager";
 import { getGoalState } from "@/lib/agents/goal-manager";
 import { getMessages } from "@/lib/agents/slack-manager";
-import { getRespondingAgents } from "@/app/api/agents/slack/route";
+import { getRespondingAgents } from "@/lib/agents/responding-agents";
 import fs from "fs/promises";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Download, Code2, Eye, Copy, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { HeaderActions } from "@/components/layout/header-actions";
 
 interface MermaidViewerProps {

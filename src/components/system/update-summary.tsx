@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, CloudDownload, FolderOpen, Loader2, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import type { UpdateCheckResult } from "@/types";
 
 interface UpdateSummaryProps {

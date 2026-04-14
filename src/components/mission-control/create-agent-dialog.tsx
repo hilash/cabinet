@@ -8,9 +8,9 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "@multica/ui/components/ui/dialog";
+import { Button } from "@multica/ui/components/ui/button";
+import { Input } from "@multica/ui/components/ui/input";
 import { SchedulePicker } from "./schedule-picker";
 import { cn } from "@/lib/utils";
 import { Plus, X } from "lucide-react";

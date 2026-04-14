@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Code2, Save, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { HeaderActions } from "@/components/layout/header-actions";
 
 interface CsvViewerProps {

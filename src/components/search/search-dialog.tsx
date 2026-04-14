@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, FileText, Tag, X, Sparkles, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Button } from "@multica/ui/components/ui/button";
+import { Dialog, DialogContent } from "@multica/ui/components/ui/dialog";
+import { Input } from "@multica/ui/components/ui/input";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { cn } from "@/lib/utils";
@@ -30,10 +30,10 @@ export function SearchDialog() {
   const { selectPage } = useTreeStore();
   const { loadPage } = useEditorStore();
 
-  // Cmd+K to open
+  // Cmd+Shift+F to open (Cmd+K is reserved for Multica command palette)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
         e.preventDefault();
         setOpen(true);
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles, Search, Terminal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
 import { useAppStore } from "@/stores/app-store";
 import { ThemePicker } from "@/components/layout/theme-picker";
@@ -24,13 +24,13 @@ export function HeaderActions() {
         className="h-7 gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground hidden sm:flex"
         onClick={() => {
           window.dispatchEvent(
-            new KeyboardEvent("keydown", { key: "k", metaKey: true })
+            new KeyboardEvent("keydown", { key: "f", metaKey: true, shiftKey: true })
           );
         }}
       >
         <Search className="h-3.5 w-3.5" />
         <kbd className="pointer-events-none text-[10px] font-mono bg-muted px-1 py-0.5 rounded">
-          ⌘K
+          ⇧⌘F
         </kbd>
       </Button>
 

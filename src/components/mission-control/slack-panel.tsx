@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, GripHorizontal, Hash, Plus, MessageCircle, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@multica/ui/components/ui/button";
 import type { SlackMessage } from "@/types/agents";
 
 interface AgentMention {

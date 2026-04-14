@@ -1,10 +1,28 @@
 import { create } from "zustand";
 
-export type SectionType = "home" | "page" | "agents" | "agent" | "jobs" | "settings";
+export type SectionType =
+  | "home"
+  | "page"
+  | "agents"
+  | "agent"
+  | "jobs"
+  | "settings"
+  | "issues"
+  | "issue-detail"
+  | "projects"
+  | "project-detail"
+  | "agents-multica"
+  | "agent-multica"
+  | "inbox"
+  | "my-issues"
+  | "runtimes"
+  | "skills"
+  | "multica-settings";
 
 export interface SelectedSection {
   type: SectionType;
   slug?: string; // agent slug when type === "agent"
+  id?: string; // entity id when type === "issue-detail" | "project-detail"
   conversationId?: string; // auto-select this conversation on mount
 }
 

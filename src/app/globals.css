@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@multica/ui/styles/base.css" source(none);
 @plugin "@tailwindcss/typography";
+
 
 @custom-variant dark (&:is(.dark *));
 
@@ -28,6 +30,13 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-priority: var(--priority);
+  --color-canvas: var(--canvas);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -82,6 +91,16 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --brand: oklch(0.55 0.16 255);
+  --brand-foreground: oklch(0.985 0 0);
+  --canvas: oklch(0.95 0.002 286);
+  --success: oklch(0.55 0.16 145);
+  --warning: oklch(0.75 0.16 85);
+  --info: oklch(0.55 0.18 250);
+  --priority: oklch(0.65 0.18 50);
+  --scrollbar-thumb: oklch(0 0 0 / 10%);
+  --scrollbar-thumb-hover: oklch(0 0 0 / 18%);
+  --scrollbar-track: transparent;
   --terminal-bg: color-mix(in oklch, var(--card) 94%, black 6%);
   --terminal-fg: var(--foreground);
   --terminal-cursor: var(--primary);
@@ -136,6 +155,16 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --brand: oklch(0.65 0.16 255);
+  --brand-foreground: oklch(0.985 0 0);
+  --canvas: oklch(0.2 0.005 286);
+  --success: oklch(0.65 0.15 145);
+  --warning: oklch(0.70 0.16 85);
+  --info: oklch(0.65 0.18 250);
+  --priority: oklch(0.70 0.18 50);
+  --scrollbar-thumb: oklch(1 0 0 / 8%);
+  --scrollbar-thumb-hover: oklch(1 0 0 / 18%);
+  --scrollbar-track: transparent;
 }
 
 @layer base {

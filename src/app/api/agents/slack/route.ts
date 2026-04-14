@@ -9,17 +9,9 @@ import { sendMessage, listPersonas } from "@/lib/agents/persona-manager";
 import { sendNotification, shouldNotify } from "@/lib/agents/notification-service";
 import { runQuickResponse } from "@/lib/agents/heartbeat";
 
-// Track which agents are currently responding (for typing indicator)
-const respondingAgents = new Map<string, { channel: string; since: number }>();
+import { getRespondingAgents } from "@/lib/agents/responding-agents";
 
-export function getRespondingAgents(): Map<string, { channel: string; since: number }> {
-  // Clean up stale entries (older than 3 minutes)
-  const now = Date.now();
-  for (const [slug, info] of respondingAgents) {
-    if (now - info.since > 180_000) respondingAgents.delete(slug);
-  }
-  return respondingAgents;
-}
+const respondingAgents = getRespondingAgents();
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

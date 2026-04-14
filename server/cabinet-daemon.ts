@@ -45,6 +45,7 @@ import {
 
 const PORT = getDaemonPort();
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
+const HEALTH_SCHEDULES_FILE = path.join(DATA_DIR, ".agents", ".health", "schedules.json");
 const ALLOWED_BROWSER_ORIGINS = new Set(
   [
     getAppOrigin(),
@@ -71,6 +72,9 @@ const enrichedPath = [
 
 // ===== PTY Terminal Server =====
 
+const MAX_SESSION_OUTPUT_BYTES = 8 * 1024 * 1024; // 8 MB per session
+const MAX_COMPLETED_OUTPUT_ENTRIES = 200;
+
 interface PtySession {
   id: string;
   providerId: string;
@@ -78,6 +82,7 @@ interface PtySession {
   ws: WebSocket | null;
   createdAt: Date;
   output: string[];
+  outputBytes: number;
   exited: boolean;
   exitCode: number | null;
   timeoutHandle?: NodeJS.Timeout;
@@ -95,11 +100,34 @@ interface PtySession {
 const sessions = new Map<string, PtySession>();
 const completedOutput = new Map<string, { output: string; completedAt: number }>();
 
+function pushSessionOutput(session: PtySession, data: string): void {
+  const dataBytes = Buffer.byteLength(data, "utf8");
+  // Drop oldest chunks to make room if at limit
+  while (session.output.length > 0 && session.outputBytes + dataBytes > MAX_SESSION_OUTPUT_BYTES) {
+    const dropped = session.output.shift()!;
+    session.outputBytes -= Buffer.byteLength(dropped, "utf8");
+  }
+  session.output.push(data);
+  session.outputBytes += dataBytes;
+}
+
+function setCompletedOutput(id: string, output: string): void {
+  completedOutput.set(id, { output, completedAt: Date.now() });
+  if (completedOutput.size > MAX_COMPLETED_OUTPUT_ENTRIES) {
+    const entries = Array.from(completedOutput.entries())
+      .sort((a, b) => a[1].completedAt - b[1].completedAt);
+    const toRemove = entries.length - MAX_COMPLETED_OUTPUT_ENTRIES;
+    for (let i = 0; i < toRemove; i++) {
+      completedOutput.delete(entries[i][0]);
+    }
+  }
+}
+
 function resolveSessionCwd(input?: string): string {
   if (!input) return DATA_DIR;
 
   const resolved = path.resolve(input);
-  if (resolved.startsWith(DATA_DIR)) {
+  if (resolved === DATA_DIR || resolved.startsWith(`${DATA_DIR}${path.sep}`)) {
     return resolved;
   }
 
@@ -211,7 +239,7 @@ function maybeAutoExitClaudeSession(session: PtySession): void {
   session.resolvingStatus = true;
   session.autoExitRequested = true;
   const plain = stripAnsi(currentOutput);
-  completedOutput.set(session.id, { output: plain, completedAt: Date.now() });
+  setCompletedOutput(session.id, plain);
   void finalizeConversation(session.id, {
     status: "completed",
     exitCode: 0,
@@ -234,7 +262,7 @@ async function finalizeSessionConversation(session: PtySession): Promise<void> {
 
   const plain = stripAnsi(session.output.join(""));
   if (meta.status !== "running") {
-    completedOutput.set(session.id, { output: plain, completedAt: Date.now() });
+    setCompletedOutput(session.id, plain);
     return;
   }
   await finalizeConversation(session.id, {
@@ -261,7 +289,7 @@ setInterval(() => {
     if (session.exited && !session.ws && session.createdAt.getTime() < cutoff) {
       const raw = session.output.join("");
       const plain = stripAnsi(raw);
-      completedOutput.set(id, { output: plain, completedAt: Date.now() });
+      setCompletedOutput(id, plain);
       sessions.delete(id);
       console.log(`Cleaned up exited detached session ${id}`);
     }
@@ -291,7 +319,7 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
       ws.send(`\r\n\x1b[90m[Process exited with code ${existing.exitCode}]\x1b[0m\r\n`);
       const raw = existing.output.join("");
       const plain = stripAnsi(raw);
-      completedOutput.set(sessionId, { output: plain, completedAt: Date.now() });
+      setCompletedOutput(sessionId, plain);
       sessions.delete(sessionId);
       ws.close();
       return;
@@ -406,6 +434,7 @@ function createDetachedSession(input: {
     ws: null,
     createdAt: new Date(),
     output: [],
+    outputBytes: 0,
     exited: false,
     exitCode: null,
     initialPrompt: launch.initialPrompt?.trim() || undefined,
@@ -417,7 +446,7 @@ function createDetachedSession(input: {
   sessions.set(input.sessionId, session);
 
   term.onData((data: string) => {
-    session.output.push(data);
+    pushSessionOutput(session, data);
     if (
       session.initialPrompt &&
       !session.initialPromptSent &&
@@ -452,7 +481,7 @@ function createDetachedSession(input: {
     }
 
     const plain = stripAnsi(session.output.join(""));
-    completedOutput.set(input.sessionId, { output: plain, completedAt: Date.now() });
+    setCompletedOutput(input.sessionId, plain);
     void finalizeSessionConversation(session).catch(() => {});
 
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
@@ -535,13 +564,25 @@ interface JobConfig {
   agentSlug: string;
 }
 
+interface HealthScheduleConfig {
+  id: string;
+  name?: string;
+  schedule: string;
+  enabled?: boolean;
+}
+
 const scheduledJobs = new Map<string, ReturnType<typeof cron.schedule>>();
 const scheduledHeartbeats = new Map<string, ReturnType<typeof cron.schedule>>();
+const scheduledHealthChecks = new Map<string, ReturnType<typeof cron.schedule>>();
 let scheduleReloadTimer: NodeJS.Timeout | null = null;
 
-async function putJson(url: string, body: Record<string, unknown>): Promise<void> {
+async function requestJson(
+  method: "POST" | "PUT",
+  url: string,
+  body: Record<string, unknown>
+): Promise<void> {
   const response = await fetch(url, {
-    method: "PUT",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -554,8 +595,10 @@ async function putJson(url: string, body: Record<string, unknown>): Promise<void
 function stopScheduledTasks(): void {
   for (const [, task] of scheduledJobs) task.stop();
   for (const [, task] of scheduledHeartbeats) task.stop();
+  for (const [, task] of scheduledHealthChecks) task.stop();
   scheduledJobs.clear();
   scheduledHeartbeats.clear();
+  scheduledHealthChecks.clear();
 }
 
 function scheduleJob(job: JobConfig): void {
@@ -570,7 +613,7 @@ function scheduleJob(job: JobConfig): void {
 
   const task = cron.schedule(job.schedule, () => {
     console.log(`Triggering scheduled job ${key}`);
-    void putJson(`${getAppOrigin()}/api/agents/${job.agentSlug}/jobs/${job.id}`, {
+    void requestJson("PUT", `${getAppOrigin()}/api/agents/${job.agentSlug}/jobs/${job.id}`, {
       action: "run",
       source: "scheduler",
     }).catch((error) => {
@@ -590,7 +633,7 @@ function scheduleHeartbeat(slug: string, cronExpr: string): void {
 
   const task = cron.schedule(cronExpr, () => {
     console.log(`Triggering heartbeat ${slug}`);
-    void putJson(`${getAppOrigin()}/api/agents/personas/${slug}`, {
+    void requestJson("PUT", `${getAppOrigin()}/api/agents/personas/${slug}`, {
       action: "run",
       source: "scheduler",
     }).catch((error) => {
@@ -602,6 +645,31 @@ function scheduleHeartbeat(slug: string, cronExpr: string): void {
   console.log(`  Scheduled heartbeat: ${slug} (${cronExpr})`);
 }
 
+function scheduleHealthCheck(config: HealthScheduleConfig): void {
+  const key = config.id;
+  const existingTask = scheduledHealthChecks.get(key);
+  if (existingTask) existingTask.stop();
+
+  if (!cron.validate(config.schedule)) {
+    console.warn(`Invalid health schedule for ${key}: ${config.schedule}`);
+    return;
+  }
+
+  const task = cron.schedule(config.schedule, () => {
+    console.log(`Triggering health check ${key}`);
+    void requestJson("POST", `${getAppOrigin()}/api/agents/pipelines/health`, {
+      action: "run",
+      source: "scheduler",
+      scheduleId: key,
+    }).catch((error) => {
+      console.error(`Failed to trigger health check ${key}:`, error);
+    });
+  });
+
+  scheduledHealthChecks.set(key, task);
+  console.log(`  Scheduled health check: ${key} (${config.schedule})`);
+}
+
 async function reloadSchedules(): Promise<void> {
   stopScheduledTasks();
 
@@ -610,6 +678,7 @@ async function reloadSchedules(): Promise<void> {
   const entries = fs.readdirSync(AGENTS_DIR, { withFileTypes: true });
   let jobCount = 0;
   let heartbeatCount = 0;
+  let healthCount = 0;
 
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
@@ -657,7 +726,39 @@ async function reloadSchedules(): Promise<void> {
     }
   }
 
-  console.log(`Scheduled ${jobCount} jobs and ${heartbeatCount} heartbeats.`);
+  if (fs.existsSync(HEALTH_SCHEDULES_FILE)) {
+    try {
+      const raw = fs.readFileSync(HEALTH_SCHEDULES_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (!item || typeof item !== "object") continue;
+          const config = item as Partial<HealthScheduleConfig>;
+          if (
+            typeof config.id === "string" &&
+            config.id.trim() &&
+            typeof config.schedule === "string" &&
+            config.schedule.trim() &&
+            config.enabled !== false
+          ) {
+            scheduleHealthCheck({
+              id: config.id.trim(),
+              name: typeof config.name === "string" ? config.name : undefined,
+              schedule: config.schedule.trim(),
+              enabled: config.enabled,
+            });
+            healthCount++;
+          }
+        }
+      }
+    } catch {
+      // Skip malformed health schedules.
+    }
+  }
+
+  console.log(
+    `Scheduled ${jobCount} jobs, ${heartbeatCount} heartbeats, and ${healthCount} health checks.`
+  );
 }
 
 function queueScheduleReload(): void {
@@ -846,6 +947,7 @@ const server = http.createServer(async (req, res) => {
           ok: true,
           jobs: scheduledJobs.size,
           heartbeats: scheduledHeartbeats.size,
+          healthChecks: scheduledHealthChecks.size,
         })
       );
     } catch (error) {
@@ -865,6 +967,7 @@ const server = http.createServer(async (req, res) => {
         ptySessions: sessions.size,
         scheduledJobs: scheduledJobs.size,
         scheduledHeartbeats: scheduledHeartbeats.size,
+        scheduledHealthChecks: scheduledHealthChecks.size,
         subscribers: subscribers.length,
       })
     );
@@ -946,7 +1049,11 @@ wssEvents.on("connection", (ws) => {
 // ===== Startup =====
 
 const scheduleWatcher = chokidar.watch(
-  [path.join(AGENTS_DIR, "*/persona.md"), path.join(AGENTS_DIR, "*/jobs/*.yaml")],
+  [
+    path.join(AGENTS_DIR, "*/persona.md"),
+    path.join(AGENTS_DIR, "*/jobs/*.yaml"),
+    HEALTH_SCHEDULES_FILE,
+  ],
   {
     ignoreInitial: true,
   }
@@ -978,6 +1085,9 @@ process.on("SIGINT", () => {
     task.stop();
   }
   for (const [, task] of scheduledHeartbeats) {
+    task.stop();
+  }
+  for (const [, task] of scheduledHealthChecks) {
     task.stop();
   }
   for (const [, session] of sessions) {

@@ -29,9 +29,9 @@ import {
   FolderOpen,
   RotateCw,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@multica/ui/components/ui/button";
+import { Input } from "@multica/ui/components/ui/input";
+import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { UpdateSummary } from "@/components/system/update-summary";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useTheme } from "next-themes";
@@ -44,6 +44,7 @@ import {
 } from "@/lib/themes";
 import { cn } from "@/lib/utils";
 import type { ProviderInfo } from "@/types/agents";
+import { useAuthStore } from "@multica/core/auth";
 
 interface McpServer {
   name: string;
@@ -138,6 +139,8 @@ export function SettingsPage() {
   })();
   const [tab, setTabState] = useState<Tab>(initialTab);
   const initializedRef = useRef(false);
+  const multicaUser = useAuthStore((s) => s.user);
+  const multicaLogout = useAuthStore((s) => s.logout);
 
   // Sync tab changes to hash
   const setTab = useCallback((t: Tab) => {
@@ -972,7 +975,46 @@ export function SettingsPage() {
 
           {/* Integrations Tab */}
           {tab === "integrations" && (
-            <div className="relative">
+            <div className="space-y-6">
+              {/* Multica Account */}
+              <div>
+                <h3 className="text-[14px] font-semibold mb-1">Multica Account</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Multica powers issue tracking, agents, and project management.
+                </p>
+                {multicaUser ? (
+                  <div className="bg-card border border-border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
+                          {(multicaUser.name || multicaUser.email || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-medium">{multicaUser.name || "User"}</div>
+                          <div className="text-[11px] text-muted-foreground">{multicaUser.email}</div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={multicaLogout}
+                        className="text-[12px]"
+                      >
+                        Sign out
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-card border border-border rounded-lg p-4">
+                    <p className="text-[12px] text-muted-foreground">
+                      Not connected. Visit any Multica feature to sign in.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Coming Soon content */}
+              <div className="relative">
               {/* Blurred content preview */}
               <div className="pointer-events-none select-none blur-[2px] opacity-70" aria-hidden="true">
                 <div>
@@ -1038,6 +1080,7 @@ export function SettingsPage() {
                   </p>
                 </div>
               </div>
+            </div>
             </div>
           )}
 

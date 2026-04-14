@@ -12,6 +12,7 @@ const PACKAGER_IGNORE = [
   /^\/\.github(?:\/|$)/,
   /^\/\.claude(?:\/|$)/,
   /^\/\.agents(?:\/|$)/,
+  /^\/packages(?:\/|$)/,
   /^\/coverage(?:\/|$)/,
   /^\/out(?:\/|$)/,
   /^\/test(?:\/|$)/,
@@ -150,6 +151,7 @@ module.exports = {
     asar: {
       unpackDir: ".next/standalone",
     },
+    extraResource: ["./build/multica-server"],
     prune: true,
     ignore: PACKAGER_IGNORE,
     afterComplete: [codesignNativeBinaries, pruneMacLocales],

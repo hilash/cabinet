@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { providerRegistry } from "@/lib/agents/provider-registry";
 
+export const dynamic = "force-dynamic";
+
 interface CachedStatus {
   providers: { id: string; name: string; available: boolean; authenticated: boolean }[];
   anyReady: boolean;
