@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Download, Code2, Eye, Copy, Check } from "lucide-react";
+import { Download, Code2, Eye, Copy, Check, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HeaderActions } from "@/components/layout/header-actions";
 
@@ -17,8 +17,50 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
   const [loading, setLoading] = useState(true);
   const [showSource, setShowSource] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
+
+  const ZOOM_STEP = 0.25;
+  const ZOOM_MIN = 0.25;
+  const ZOOM_MAX = 5;
+
+  const zoomIn = () => setZoom((z) => Math.min(z + ZOOM_STEP, ZOOM_MAX));
+  const zoomOut = () => setZoom((z) => Math.max(z - ZOOM_STEP, ZOOM_MIN));
+  const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
+
+  // Mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      setZoom((z) => Math.min(Math.max(z + delta, ZOOM_MIN), ZOOM_MAX));
+    }
+  }, []);
+
+  // Pan via mouse drag
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [pan]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isPanning) return;
+    setPan({
+      x: panStart.current.panX + (e.clientX - panStart.current.x),
+      y: panStart.current.panY + (e.clientY - panStart.current.y),
+    });
+  }, [isPanning]);
+
+  const handlePointerUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
 
   const assetUrl = `/api/assets/${path}`;
   const filename = path.split("/").pop() || path;
@@ -107,6 +149,24 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
             {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
             {copied ? "Copied" : "Copy"}
           </Button>
+          {svg && !showSource && (
+            <>
+              <div className="h-4 w-px bg-border mx-0.5" />
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={zoomOut} title="Zoom out">
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-[11px] text-muted-foreground tabular-nums w-10 text-center select-none">
+                {Math.round(zoom * 100)}%
+              </span>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={zoomIn} title="Zoom in">
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={resetView} title="Reset view">
+                <Maximize className="h-3.5 w-3.5" />
+              </Button>
+              <div className="h-4 w-px bg-border mx-0.5" />
+            </>
+          )}
           {svg && (
             <Button
               variant="ghost"
@@ -154,10 +214,23 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
           </div>
         ) : (
           <div
-            ref={containerRef}
-            className="flex items-center justify-center p-8 min-h-full [&_svg]:max-w-full"
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+            ref={viewportRef}
+            className="relative w-full h-full overflow-hidden"
+            style={{ cursor: isPanning ? "grabbing" : "grab" }}
+            onWheel={handleWheel}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          >
+            <div
+              ref={containerRef}
+              className="flex items-center justify-center p-8 min-h-full [&_svg]:max-w-full origin-center select-none"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              }}
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          </div>
         )}
       </div>
     </div>
