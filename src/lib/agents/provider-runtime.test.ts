@@ -63,12 +63,27 @@ test("Codex provider builds the expected launch arguments", () => {
   assert.equal(interactiveSession.initialPrompt, undefined);
 });
 
-test("Claude provider keeps the prompt injection session contract", () => {
+test("Claude provider uses -p mode for prompted sessions", () => {
   const session = claudeCodeProvider.buildSessionInvocation?.("Review this", process.cwd());
   assert.ok(session);
+  assert.deepEqual(session.args, [
+    "--dangerously-skip-permissions",
+    "-p",
+    "Review this",
+    "--output-format",
+    "text",
+  ]);
+  // -p mode does not use initialPrompt/readyStrategy — prompt is passed as CLI arg
+  assert.equal(session.initialPrompt, undefined);
+  assert.equal(session.readyStrategy, undefined);
+});
+
+test("Claude provider uses interactive mode for sessions without prompt", () => {
+  const session = claudeCodeProvider.buildSessionInvocation?.(undefined, process.cwd());
+  assert.ok(session);
   assert.deepEqual(session.args, ["--dangerously-skip-permissions"]);
-  assert.equal(session.initialPrompt, "Review this");
-  assert.equal(session.readyStrategy, "claude");
+  assert.equal(session.initialPrompt, undefined);
+  assert.equal(session.readyStrategy, undefined);
 });
 
 test("provider runtime resolves launch specs through registered providers", async (t) => {
