@@ -11,6 +11,8 @@ export interface JobConfig {
   enabled: boolean;
   schedule: string;
   provider: string;
+  adapterType?: string;
+  adapterConfig?: Record<string, unknown>;
   ownerAgent?: string;
   agentSlug?: string;
   workdir?: string;

@@ -3,6 +3,7 @@ import type { JobConfig, JobRun, JobPostAction } from "@/types/jobs";
 import type { ConversationMeta } from "@/types/conversations";
 import { readPage } from "../storage/page-io";
 import { DATA_DIR } from "../storage/path-utils";
+import { resolveExecutionProviderId } from "./adapters";
 import {
   appendConversationTranscript,
   createConversation,
@@ -142,11 +143,17 @@ export async function buildManualConversationPrompt(input: {
     `User request:\n${input.userMessage}${mentionContext}`,
   ].join("\n");
 
+  const defaultProviderId = getDefaultProviderId();
+
   return {
     prompt,
     title: makeTitle(input.userMessage),
     cwd,
-    providerId: persona?.provider || getDefaultProviderId(),
+    providerId: resolveExecutionProviderId({
+      adapterType: persona?.adapterType,
+      providerId: persona?.provider,
+      defaultProviderId,
+    }),
     cabinetPath: input.cabinetPath,
   };
 }
@@ -191,12 +198,18 @@ export async function buildEditorConversationPrompt(input: {
     `User request:\n${input.userMessage}${mentionContext}`,
   ].join("\n");
 
+  const defaultProviderId = getDefaultProviderId();
+
   return {
     prompt,
     title: makeTitle(input.userMessage),
     cwd,
     mentionedPaths: combinedMentionedPaths,
-    providerId: persona?.provider || getDefaultProviderId(),
+    providerId: resolveExecutionProviderId({
+      adapterType: persona?.adapterType,
+      providerId: persona?.provider,
+      defaultProviderId,
+    }),
   };
 }
 
@@ -346,6 +359,7 @@ async function processPostActions(
 
 export async function startJobConversation(job: JobConfig): Promise<JobRun> {
   const persona = job.agentSlug ? await readPersona(job.agentSlug, job.cabinetPath) : null;
+  const defaultProviderId = getDefaultProviderId();
   const jobPrompt = substituteTemplateVars(job.prompt, job);
   const baseCwd = job.cabinetPath ? path.join(DATA_DIR, job.cabinetPath) : DATA_DIR;
   const cwd =
@@ -372,7 +386,11 @@ export async function startJobConversation(job: JobConfig): Promise<JobRun> {
     title: job.name,
     trigger: "job",
     prompt,
-    providerId: job.provider || persona?.provider || getDefaultProviderId(),
+    providerId: resolveExecutionProviderId({
+      adapterType: job.adapterType || persona?.adapterType,
+      providerId: job.provider || persona?.provider,
+      defaultProviderId,
+    }),
     jobId: job.id,
     jobName: job.name,
     cabinetPath: job.cabinetPath,

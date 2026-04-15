@@ -58,6 +58,8 @@ export interface AgentPersona {
   name: string;
   role: string;
   provider: string;
+  adapterType?: string;
+  adapterConfig?: Record<string, unknown>;
   heartbeat: string; // cron expression
   budget: number; // max heartbeats per month
   active: boolean;
@@ -93,6 +95,15 @@ import { computeNextCronRun } from "./cron-compute";
 
 // Active cron jobs for agents
 const heartbeatJobs = new Map<string, ReturnType<typeof cron.schedule>>();
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeAdapterConfig(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value)) return undefined;
+  return Object.keys(value).length > 0 ? value : undefined;
+}
 
 export async function initAgentsDir(): Promise<void> {
   await ensureDirectory(AGENTS_DIR);
@@ -148,6 +159,11 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
     provider: resolveEnabledProviderId(
       typeof data.provider === "string" ? data.provider : getDefaultProviderId()
     ),
+    adapterType:
+      typeof data.adapterType === "string" && data.adapterType.trim()
+        ? data.adapterType.trim()
+        : undefined,
+    adapterConfig: normalizeAdapterConfig(data.adapterConfig),
     heartbeat: (data.heartbeat as string) || "0 8 * * *",
     budget: (data.budget as number) || 100,
     active: data.active !== false,
@@ -230,6 +246,12 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
     setupComplete: merged.setupComplete === true,
     ...(merged.goals && merged.goals.length > 0 ? { goals: merged.goals } : {}),
     ...(merged.channels && merged.channels.length > 0 ? { channels: merged.channels } : {}),
+    ...(typeof merged.adapterType === "string" && merged.adapterType.trim()
+      ? { adapterType: merged.adapterType.trim() }
+      : {}),
+    ...(normalizeAdapterConfig(merged.adapterConfig)
+      ? { adapterConfig: normalizeAdapterConfig(merged.adapterConfig) }
+      : {}),
   };
 
   const md = matter.stringify(merged.body || "", frontmatter);

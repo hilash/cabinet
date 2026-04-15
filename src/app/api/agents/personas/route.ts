@@ -9,6 +9,7 @@ import {
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
+import { defaultAdapterTypeForProvider } from "@/lib/agents/adapters";
 import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
 
 // Initialize heartbeats on first request
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
 
   await writePersona(slug, {
     provider: personaData.provider || getDefaultProviderId(),
+    adapterType:
+      typeof personaData.adapterType === "string" && personaData.adapterType.trim()
+        ? personaData.adapterType.trim()
+        : defaultAdapterTypeForProvider(personaData.provider || getDefaultProviderId()),
     ...personaData,
   }, cabinetPath);
 

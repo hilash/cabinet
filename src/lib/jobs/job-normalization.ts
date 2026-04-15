@@ -1,7 +1,12 @@
 import type { JobConfig } from "@/types/jobs";
+import { defaultAdapterTypeForProvider } from "@/lib/agents/adapters";
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\r\n/g, "\n").trim();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function normalizeExistingJobId(value: unknown): string {
@@ -56,6 +61,16 @@ export function normalizeJobConfig(
       typeof input.provider === "string" && input.provider.trim()
         ? input.provider.trim()
         : "claude-code",
+    adapterType:
+      typeof input.adapterType === "string" && input.adapterType.trim()
+        ? input.adapterType.trim()
+        : defaultAdapterTypeForProvider(
+            typeof input.provider === "string" ? input.provider.trim() : "claude-code"
+          ),
+    adapterConfig:
+      isRecord(input.adapterConfig) && Object.keys(input.adapterConfig).length > 0
+        ? input.adapterConfig
+        : undefined,
     ownerAgent:
       typeof agentSlug === "string" && agentSlug.trim()
         ? agentSlug.trim()
