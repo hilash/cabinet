@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { useState } from "react";
+import { X } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
-import { ConversationResultView } from "@/components/agents/conversation-result-view";
-import { ConversationLiveView } from "@/components/agents/conversation-live-view";
+import { ConversationSessionView } from "@/components/agents/conversation-session-view";
 import { Button } from "@/components/ui/button";
 import type { ConversationDetail, ConversationStatus } from "@/types/conversations";
 import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
@@ -43,82 +42,7 @@ function startCase(value: string | undefined, fallback = "General"): string {
 export function TaskDetailPanel() {
   const conversation = useAppStore((s) => s.taskPanelConversation);
   const setTaskPanelConversation = useAppStore((s) => s.setTaskPanelConversation);
-
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [failedLoad, setFailedLoad] = useState(false);
-
-  useEffect(() => {
-    if (!conversation) {
-      setDetail(null);
-      setLoading(false);
-      setFailedLoad(false);
-      return;
-    }
-
-    const selectedConversation = conversation;
-    setDetail(null);
-    setFailedLoad(false);
-
-    let cancelled = false;
-    let pollHandle: number | null = null;
-
-    async function loadConversationDetail(background = false): Promise<ConversationDetail | null> {
-      if (!background) {
-        setLoading(true);
-      }
-
-      const params = new URLSearchParams();
-      if (selectedConversation.cabinetPath) {
-        params.set("cabinetPath", selectedConversation.cabinetPath);
-      }
-
-      try {
-        const response = await fetch(
-          `/api/agents/conversations/${selectedConversation.id}?${params.toString()}`
-        );
-        const data = response.ok ? ((await response.json()) as ConversationDetail) : null;
-        if (!cancelled && data) {
-          setDetail(data);
-          setFailedLoad(false);
-          if (data.meta.status !== "running" && pollHandle !== null) {
-            window.clearInterval(pollHandle);
-            pollHandle = null;
-          }
-          return data;
-        } else if (!cancelled && !data) {
-          setFailedLoad(true);
-        }
-      } catch {
-        if (!cancelled) {
-          setFailedLoad(true);
-        }
-      } finally {
-        if (!cancelled && !background) {
-          setLoading(false);
-        }
-      }
-
-      return null;
-    }
-
-    void (async () => {
-      const nextDetail = await loadConversationDetail();
-      const shouldPoll = (nextDetail?.meta.status || selectedConversation.status) === "running";
-      if (!cancelled && shouldPoll && pollHandle === null) {
-        pollHandle = window.setInterval(() => {
-          void loadConversationDetail(true);
-        }, 1500);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (pollHandle !== null) {
-        window.clearInterval(pollHandle);
-      }
-    };
-  }, [conversation?.cabinetPath, conversation?.id, conversation?.status]);
 
   if (!conversation) return null;
   const activeConversation = detail?.meta.id === conversation.id ? detail.meta : conversation;
@@ -150,32 +74,13 @@ export function TaskDetailPanel() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        {loading && !detail ? (
-          <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Loading...
-          </div>
-        ) : detail ? (
-          activeConversation.status === "running" ? (
-            <ConversationLiveView
-              detail={detail}
-              onOpenArtifact={(artifactPath) => {
-                void openArtifactPath(artifactPath, { type: "page" });
-              }}
-            />
-          ) : (
-            <ConversationResultView
-              detail={detail}
-              onOpenArtifact={(artifactPath) => {
-                void openArtifactPath(artifactPath, { type: "page" });
-              }}
-            />
-          )
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            {failedLoad ? "Could not load conversation detail." : "Waiting for conversation detail..."}
-          </div>
-        )}
+        <ConversationSessionView
+          conversation={conversation}
+          onDetailChange={setDetail}
+          onOpenArtifact={(artifactPath) => {
+            void openArtifactPath(artifactPath, { type: "page" });
+          }}
+        />
       </div>
     </div>
   );

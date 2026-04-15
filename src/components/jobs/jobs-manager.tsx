@@ -14,10 +14,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { WebTerminal } from "@/components/terminal/web-terminal";
-import { ConversationResultView } from "@/components/agents/conversation-result-view";
+import { ConversationSessionView } from "@/components/agents/conversation-session-view";
 import {
-  appendConversationCabinetPath,
   buildConversationInstanceKey,
 } from "@/lib/agents/conversation-identity";
 import { cronToHuman } from "@/lib/agents/cron-utils";
@@ -233,21 +231,6 @@ export function JobsManager({
     }
   }
 
-  async function loadConversationDetail(conversationId: string | null) {
-    if (!conversationId) {
-      setSelectedConversation(null);
-      return;
-    }
-    const response = await fetch(
-      appendConversationCabinetPath(
-        `/api/agents/conversations/${conversationId}`,
-        selectedConversationCabinetPath
-      )
-    );
-    if (!response.ok) return;
-    setSelectedConversation((await response.json()) as ConversationDetail);
-  }
-
   async function refreshLibrary() {
     const response = await fetch("/api/jobs/library");
     if (!response.ok) return;
@@ -293,11 +276,6 @@ export function JobsManager({
   }, [effectiveCabinetPath, effectiveVisibilityMode, selectedAgentSlug, statusFilter]);
 
   useEffect(() => {
-    if (!selectedConversationId) return;
-    void loadConversationDetail(selectedConversationId);
-  }, [selectedConversationCabinetPath, selectedConversationId]);
-
-  useEffect(() => {
     if (!selectedJobId) {
       setJobDraft(null);
       return;
@@ -321,6 +299,16 @@ export function JobsManager({
       conversation.id === selectedConversationId &&
       (conversation.cabinetPath || "") === (selectedConversationCabinetPath || "")
   );
+  const activeSelectedConversation =
+    selectedConversation &&
+    selectedConversationMeta &&
+    selectedConversation.meta.id === selectedConversationMeta.id &&
+    (selectedConversation.meta.cabinetPath || "") ===
+      (selectedConversationMeta.cabinetPath || "")
+      ? selectedConversation
+      : null;
+  const activeConversationMeta =
+    activeSelectedConversation?.meta || selectedConversationMeta || null;
 
   async function saveHeartbeat() {
     if (!selectedAgentSlug) return;
@@ -619,14 +607,14 @@ export function JobsManager({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {mode === "conversation" && selectedConversationMeta ? (
+        {mode === "conversation" && activeConversationMeta ? (
           <div className="flex h-full flex-col">
             <div className="border-b border-border px-5 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate text-[15px] font-semibold">{selectedConversationMeta.title}</h3>
+                  <h3 className="truncate text-[15px] font-semibold">{activeConversationMeta.title}</h3>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    {selectedConversationMeta.agentSlug} · {TRIGGER_LABELS[selectedConversationMeta.trigger]} · {selectedConversationMeta.status}
+                    {activeConversationMeta.agentSlug} · {TRIGGER_LABELS[activeConversationMeta.trigger]} · {activeConversationMeta.status}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -638,12 +626,13 @@ export function JobsManager({
                       setMode("settings");
                       setSelectedConversationId(null);
                       setSelectedConversationCabinetPath(undefined);
+                      setSelectedConversation(null);
                     }}
                   >
                     <Settings2 className="h-3.5 w-3.5" />
                     Configure
                   </Button>
-                  {selectedConversation?.artifacts?.map((artifact) => (
+                  {activeSelectedConversation?.artifacts?.map((artifact) => (
                     <button
                       key={artifact.path}
                       onClick={() => {
@@ -667,37 +656,23 @@ export function JobsManager({
               </div>
             </div>
             <div className="flex-1 overflow-hidden">
-              {selectedConversationMeta.status === "running" ? (
-                <WebTerminal
-                  sessionId={selectedConversationMeta.id}
-                  displayPrompt={selectedConversationMeta.title}
-                  reconnect
-                  themeSurface="page"
-                  onClose={() => {
-                    void refreshConversations();
-                  }}
-                />
-              ) : selectedConversation ? (
-                <ConversationResultView
-                  detail={selectedConversation}
-                  onOpenArtifact={(artifactPath) => {
-                    void openArtifactPath(
-                      artifactPath,
-                      effectiveCabinetPath
-                        ? {
-                            type: "page",
-                            mode: "cabinet",
-                            cabinetPath: effectiveCabinetPath,
-                          }
-                        : { type: "page" }
-                    );
-                  }}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  Loading conversation...
-                </div>
-              )}
+              <ConversationSessionView
+                conversation={activeConversationMeta}
+                onDetailChange={setSelectedConversation}
+                onOpenArtifact={(artifactPath) => {
+                  void openArtifactPath(
+                    artifactPath,
+                    effectiveCabinetPath
+                      ? {
+                          type: "page",
+                          mode: "cabinet",
+                          cabinetPath: effectiveCabinetPath,
+                        }
+                      : { type: "page" }
+                  );
+                }}
+                waitingLabel="Waiting for conversation detail..."
+              />
             </div>
           </div>
         ) : (

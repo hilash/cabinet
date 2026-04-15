@@ -32,8 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { WebTerminal } from "@/components/terminal/web-terminal";
-import { ConversationResultView } from "@/components/agents/conversation-result-view";
+import { ConversationSessionView } from "@/components/agents/conversation-session-view";
 import {
   appendConversationCabinetPath,
   buildConversationInstanceKey,
@@ -822,21 +821,6 @@ export function AgentsWorkspace({
     }
   }
 
-  async function refreshSelectedConversation(
-    conversationId: string,
-    cabinetPath?: string
-  ) {
-    const response = await fetch(
-      appendConversationCabinetPath(
-        `/api/agents/conversations/${conversationId}`,
-        cabinetPath
-      )
-    );
-    if (!response.ok) return;
-    const detail = (await response.json()) as ConversationDetail;
-    setSelectedConversation(detail);
-  }
-
   useEffect(() => {
     void refreshConversations();
   }, [activeAgentSlug, triggerFilter, statusFilter]);
@@ -1066,14 +1050,6 @@ export function AgentsWorkspace({
     if (!selectedConversationId) {
       setSelectedConversation(null);
       return;
-    }
-    const current = conversations.find(
-      (conversation) =>
-        conversation.id === selectedConversationId &&
-        (conversation.cabinetPath || "") === (selectedConversationCabinetPath || "")
-    );
-    if (current && current.status !== "running") {
-      void refreshSelectedConversation(selectedConversationId, current.cabinetPath);
     }
   }, [selectedConversationCabinetPath, selectedConversationId, conversations]);
 
@@ -1637,28 +1613,38 @@ export function AgentsWorkspace({
       conversation.id === selectedConversationId &&
       (conversation.cabinetPath || "") === (selectedConversationCabinetPath || "")
   );
+  const activeSelectedConversation =
+    selectedConversation &&
+    selectedConversationMeta &&
+    selectedConversation.meta.id === selectedConversationMeta.id &&
+    (selectedConversation.meta.cabinetPath || "") ===
+      (selectedConversationMeta.cabinetPath || "")
+      ? selectedConversation
+      : null;
+  const activeConversationMeta =
+    activeSelectedConversation?.meta || selectedConversationMeta || null;
   const activeAgent = activeAgentSlug
     ? agents.find((agent) => agent.slug === activeAgentSlug) || null
     : null;
   const settingsAgent = settingsAgentSlug
     ? agents.find((agent) => agent.slug === settingsAgentSlug) || null
     : null;
-  const selectedConversationDebugText = selectedConversationMeta
+  const selectedConversationDebugText = activeConversationMeta
     ? [
-        `Conversation ID: ${selectedConversationMeta.id}`,
-        `Title: ${selectedConversationMeta.title}`,
-        `Agent: ${selectedConversationMeta.agentSlug}`,
-        `Trigger: ${selectedConversationMeta.trigger}`,
-        `Status: ${selectedConversationMeta.status}`,
-        `Job ID: ${selectedConversationMeta.jobId || "Not available"}`,
-        `Job name: ${selectedConversationMeta.jobName || "Not available"}`,
-        `Started at: ${formatTimestamp(selectedConversationMeta.startedAt)}`,
-        `Completed at: ${formatTimestamp(selectedConversationMeta.completedAt)}`,
-        `Exit code: ${selectedConversationMeta.exitCode ?? "Not available"}`,
-        `Prompt path: ${selectedConversationMeta.promptPath}`,
-        `Transcript path: ${selectedConversationMeta.transcriptPath}`,
-        `Mentioned paths: ${selectedConversationMeta.mentionedPaths.join(", ") || "None"}`,
-        `Artifact paths: ${selectedConversationMeta.artifactPaths.join(", ") || "None"}`,
+        `Conversation ID: ${activeConversationMeta.id}`,
+        `Title: ${activeConversationMeta.title}`,
+        `Agent: ${activeConversationMeta.agentSlug}`,
+        `Trigger: ${activeConversationMeta.trigger}`,
+        `Status: ${activeConversationMeta.status}`,
+        `Job ID: ${activeConversationMeta.jobId || "Not available"}`,
+        `Job name: ${activeConversationMeta.jobName || "Not available"}`,
+        `Started at: ${formatTimestamp(activeConversationMeta.startedAt)}`,
+        `Completed at: ${formatTimestamp(activeConversationMeta.completedAt)}`,
+        `Exit code: ${activeConversationMeta.exitCode ?? "Not available"}`,
+        `Prompt path: ${activeConversationMeta.promptPath}`,
+        `Transcript path: ${activeConversationMeta.transcriptPath}`,
+        `Mentioned paths: ${activeConversationMeta.mentionedPaths.join(", ") || "None"}`,
+        `Artifact paths: ${activeConversationMeta.artifactPaths.join(", ") || "None"}`,
       ].join("\n")
     : "";
   const groupedAgentTemplates = Object.entries(
@@ -2299,7 +2285,7 @@ export function AgentsWorkspace({
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {mode === "conversation" && selectedConversationMeta ? (
+        {mode === "conversation" && activeConversationMeta ? (
           <div className="flex h-full min-h-0 flex-col">
             <Dialog open={conversationDetailsOpen} onOpenChange={setConversationDetailsOpen}>
               <DialogContent className="sm:max-w-2xl">
@@ -2327,44 +2313,44 @@ export function AgentsWorkspace({
             <div className="border-b border-border px-5 py-3">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 text-lg">
-                  {agents.find((agent) => agent.slug === selectedConversationMeta.agentSlug)?.emoji || "🤖"}
+                  {agents.find((agent) => agent.slug === activeConversationMeta.agentSlug)?.emoji || "🤖"}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="line-clamp-2 text-[15px] font-semibold">{selectedConversationMeta.title}</h3>
+                  <h3 className="line-clamp-2 text-[15px] font-semibold">{activeConversationMeta.title}</h3>
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                     <button
-                      onClick={() => openAgentSettings(selectedConversationMeta.agentSlug)}
+                      onClick={() => openAgentSettings(activeConversationMeta.agentSlug)}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-border transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <Bot className="h-2.5 w-2.5" />
-                      {selectedConversationMeta.agentSlug}
+                      {activeConversationMeta.agentSlug}
                     </button>
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                        TASK_CARD_TRIGGER_STYLES[selectedConversationMeta.trigger]
+                        TASK_CARD_TRIGGER_STYLES[activeConversationMeta.trigger]
                       )}
                     >
-                      <TriggerIcon trigger={selectedConversationMeta.trigger} className="h-2.5 w-2.5" />
-                      {TRIGGER_LABELS[selectedConversationMeta.trigger]}
+                      <TriggerIcon trigger={activeConversationMeta.trigger} className="h-2.5 w-2.5" />
+                      {TRIGGER_LABELS[activeConversationMeta.trigger]}
                     </span>
                     <span
                       className={cn(
                         "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                        STATUS_TAG_STYLES[selectedConversationMeta.status] || "bg-muted text-muted-foreground ring-1 ring-border"
+                        STATUS_TAG_STYLES[activeConversationMeta.status] || "bg-muted text-muted-foreground ring-1 ring-border"
                       )}
                     >
-                      {selectedConversationMeta.status}
+                      {activeConversationMeta.status}
                     </span>
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
-                  {selectedConversationMeta.trigger === "job" && (
+                  {activeConversationMeta.trigger === "job" && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-7 gap-1 text-[11px] text-muted-foreground"
-                      onClick={() => openAgentSettings(selectedConversationMeta.agentSlug)}
+                      onClick={() => openAgentSettings(activeConversationMeta.agentSlug)}
                     >
                       <Settings className="h-3 w-3" />
                       Settings
@@ -2385,8 +2371,8 @@ export function AgentsWorkspace({
                     className="h-7 gap-1 text-[11px] text-muted-foreground hover:text-destructive"
                     onClick={() =>
                       void deleteConversation(
-                        selectedConversationMeta.id,
-                        selectedConversationMeta.cabinetPath
+                        activeConversationMeta.id,
+                        activeConversationMeta.cabinetPath
                       )
                     }
                   >
@@ -2397,37 +2383,23 @@ export function AgentsWorkspace({
               </div>
             </div>
             <div className="flex-1 overflow-hidden">
-              {selectedConversationMeta.status === "running" ? (
-                <WebTerminal
-                  sessionId={selectedConversationMeta.id}
-                  displayPrompt={selectedConversationMeta.title}
-                  reconnect
-                  themeSurface="page"
-                  onClose={() => {
-                    void refreshConversations();
-                  }}
-                />
-              ) : selectedConversation ? (
-                <ConversationResultView
-                  detail={selectedConversation}
-                  onOpenArtifact={(artifactPath) => {
-                    void openArtifactPath(
-                      artifactPath,
-                      effectiveCabinetPath
-                        ? {
-                            type: "page",
-                            mode: "cabinet",
-                            cabinetPath: effectiveCabinetPath,
-                          }
-                        : { type: "page" }
-                    );
-                  }}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  Loading conversation...
-                </div>
-              )}
+              <ConversationSessionView
+                conversation={activeConversationMeta}
+                onDetailChange={setSelectedConversation}
+                onOpenArtifact={(artifactPath) => {
+                  void openArtifactPath(
+                    artifactPath,
+                    effectiveCabinetPath
+                      ? {
+                          type: "page",
+                          mode: "cabinet",
+                          cabinetPath: effectiveCabinetPath,
+                        }
+                      : { type: "page" }
+                  );
+                }}
+                waitingLabel="Waiting for conversation detail..."
+              />
             </div>
           </div>
         ) : mode === "settings" ? (
