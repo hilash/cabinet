@@ -176,7 +176,7 @@ export function CsvViewer({ path, title }: CsvViewerProps) {
               disabled={saving}
             >
               <Save className="h-3.5 w-3.5" />
-              {saving ? "Saving..." : "Save"}
+              {saving ? "保存中..." : "保存"}
             </Button>
           )}
           <button
@@ -188,12 +188,12 @@ export function CsvViewer({ path, title }: CsvViewerProps) {
             }`}
           >
             <Code2 className="h-3 w-3" />
-            {sourceMode ? "Table" : "Source"}
+            {sourceMode ? "表格" : "源代码"}
           </button>
           <button
             onClick={() => window.open(csvUrl, "_blank")}
             className="inline-flex items-center justify-center rounded-md h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-            title="Download CSV"
+            title="下载 CSV"
           >
             <Download className="h-4 w-4" />
           </button>
@@ -266,7 +266,7 @@ export function CsvViewer({ path, title }: CsvViewerProps) {
                       <button
                         className="hidden group-hover:inline text-red-400 hover:text-red-300 text-[10px]"
                         onClick={() => deleteRow(r)}
-                        title="Delete row"
+                        title="删除行"
                       >
                         ×
                       </button>
@@ -325,13 +325,13 @@ export function CsvViewer({ path, title }: CsvViewerProps) {
               onClick={addRow}
               className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-accent"
             >
-              + Add row
+              + 添加行
             </button>
             <button
               onClick={addColumn}
               className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-accent"
             >
-              + Add column
+              + 添加列
             </button>
           </div>
         </div>

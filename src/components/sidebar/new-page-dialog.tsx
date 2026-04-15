@@ -50,11 +50,11 @@ export function NewPageDialog() {
         className="flex items-center gap-2 w-full text-sm px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
       >
         <Plus className="h-4 w-4" />
-        New Page
+        新建页面
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Page</DialogTitle>
+          <DialogTitle>Create 新建页面</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -64,13 +64,13 @@ export function NewPageDialog() {
           className="flex gap-2"
         >
           <Input
-            placeholder="Page title..."
+            placeholder="页面标题..."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             autoFocus
           />
           <Button type="submit" disabled={!title.trim() || creating}>
-            {creating ? "Creating..." : "Create"}
+            {creating ? "创建中..." : "Create"}
           </Button>
         </form>
       </DialogContent>

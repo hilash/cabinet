@@ -236,7 +236,7 @@ export function AgentList() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-        Loading...
+        加载中...
       </div>
     );
   }

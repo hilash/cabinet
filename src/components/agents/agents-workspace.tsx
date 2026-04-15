@@ -91,9 +91,9 @@ const GENERAL_AGENT: AgentListItem = {
 };
 
 const TRIGGER_LABELS: Record<ConversationMeta["trigger"], string> = {
-  manual: "Manual",
+  manual: "手动",
   job: "Job",
-  heartbeat: "Heartbeat",
+  heartbeat: "心跳",
 };
 
 const TASK_CARD_TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
@@ -147,7 +147,7 @@ function slugify(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function startCase(value: string | undefined, fallback = "Not set"): string {
+function startCase(value: string | undefined, fallback = "未设置"): string {
   if (!value) return fallback;
   const words = value
     .trim()
@@ -1669,7 +1669,7 @@ export function AgentsWorkspace({
               }
             }}
             ref={composerTextareaRef}
-            placeholder={`Ask ${panelAgent?.name || agentSlug} to work on something. Type @ to attach a page as context.`}
+            placeholder={`Ask ${panelAgent?.name || agentSlug} 处理任务。输入 @ 引用页面作为上下文。`}
             style={{ minHeight: "80px", maxHeight: "260px" }}
             className="pointer-events-auto w-full resize-none overflow-y-auto bg-transparent px-4 pt-4 pb-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60"
           />
@@ -1759,7 +1759,7 @@ export function AgentsWorkspace({
                   {activeAgent.name}
                 </h3>
                 <p className="text-[11px] text-muted-foreground">
-                  {`Recent runs for ${activeAgent.name}`}
+                  {`最近运行: ${activeAgent.name}`}
                 </p>
               </button>
             ) : (
@@ -1792,7 +1792,7 @@ export function AgentsWorkspace({
                 onClick={() => setTriggerFilter(filter)}
               >
                 {filter === "all" ? (
-                  "All"
+                  "全部"
                 ) : filter === "job" ? (
                   <span className="inline-flex items-center gap-1.5">
                     <TriggerIcon trigger="job" />
@@ -1804,7 +1804,7 @@ export function AgentsWorkspace({
                     Heartbeat
                   </span>
                 ) : (
-                  "Manual"
+                  "手动"
                 )}
               </TriggerChip>
             ))}
@@ -1816,7 +1816,7 @@ export function AgentsWorkspace({
                 active={statusFilter === filter}
                 onClick={() => setStatusFilter(filter)}
               >
-                {filter === "all" ? "Any status" : filter[0].toUpperCase() + filter.slice(1)}
+                {{ all: "全部状态", running: "运行中", completed: "已完成", failed: "失败" }[filter] || filter}
               </TriggerChip>
             ))}
           </div>
@@ -1832,7 +1832,7 @@ export function AgentsWorkspace({
               <div className="px-3 py-8" />
             ) : conversations.length === 0 ? (
               <div className="animate-in fade-in duration-300 px-3 py-8 text-[12px] text-muted-foreground">
-                No conversations yet.
+                暂无对话。
               </div>
             ) : (
               conversations.map((conversation) => {
@@ -2166,7 +2166,7 @@ export function AgentsWorkspace({
                 <ScrollArea className="max-h-[70vh]">
                   <div className="grid gap-4 pr-2 md:grid-cols-2">
                     <label className="space-y-1 text-[11px] text-muted-foreground">
-                      <span>Name</span>
+                      <span>名称</span>
                       <input
                         value={newAgentDraft.name}
                         onChange={(event) =>
@@ -2202,7 +2202,7 @@ export function AgentsWorkspace({
                       />
                     </label>
                     <label className="space-y-1 text-[11px] text-muted-foreground">
-                      <span>Role</span>
+                      <span>角色</span>
                       <input
                         value={newAgentDraft.role}
                         onChange={(event) =>
@@ -2213,7 +2213,7 @@ export function AgentsWorkspace({
                       />
                     </label>
                     <div className="space-y-1 text-[11px] text-muted-foreground">
-                      <span>Heartbeat</span>
+                      <span>心跳</span>
                       <SchedulePicker
                         value={newAgentDraft.heartbeat || "0 */4 * * *"}
                         onChange={(cron) =>
@@ -2225,7 +2225,7 @@ export function AgentsWorkspace({
                       />
                     </div>
                     <label className="space-y-1 text-[11px] text-muted-foreground">
-                      <span>Department</span>
+                      <span>部门</span>
                       <input
                         value={newAgentDraft.department}
                         onChange={(event) =>
@@ -2374,48 +2374,48 @@ export function AgentsWorkspace({
                         onClick={() => handleSettingsEditorOpenChange(true)}
                       >
                         <Settings className="h-3.5 w-3.5" />
-                        Edit agent
+                        编辑 Agent
                       </Button>
                       <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={runHeartbeatNow}>
                         <Zap className="h-3.5 w-3.5" />
-                        Run heartbeat
+                        运行心跳
                       </Button>
                       <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={toggleAgentActive}>
                         {settingsPersona.active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                        {settingsPersona.active ? "Pause" : "Activate"}
+                        {settingsPersona.active ? "暂停" : "激活"}
                       </Button>
                     </div>
                   </div>
 
                   <div className="flex min-w-0 flex-wrap gap-2">
                     <div className="overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Role</div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">角色</div>
                       <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
-                        {settingsPersona.role || "Not set"}
+                        {settingsPersona.role || "未设置"}
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Department</div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">部门</div>
                       <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
-                        {settingsPersona.department || "Not set"}
+                        {settingsPersona.department || "未设置"}
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
                       <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Type</div>
                       <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
-                        {settingsPersona.type || "Not set"}
+                        {settingsPersona.type || "未设置"}
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Heartbeat</div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">心跳</div>
                       <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
-                        {settingsPersona.heartbeat ? cronToHuman(settingsPersona.heartbeat) : "Not set"}
+                        {settingsPersona.heartbeat ? cronToHuman(settingsPersona.heartbeat) : "未设置"}
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
                       <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Workspace</div>
                       <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-2">
-                        {settingsPersona.workspace || "Not set"}
+                        {settingsPersona.workspace || "未设置"}
                       </div>
                     </div>
                   </div>
@@ -2424,7 +2424,7 @@ export function AgentsWorkspace({
                 <Dialog open={settingsEditorOpen} onOpenChange={handleSettingsEditorOpenChange}>
                   <DialogContent className="sm:max-w-5xl">
                     <DialogHeader className="gap-1">
-                      <DialogTitle>Edit Agent</DialogTitle>
+                      <DialogTitle>编辑 Agent</DialogTitle>
                       <DialogDescription>
                         Review the live agent, make your changes here, and save when you are ready.
                       </DialogDescription>
@@ -2497,7 +2497,7 @@ export function AgentsWorkspace({
                         </div>
                         <div className="grid content-start gap-2.5 sm:grid-cols-2 xl:grid-cols-2">
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <span>Name</span>
+                            <span>名称</span>
                             <input
                               value={settingsEditorDraft.name || ""}
                               onChange={(event) =>
@@ -2507,7 +2507,7 @@ export function AgentsWorkspace({
                             />
                           </label>
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <span>Role</span>
+                            <span>角色</span>
                             <input
                               value={settingsEditorDraft.role || ""}
                               onChange={(event) =>
@@ -2517,7 +2517,7 @@ export function AgentsWorkspace({
                             />
                           </label>
                           <div className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <span>Heartbeat</span>
+                            <span>心跳</span>
                             <SchedulePicker
                               value={settingsEditorDraft.heartbeat || "0 */4 * * *"}
                               onChange={(cron) =>
@@ -2526,7 +2526,7 @@ export function AgentsWorkspace({
                             />
                           </div>
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <span>Department</span>
+                            <span>部门</span>
                             <input
                               value={settingsEditorDraft.department || ""}
                               onChange={(event) =>
@@ -2844,7 +2844,7 @@ export function AgentsWorkspace({
                         <div className="space-y-2 p-3">
                           {settingsJobs.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-border px-3 py-6 text-[12px] text-muted-foreground">
-                              No jobs yet. Start from scratch or use a library template.
+                              暂无任务。从头创建或使用模板。
                             </div>
                           ) : (
                             settingsJobs.map((job) => (
@@ -2895,7 +2895,7 @@ export function AgentsWorkspace({
                                     <button
                                       onClick={() => void toggleJob(job)}
                                       className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                                      title={job.enabled ? "Pause" : "Enable"}
+                                      title={job.enabled ? "暂停" : "Enable"}
                                     >
                                       {job.enabled ? (
                                         <Pause className="h-3.5 w-3.5" />
@@ -3099,9 +3099,9 @@ export function AgentsWorkspace({
                       ) : (
                         <div className="flex h-full min-h-[280px] items-center justify-center">
                           <div className="max-w-sm space-y-3 px-6 text-center">
-                            <h4 className="text-[13px] font-semibold">Select a job to edit</h4>
+                            <h4 className="text-[13px] font-semibold">选择要编辑的任务</h4>
                             <p className="text-[12px] text-muted-foreground">
-                              Existing jobs open here. Create a new job to start from scratch or choose a template inside the popup.
+                              已有任务会在此打开。创建新任务或从弹窗中选择模板。
                             </p>
                             <div className="flex justify-center gap-2">
                               <Button
@@ -3257,7 +3257,7 @@ export function AgentsWorkspace({
                       void submitConversation(quickSendAgent);
                     }
                   }}
-                  placeholder={`Ask ${targetAgent?.name || quickSendAgent} to work on something. Type @ to attach a page as context.`}
+                  placeholder={`Ask ${targetAgent?.name || quickSendAgent} 处理任务。输入 @ 引用页面作为上下文。`}
                   style={{ minHeight: "120px", maxHeight: "300px" }}
                   className="w-full resize-none overflow-y-auto bg-transparent px-5 pt-4 pb-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60"
                 />

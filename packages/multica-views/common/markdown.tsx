@@ -5,7 +5,7 @@ import {
   Markdown as MarkdownBase,
   type MarkdownProps as MarkdownBaseProps,
   type RenderMode,
-} from "@multica/ui/markdown";
+} from "../../multica-ui/markdown/Markdown";
 import { IssueMentionCard } from "../issues/components/issue-mention-card";
 
 export type { RenderMode };

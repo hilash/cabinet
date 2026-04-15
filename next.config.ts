@@ -16,20 +16,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
-  async rewrites() {
-    const multicaApiUrl =
-      process.env.MULTICA_API_URL || "http://localhost:8080";
-    return [
-      {
-        source: "/multica-api/:path*",
-        destination: `${multicaApiUrl}/api/:path*`,
-      },
-      {
-        source: "/multica-auth/:path*",
-        destination: `${multicaApiUrl}/auth/:path*`,
-      },
-    ];
-  },
   outputFileTracingExcludes: {
     "/*": [
       ".next/dev/**/*",

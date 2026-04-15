@@ -43,7 +43,7 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
       const { svg: rendered } = await mermaid.render(id, text.trim());
       setSvg(rendered);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to render diagram");
+      setError(err instanceof Error ? err.message : "图表渲染失败");
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
             onClick={() => setShowSource((v) => !v)}
           >
             {showSource ? <Eye className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}
-            {showSource ? "Diagram" : "Source"}
+            {showSource ? "图表" : "源代码"}
           </Button>
           <Button
             variant="ghost"
@@ -99,7 +99,7 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
             onClick={copySource}
           >
             {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copied" : "Copy"}
+            {copied ? "已复制" : "复制"}
           </Button>
           {svg && (
             <Button
@@ -118,7 +118,7 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
       <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            Rendering diagram...
+            正在渲染图表...
           </div>
         ) : showSource ? (
           <pre className="p-4 text-[13px] leading-relaxed font-mono bg-[#1e1e1e]">
@@ -135,10 +135,10 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
           </pre>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-sm">
-            <p className="text-red-500">Failed to render diagram</p>
+            <p className="text-red-500">图表渲染失败</p>
             <p className="text-muted-foreground text-xs max-w-md text-center">{error}</p>
             <Button variant="outline" size="sm" onClick={() => setShowSource(true)}>
-              View source
+              查看源代码
             </Button>
           </div>
         ) : (

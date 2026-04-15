@@ -75,9 +75,21 @@ export const claudeCodeProvider: AgentProvider = {
         };
       }
 
+      const cmd = resolveCliCommand(this);
+
+      // Get version
+      let cliVersion = "";
+      try {
+        cliVersion = execSync(`${cmd} --version`, {
+          encoding: "utf8",
+          env: { ...process.env, PATH: RUNTIME_PATH },
+          stdio: ["ignore", "pipe", "ignore"],
+          timeout: 5000,
+        }).trim();
+      } catch { /* ignore */ }
+
       // Check actual auth status via `claude auth status`
       try {
-        const cmd = resolveCliCommand(this);
         const output = execSync(`${cmd} auth status`, {
           encoding: "utf8",
           env: { ...process.env, PATH: RUNTIME_PATH },
@@ -87,23 +99,26 @@ export const claudeCodeProvider: AgentProvider = {
         const auth = JSON.parse(output);
         if (auth.loggedIn) {
           const sub = auth.subscriptionType ? ` (${auth.subscriptionType})` : "";
+          const ver = cliVersion ? (cliVersion.startsWith("v") ? cliVersion : `v${cliVersion}`) : "";
+          const parts = [ver, `已登录${sub}`, cmd].filter(Boolean);
           return {
             available: true,
             authenticated: true,
-            version: `Logged in${sub}`,
+            version: parts.join(" · "),
           };
         }
         return {
           available: true,
           authenticated: false,
-          error: "Claude Code is installed but not logged in. Run: claude auth login",
+          version: cliVersion ? `v${cliVersion} · ${cmd}` : cmd,
+          error: "已安装但未登录。运行: claude auth login",
         };
       } catch {
-        // auth status command failed — might be older version without it
         return {
           available: true,
           authenticated: false,
-          error: "Could not verify login status. Run: claude auth login",
+          version: cliVersion ? `v${cliVersion} · ${cmd}` : cmd,
+          error: "无法验证登录状态。运行: claude auth login",
         };
       }
     } catch (error) {

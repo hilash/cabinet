@@ -37,7 +37,7 @@ export function EmbeddedChatWindow() {
   if (!workspace) {
     return (
       <div className="flex-1 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
-        Sign in to Multica to use chat.
+        登录 Multica 以使用对话功能。
       </div>
     );
   }

@@ -407,7 +407,7 @@ export function JobsManager() {
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Jobs</h2>
+              <h2 className="text-[15px] font-semibold tracking-[-0.02em]">任务</h2>
               <p className="text-[11px] text-muted-foreground">
                 Configure recurring work by agent
               </p>
@@ -470,7 +470,7 @@ export function JobsManager() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-[14px] font-semibold">
-                {selectedAgent ? `Scheduled runs for ${selectedAgent.name}` : "Scheduled runs"}
+                {selectedAgent ? `定时d runs for ${selectedAgent.name}` : "定时d runs"}
               </h3>
               <p className="text-[11px] text-muted-foreground">
                 {selectedAgent
@@ -664,7 +664,7 @@ export function JobsManager() {
                           ) : (
                             <Zap className="h-3.5 w-3.5" />
                           )}
-                          Run now
+                          立即运行
                         </Button>
                       </div>
                       <div className="mt-4 flex gap-3">
@@ -692,7 +692,7 @@ export function JobsManager() {
                       <div className="rounded-2xl border border-border bg-background p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <h4 className="text-[13px] font-semibold">Jobs</h4>
+                            <h4 className="text-[13px] font-semibold">任务</h4>
                             <p className="text-[11px] text-muted-foreground">
                               Per-agent recurring prompts
                             </p>
@@ -747,7 +747,7 @@ export function JobsManager() {
                                       onClick={() => void runJob(job.id)}
                                       disabled={runningJobId === job.id}
                                       className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-primary"
-                                      title="Run now"
+                                      title="立即运行"
                                     >
                                       {runningJobId === job.id ? (
                                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -838,7 +838,7 @@ export function JobsManager() {
                               />
                             </div>
                             <div>
-                              <label className="text-[11px] font-medium text-muted-foreground">Schedule</label>
+                              <label className="text-[11px] font-medium text-muted-foreground">定时</label>
                               <input
                                 value={jobDraft.schedule}
                                 onChange={(event) =>
@@ -891,7 +891,7 @@ export function JobsManager() {
                                     )
                                   }
                                 />
-                                Enabled
+                                已启用
                               </label>
                             </div>
                           </div>

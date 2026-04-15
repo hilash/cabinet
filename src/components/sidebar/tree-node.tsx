@@ -239,11 +239,11 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
         <ContextMenuContent>
           <ContextMenuItem onClick={() => setSubPageOpen(true)}>
             <FilePlus className="h-4 w-4 mr-2" />
-            Add Sub Page
+            添加子页面
           </ContextMenuItem>
           <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
             <GitBranch className="h-4 w-4 mr-2" />
-            Load Knowledge
+            加载知识
           </ContextMenuItem>
           <ContextMenuItem onClick={() => { setRenameTitle(title); setRenameOpen(true); }}>
             <Pencil className="h-4 w-4 mr-2" />
@@ -251,14 +251,14 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
           </ContextMenuItem>
           <ContextMenuItem onClick={() => navigator.clipboard.writeText(node.path)}>
             <Copy className="h-4 w-4 mr-2" />
-            Copy Relative Path
+            复制相对路径
           </ContextMenuItem>
           <ContextMenuItem onClick={async () => {
             const dir = await getDataDir();
             navigator.clipboard.writeText(`${dir}/${node.path}`);
           }}>
             <ClipboardCopy className="h-4 w-4 mr-2" />
-            Copy Full Path
+            复制完整路径
           </ContextMenuItem>
           <ContextMenuItem onClick={() => {
             fetch("/api/system/open-data-dir", {
@@ -268,7 +268,7 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
             });
           }}>
             <FolderOpen className="h-4 w-4 mr-2" />
-            Open in Finder
+            在 Finder 中打开
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={handleDelete} className="text-destructive">
@@ -294,7 +294,7 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Add Sub Page to &ldquo;{title}&rdquo;
+              添加子页面 to &ldquo;{title}&rdquo;
             </DialogTitle>
           </DialogHeader>
           <form
@@ -305,7 +305,7 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
             className="flex gap-2"
           >
             <Input
-              placeholder="Page title..."
+              placeholder="页面标题..."
               value={subPageTitle}
               onChange={(e) => setSubPageTitle(e.target.value)}
               autoFocus
@@ -320,7 +320,7 @@ export function TreeNode({ node, depth }: TreeNodeProps) {
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Rename</DialogTitle>
+            <DialogTitle> 重命名</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={async (e) => {

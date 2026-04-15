@@ -77,7 +77,7 @@ export function VersionHistory() {
         size="icon"
         className="h-8 w-8"
         onClick={() => setOpen(!open)}
-        title="Version History"
+        title="版本历史"
       >
         <History className="h-4 w-4" />
       </Button>
@@ -87,7 +87,7 @@ export function VersionHistory() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
               <History className="h-4 w-4" />
-              <span className="text-[13px] font-semibold">Version History</span>
+              <span className="text-[13px] font-semibold">版本历史</span>
             </div>
             <Button
               variant="ghost"
@@ -172,11 +172,11 @@ export function VersionHistory() {
               <div className="p-2">
                 {loading ? (
                   <p className="text-[13px] text-muted-foreground text-center py-8">
-                    Loading...
+                    加载中...
                   </p>
                 ) : history.length === 0 ? (
                   <p className="text-[13px] text-muted-foreground text-center py-8">
-                    No version history yet
+                    暂无版本历史
                   </p>
                 ) : (
                   history.map((entry) => (

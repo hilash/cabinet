@@ -18,16 +18,58 @@ import { JobsManager } from "@/components/jobs/jobs-manager";
 import { SettingsPage } from "@/components/settings/settings-page";
 import dynamic from "next/dynamic";
 
-const InboxPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.InboxPage), { ssr: false });
-const MyIssuesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MyIssuesPage), { ssr: false });
-const MulticaAgentsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MulticaAgentsPage), { ssr: false });
-const RuntimesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.RuntimesPage), { ssr: false });
-const SkillsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.SkillsPage), { ssr: false });
-const MulticaSettingsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.MulticaSettingsPage), { ssr: false });
-const IssuesPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.IssuesPage), { ssr: false });
-const IssueDetail = dynamic(() => import("@/components/integrations/multica-views").then(m => m.IssueDetail), { ssr: false });
-const ProjectsPage = dynamic(() => import("@/components/integrations/multica-views").then(m => m.ProjectsPage), { ssr: false });
-const ProjectDetail = dynamic(() => import("@/components/integrations/multica-views").then(m => m.ProjectDetail), { ssr: false });
+const InboxPage = dynamic(
+  () => import("@multica/views/inbox").then((m) => m.InboxPage),
+  { ssr: false },
+);
+const MyIssuesPage = dynamic(
+  () => import("@multica/views/my-issues").then((m) => m.MyIssuesPage),
+  { ssr: false },
+);
+const MulticaAgentsPage = dynamic(
+  () => import("@multica/views/agents").then((m) => m.AgentsPage),
+  { ssr: false },
+);
+const RuntimesPage = dynamic(
+  () => import("@multica/views/runtimes").then((m) => m.RuntimesPage),
+  { ssr: false },
+);
+const SkillsPage = dynamic(
+  () => import("@multica/views/skills").then((m) => m.SkillsPage),
+  { ssr: false },
+);
+const MulticaSettingsPage = dynamic(
+  () => import("@multica/views/settings").then((m) => m.SettingsPage),
+  { ssr: false },
+);
+const IssuesPage = dynamic(
+  () =>
+    import("../../../packages/multica-views/issues/components/issues-page").then(
+      (m) => m.IssuesPage,
+    ),
+  { ssr: false },
+);
+const IssueDetail = dynamic(
+  () =>
+    import("../../../packages/multica-views/issues/components/issue-detail").then(
+      (m) => m.IssueDetail,
+    ),
+  { ssr: false },
+);
+const ProjectsPage = dynamic(
+  () =>
+    import(
+      "../../../packages/multica-views/projects/components/projects-page"
+    ).then((m) => m.ProjectsPage),
+  { ssr: false },
+);
+const ProjectDetail = dynamic(
+  () =>
+    import(
+      "../../../packages/multica-views/projects/components/project-detail"
+    ).then((m) => m.ProjectDetail),
+  { ssr: false },
+);
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
 import { AIPanel } from "@/components/ai-panel/ai-panel";
 import { SearchDialog } from "@/components/search/search-dialog";

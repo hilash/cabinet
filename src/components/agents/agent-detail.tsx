@@ -862,7 +862,7 @@ export function AgentDetail({ slug }: { slug: string }) {
   if (loading || !persona) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-        Loading...
+        加载中...
       </div>
     );
   }
@@ -910,7 +910,7 @@ export function AgentDetail({ slug }: { slug: string }) {
             ) : (
               <Play className="h-3 w-3" />
             )}
-            {persona.active ? "Pause" : "Activate"}
+            {persona.active ? "暂停" : "激活"}
           </Button>
           <Button variant="ghost" size="icon-sm" onClick={refresh}>
             <RefreshCw className="h-3.5 w-3.5" />

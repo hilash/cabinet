@@ -260,10 +260,10 @@ export function KBEditor() {
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
         <div className="text-center space-y-3">
           <p className="text-lg font-medium tracking-[-0.02em]">
-            No page selected
+            未选择页面
           </p>
           <p className="text-sm text-muted-foreground/70">
-            Select a page from the sidebar or create a new one
+            从侧边栏选择页面或创建新页面
           </p>
         </div>
       </div>
@@ -303,7 +303,7 @@ export function KBEditor() {
           }`}
         >
           <Code2 className="h-3 w-3" />
-          {sourceMode ? "Preview" : "Source"}
+          {sourceMode ? "预览" : "Source"}
         </button>
       </div>
 
@@ -328,7 +328,7 @@ export function KBEditor() {
               className="group flex items-center gap-2 text-[13px] text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-pointer"
             >
               <Sparkles className="h-3.5 w-3.5 group-hover:text-primary transition-colors" />
-              <span>How would you like to edit this page?</span>
+              <span>您想如何编辑此页面？</span>
             </button>
           </div>
         </div>
@@ -336,9 +336,9 @@ export function KBEditor() {
 
       {/* Status bar */}
       <div className="flex items-center justify-end px-4 py-1 border-t border-border text-xs text-muted-foreground/60">
-        {saveStatus === "saving" && "Saving..."}
-        {saveStatus === "saved" && "Saved"}
-        {saveStatus === "error" && "Save failed"}
+        {saveStatus === "saving" && "保存中..."}
+        {saveStatus === "saved" && "已保存"}
+        {saveStatus === "error" && "保存失败"}
       </div>
 
     </div>

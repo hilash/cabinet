@@ -13,13 +13,13 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 
 const navItems = [
-  { label: "Inbox", type: "inbox", icon: Inbox },
-  { label: "My Issues", type: "my-issues", icon: ListTodo },
-  { label: "Issues", type: "issues", icon: Workflow },
-  { label: "Projects", type: "projects", icon: FolderKanban },
-  { label: "Agents", type: "agents-multica", icon: Bot },
-  { label: "Runtimes", type: "runtimes", icon: Rocket },
-  { label: "Skills", type: "skills", icon: Sparkles },
+  { label: "收件箱", type: "inbox", icon: Inbox },
+  { label: "我的事项", type: "my-issues", icon: ListTodo },
+  { label: "事项", type: "issues", icon: Workflow },
+  { label: "项目", type: "projects", icon: FolderKanban },
+  { label: "智能体", type: "agents-multica", icon: Bot },
+  { label: "运行时", type: "runtimes", icon: Rocket },
+  { label: "技能", type: "skills", icon: Sparkles },
 ] as const;
 
 export function MulticaNav() {

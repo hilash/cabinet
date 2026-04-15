@@ -35,7 +35,7 @@ export function WebsiteViewer({ path, title, fullscreen, onExit }: WebsiteViewer
           )}
           <span className="text-[13px] font-medium">{title}</span>
           <span className="text-xs text-muted-foreground/50 bg-muted px-1.5 py-0.5 rounded">
-            {fullscreen ? "App" : "Embedded Website"}
+            {fullscreen ? "App" : "嵌入式网页"}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -46,7 +46,7 @@ export function WebsiteViewer({ path, title, fullscreen, onExit }: WebsiteViewer
             onClick={() => window.open(iframeSrc, "_blank")}
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Open in new tab
+            在新标签页打开
           </Button>
           <HeaderActions />
         </div>

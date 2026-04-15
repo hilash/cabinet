@@ -426,10 +426,10 @@ export function AIPanel() {
   const formatDate = (ts: string | number) => {
     const d = new Date(ts);
     const today = new Date();
-    if (d.toDateString() === today.toDateString()) return "Today";
+    if (d.toDateString() === today.toDateString()) return "今天";
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+    if (d.toDateString() === yesterday.toDateString()) return "昨天";
     return d.toLocaleDateString([], { month: "short", day: "numeric" });
   };
 
@@ -447,7 +447,7 @@ export function AIPanel() {
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="text-[13px] font-semibold tracking-[-0.02em]">
-            AI Editor
+            AI 编辑器
           </span>
           {currentPath && (
             <span className="text-[11px] text-muted-foreground">
@@ -461,7 +461,7 @@ export function AIPanel() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              title="Clear all sessions"
+              title="清除所有会话"
               onClick={() => {
                 clearAllSessions();
                 setPastSessions([]);
@@ -491,7 +491,7 @@ export function AIPanel() {
           )}
           onClick={() => setActiveTab("editor")}
         >
-          Editor AI
+          编辑器 AI
         </button>
         <button
           className={cn(
@@ -502,7 +502,7 @@ export function AIPanel() {
           )}
           onClick={() => setActiveTab("multica")}
         >
-          Multica Chat
+          Multica 对话
         </button>
       </div>
 
@@ -523,7 +523,7 @@ export function AIPanel() {
                     reference other pages as context.
                   </p>
                   <p className="text-xs text-muted-foreground/60">
-                    Sessions persist across pages and show in Editor Agent.
+                    会话跨页面保留，并显示在编辑器 Agent 中。
                   </p>
                 </div>
               )}
@@ -532,7 +532,7 @@ export function AIPanel() {
               {otherPageRunningSessions.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">
-                    Running on other pages
+                    在其他页面运行中
                   </div>
                   {otherPageRunningSessions.map((session) => (
                     <button
@@ -570,7 +570,7 @@ export function AIPanel() {
               {pastSessions.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">
-                    Previous Sessions
+                    历史会话
                   </div>
                   {pastSessions.map((session) => (
                     <div
@@ -605,7 +605,7 @@ export function AIPanel() {
                           }}
                         >
                           <pre className="max-h-[300px] overflow-y-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-relaxed text-foreground/85">
-                            {pastSessionDetails[session.id] || session.summary || "(No output captured)"}
+                            {pastSessionDetails[session.id] || session.summary || "(无输出记录)"}
                           </pre>
                           <div
                             className="flex items-center gap-3 border-t px-3 py-1.5 text-[10px] text-muted-foreground/60"
@@ -628,7 +628,7 @@ export function AIPanel() {
               {/* Divider */}
               {pastSessions.length > 0 && currentPageSessions.length > 0 && (
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1 pt-2">
-                  Current Sessions
+                  当前会话
                 </div>
               )}
 
@@ -644,7 +644,7 @@ export function AIPanel() {
                         removeSession(session.sessionId);
                       }}
                       className="text-muted-foreground/40 hover:text-destructive shrink-0 p-1"
-                      title="Dismiss"
+                      title="关闭"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -729,8 +729,8 @@ export function AIPanel() {
                 onKeyDown={handleKeyDown}
                 placeholder={
                   currentPath
-                    ? "Ask anything... use @ to reference pages"
-                    : "Select a page first..."
+                    ? "输入任何内容... 使用 @ 引用页面"
+                    : "请先选择一个页面..."
                 }
                 disabled={!currentPath}
                 rows={2}
@@ -746,7 +746,7 @@ export function AIPanel() {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  title="Send"
+                  title="发送"
                   onClick={handleSubmit}
                   disabled={!input.trim() || !currentPath}
                 >

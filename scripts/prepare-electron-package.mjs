@@ -139,6 +139,26 @@ async function stageDaemonRuntime() {
 async function stageBundledNodeRuntime() {
   await copyFile(process.execPath, bundledNodeBinaryPath);
   await fs.chmod(bundledNodeBinaryPath, 0o755);
+
+  // Node on macOS links against a sibling libnode.<abi>.dylib under ../lib.
+  // When we copy just the binary into .next/standalone/bin, dyld can no longer
+  // find that shared library, leading to “Library not loaded: @rpath/libnode.141.dylib”.
+  // Copy the matching libnode.*.dylib next to the bundled runtime to satisfy
+  // the @rpath lookup that expects ../lib relative to the executable.
+  const hostLibDir = path.resolve(path.dirname(process.execPath), "..", "lib");
+  const bundledLibDir = path.resolve(standaloneDir, "lib");
+  try {
+    const entries = await fs.readdir(hostLibDir);
+    const libnode = entries.find((name) => name.startsWith("libnode.") && name.endsWith(".dylib"));
+    if (libnode) {
+      await fs.mkdir(bundledLibDir, { recursive: true });
+      await copyFile(path.join(hostLibDir, libnode), path.join(bundledLibDir, libnode));
+    } else {
+      console.warn("[packaging] libnode dylib not found in host Node lib dir; packaged runtime may fail to load.");
+    }
+  } catch (err) {
+    console.warn("[packaging] failed to copy libnode dylib:", err.message || err);
+  }
 }
 
 async function stageSeedContent() {

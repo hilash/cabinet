@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs/promises";
+import { execFile } from "child_process";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 
 const CONFIG_FILE = path.join(DATA_DIR, ".agents", ".config", "integrations.json");
@@ -43,6 +44,7 @@ export async function sendNotification(opts: {
   // Telegram
   if (config.notifications.telegram?.enabled) {
     const { bot_token, chat_id } = config.notifications.telegram;
+    const proxy = (config.notifications.telegram as Record<string, unknown>).proxy as string | undefined;
     if (bot_token && chat_id) {
       try {
         const icon = severity === "critical" ? "\u{1F6A8}" : severity === "warning" ? "\u{26A0}\u{FE0F}" : "\u{1F4E2}";
@@ -52,17 +54,29 @@ export async function sendNotification(opts: {
           message,
         ].filter(Boolean).join("\n");
 
-        const res = await fetch(`https://api.telegram.org/bot${bot_token}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id,
-            text,
-            parse_mode: "Markdown",
-            disable_web_page_preview: true,
-          }),
+        const url = `https://api.telegram.org/bot${bot_token}/sendMessage`;
+        const payload = JSON.stringify({
+          chat_id,
+          text,
+          parse_mode: "Markdown",
+          disable_web_page_preview: true,
         });
-        if (res.ok) sent.push("telegram");
+
+        // 使用 curl 发送（支持代理）
+        const args = ["-s", "-X", "POST", url, "-H", "Content-Type: application/json", "-d", payload];
+        if (proxy) {
+          args.unshift("--proxy", proxy);
+        }
+        const ok = await new Promise<boolean>((resolve) => {
+          execFile("curl", args, { timeout: 10000 }, (err, stdout) => {
+            if (err) { resolve(false); return; }
+            try {
+              const res = JSON.parse(stdout);
+              resolve(res.ok === true);
+            } catch { resolve(false); }
+          });
+        });
+        if (ok) sent.push("telegram");
       } catch { /* ignore telegram errors */ }
     }
   }

@@ -66,9 +66,21 @@ export const codexCliProvider: AgentProvider = {
         };
       }
 
+      const cmd = resolveCliCommand(this);
+
+      // Get version
+      let cliVersion = "";
+      try {
+        cliVersion = execSync(`${cmd} --version`, {
+          encoding: "utf8",
+          env: { ...process.env, PATH: RUNTIME_PATH },
+          stdio: ["ignore", "pipe", "ignore"],
+          timeout: 5000,
+        }).trim();
+      } catch { /* ignore */ }
+
       // Check auth status via `codex login status`
       try {
-        const cmd = resolveCliCommand(this);
         const output = execSync(`${cmd} login status 2>&1`, {
           encoding: "utf8",
           env: { ...process.env, PATH: RUNTIME_PATH },
@@ -76,25 +88,44 @@ export const codexCliProvider: AgentProvider = {
           timeout: 5000,
         }).trim();
 
-        // Output is e.g. "Logged in using ChatGPT"
         if (output.toLowerCase().startsWith("logged in")) {
+          const ver = cliVersion ? (cliVersion.startsWith("v") ? cliVersion : `v${cliVersion}`) : "";
+          const parts = [ver, output, cmd].filter(Boolean);
           return {
             available: true,
             authenticated: true,
-            version: output,
+            version: parts.join(" · "),
           };
         }
 
         return {
           available: true,
           authenticated: false,
-          error: "Codex CLI is installed but not logged in. Run: codex login",
+          version: cliVersion ? `v${cliVersion} · ${cmd}` : cmd,
+          error: "已安装但未登录。运行: codex login",
         };
       } catch {
+        // 检查配置文件判断是否通过代理登录
+        try {
+          const configPath = `${process.env.HOME || ""}/.codex/config.toml`;
+          const config = require("fs").readFileSync(configPath, "utf8");
+          const hasProvider = config.includes("model_provider");
+          if (hasProvider) {
+            const ver = cliVersion ? (cliVersion.startsWith("v") ? cliVersion : `v${cliVersion}`) : "";
+            const parts = [ver, "已配置 (代理模式)", cmd].filter(Boolean);
+            return {
+              available: true,
+              authenticated: true,
+              version: parts.join(" · "),
+            };
+          }
+        } catch { /* ignore */ }
+
         return {
           available: true,
           authenticated: false,
-          error: "Could not verify login status. Run: codex login",
+          version: cliVersion ? `v${cliVersion} · ${cmd}` : cmd,
+          error: "无法验证登录状态。运行: codex login",
         };
       }
     } catch (error) {

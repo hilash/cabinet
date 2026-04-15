@@ -48,7 +48,7 @@ export function ImageViewer({ path, title }: ImageViewerProps) {
             onClick={() => window.open(src, "_blank")}
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Open in new tab
+            在新标签页打开
           </Button>
           <HeaderActions />
         </div>

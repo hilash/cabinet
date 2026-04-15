@@ -46,13 +46,13 @@ export function UpdateDialog({
         <DialogHeader className="gap-2">
           <DialogTitle>
             {update.updateStatus.state === "restart-required"
-              ? "Restart Cabinet to finish updating"
+              ? "重启 Cabinet 以完成更新"
               : latestVersion && update.updateAvailable
-                ? `Cabinet ${latestVersion} is available`
-                : "Cabinet updates"}
+                ? `Cabinet ${latestVersion} 可用`
+                : "Cabinet 更新"}
           </DialogTitle>
           <DialogDescription>
-            Cabinet checks for releases automatically. While the product is still experimental, keep a copy of your data before installing updates.
+            Cabinet 会自动检查更新。产品仍处于实验阶段，安装更新前请备份数据。
           </DialogDescription>
         </DialogHeader>
 
@@ -71,7 +71,7 @@ export function UpdateDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onLater}>
-            Later
+            稍后
           </Button>
           {update.latestReleaseNotesUrl && (
             <Button
@@ -84,7 +84,7 @@ export function UpdateDialog({
                 />
               }
             >
-              Release notes
+              更新日志
             </Button>
           )}
         </DialogFooter>

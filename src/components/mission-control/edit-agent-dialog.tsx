@@ -181,7 +181,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="text-xl">{emoji}</span>
-            Edit Agent
+            编辑 Agent
           </DialogTitle>
           <DialogDescription>
             Modify agent configuration. Changes are saved to the agent&apos;s markdown file.
@@ -219,7 +219,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-[12px] font-medium">Name</label>
+                <label className="text-[12px] font-medium">名称</label>
                 <Input
                   value={name}
                   onChange={(e) => { setName(e.target.value); markDirty(); }}
@@ -228,7 +228,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[12px] font-medium">Role</label>
+                <label className="text-[12px] font-medium">角色</label>
                 <Input
                   value={role}
                   onChange={(e) => { setRole(e.target.value); markDirty(); }}
@@ -247,7 +247,7 @@ export function EditAgentDialog({ open, onOpenChange, slug, onSaved }: EditAgent
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-[12px] font-medium">Department</label>
+                <label className="text-[12px] font-medium">部门</label>
                 <select
                   value={department}
                   onChange={(e) => { setDepartment(e.target.value); markDirty(); }}

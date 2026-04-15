@@ -48,7 +48,8 @@ function buildHash(section: SelectedSection, pagePath: string | null): string {
 }
 
 function parseHash(hash: string): RouteState {
-  const raw = hash.replace(/^#\/?/, "");
+  const rawWithQuery = hash.replace(/^#\/?/, "");
+  const raw = rawWithQuery.split("?")[0];
   if (!raw || raw === "home") return { section: { type: "home" }, pagePath: null };
 
   if (raw.startsWith("page/")) {

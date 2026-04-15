@@ -1,5 +1,5 @@
-import { preprocessLinks } from "@multica/ui/markdown";
-import { preprocessMentionShortcodes } from "@multica/ui/markdown";
+import { preprocessLinks } from "../../../multica-ui/markdown/linkify";
+import { preprocessMentionShortcodes } from "../../../multica-ui/markdown/mentions";
 import { isFileCardUrl } from "../extensions/file-card";
 
 /**

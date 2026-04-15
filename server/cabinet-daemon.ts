@@ -42,6 +42,11 @@ import {
   normalizeJobConfig,
   normalizeJobId,
 } from "../src/lib/jobs/job-normalization";
+import {
+  startMulticaPoller,
+  stopMulticaPoller,
+  reloadMulticaPoller,
+} from "./multica-poller";
 
 const PORT = getDaemonPort();
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
@@ -1059,8 +1064,12 @@ const scheduleWatcher = chokidar.watch(
   }
 );
 
-scheduleWatcher.on("all", () => {
+scheduleWatcher.on("all", (event, filePath) => {
   queueScheduleReload();
+  // Reload Multica poller when any persona.md changes
+  if (filePath && filePath.endsWith("persona.md")) {
+    reloadMulticaPoller();
+  }
 });
 
 server.listen(PORT, () => {
@@ -1075,6 +1084,9 @@ server.listen(PORT, () => {
   console.log(`  Working directory: ${DATA_DIR}`);
 
   void reloadSchedules();
+
+  // Start Multica task poller (no-op if MULTICA_PAT is not set)
+  startMulticaPoller();
 });
 
 // ===== Graceful Shutdown =====
@@ -1093,6 +1105,7 @@ process.on("SIGINT", () => {
   for (const [, session] of sessions) {
     try { session.pty.kill(); } catch {}
   }
+  stopMulticaPoller();
   void scheduleWatcher.close();
   closeDb();
   server.close();

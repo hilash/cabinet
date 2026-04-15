@@ -15,6 +15,12 @@ import {
 import type { StorageAdapter } from "../types/storage";
 
 const logger = createLogger("auth");
+const INIT_MAX_RETRIES = 5;
+const INIT_RETRY_BASE_DELAY_MS = 500;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export function AuthInitializer({
   children,
@@ -28,6 +34,7 @@ export function AuthInitializer({
   storage?: StorageAdapter;
 }) {
   useEffect(() => {
+    let disposed = false;
     const token = storage.getItem("multica_token");
     if (!token) {
       onLogout?.();
@@ -52,35 +59,53 @@ export function AuthInitializer({
       return;
     }
 
-    Promise.all([api.getMe(), api.listWorkspaces()])
-      .then(([user, wsList]) => {
-        onLogin?.();
-        useAuthStore.setState({ user, isLoading: false });
-        useWorkspaceStore.getState().hydrateWorkspace(wsList, wsId);
-      })
-      .catch((err) => {
-        logger.error("auth init failed", err);
-        // 本地模式：如果已有 user（本地登录设置的），保留登录状态
-        const existingUser = useAuthStore.getState().user;
-        if (existingUser) {
-          logger.info("keeping local user session");
-          const workspaceState = useWorkspaceStore.getState();
-          if (!workspaceState.workspace) {
-            const workspace = createLocalWorkspace(existingUser.name);
-            workspaceState.hydrateWorkspace([workspace], wsId || workspace.id);
-          }
+    async function initializeRemoteSession() {
+      for (let attempt = 1; attempt <= INIT_MAX_RETRIES; attempt += 1) {
+        try {
+          const [user, wsList] = await Promise.all([api.getMe(), api.listWorkspaces()]);
+          if (disposed) return;
           onLogin?.();
-          useAuthStore.setState({ isLoading: false });
+          useWorkspaceStore.getState().hydrateWorkspace(wsList, wsId);
+          useAuthStore.setState({ user, isLoading: false });
           return;
+        } catch (err) {
+          logger.error("auth init failed", {
+            attempt,
+            maxAttempts: INIT_MAX_RETRIES,
+            error: err,
+          });
+
+          if (attempt < INIT_MAX_RETRIES) {
+            await sleep(INIT_RETRY_BASE_DELAY_MS * attempt);
+          }
         }
-        api.setToken(null);
-        api.setWorkspaceId(null);
-        storage.removeItem("multica_token");
-        storage.removeItem("multica_workspace_id");
-        onLogout?.();
-        useAuthStore.setState({ user: null, isLoading: false });
-      });
-  }, []);
+      }
+
+      if (disposed) return;
+
+      // 本地模式：如果已有 user（本地登录设置的），保留登录状态
+      const existingUser = useAuthStore.getState().user;
+      if (existingUser) {
+        logger.info("keeping local user session");
+        const workspaceState = useWorkspaceStore.getState();
+        if (!workspaceState.workspace) {
+          const workspace = createLocalWorkspace(existingUser.name);
+          workspaceState.hydrateWorkspace([workspace], wsId || workspace.id);
+        }
+        onLogin?.();
+        useAuthStore.setState({ isLoading: false });
+        return;
+      }
+
+      logger.warn("auth init retries exhausted; keep token and let caller retry");
+      useAuthStore.setState({ user: null, isLoading: false });
+    }
+
+    void initializeRemoteSession();
+    return () => {
+      disposed = true;
+    };
+  }, [onLogin, onLogout, storage]);
 
   return <>{children}</>;
 }

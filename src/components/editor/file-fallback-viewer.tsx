@@ -61,7 +61,7 @@ export function FileFallbackViewer({ path, title }: FileFallbackViewerProps) {
               onClick={revealInFinder}
             >
               <FolderOpen className="h-4 w-4" />
-              Open in Finder
+              在 Finder 中打开
             </Button>
             <Button
               variant="outline"

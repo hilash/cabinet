@@ -245,7 +245,7 @@ export function MissionControl() {
   }, [confirmStart]);
 
   // Group agents by department — "general" agents are standalone
-  // Filter out system agents (Editor Agent) from Mission Control
+  // Filter out system agents (Editor Agent) from 控制中心
   const mcAgents = agents.filter((a) => a.slug !== "editor");
   const departments: DepartmentGroup[] = [];
   const standaloneAgents: AgentSummary[] = [];
@@ -413,7 +413,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
         <div className="text-center space-y-2">
           <Gauge className="h-8 w-8 mx-auto text-muted-foreground/40 animate-pulse" />
           <p className="text-[13px] text-muted-foreground">
-            Loading Mission Control...
+            Loading 控制中心...
           </p>
         </div>
       </div>
@@ -572,7 +572,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
               </div>
               <Button variant="default" size="sm" className="text-[12px] gap-1.5" onClick={() => setCreateOpen(true)}>
                 <Plus className="h-3 w-3" />
-                Create Agent
+                创建 Agent
               </Button>
             </div>
           ) : (
@@ -623,12 +623,12 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                 </div>
               ))}
 
-              {/* Create Agent Card */}
+              {/* 创建 Agent Card */}
               <div className="border border-dashed border-border/50 rounded-xl p-5 min-h-[120px] hover:border-primary/20 transition-colors">
                 <div className="text-center space-y-3">
                   <Plus className="h-6 w-6 mx-auto text-muted-foreground/30" />
                   <p className="text-[14px] font-medium text-muted-foreground/70">
-                    Create Agent
+                    创建 Agent
                   </p>
                   <div className="flex gap-2 justify-center">
                     <button
@@ -758,7 +758,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                       Creating...
                     </>
                   ) : (
-                    "Create Agent"
+                    "创建 Agent"
                   )}
                 </Button>
               </div>

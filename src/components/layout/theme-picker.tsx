@@ -102,7 +102,7 @@ export function ThemePicker() {
         >
           {/* Default themes */}
           <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/60">
-            Default
+            默认
           </div>
           <button
             onClick={() => selectDefault("light")}
@@ -114,7 +114,7 @@ export function ThemePicker() {
             )}
           >
             <Sun className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 text-left">Light</span>
+            <span className="flex-1 text-left">浅色</span>
             {!activeCustomTheme && theme === "light" && (
               <Check className="h-3 w-3 text-primary shrink-0" />
             )}
@@ -129,7 +129,7 @@ export function ThemePicker() {
             )}
           >
             <Moon className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 text-left">Dark</span>
+            <span className="flex-1 text-left">深色</span>
             {!activeCustomTheme && theme === "dark" && (
               <Check className="h-3 w-3 text-primary shrink-0" />
             )}
@@ -139,7 +139,7 @@ export function ThemePicker() {
 
           {/* Dark themes */}
           <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/60">
-            Dark Themes
+            深色主题
           </div>
           {darkThemes.map((t) => (
             <button
@@ -172,7 +172,7 @@ export function ThemePicker() {
 
           {/* Light themes */}
           <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/60">
-            Light Themes
+            浅色主题
           </div>
           {lightThemes.map((t) => (
             <button

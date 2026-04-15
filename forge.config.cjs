@@ -151,7 +151,7 @@ module.exports = {
     asar: {
       unpackDir: ".next/standalone",
     },
-    extraResource: ["./build/multica-server"],
+    extraResource: ["./build/multica-server", "./build/migrations"],
     prune: true,
     ignore: PACKAGER_IGNORE,
     afterComplete: [codesignNativeBinaries, pruneMacLocales],

@@ -408,7 +408,7 @@ function TeamBuildStep({
                 border: `1px solid ${WEB.border}`,
               }}
             >
-              Coming soon
+              即将推出
             </span>
           </div>
         </div>
@@ -815,7 +815,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             ))}
           </div>
 
-          {/* Step 0: Welcome — Dictionary card + tagline side-by-side */}
+          {/* Step 0: 欢迎 — Dictionary card + tagline side-by-side */}
           {step === 0 && (
             <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 animate-in fade-in duration-300">
               <div className="flex flex-col lg:flex-row lg:items-center lg:gap-10 w-full">
@@ -918,7 +918,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     className="inline-flex items-center justify-center gap-2.5 rounded-full px-10 py-4 text-base font-medium text-white transition-all hover:-translate-y-0.5 shadow-sm w-full lg:w-auto"
                     style={{ background: WEB.accent }}
                   >
-                    Get started
+                    开始使用
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -926,12 +926,12 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
 
-          {/* Step 1: Welcome — About you */}
+          {/* Step 1: 欢迎 — About you */}
           {step === 1 && (
             <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
                 <h1 className="font-logo text-2xl tracking-tight italic">
-                  Welcome to <span style={{ color: WEB.accent }}>your</span> Cabinet
+                  欢迎 to <span style={{ color: WEB.accent }}>your</span> Cabinet
                 </h1>
               </div>
 
@@ -1214,10 +1214,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </div>
               )}
 
-              {/* Coming soon providers */}
+              {/* 即将推出 providers */}
               <div className="space-y-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: WEB.textTertiary }}>
-                  Coming soon
+                  即将推出
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[

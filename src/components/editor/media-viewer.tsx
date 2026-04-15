@@ -49,7 +49,7 @@ export function MediaViewer({ path, title, type }: MediaViewerProps) {
             onClick={() => window.open(src, "_blank")}
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Open in new tab
+            在新标签页打开
           </Button>
           <HeaderActions />
         </div>
@@ -61,13 +61,13 @@ export function MediaViewer({ path, title, type }: MediaViewerProps) {
             controls
             className="max-w-full max-h-full rounded-md shadow-lg"
           >
-            Your browser does not support the video element.
+            您的浏览器不支持此视频格式。
           </video>
         ) : (
           <div className="w-full max-w-lg space-y-4">
             <div className="text-center text-muted-foreground text-sm">{filename}</div>
             <audio src={src} controls className="w-full">
-              Your browser does not support the audio element.
+              您的浏览器不支持此音频格式。
             </audio>
           </div>
         )}

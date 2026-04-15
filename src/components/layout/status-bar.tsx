@@ -248,9 +248,9 @@ export function StatusBar() {
             />
             <span>
               {appAlive && daemonAlive && anyProviderReady
-                ? "Online"
+                ? "在线"
                 : !appAlive
-                ? "Offline"
+                ? "离线"
                 : "Degraded"}
             </span>
           </button>
@@ -312,7 +312,7 @@ export function StatusBar() {
                       }`} />
                       <span className="font-medium text-foreground/80">Agent Providers</span>
                       <span className={`ml-auto ${anyProviderReady ? "text-green-500" : "text-red-500"}`}>
-                        {!providersLoaded ? "Checking..." : anyProviderReady ? "Available" : "None Ready"}
+                        {!providersLoaded ? "检查中..." : anyProviderReady ? "可用" : "未就绪"}
                       </span>
                     </div>
                     {providersLoaded && providerStatuses.map((p) => (
@@ -465,7 +465,7 @@ export function StatusBar() {
         )}
         <span className="flex items-center gap-1">
           <GitBranch className="h-3 w-3" />
-          {uncommitted > 0 ? `${uncommitted} uncommitted` : "All committed"}
+          {uncommitted > 0 ? `${uncommitted} 未提交` : "已全部提交"}
         </span>
         <button
           onClick={pullAndRefresh}
@@ -497,7 +497,7 @@ export function StatusBar() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Open the Cabinet GitHub repository to contribute"
-          title="Contribute on GitHub"
+          title="在 GitHub 上贡献"
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
         >
           <GitHubIcon className="h-3.5 w-3.5" />
@@ -509,13 +509,13 @@ export function StatusBar() {
           href={GITHUB_REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`Star Cabinet on GitHub (${formatGithubStars(githubStars)} stars)`}
-          title={`Star on GitHub (${formatGithubStars(githubStars)} stars)`}
+          aria-label={`在 GitHub 上收藏 Cabinet (${formatGithubStars(githubStars)} 星标)`}
+          title={`在 GitHub 上收藏 (${formatGithubStars(githubStars)} 星标)`}
           className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-500/35 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
         >
           <Star className="h-3.5 w-3.5 fill-current" />
           <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            {formatGithubStars(githubStars)} stars
+            {formatGithubStars(githubStars)} 星标
           </span>
         </a>
       </div>

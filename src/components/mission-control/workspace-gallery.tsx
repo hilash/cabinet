@@ -101,7 +101,7 @@ export function WorkspaceGallery({ onClose }: { onClose: () => void }) {
           onClick={onClose}
           className="text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors"
         >
-          Back to Mission Control
+          Back to 控制中心
         </button>
       </div>
 

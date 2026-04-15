@@ -53,6 +53,8 @@ export interface AgentPersona {
   channels: string[];     // Agent Slack channels
   workspace: string;      // relative path under data/.agents/{slug}/
   setupComplete: boolean; // false until agent settings are saved for the first time
+  // Multica integration
+  multica_runtime_id?: string; // Multica runtime ID — enables task polling when set
   // Computed
   slug: string;
   body: string; // markdown body (persona instructions)
@@ -200,6 +202,7 @@ export async function readPersona(slug: string): Promise<AgentPersona | null> {
     channels: (data.channels as string[]) || ["general"],
     workspace: (data.workspace as string) || `workspace`,
     setupComplete: data.setupComplete === true,
+    multica_runtime_id: typeof data.multica_runtime_id === "string" ? data.multica_runtime_id.trim() || undefined : undefined,
     slug,
     body: content.trim(),
   };

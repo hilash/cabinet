@@ -379,13 +379,13 @@ export function SettingsPage() {
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "providers", label: "Providers", icon: <Cpu className="h-3.5 w-3.5" /> },
-    { id: "storage", label: "Storage", icon: <HardDrive className="h-3.5 w-3.5" /> },
-    { id: "integrations", label: "Integrations", icon: <Plug className="h-3.5 w-3.5" /> },
-    { id: "notifications", label: "Notifications", icon: <Bell className="h-3.5 w-3.5" /> },
-    { id: "appearance", label: "Appearance", icon: <Palette className="h-3.5 w-3.5" /> },
-    { id: "updates", label: "Updates", icon: <CloudDownload className="h-3.5 w-3.5" /> },
-    { id: "about", label: "About", icon: <Info className="h-3.5 w-3.5" /> },
+    { id: "providers", label: "提供商", icon: <Cpu className="h-3.5 w-3.5" /> },
+    { id: "storage", label: "存储", icon: <HardDrive className="h-3.5 w-3.5" /> },
+    { id: "integrations", label: "集成", icon: <Plug className="h-3.5 w-3.5" /> },
+    { id: "notifications", label: "通知", icon: <Bell className="h-3.5 w-3.5" /> },
+    { id: "appearance", label: "外观", icon: <Palette className="h-3.5 w-3.5" /> },
+    { id: "updates", label: "更新", icon: <CloudDownload className="h-3.5 w-3.5" /> },
+    { id: "about", label: "关于", icon: <Info className="h-3.5 w-3.5" /> },
   ];
 
   return (
@@ -438,14 +438,14 @@ export function SettingsPage() {
           {tab === "appearance" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[13px] font-semibold mb-1">Theme</h3>
+                <h3 className="text-[13px] font-semibold mb-1">主题</h3>
                 <p className="text-[12px] text-muted-foreground mb-4">
-                  Choose a theme for the interface.
+                  选择界面主题。
                 </p>
 
                 <div className="space-y-4">
                   <div>
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">Light Themes</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">浅色主题</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {lightThemes.map((t) => (
                         <button
@@ -484,7 +484,7 @@ export function SettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">Dark Themes</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">深色主题</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {darkThemes.map((t) => (
                         <button
@@ -523,7 +523,7 @@ export function SettingsPage() {
           {tab === "storage" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[14px] font-semibold mb-1">Data Directory</h3>
+                <h3 className="text-[14px] font-semibold mb-1">数据目录</h3>
                 <p className="text-[12px] text-muted-foreground">
                   All Knowledge Base content is stored in this directory.
                   Changing the path requires a restart.
@@ -534,7 +534,7 @@ export function SettingsPage() {
                 <div className="flex items-center gap-3 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
                   <RotateCw className="h-4 w-4 shrink-0 text-yellow-500" />
                   <div className="flex-1">
-                    <p className="text-[13px] font-medium text-yellow-500">Restart required</p>
+                    <p className="text-[13px] font-medium text-yellow-500">需要重启</p>
                     <p className="text-[12px] text-muted-foreground">
                       The data directory will change after you restart Cabinet.
                     </p>
@@ -544,12 +544,12 @@ export function SettingsPage() {
 
               <div className="space-y-2">
                 <label className="text-[12px] font-medium text-muted-foreground">
-                  Current path
+                  当前路径
                 </label>
                 <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 bg-muted/30">
                   <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="flex-1 font-mono text-[12px] truncate select-all">
-                    {dataDir || "Loading..."}
+                    {dataDir || "加载中..."}
                   </span>
                   <Button
                     variant="ghost"
@@ -566,7 +566,7 @@ export function SettingsPage() {
 
               <div className="space-y-2">
                 <label className="text-[12px] font-medium text-muted-foreground">
-                  Change directory
+                  更改目录
                 </label>
                 <div className="flex gap-2">
                   <Input
@@ -649,7 +649,7 @@ export function SettingsPage() {
                       }}
                     >
                       <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                      Open in Finder
+                      在 Finder 中打开
                     </Button>
                   )}
                 </div>
@@ -692,19 +692,19 @@ export function SettingsPage() {
           {tab === "providers" && (
             <>
               <div>
-                <h3 className="text-[14px] font-semibold mb-3">Agent Providers</h3>
+                <h3 className="text-[14px] font-semibold mb-3">Agent 提供商</h3>
                 <p className="text-xs text-muted-foreground mb-4">
                   Configure AI agent providers. CLI agents run via terminal, API agents use direct API calls.
                 </p>
 
                 {loading ? (
-                  <p className="text-[13px] text-muted-foreground">Loading...</p>
+                  <p className="text-[13px] text-muted-foreground">加载中...</p>
                 ) : (
                   <div className="space-y-3">
                     <div>
                       <div className="mb-3 rounded-lg border border-border bg-card p-3">
                         <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Default provider
+                          默认提供商
                         </label>
                         <div className="mt-2 space-y-1">
                           {providers
@@ -758,7 +758,7 @@ export function SettingsPage() {
                       </div>
 
                       <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                        CLI Agents
+                        CLI Agent
                       </h4>
                       <div className="space-y-2">
                         {providers
@@ -773,7 +773,7 @@ export function SettingsPage() {
                               ? provider.version || "Ready"
                               : isInstalled
                                 ? "Installed but not logged in"
-                                : "Not installed";
+                                : "未安装";
                             return (
                               <div
                                 key={provider.id}
@@ -902,7 +902,7 @@ export function SettingsPage() {
                                                 style={{ background: "#1e1e1e", color: "#d4d4d4" }}
                                               >
                                                 <Terminal className="size-3" />
-                                                Open terminal
+                                                打开终端
                                               </button>
                                             )}
                                             {step.link && (
@@ -937,19 +937,19 @@ export function SettingsPage() {
                         className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-muted disabled:opacity-50 mt-2"
                       >
                         <RefreshCw className={cn("size-3", loading && "animate-spin")} />
-                        Re-check providers
+                        重新检测提供商
                       </button>
                     </div>
 
                     <div>
                       <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                        API Agents
+                        API Agent
                       </h4>
                       <div className="space-y-2">
                         {[
-                          { name: "Anthropic API", env: "ANTHROPIC_API_KEY", status: "Coming soon" },
-                          { name: "OpenAI API", env: "OPENAI_API_KEY", status: "Coming soon" },
-                          { name: "Google AI API", env: "GOOGLE_AI_API_KEY", status: "Coming soon" },
+                          { name: "Anthropic API", env: "ANTHROPIC_API_KEY", status: "即将推出" },
+                          { name: "OpenAI API", env: "OPENAI_API_KEY", status: "即将推出" },
+                          { name: "Google AI API", env: "GOOGLE_AI_API_KEY", status: "即将推出" },
                         ].map((p) => (
                           <div
                             key={p.name}
@@ -976,9 +976,9 @@ export function SettingsPage() {
           {/* Integrations Tab */}
           {tab === "integrations" && (
             <div className="space-y-6">
-              {/* Multica Account */}
+              {/* Multica 账户 */}
               <div>
-                <h3 className="text-[14px] font-semibold mb-1">Multica Account</h3>
+                <h3 className="text-[14px] font-semibold mb-1">Multica 账户</h3>
                 <p className="text-xs text-muted-foreground mb-4">
                   Multica powers issue tracking, agents, and project management.
                 </p>
@@ -1000,7 +1000,7 @@ export function SettingsPage() {
                         onClick={multicaLogout}
                         className="text-[12px]"
                       >
-                        Sign out
+                        退出登录
                       </Button>
                     </div>
                   </div>
@@ -1018,7 +1018,7 @@ export function SettingsPage() {
               {/* Blurred content preview */}
               <div className="pointer-events-none select-none blur-[2px] opacity-70" aria-hidden="true">
                 <div>
-                  <h3 className="text-[14px] font-semibold mb-1">MCP Servers</h3>
+                  <h3 className="text-[14px] font-semibold mb-1">MCP 服务器</h3>
                   <p className="text-xs text-muted-foreground mb-4">
                     Configure tool servers that agents can use. Enable a server and provide API credentials for agents to access external services.
                   </p>
@@ -1032,7 +1032,7 @@ export function SettingsPage() {
                             </div>
                             <span className="text-[13px] font-medium">{name}</span>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Disabled</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">已禁用</span>
                         </div>
                         <div className="space-y-1.5">
                           <div>
@@ -1090,7 +1090,7 @@ export function SettingsPage() {
               {/* Blurred content preview */}
               <div className="pointer-events-none select-none blur-[2px] opacity-70" aria-hidden="true">
                 <div>
-                  <h3 className="text-[14px] font-semibold mb-1">Notification Channels</h3>
+                  <h3 className="text-[14px] font-semibold mb-1">通知渠道</h3>
                   <p className="text-xs text-muted-foreground mb-4">
                     Configure how you receive alerts when agents need your attention.
                   </p>
@@ -1120,7 +1120,7 @@ export function SettingsPage() {
                 </div>
 
                 <div className="border-t border-border pt-6 mt-6">
-                  <h3 className="text-[14px] font-semibold mb-1">Alert Rules</h3>
+                  <h3 className="text-[14px] font-semibold mb-1">告警规则</h3>
                   <p className="text-xs text-muted-foreground mb-4">
                     Notifications are triggered automatically for these events:
                   </p>
@@ -1136,7 +1136,7 @@ export function SettingsPage() {
                           <p className="text-[12px] font-medium">{rule.event}</p>
                           <p className="text-[10px] text-muted-foreground/60">{rule.desc}</p>
                         </div>
-                        <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Always on</span>
+                        <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">始终开启</span>
                       </div>
                     ))}
                   </div>
@@ -1168,11 +1168,11 @@ export function SettingsPage() {
 
               <div className="space-y-3 text-[13px]">
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Version</span>
+                  <span className="text-muted-foreground">版本</span>
                   <span className="font-mono">0.2.6</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Framework</span>
+                  <span className="text-muted-foreground">框架</span>
                   <span>Next.js (App Router)</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
@@ -1195,7 +1195,7 @@ export function SettingsPage() {
               </div>
 
               <div className="border-t border-border pt-6">
-                <h3 className="text-[14px] font-semibold mb-1">Connect</h3>
+                <h3 className="text-[14px] font-semibold mb-1">联系我们</h3>
                 <p className="text-[12px] text-muted-foreground mb-3">
                   Get help, share feedback, or just say hi.
                 </p>
@@ -1207,8 +1207,8 @@ export function SettingsPage() {
                     className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-[13px] font-medium hover:bg-primary/10 transition-colors"
                   >
                     <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-                    Join the Discord
-                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">Recommended</span>
+                    加入 Discord
+                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">推荐</span>
                   </a>
                   <a
                     href="mailto:hi@runcabinet.com"

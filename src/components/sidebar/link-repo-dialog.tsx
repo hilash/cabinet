@@ -208,7 +208,7 @@ export function LinkRepoDialog({ open, onOpenChange, parentPath }: LinkRepoDialo
             />
           </div>
 
-          {/* ── For Developers ─────────────────────────────── */}
+          {/* ── 开发者选项 ─────────────────────────────── */}
           <div className="border border-border rounded-md">
             <button
               type="button"
@@ -221,7 +221,7 @@ export function LinkRepoDialog({ open, onOpenChange, parentPath }: LinkRepoDialo
                   devExpanded && "rotate-90"
                 )}
               />
-              For Developers
+              开发者选项
             </button>
             {devExpanded && (
               <div className="flex flex-col gap-3 px-3 pb-3">
@@ -233,7 +233,7 @@ export function LinkRepoDialog({ open, onOpenChange, parentPath }: LinkRepoDialo
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium text-muted-foreground">
-                    Remote URL
+                    远程 URL
                   </label>
                   <Input
                     placeholder="Auto-detect from git remote (optional)"

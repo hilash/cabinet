@@ -63,15 +63,15 @@ export function Header() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleCopyMarkdown}>
                 <Copy className="h-4 w-4 mr-2" />
-                Copy Markdown
+                复制 Markdown
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleCopyHTML}>
                 <FileCode className="h-4 w-4 mr-2" />
-                Copy as HTML
+                复制为 HTML
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadMarkdown}>
                 <Download className="h-4 w-4 mr-2" />
-                Download .md
+                下载 .md
               </DropdownMenuItem>
               <DropdownMenuItem onClick={async () => {
                 const editorEl = document.querySelector(".tiptap");
@@ -92,7 +92,7 @@ export function Header() {
                 pdf.save(`${frontmatter?.title || "page"}.pdf`);
               }}>
                 <FileDown className="h-4 w-4 mr-2" />
-                Download PDF
+                下载 PDF
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -36,15 +36,25 @@ export function MulticaNotifications() {
     // user know that task features won't be available.
     if (!healthChecked.current) {
       healthChecked.current = true;
-      fetch("/multica-api/health", { method: "GET" })
-        .then((res) => {
-          if (!res.ok) throw new Error("unhealthy");
-          toast.success("Multica connected");
-        })
-        .catch(() => {
-          console.warn("[multica] Server unreachable — task features are offline");
-          toast.info("Multica server unavailable — task features are offline");
-        });
+      const checkHealth = async () => {
+        let lastError: unknown = null;
+        for (let attempt = 1; attempt <= 6; attempt += 1) {
+          try {
+            const res = await fetch("/multica-api/health", { method: "GET" });
+            if (!res.ok) throw new Error(`unhealthy status: ${res.status}`);
+            toast.success("Multica connected");
+            return;
+          } catch (error) {
+            lastError = error;
+            if (attempt < 6) {
+              await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+            }
+          }
+        }
+        console.warn("[multica] Server unreachable — task features are offline", lastError);
+        toast.info("Multica server unavailable — task features are offline");
+      };
+      void checkHealth();
     }
 
     return () => {

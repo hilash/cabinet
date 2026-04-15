@@ -140,26 +140,38 @@ export function LoginPage({
         setStep("code");
         setCode("");
         setCooldown(10);
-      } catch {
-        // 本地模式：服务端不可用时直接以输入的名称登录
-        const fallbackName = email.includes("@") ? email.split("@")[0] : email;
-        const localUser = createLocalUser(fallbackName);
-        const localWorkspace = createLocalWorkspace(localUser.name);
-        const fakeToken = `local-${Date.now()}`;
-        localStorage.setItem("multica_token", fakeToken);
-        localStorage.setItem(
-          LOCAL_USER_STORAGE_KEY,
-          JSON.stringify(localUser),
-        );
-        api.setToken(fakeToken);
-        useAuthStore.getState().setUser(localUser);
-        useWorkspaceStore
-          .getState()
-          .hydrateWorkspace([localWorkspace], localWorkspace.id);
-        onTokenObtained?.();
-        setLoading(false);
-        onSuccess();
-        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isNetworkError =
+          msg.includes("fetch") ||
+          msg.includes("network") ||
+          msg.includes("Failed") ||
+          msg.includes("502") ||
+          msg.includes("ECONNREFUSED") ||
+          msg.includes("Upstream unavailable");
+        if (isNetworkError) {
+          // 本地模式：服务端不可用时直接以输入的名称登录
+          const fallbackName = email.includes("@") ? email.split("@")[0] : email;
+          const localUser = createLocalUser(fallbackName);
+          const localWorkspace = createLocalWorkspace(localUser.name);
+          const fakeToken = `local-${Date.now()}`;
+          localStorage.setItem("multica_token", fakeToken);
+          localStorage.setItem(
+            LOCAL_USER_STORAGE_KEY,
+            JSON.stringify(localUser),
+          );
+          api.setToken(fakeToken);
+          useAuthStore.getState().setUser(localUser);
+          useWorkspaceStore
+            .getState()
+            .hydrateWorkspace([localWorkspace], localWorkspace.id);
+          onTokenObtained?.();
+          setLoading(false);
+          onSuccess();
+          return;
+        }
+        // API 返回了具体业务错误，显示给用户
+        setError(msg || "发送验证码失败");
       } finally {
         setLoading(false);
       }

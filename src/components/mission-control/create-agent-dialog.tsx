@@ -135,7 +135,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Agent</DialogTitle>
+          <DialogTitle>创建 Agent</DialogTitle>
           <DialogDescription>
             Define a new agent with its identity, schedule, and goals.
           </DialogDescription>
@@ -172,7 +172,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-[12px] font-medium">Name</label>
+                <label className="text-[12px] font-medium">名称</label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -181,7 +181,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[12px] font-medium">Role</label>
+                <label className="text-[12px] font-medium">角色</label>
                 <Input
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
@@ -206,7 +206,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-[12px] font-medium">Department</label>
+                <label className="text-[12px] font-medium">部门</label>
                 <select
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
@@ -354,7 +354,7 @@ export function CreateAgentDialog({ open, onOpenChange, onCreated }: CreateAgent
             disabled={!name.trim() || creating}
             className="text-[12px]"
           >
-            {creating ? "Creating..." : "Create Agent"}
+            {creating ? "Creating..." : "创建 Agent"}
           </Button>
         </DialogFooter>
       </DialogContent>

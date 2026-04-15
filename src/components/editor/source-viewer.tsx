@@ -129,7 +129,7 @@ export function SourceViewer({ path, title }: SourceViewerProps) {
             {copied
               ? <Check className="h-3.5 w-3.5 text-green-500" />
               : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copied" : "Copy"}
+            {copied ? "已复制" : "复制"}
           </Button>
           <Button
             variant="ghost"
@@ -161,7 +161,7 @@ export function SourceViewer({ path, title }: SourceViewerProps) {
       <div className="flex-1 overflow-auto source-viewer-code bg-[#1e1e1e]">
         {loading ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            Loading...
+            加载中...
           </div>
         ) : (
           <table className="w-full border-collapse text-[13px] leading-relaxed font-mono">

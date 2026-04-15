@@ -335,7 +335,7 @@ export function AgentDetailPanel({ slug, onClose, onNavigateToAgent, onOpenFile 
 
   return (
     <>
-      {/* Edit Agent Dialog */}
+      {/* 编辑 Agent Dialog */}
       <EditAgentDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
