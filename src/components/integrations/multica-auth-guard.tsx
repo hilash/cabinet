@@ -16,8 +16,8 @@ function getOwnerPAT(): string {
       return desktop.multicaPAT;
     }
   }
-  // Dev mode fallback — used when running via `npm run dev` without Electron
-  return "mul_8ffe8a61758687cd5bbcfe18d9d30ed9f9a59bbf";
+  // Dev mode: read from NEXT_PUBLIC_MULTICA_PAT env var, or empty (will trigger offline mode)
+  return process.env.NEXT_PUBLIC_MULTICA_PAT || "";
 }
 const OWNER_PAT = getOwnerPAT();
 const AUTO_LOGIN_MAX_RETRIES = 8;
