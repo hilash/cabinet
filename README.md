@@ -253,6 +253,90 @@ make daemon                # 启动 daemon
 
 ---
 
+### 方式三：Docker 部署（已验证）
+
+适合部署到服务器，或不想装 Node/Go 的情况。
+
+```bash
+git clone https://github.com/8676311081/cabinet.git
+git clone https://github.com/multica-ai/multica.git
+
+cd cabinet
+docker compose up -d
+```
+
+会启动三个容器：
+
+| 容器 | 端口 | 说明 |
+|------|------|------|
+| postgres | 5432（内部） | PostgreSQL 17 + pgvector |
+| multica | 18081 | Multica API 后端 |
+| cabinet | 3000 | Cabinet Web UI |
+
+打开 http://localhost:3000 即可使用。
+
+> 注意：Docker 模式下 Agent Daemon 需要在宿主机运行（因为 daemon 要调用本地的 Claude/Codex CLI）。
+> ```bash
+> multica auth login --server-url http://localhost:18081
+> multica workspace list
+> multica workspace watch <workspace-id>
+> multica daemon start --foreground
+> ```
+
+停止：`docker compose down`
+清除数据：`docker compose down -v`
+
+---
+
+### 方式四：VPS/云服务器部署
+
+在远程服务器上部署，可以随时随地通过浏览器访问。
+
+```bash
+# 在 VPS 上
+ssh your-server
+
+git clone https://github.com/8676311081/cabinet.git
+git clone https://github.com/multica-ai/multica.git
+
+cd cabinet
+docker compose up -d
+
+# 配置 Nginx 反代（可选）
+# server {
+#     listen 80;
+#     server_name your-domain.com;
+#     location / { proxy_pass http://127.0.0.1:3000; }
+#     location /multica-api/ { proxy_pass http://127.0.0.1:18081/api/; }
+# }
+```
+
+> Agent Daemon 可以在你本地电脑跑，连远程 server：
+> ```bash
+> multica auth login --server-url http://your-server:18081
+> multica daemon start --foreground
+> ```
+> 这样 Agent 在你本地执行任务，但任务调度和知识库在服务器上。
+
+---
+
+### 方式五：局域网共享
+
+在本地跑 Cabinet，让同一网络的其他人通过浏览器访问。
+
+```bash
+# 启动 Cabinet（默认绑定所有网卡）
+npm run dev:all
+
+# 查看你的局域网 IP
+ifconfig | grep "inet " | grep -v 127.0.0.1
+# 比如 192.168.1.100
+```
+
+其他人在浏览器打开 `http://192.168.1.100:3000` 即可访问。
+
+---
+
 ## 跟 Claude Managed Agents 对比
 
 | | Claude Managed Agents | 本项目 |

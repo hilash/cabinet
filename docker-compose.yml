@@ -1,0 +1,53 @@
+name: cabinet-workstation
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: multica
+      POSTGRES_USER: multica
+      POSTGRES_PASSWORD: multica
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U multica"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  multica:
+    image: multica-server
+    build:
+      context: ../multica
+      dockerfile: Dockerfile
+    ports:
+      - "18081:8080"
+    environment:
+      DATABASE_URL: postgres://multica:multica@postgres:5432/multica?sslmode=disable
+      PORT: "8080"
+      JWT_SECRET: change-me-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "./migrate -dir ./migrations -url $DATABASE_URL up && ./server"
+
+  cabinet:
+    image: cabinet
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      MULTICA_API_URL: http://multica:8080
+      NEXT_PUBLIC_MULTICA_API_URL: /multica-api
+      CABINET_DATA_DIR: /data
+    volumes:
+      - cabinet-data:/data
+    depends_on:
+      - multica
+
+volumes:
+  pgdata:
+  cabinet-data:
