@@ -115,9 +115,24 @@ export function TreeView() {
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
 
-  const [cabinetExpanded, setCabinetExpanded] = useState(true);
-  const [agentsExpanded, setAgentsExpanded] = useState(true);
-  const [kbExpanded, setKbExpanded] = useState(true);
+  const [cabinetExpanded, setCabinetExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("cabinet-section-expanded") !== "false";
+    }
+    return true;
+  });
+  const [agentsExpanded, setAgentsExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("cabinet-agents-expanded") !== "false";
+    }
+    return true;
+  });
+  const [kbExpanded, setKbExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("cabinet-kb-expanded") !== "false";
+    }
+    return true;
+  });
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [kbSubPageOpen, setKbSubPageOpen] = useState(false);
   const [kbSubPageTitle, setKbSubPageTitle] = useState("");
@@ -174,10 +189,26 @@ export function TreeView() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-        Loading...
+        加载中...
       </div>
     );
   }
+
+  const toggleCabinet = () => {
+    const next = !cabinetExpanded;
+    setCabinetExpanded(next);
+    localStorage.setItem("cabinet-section-expanded", String(next));
+  };
+  const toggleAgents = () => {
+    const next = !agentsExpanded;
+    setAgentsExpanded(next);
+    localStorage.setItem("cabinet-agents-expanded", String(next));
+  };
+  const toggleKb = () => {
+    const next = !kbExpanded;
+    setKbExpanded(next);
+    localStorage.setItem("cabinet-kb-expanded", String(next));
+  };
 
   const isAgentsSection =
     section.type === "agents" || section.type === "agent";
@@ -187,12 +218,12 @@ export function TreeView() {
 
   return (
     <>
-    <ScrollArea className="flex-1 min-h-0">
+    <div>
       <div className="py-1">
         {/* ── Cabinet (depth 0) ───────────────────────────── */}
         <button
           onClick={() => {
-            setCabinetExpanded(!cabinetExpanded);
+            toggleCabinet();
             setSection({ type: "home" });
           }}
           className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2 pb-1 w-full text-left flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
@@ -217,7 +248,7 @@ export function TreeView() {
             >
               <button
                 onClick={() => {
-                  setAgentsExpanded(!agentsExpanded);
+                  toggleAgents();
                   setSection({ type: "agents" });
                 }}
                 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
@@ -240,7 +271,7 @@ export function TreeView() {
               </button>
               <button
                 onClick={() => {
-                  setAgentsExpanded(!agentsExpanded);
+                  toggleAgents();
                 }}
                 className="text-muted-foreground/50 hover:text-foreground/80 transition-colors"
               >
@@ -306,12 +337,12 @@ export function TreeView() {
             {/* ── Divider ──────────────────────────────────── */}
             <div className="mx-3 my-1.5 border-t border-border" />
 
-            {/* ── Knowledge Base label ──────────────────────── */}
+            {/* ── 知识库 label ──────────────────────── */}
             <ContextMenu>
               <ContextMenuTrigger>
                 <button
                   onClick={() => {
-                    setKbExpanded(!kbExpanded);
+                    toggleKb();
                     selectPage("");
                     loadPage("");
                     setSection({ type: "page" });
@@ -320,7 +351,7 @@ export function TreeView() {
                   style={pad(1)}
                 >
                   <BookOpen className="h-3.5 w-3.5 shrink-0" />
-                  Knowledge Base
+                  知识库
                   <ChevronRight
                     className={cn(
                       "h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform duration-150 ml-auto",
@@ -332,18 +363,18 @@ export function TreeView() {
               <ContextMenuContent>
                 <ContextMenuItem onClick={() => setKbSubPageOpen(true)}>
                   <FilePlus className="h-4 w-4 mr-2" />
-                  Add Sub Page
+                  添加子页面
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
                   <GitBranch className="h-4 w-4 mr-2" />
-                  Load Knowledge
+                  加载知识
                 </ContextMenuItem>
                 <ContextMenuItem onClick={async () => {
                   const dir = await getDataDir();
                   navigator.clipboard.writeText(dir);
                 }}>
                   <ClipboardCopy className="h-4 w-4 mr-2" />
-                  Copy Full Path
+                  复制完整路径
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => {
                   fetch("/api/system/open-data-dir", {
@@ -353,7 +384,7 @@ export function TreeView() {
                   });
                 }}>
                   <FolderOpen className="h-4 w-4 mr-2" />
-                  Open in Finder
+                  在 Finder 中打开
                 </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>
@@ -373,7 +404,7 @@ export function TreeView() {
                   >
                     <span className="w-3.5" />
                     <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    Add your first page
+                    添加你的第一个页面
                   </button>
                 ) : (
                   nodes.map((node) => (
@@ -385,12 +416,12 @@ export function TreeView() {
           </>
         )}
       </div>
-    </ScrollArea>
+    </div>
 
     <Dialog open={kbSubPageOpen} onOpenChange={setKbSubPageOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Sub Page to &ldquo;Knowledge Base&rdquo;</DialogTitle>
+          <DialogTitle>添加子页面 to &ldquo;知识库&rdquo;</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={async (e) => {

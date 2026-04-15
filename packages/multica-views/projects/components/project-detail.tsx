@@ -83,7 +83,7 @@ function PropertyPill({
 
 const projectViewStore = createIssueViewStore("project_issues_view");
 
-function ProjectIssuesTab({ projectIssues }: { projectIssues: Issue[] }) {
+function ProjectIssuesTab({ projectIssues, projectId }: { projectIssues: Issue[]; projectId: string }) {
   const viewMode = useViewStore((s) => s.viewMode);
   const statusFilters = useViewStore((s) => s.statusFilters);
   const priorityFilters = useViewStore((s) => s.priorityFilters);
@@ -161,6 +161,7 @@ function ProjectIssuesTab({ projectIssues }: { projectIssues: Issue[] }) {
           hiddenStatuses={hiddenStatuses}
           onMoveIssue={handleMoveIssue}
           childProgressMap={childProgressMap}
+          createIssueData={{ project_id: projectId }}
         />
       ) : (
         <ListView issues={issues} visibleStatuses={visibleStatuses} childProgressMap={childProgressMap} />
@@ -497,7 +498,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         /* Issues tab — reuse existing issue list/board components */
         <ViewStoreProvider store={projectViewStore}>
           <IssuesHeader scopedIssues={projectIssues} />
-          <ProjectIssuesTab projectIssues={projectIssues} />
+          <ProjectIssuesTab projectIssues={projectIssues} projectId={projectId} />
           <BatchActionToolbar />
         </ViewStoreProvider>
       )}

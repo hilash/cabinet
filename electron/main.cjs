@@ -7,6 +7,10 @@ const { spawn } = require("child_process");
 const { app, BrowserWindow, dialog, autoUpdater } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
 
+// Suppress EPIPE errors from broken pipes (e.g. after force-kill)
+process.stdout.on("error", (err) => { if (err.code === "EPIPE") process.exit(0); });
+process.stderr.on("error", (err) => { if (err.code === "EPIPE") process.exit(0); });
+
 if (require("electron-squirrel-startup")) {
   app.quit();
 }
@@ -17,7 +21,7 @@ if (!gotSingleInstanceLock) {
 }
 
 const isDev = !app.isPackaged;
-const managedDataDir = path.join(app.getPath("userData"), "cabinet-data");
+const managedDataDir = process.env.CABINET_DATA_DIR || path.join(app.getPath("userData"), "cabinet-data");
 const updateStatusPath = path.join(managedDataDir, ".cabinet", "update-status.json");
 let mainWindow = null;
 let backendChildren = [];
@@ -25,6 +29,16 @@ let backendChildren = [];
 function writeUpdateStatus(status) {
   fs.mkdirSync(path.dirname(updateStatusPath), { recursive: true });
   fs.writeFileSync(updateStatusPath, JSON.stringify(status, null, 2), "utf8");
+}
+
+function tryPort(port) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", () => {
+      server.close(() => resolve(port));
+    });
+  });
 }
 
 function getFreePort() {
@@ -199,17 +213,41 @@ async function startMulticaServer() {
     return null;
   }
 
-  const multicaPort = await getFreePort();
+  const multicaPort = await tryPort(18080).catch(() => getFreePort());
   const multicaDbDir = path.join(app.getPath("userData"), "multica-db");
   fs.mkdirSync(multicaDbDir, { recursive: true });
 
   console.log(`[multica] Starting server on port ${multicaPort} (binary: ${binaryPath})`);
 
-  const child = spawnBackend(binaryPath, [], {
-    ...process.env,
-    PORT: String(multicaPort),
-    MULTICA_EMBEDDED_DB: "true",
-    MULTICA_EMBEDDED_DB_DIR: multicaDbDir,
+  const child = spawn(binaryPath, [], {
+    env: {
+      ...process.env,
+      PORT: String(multicaPort),
+      MULTICA_EMBEDDED_DB: "true",
+      MULTICA_EMBEDDED_DB_DIR: multicaDbDir,
+    },
+    stdio: ["ignore", "pipe", "inherit"],
+  });
+  backendChildren.push(child);
+
+  // Capture MULTICA_PAT from server stdout (printed by seedOwner on startup).
+  let capturedPAT = null;
+  child.stdout.on("data", (chunk) => {
+    const text = chunk.toString();
+    const match = text.match(/MULTICA_PAT=(\S+)/);
+    if (match) {
+      capturedPAT = match[1];
+      console.log(`[multica] Captured PAT: ${capturedPAT.slice(0, 12)}...`);
+      // Save to userData for preload to read.
+      const patFile = path.join(app.getPath("userData"), "multica-pat.json");
+      fs.writeFileSync(patFile, JSON.stringify({ token: capturedPAT }));
+    }
+    // Forward other output to console.
+    for (const line of text.split("\n").filter(Boolean)) {
+      if (!line.startsWith("MULTICA_PAT=")) {
+        console.log(`[multica-server] ${line}`);
+      }
+    }
   });
 
   child.on("exit", (code, signal) => {
@@ -217,7 +255,15 @@ async function startMulticaServer() {
   });
 
   try {
-    await waitForHealth(`http://127.0.0.1:${multicaPort}/api/health`, 30_000);
+    const baseUrl = `http://127.0.0.1:${multicaPort}`;
+    try {
+      await waitForHealth(`${baseUrl}/health`, 30_000);
+    } catch (healthErr) {
+      // Backward compatibility for older multica-server builds.
+      await waitForHealth(`${baseUrl}/api/health`, 10_000);
+      console.log("[multica] /health unavailable, using legacy /api/health check");
+      void healthErr;
+    }
     console.log(`[multica] Server is ready on port ${multicaPort}`);
     return multicaPort;
   } catch (err) {
@@ -292,6 +338,9 @@ async function startEmbeddedCabinet() {
 }
 
 function configureAutoUpdates() {
+  // 自动更新已禁用（本地定制版本）
+  return;
+
   if (process.platform !== "darwin") {
     return;
   }
@@ -382,13 +431,23 @@ function cleanupBackends() {
 }
 
 async function createWindow() {
-  // Start multica first so its URL can be passed to Cabinet's environment
-  const multicaPort = await startMulticaServer();
-  if (multicaPort) {
-    const multicaUrl = `http://127.0.0.1:${multicaPort}`;
-    process.env.MULTICA_API_URL = multicaUrl;
-    process.env.MULTICA_WS_URL = `ws://127.0.0.1:${multicaPort}/ws`;
-    console.log(`[multica] MULTICA_API_URL set to ${multicaUrl}`);
+  // If MULTICA_API_URL is already set (e.g. dev server on 8080), skip embedded server
+  // so Cabinet shares the same database as the daemon.
+  if (process.env.MULTICA_API_URL) {
+    console.log(`[multica] Using external server: ${process.env.MULTICA_API_URL} (skipping embedded)`);
+    if (!process.env.MULTICA_WS_URL) {
+      const wsUrl = process.env.MULTICA_API_URL.replace(/^http/, "ws") + "/ws";
+      process.env.MULTICA_WS_URL = wsUrl;
+    }
+  } else {
+    // Start multica first so its URL can be passed to Cabinet's environment
+    const multicaPort = await startMulticaServer();
+    if (multicaPort) {
+      const multicaUrl = `http://127.0.0.1:${multicaPort}`;
+      process.env.MULTICA_API_URL = multicaUrl;
+      process.env.MULTICA_WS_URL = `ws://127.0.0.1:${multicaPort}/ws`;
+      console.log(`[multica] MULTICA_API_URL set to ${multicaUrl}`);
+    }
   }
 
   const runtime = await startEmbeddedCabinet();

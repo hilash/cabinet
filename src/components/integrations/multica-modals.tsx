@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { WorkspaceIdProvider } from "@multica/core/hooks";
+import { useWorkspaceStore } from "@multica/core/workspace";
 
 const ModalRegistry = dynamic(
   () =>
@@ -24,10 +26,18 @@ const SearchCommand = dynamic(
  * available regardless of which section is active.
  */
 export function MulticaModals() {
+  const workspace = useWorkspaceStore((s) => s.workspace);
+
   return (
     <>
-      <ModalRegistry />
-      <SearchCommand />
+      {workspace ? (
+        <WorkspaceIdProvider wsId={workspace.id}>
+          <ModalRegistry />
+          <SearchCommand />
+        </WorkspaceIdProvider>
+      ) : (
+        <SearchCommand />
+      )}
     </>
   );
 }

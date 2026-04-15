@@ -103,6 +103,7 @@ export function BoardView({
   hiddenStatuses,
   onMoveIssue,
   childProgressMap = EMPTY_PROGRESS_MAP,
+  createIssueData,
 }: {
   issues: Issue[];
   allIssues: Issue[];
@@ -114,6 +115,7 @@ export function BoardView({
     newPosition?: number
   ) => void;
   childProgressMap?: Map<string, ChildProgress>;
+  createIssueData?: Record<string, unknown>;
 }) {
   const sortBy = useViewStore((s) => s.sortBy);
   const sortDirection = useViewStore((s) => s.sortDirection);
@@ -282,6 +284,7 @@ export function BoardView({
             issueMap={issueMapRef.current}
             childProgressMap={childProgressMap}
             totalCount={status === "done" ? doneTotal : undefined}
+            createIssueData={createIssueData}
             footer={
               status === "done" && hasMore ? (
                 <InfiniteScrollSentinel onVisible={loadMore} loading={loadingMore} />

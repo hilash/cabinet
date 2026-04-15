@@ -135,9 +135,11 @@ export function Sidebar() {
             <PanelLeftClose className="h-4 w-4" />
           </Button>
         </div>
-        <TreeView />
-        <div className="border-t border-border">
-          <MulticaNav />
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <TreeView />
+          <div className="border-t border-border">
+            <MulticaNav />
+          </div>
         </div>
 
         <div className="p-2 flex items-center gap-1">
