@@ -2,241 +2,158 @@
   <img src="assets/cabinet-wordmark.svg" alt="cabinet /ˈkab.ɪ.nət/" width="920">
 </p>
 
-<p align="center">
-  <img src="https://runcabinet.com/demo.gif" alt="Cabinet demo" width="900">
-</p>
-
-<h1 align="center">🗄️ Cabinet</h1>
+<h1 align="center">AI Agent 工作站</h1>
 
 <p align="center">
-  <strong>Your knowledge base. Your AI team.</strong><br />
-  <sub>🗂️ Files on disk &nbsp;•&nbsp; 📁 AI workspaces &nbsp;•&nbsp; 🧠 Agents with memory</sub>
+  <strong>Cabinet 知识库 + Multica 任务调度 = 你的本地 AI 团队</strong><br />
+  <sub>📋 Issue 看板 &nbsp;•&nbsp; 🤖 多 Agent 并行 &nbsp;•&nbsp; 📚 知识自动沉淀 &nbsp;•&nbsp; 🔒 100% 本地运行</sub>
 </p>
 
 <p align="center">
-  The AI-first startup OS where everything lives as markdown files on disk. No database. No vendor lock-in. Self-hosted. Your data never leaves your machine.
-</p>
-
-<p align="center">
-  Built by Hila Shmuel, former Engineering Manager at Apple — now building Cabinet in public, with the open-source community.
-</p>
-
-<p align="center">
-  <a href="https://x.com/HilaShmuel" target="_blank" rel="noopener noreferrer">@HilaShmuel</a>&nbsp; • &nbsp;
-  <a href="https://runcabinet.com" target="_blank" rel="noopener noreferrer">runcabinet.com</a>&nbsp; • &nbsp;
-  <a href="mailto:hi@runcabinet.com" target="_blank" rel="noopener noreferrer">hi@runcabinet.com</a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/hilash/cabinet/stargazers" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/github/stars/hilash/cabinet?style=for-the-badge&logo=github&logoColor=white&label=Star%20the%20vision%20%F0%9F%98%8D%F0%9F%8C%9F&labelColor=4b4b4b&color=f5b301" alt="Star Cabinet on GitHub" valign="middle">
-  </a>&nbsp;
-  <a href="https://discord.gg/hJa5TRTbTH" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=4b4b4b" alt="Join the Discord" valign="middle">
-  </a>&nbsp;
-  <a href="https://runcabinet.com/waitlist" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/badge/%F0%9F%97%84%EF%B8%8F%20Cabinet-Cloud%20Waitlist-55c938?style=for-the-badge&labelColor=4b4b4b" alt="Cabinet Cloud Waitlist" valign="middle">
-  </a>&nbsp;
-  <a href="https://coderabbit.ai" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/coderabbit/prs/github/hilash/cabinet?utm_source=oss&utm_medium=github&utm_campaign=hilash%2Fcabinet&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Pull Request Reviews" valign="middle">
-  </a>
+  <a href="https://github.com/8676311081/cabinet/releases"><img src="https://img.shields.io/github/v/release/8676311081/cabinet?style=for-the-badge&label=Download%20DMG&color=f5b301" /></a>&nbsp;
+  <a href="https://github.com/8676311081/cabinet/stargazers"><img src="https://img.shields.io/github/stars/8676311081/cabinet?style=for-the-badge&logo=github&color=f5b301" /></a>&nbsp;
+  <a href="https://github.com/hilash/cabinet"><img src="https://img.shields.io/badge/upstream-hilash%2Fcabinet-blue?style=for-the-badge" /></a>&nbsp;
+  <a href="https://github.com/multica-ai/multica"><img src="https://img.shields.io/badge/upstream-multica--ai%2Fmultica-blue?style=for-the-badge" /></a>
 </p>
 
 ---
 
-## From zero to AI team in 2 minutes
+## 这是什么
+
+把两个开源项目合体，做成一个**双击就能用的 AI Agent 桌面应用**：
+
+- **[Cabinet](https://github.com/hilash/cabinet)** — AI 知识库：Markdown 文件系统 + WYSIWYG 编辑器 + Agent 面板
+- **[Multica](https://github.com/multica-ai/multica)** — AI 任务调度：Issue 看板 + 多 Agent 执行 + 实时输出
+
+```
+你创建 Issue → Agent 自动认领 → 执行任务 → 产出写入知识库 → 知识越用越多
+```
+
+**由 GPT-5 和 Claude Opus 4.6 共同辅助创作。**
+
+---
+
+## 30 秒看懂
+
+| 你做的 | Agent 做的 |
+|--------|-----------|
+| 创建 Issue："调研 MCP 生态" | 搜索 + 整理 + 写报告到知识库 |
+| 创建 Issue："修复登录 bug" | 读代码 + 定位 + 提交 PR |
+| 创建 Issue："生成日报" | 拉 GitHub 数据 + 写 Markdown 日报 |
+| @11 @二狗 "一起分析" | 两个 Agent 并行工作，各自回复 |
+
+---
+
+## 功能
+
+| 功能 | 说明 |
+|------|------|
+| **Issue 看板** | 创建任务、设优先级、assign 给 Agent |
+| **多 Agent** | 11、二狗、22... 并行执行，@mention 协作 |
+| **实时输出** | Agent 工作过程实时可见（thinking/tool/text 流） |
+| **知识库** | Markdown 文件系统，Agent 产出自动沉淀 |
+| **WYSIWYG 编辑器** | 富文本编辑，代码块，表格，slash 命令 |
+| **Git 版本控制** | 每次保存自动 commit，可回滚到任意版本 |
+| **项目管理** | 项目 + 子任务 + 看板视图 |
+| **收件箱** | Agent 回复/任务完成的通知聚合 |
+| **定时任务** | Cron 调度，每天自动跑 GitHub 监控等 |
+| **终端** | 内嵌 Web 终端（xterm.js） |
+| **100% 本地** | 数据不离开你的机器，嵌入式 PostgreSQL |
+
+---
+
+## 安装
+
+### macOS（推荐）
+
+从 [Releases](https://github.com/8676311081/cabinet/releases) 下载 DMG，双击安装。
+
+启动后 Cabinet 会自动：
+- 启动嵌入式 multica-server（端口 18080）
+- 创建默认用户和认证 token
+- 初始化知识库
+
+### 启动 Agent Daemon
+
+Agent 需要 daemon 进程来执行任务：
 
 ```bash
-npx create-cabinet@latest
+# 安装 multica CLI
+brew install multica-ai/tap/multica
+
+# 登录并配置
+multica auth login --server-url http://localhost:18080
+multica workspace watch <workspace-id>
+
+# 启动 daemon
+multica daemon start --foreground
+```
+
+需要至少一个 AI CLI：
+- **Claude Code**: `npm i -g @anthropic-ai/claude-code`
+- **Codex**: `npm i -g @openai/codex`
+
+### 从源码运行
+
+```bash
+git clone https://github.com/8676311081/cabinet.git
 cd cabinet
+npm install
 npm run dev:all
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The onboarding wizard builds your custom AI team in 5 questions.
+---
+
+## 跟 Claude Managed Agents 对比
+
+| | Claude Managed Agents | 本项目 |
+|---|---|---|
+| 运行环境 | Anthropic 云端 | 你的电脑 |
+| 费用 | $0.08/session-hour + token | 只有 token 费用 |
+| 数据隐私 | 云端 | 100% 本地 |
+| 知识沉淀 | 需外接 Notion/Slack | 内置知识库 |
+| 自定义 | API 调用 | 完全可控源码 |
+| 多 Agent | 支持 | 支持 |
+| 实时输出 | WebSocket | WebSocket |
 
 ---
 
-## The problem
+## 本 Fork 的改动
 
-Every time you start a new Claude session, it forgets everything. Your project context, your decisions, your research — gone. Scattered docs in Notion. AI sessions with no memory. Manual copy-paste between tools.
+详见 [FORK.md](FORK.md)。主要改动：
 
-## The solution
+**Cabinet 侧：**
+- Multica 集成（事项/项目/收件箱/智能体）
+- 固定端口 18080 + 动态 PAT 认证
+- 知识库 sidebar 修复 + 折叠状态持久化
+- Create Issue 崩溃修复
+- 中文汉化
 
-One knowledge base. AI agents that remember everything. Scheduled jobs that compound. Your team grows while you sleep.
-
-> If it feels like enterprise workflow software, it's wrong. If it feels like watching a team work, it's right.
-
----
-
-## Philosophy
-
-Cabinet is built around a few principles that we think matter deeply for the future of AI + data tools:
-
-- **Yours** — Your data stays yours: local, visible, and portable. It’s not trapped inside a particular AI provider’s system with no clean way to get it out. You stay in control of your information.
-- **Git everything** — Memory should have history. You should be able to inspect changes, revert mistakes, audit how knowledge evolves, and treat your AI system like the important infrastructure it is.
-- **BYOAI** — Bring your own AI. Cabinet should work with Claude, Codex, OpenCode, local models, and whatever comes next, without forcing your knowledge into a single provider’s ecosystem.
-- **KISS** — Keep it simple, stupid. AI tools should be understandable, inspectable, and hackable. We prefer plain files, clear behavior, and systems that developers can actually reason about.
-- **Security** — We care deeply about security. If AI is going to work with your documents, research, plans, and internal context, the system should minimize surprise, reduce unnecessary exposure, and make trust a design requirement rather than an afterthought.
-- **Self-hosted** — If AI is going to hold your context, plans, research, and operating memory, it should run in an environment you control.
-
-## Everything you need. Nothing you don't.
-
-| Feature | What it does |
-|---|---|
-| **WYSIWYG + Markdown** | Rich text editing with Tiptap. Tables, code blocks, slash commands. |
-| **AI Agents** | Each has goals, skills, scheduled jobs. Watch them work like a real team. |
-| **Scheduled Jobs** | Cron-based agent automation. Reddit scout every 6 hours. Weekly reports on Monday. |
-| **Embedded HTML Apps** | Drop an `index.html` in any folder — it renders as an iframe. Full-screen mode. |
-| **Web Terminal** | Full local AI CLI terminal in the browser. xterm.js + node-pty. |
-| **File-Based Everything** | No database. Markdown on disk. Your data is always yours, always portable. |
-| **Git-Backed History** | Every save auto-commits. Full diff viewer. Restore any page to any point in time. |
-| **Missions & Tasks** | Break goals into missions. Track progress with Kanban boards. |
-| **Internal Chat** | Built-in team channels. Agents and humans communicate. |
-| **Full-Text Search** | Cmd+K instant search across all pages. Fuzzy matching. |
-| **PDF & CSV Viewers** | First-class support for PDFs and spreadsheets. |
-| **Dark/Light Mode** | Theme toggle. Dark mode by default. |
+**Multica 侧：**
+- Agent 流式 idle timeout（5min 无输出自动 kill）
+- Ghost task 自动清理
+- 任务完成后自动 push 到知识库
+- 多 assignee 支持
+- 知识库索引自动注入 Agent context
+- 嵌入式模式 seed owner
 
 ---
 
-## Ship HTML apps inside your knowledge base
+## 致谢
 
-This is the biggest difference between Cabinet and tools like Obsidian or Notion. Drop an `index.html` in any directory — it renders as an embedded app. Full-screen mode with sidebar auto-collapse. AI-generated apps written directly into your KB. Version controlled via git. No build step.
+### 上游开源项目
 
----
+- **[Cabinet](https://github.com/hilash/cabinet)** by [Hila Shmuel](https://x.com/HilaShmuel) — AI-first 知识库，MIT License
+- **[Multica](https://github.com/multica-ai/multica)** by Multica AI — AI Agent 任务调度平台，MIT License
 
-## Not another note-taking app
+### AI 辅助创作
 
-| Feature | Cabinet | Obsidian | Notion |
-|---|---|---|---|
-| AI agent orchestration | Yes | No | No |
-| Scheduled cron jobs | Yes | No | No |
-| Embedded HTML apps | Yes | No | No |
-| Web terminal | Yes | No | No |
-| Self-hosted, files on disk | Yes | Yes | No |
-| No database / no lock-in | Yes | Yes | No |
-| Git-backed version history | Yes | Via plugin | No |
-| WYSIWYG + Markdown | Yes | Yes | Yes |
+本项目由 **GPT-5** 和 **Claude Opus 4.6** 共同辅助完成：
+- GPT-5：前期架构设计、功能规划
+- Claude Opus 4.6 (1M context)：代码实现、调试、Review、测试
 
 ---
 
-## Hire your AI team in 5 questions
+## License
 
-Cabinet ships with 20 pre-built agent templates. Each has a role, recurring jobs, and a workspace in the knowledge base.
-
-| Department | Agents |
-|---|---|
-| **Leadership** | CEO, COO, CFO, CTO |
-| **Product** | Product Manager, UX Designer |
-| **Marketing** | Content Marketer, SEO Specialist, Social Media, Growth Marketer, Copywriter |
-| **Engineering** | Editor, QA Agent, DevOps Engineer |
-| **Sales & Support** | Sales Agent, Customer Success |
-| **Analytics** | Data Analyst |
-| **Operations** | People Ops, Legal Advisor, Researcher |
-
----
-
-## How it works
-
-1. **Install & Run** — One command. Next.js + daemon start.
-2. **Answer 5 Questions** — Cabinet builds your custom AI team.
-3. **Watch Your Team Work** — Agents create missions, write content, scout Reddit, file reports.
-4. **Knowledge Compounds** — Every agent run, every edit adds to the KB. Context builds over time.
-
----
-
-## Architecture
-
-```
-cabinet/
-  src/
-    app/api/         -> Next.js API routes
-    components/      -> React components (sidebar, editor, agents, jobs, terminal)
-    stores/          -> Zustand state management
-    lib/             -> Storage, markdown, git, agents, jobs
-  server/
-    cabinet-daemon.ts -> WebSocket + job scheduler + agent executor
-  data/
-    .agents/.library/ -> 20 pre-built agent templates
-    getting-started/  -> Default KB page
-```
-
-**Tech stack:** Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Tiptap, Zustand, xterm.js, node-cron
-
----
-
-## Requirements
-
-- **Node.js** 20+
-- At least one supported CLI provider:
-  - **Claude Code CLI** (`npm install -g @anthropic-ai/claude-code`)
-  - **Codex CLI** (`npm install -g @openai/codex` or `brew install --cask codex`)
-- macOS or Linux (Windows via WSL)
-
-## Configuration
-
-```bash
-cp .env.example .env.local
-```
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `KB_PASSWORD` | _(empty)_ | Password to protect the UI. Leave empty for no auth. |
-| `DOMAIN` | `localhost` | Domain for the app. |
-
-## Commands
-
-```bash
-npm run dev          # Next.js dev server (port 3000)
-npm run dev:daemon   # Terminal + job scheduler (port 3001)
-npm run dev:all      # Both servers
-npm run build        # Production build
-npm run start        # Production mode (both servers)
-```
-
----
-
-## Ready to build your AI team?
-
-Cabinet is free, open source, and self-hosted. Your data never leaves your machine.
-
-```bash
-npx create-cabinet my-startup
-```
-
-[Get Started](https://runcabinet.com) | <a href="https://github.com/hilash/cabinet/stargazers" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/stars/hilash/cabinet?label=GitHub%20Stars&logo=github&color=f5b301" alt="GitHub Stars" valign="middle"></a>
-
----
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for breaking changes, or follow the full release history on the [documentation site](https://runcabinet.com).
-
-## Community
-
-Questions, ideas, feedback, screenshots, wild experiments — bring them to the [Discord](https://discord.gg/hJa5TRTbTH). That’s where the Cabinet community hangs out and where a lot of the product direction gets shaped in real time.
-
----
-
-## Contributing
-
-Cabinet is moving fast right now. We’d love thoughtful contributors who want to help shape it early.
-
-If you’re thinking about opening a PR, please start by joining the [Discord](https://discord.gg/hJa5TRTbTH) and talking with Hila before coding. Hila is Cabinet’s builder, and that early sync helps us keep the roadmap coherent while the product is still evolving rapidly.
-
-Once the direction is aligned, open your PR on [GitHub](https://github.com/hilash/cabinet). The goal is not gatekeeping — it’s making sure your energy goes into work that has a clear path to landing and shipping.
-
----
-
-MIT License
-
----
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=hilash%2Fcabinet&type=date&legend=top-left" target="_blank" rel="noopener noreferrer">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hilash/cabinet&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hilash/cabinet&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hilash/cabinet&type=date&legend=top-left" />
- </picture>
-</a>
+MIT License — 遵循上游项目的开源协议。
