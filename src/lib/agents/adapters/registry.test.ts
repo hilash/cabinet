@@ -4,6 +4,7 @@ import {
   agentAdapterRegistry,
   defaultAdapterTypeForProvider,
   resolveExecutionProviderId,
+  resolveLegacyExecutionProviderId,
   resolveLegacyProviderIdForAdapterType,
 } from "./registry";
 
@@ -47,3 +48,27 @@ test("execution provider resolution prefers explicit legacy adapter mappings", (
   );
 });
 
+test("legacy execution resolution rejects unsupported adapter types", () => {
+  assert.equal(
+    resolveLegacyExecutionProviderId({
+      adapterType: "claude_code_legacy",
+      providerId: "codex-cli",
+      defaultProviderId: "codex-cli",
+    }),
+    "claude-code"
+  );
+
+  assert.throws(
+    () => resolveLegacyExecutionProviderId({ adapterType: "claude_local" }),
+    /legacy PTY runtime/
+  );
+
+  assert.throws(
+    () =>
+      resolveLegacyExecutionProviderId({
+        adapterType: "claude_local",
+        providerId: "claude-code",
+      }),
+    /legacy PTY runtime/
+  );
+});

@@ -56,6 +56,9 @@ interface CreateConversationInput {
   title: string;
   trigger: ConversationTrigger;
   prompt: string;
+  providerId?: string;
+  adapterType?: string;
+  adapterConfig?: Record<string, unknown>;
   mentionedPaths?: string[];
   jobId?: string;
   jobName?: string;
@@ -357,6 +360,9 @@ export async function createConversation(
     startedAt,
     jobId: input.jobId,
     jobName: input.jobName,
+    providerId: input.providerId,
+    adapterType: input.adapterType,
+    adapterConfig: input.adapterConfig,
     promptPath: virtualPathFromFs(promptPathFs(id, cp)),
     transcriptPath: virtualPathFromFs(transcriptPathFs(id, cp)),
     mentionedPaths: input.mentionedPaths || [],

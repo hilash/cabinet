@@ -19,7 +19,10 @@ import { getGoalState, updateGoal } from "./goal-manager";
 import { startConversationRun } from "./conversation-runner";
 import { reloadDaemonSchedules } from "./daemon-client";
 import { getDaemonUrl, getOrCreateDaemonToken } from "./daemon-auth";
-import { resolveExecutionProviderId } from "./adapters";
+import {
+  defaultAdapterTypeForProvider,
+  resolveExecutionProviderId,
+} from "./adapters";
 
 interface HeartbeatContext {
   prompt: string;
@@ -363,6 +366,15 @@ export async function runHeartbeat(slug: string, cabinetPath?: string): Promise<
       title: `${persona.name} heartbeat`,
       trigger: "heartbeat",
       prompt,
+      adapterType:
+        persona.adapterType ||
+        defaultAdapterTypeForProvider(
+          resolveExecutionProviderId({
+            adapterType: persona.adapterType,
+            providerId: persona.provider,
+          })
+        ),
+      adapterConfig: persona.adapterConfig,
       providerId: resolveExecutionProviderId({
         adapterType: persona.adapterType,
         providerId: persona.provider,

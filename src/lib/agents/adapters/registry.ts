@@ -159,6 +159,33 @@ export function resolveLegacyProviderIdForAdapterType(
   return LEGACY_PROVIDER_ID_BY_ADAPTER[adapterType];
 }
 
+export function isLegacyAdapterType(adapterType?: string | null): boolean {
+  return Boolean(adapterType && adapterType in LEGACY_PROVIDER_ID_BY_ADAPTER);
+}
+
+export function resolveLegacyExecutionProviderId(input: {
+  adapterType?: string | null;
+  providerId?: string | null;
+  defaultProviderId?: string;
+}): string {
+  const mappedProviderId = resolveLegacyProviderIdForAdapterType(input.adapterType);
+  if (mappedProviderId) {
+    return mappedProviderId;
+  }
+
+  if (input.adapterType) {
+    throw new Error(
+      `Adapter ${input.adapterType} is not supported by the legacy PTY runtime.`
+    );
+  }
+
+  return (
+    input.providerId ||
+    input.defaultProviderId ||
+    providerRegistry.defaultProvider
+  );
+}
+
 export function resolveExecutionProviderId(input: {
   adapterType?: string | null;
   providerId?: string | null;
@@ -171,4 +198,3 @@ export function resolveExecutionProviderId(input: {
     providerRegistry.defaultProvider
   );
 }
-

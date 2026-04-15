@@ -23,6 +23,9 @@ export interface ConversationMeta {
   exitCode?: number | null;
   jobId?: string;
   jobName?: string;
+  providerId?: string;
+  adapterType?: string;
+  adapterConfig?: Record<string, unknown>;
   promptPath: string;
   transcriptPath: string;
   mentionedPaths: string[];

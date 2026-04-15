@@ -33,6 +33,7 @@ import {
   getSessionLaunchSpec,
   resolveProviderId,
 } from "../src/lib/agents/provider-runtime";
+import { resolveLegacyExecutionProviderId } from "../src/lib/agents/adapters";
 import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
 import {
   appendConversationTranscript,
@@ -117,6 +118,7 @@ const enrichedPath = [
 interface PtySession {
   id: string;
   providerId: string;
+  adapterType?: string;
   pty: pty.IPty;
   ws: WebSocket | null;
   createdAt: Date;
@@ -477,6 +479,7 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
   const sessionId = url.searchParams.get("id") || `session-${Date.now()}`;
   const prompt = url.searchParams.get("prompt");
   const providerId = url.searchParams.get("providerId") || undefined;
+  const adapterType = url.searchParams.get("adapterType") || undefined;
 
   // Check if this is a reconnection to an existing session
   const existing = sessions.get(sessionId);
@@ -530,6 +533,7 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
     createDetachedSession({
       sessionId,
       providerId,
+      adapterType,
       prompt: prompt || undefined,
     });
   } catch (err: unknown) {
@@ -575,6 +579,8 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
 function createDetachedSession(input: {
   sessionId: string;
   providerId?: string;
+  adapterType?: string;
+  adapterConfig?: Record<string, unknown>;
   prompt?: string;
   cwd?: string;
   timeoutSeconds?: number;
@@ -582,19 +588,23 @@ function createDetachedSession(input: {
   launchMode?: "session" | "one-shot";
 }): PtySession {
   const cwd = resolveSessionCwd(input.cwd);
+  const executionProviderId = resolveLegacyExecutionProviderId({
+    adapterType: input.adapterType,
+    providerId: input.providerId,
+  });
   let launch =
     input.launchMode === "one-shot" && input.prompt?.trim()
       ? getOneShotLaunchSpec({
-          providerId: input.providerId,
+          providerId: executionProviderId,
           prompt: input.prompt,
           workdir: cwd,
         })
       : getSessionLaunchSpec({
-          providerId: input.providerId,
+          providerId: executionProviderId,
           prompt: input.prompt,
           workdir: cwd,
         });
-  const resolvedProviderId = resolveProviderId(input.providerId);
+  const resolvedProviderId = resolveProviderId(executionProviderId);
 
   if (
     input.launchMode === "one-shot" &&
@@ -643,6 +653,7 @@ function createDetachedSession(input: {
   const session: PtySession = {
     id: input.sessionId,
     providerId: resolvedProviderId,
+    adapterType: input.adapterType,
     pty: term,
     ws: null,
     createdAt: new Date(),
@@ -1115,12 +1126,16 @@ const server = http.createServer(async (req, res) => {
         const {
           id,
           providerId,
+          adapterType,
+          adapterConfig,
           prompt,
           cwd,
           timeoutSeconds,
         } = JSON.parse(body) as {
           id: string;
           providerId?: string;
+          adapterType?: string;
+          adapterConfig?: Record<string, unknown>;
           prompt?: string;
           cwd?: string;
           timeoutSeconds?: number;
@@ -1134,13 +1149,19 @@ const server = http.createServer(async (req, res) => {
         }
 
         try {
-          const launchMode = getDetachedPromptLaunchMode({
+          const executionProviderId = resolveLegacyExecutionProviderId({
+            adapterType,
             providerId,
+          });
+          const launchMode = getDetachedPromptLaunchMode({
+            providerId: executionProviderId,
             prompt,
           });
           createDetachedSession({
             sessionId,
             providerId,
+            adapterType,
+            adapterConfig,
             prompt,
             cwd,
             timeoutSeconds,
@@ -1202,6 +1223,8 @@ const server = http.createServer(async (req, res) => {
       connected: s.ws !== null,
       exited: s.exited,
       exitCode: s.exitCode,
+      providerId: s.providerId,
+      adapterType: s.adapterType,
     }));
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(activeSessions));

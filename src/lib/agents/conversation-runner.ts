@@ -3,7 +3,10 @@ import type { JobConfig, JobRun, JobPostAction } from "@/types/jobs";
 import type { ConversationMeta } from "@/types/conversations";
 import { readPage } from "../storage/page-io";
 import { DATA_DIR } from "../storage/path-utils";
-import { resolveExecutionProviderId } from "./adapters";
+import {
+  defaultAdapterTypeForProvider,
+  resolveExecutionProviderId,
+} from "./adapters";
 import {
   appendConversationTranscript,
   createConversation,
@@ -27,6 +30,8 @@ interface StartConversationInput {
   trigger: ConversationMeta["trigger"];
   prompt: string;
   providerId?: string;
+  adapterType?: string;
+  adapterConfig?: Record<string, unknown>;
   mentionedPaths?: string[];
   jobId?: string;
   jobName?: string;
@@ -119,6 +124,8 @@ export async function buildManualConversationPrompt(input: {
   prompt: string;
   title: string;
   cwd?: string;
+  adapterType: string;
+  adapterConfig?: Record<string, unknown>;
   providerId: string;
   cabinetPath?: string;
 }> {
@@ -149,6 +156,16 @@ export async function buildManualConversationPrompt(input: {
     prompt,
     title: makeTitle(input.userMessage),
     cwd,
+    adapterType:
+      persona?.adapterType ||
+      defaultAdapterTypeForProvider(
+        resolveExecutionProviderId({
+          adapterType: persona?.adapterType,
+          providerId: persona?.provider,
+          defaultProviderId,
+        })
+      ),
+    adapterConfig: persona?.adapterConfig,
     providerId: resolveExecutionProviderId({
       adapterType: persona?.adapterType,
       providerId: persona?.provider,
@@ -168,6 +185,8 @@ export async function buildEditorConversationPrompt(input: {
   title: string;
   cwd?: string;
   mentionedPaths: string[];
+  adapterType: string;
+  adapterConfig?: Record<string, unknown>;
   providerId: string;
 }> {
   const persona =
@@ -205,6 +224,16 @@ export async function buildEditorConversationPrompt(input: {
     title: makeTitle(input.userMessage),
     cwd,
     mentionedPaths: combinedMentionedPaths,
+    adapterType:
+      persona?.adapterType ||
+      defaultAdapterTypeForProvider(
+        resolveExecutionProviderId({
+          adapterType: persona?.adapterType,
+          providerId: persona?.provider,
+          defaultProviderId,
+        })
+      ),
+    adapterConfig: persona?.adapterConfig,
     providerId: resolveExecutionProviderId({
       adapterType: persona?.adapterType,
       providerId: persona?.provider,
@@ -216,12 +245,19 @@ export async function buildEditorConversationPrompt(input: {
 export async function startConversationRun(
   input: StartConversationInput
 ): Promise<ConversationMeta> {
+  const resolvedProviderId = input.providerId || getDefaultProviderId();
+  const resolvedAdapterType =
+    input.adapterType || defaultAdapterTypeForProvider(resolvedProviderId);
+
   const meta = await createConversation({
     agentSlug: input.agentSlug,
     cabinetPath: input.cabinetPath,
     title: input.title,
     trigger: input.trigger,
     prompt: input.prompt,
+    providerId: resolvedProviderId,
+    adapterType: resolvedAdapterType,
+    adapterConfig: input.adapterConfig,
     mentionedPaths: input.mentionedPaths,
     jobId: input.jobId,
     jobName: input.jobName,
@@ -231,7 +267,9 @@ export async function startConversationRun(
     await createDaemonSession({
       id: meta.id,
       prompt: input.prompt,
-      providerId: input.providerId,
+      providerId: resolvedProviderId,
+      adapterType: resolvedAdapterType,
+      adapterConfig: input.adapterConfig,
       cwd: input.cwd,
       timeoutSeconds: input.timeoutSeconds,
     });
@@ -386,6 +424,17 @@ export async function startJobConversation(job: JobConfig): Promise<JobRun> {
     title: job.name,
     trigger: "job",
     prompt,
+    adapterType:
+      job.adapterType ||
+      persona?.adapterType ||
+      defaultAdapterTypeForProvider(
+        resolveExecutionProviderId({
+          adapterType: job.adapterType || persona?.adapterType,
+          providerId: job.provider || persona?.provider,
+          defaultProviderId,
+        })
+      ),
+    adapterConfig: job.adapterConfig || persona?.adapterConfig,
     providerId: resolveExecutionProviderId({
       adapterType: job.adapterType || persona?.adapterType,
       providerId: job.provider || persona?.provider,

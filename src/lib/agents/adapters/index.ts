@@ -17,9 +17,11 @@ export type {
 export {
   agentAdapterRegistry,
   defaultAdapterTypeForProvider,
+  isLegacyAdapterType,
   legacyClaudeCodeAdapter,
   legacyCodexCliAdapter,
   resolveExecutionProviderId,
+  resolveLegacyExecutionProviderId,
   resolveLegacyProviderIdForAdapterType,
 } from "./registry";
 

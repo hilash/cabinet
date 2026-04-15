@@ -4,6 +4,8 @@ interface CreateDaemonSessionInput {
   id: string;
   prompt: string;
   providerId?: string;
+  adapterType?: string;
+  adapterConfig?: Record<string, unknown>;
   cwd?: string;
   timeoutSeconds?: number;
 }
@@ -45,14 +47,30 @@ export async function getDaemonSessionOutput(id: string): Promise<{
 }
 
 export async function listDaemonSessions(): Promise<
-  { id: string; createdAt: string; connected: boolean; exited: boolean; exitCode: number | null }[]
+  {
+    id: string;
+    createdAt: string;
+    connected: boolean;
+    exited: boolean;
+    exitCode: number | null;
+    providerId?: string;
+    adapterType?: string;
+  }[]
 > {
   const response = await daemonFetch("/sessions");
   if (!response.ok) {
     throw new Error(`Failed to list daemon sessions (${response.status})`);
   }
   return response.json() as Promise<
-    { id: string; createdAt: string; connected: boolean; exited: boolean; exitCode: number | null }[]
+    {
+      id: string;
+      createdAt: string;
+      connected: boolean;
+      exited: boolean;
+      exitCode: number | null;
+      providerId?: string;
+      adapterType?: string;
+    }[]
   >;
 }
 
