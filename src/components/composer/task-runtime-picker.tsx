@@ -761,7 +761,7 @@ export function TaskRuntimePicker({
         className="w-[min(32rem,calc(100vw-1rem))] min-w-[17rem] max-w-[calc(100vw-1rem)] p-0"
       >
         <DropdownMenuGroup>
-          <div className={cn("mx-1.5 mt-1.5 mb-1.5 flex items-center gap-2 rounded-lg px-2.5 py-2", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).bg)}>
+          <div className={cn("mx-1.5 mt-1.5 flex items-center gap-2 rounded-lg px-2.5 py-2", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).bg)}>
             <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/60">
               Selected Model
             </span>
@@ -819,15 +819,15 @@ export function TaskRuntimePicker({
           </div>
         </DropdownMenuGroup>
 
-        <div className="px-1.5 pb-1.5">
+        <div>
           {selectableProviders.length > 0 ? (
             <Tabs
               value={activeProviderIdValue}
               onValueChange={setActiveProviderId}
               className="gap-0"
             >
-              <div className="overflow-hidden rounded-xl border-x border-b border-border/70">
-                <div className="bg-background px-1.5 pt-1.5">
+              <div className="overflow-hidden border-x border-b border-border/70">
+                <div className="px-1.5 pt-1.5">
                   <TabsList
                     variant="line"
                     aria-label="Task providers"
@@ -837,7 +837,7 @@ export function TaskRuntimePicker({
                       <TabsTrigger
                         key={provider.id}
                         value={provider.id}
-                        className="relative -mb-px h-7 flex-none gap-1.5 rounded-t-md rounded-b-none border border-border/50 border-b-0 bg-muted/15 px-2.5 py-1 text-[9px] font-medium text-muted-foreground shadow-none after:hidden hover:bg-muted/30 hover:text-foreground data-active:z-10 data-active:border-border/70 data-active:bg-background data-active:text-foreground data-active:shadow-[0_-1px_0_rgba(255,255,255,0.75)]"
+                        className="relative -mb-px h-7 flex-none gap-1.5 rounded-t-md rounded-b-none border-0 !bg-background px-2.5 py-1 text-[9px] font-medium text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:z-10 data-active:!bg-background data-active:text-foreground data-active:shadow-none"
                       >
                         <ProviderGlyph
                           icon={provider.icon}

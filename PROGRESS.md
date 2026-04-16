@@ -4,6 +4,10 @@
 
 [2026-04-16] Models picker: renamed "Task Model" → "Selected Model", collapsed model info into a single row (icon + name + Provider · Effort with effort-toned colors), header row transparent (no box), tabs row retains background styling.
 
+[2026-04-16] Models picker: removed bottom margin (mb-1.5) from the selected model banner row.
+
+[2026-04-16] Models picker: provider tab backgrounds set to bg-background (matching the table) using !important overrides to beat line-variant transparent base styles; removed all borders from tabs.
+
 [2026-04-16] Resume Tailor heartbeat for hila-finds-job: audited master resume — found it still contains placeholder content with a critical career target mismatch (summary says EM/Director of Engineering but all 12 pipeline jobs are PM roles). Created detailed tailoring briefs for both "Saved" jobs (Figma Senior PM Collaboration and dbt Labs Senior PM Core) with keyword maps, gap analyses, cover letter angles, and next-step checklists. Flagged the EM→PM narrative gap as a blocker on the master resume. Both briefs ready to generate tailored resumes the moment real experience is entered.
 
 [2026-04-16] Networking Scout heartbeat for hila-finds-job: audited all 13 contacts against pipeline state. Created outreach-drafts-apr-16.md with 7 personalized, ready-to-send messages (Sarah Lin follow-up, Marcus Stripe check-in, David Park first touch, Alex Rivera mock-interview ask, Dana Kim post-Round-2 thank you, Jake Wilson post-screen check-in, Chris Donovan dormant reconnect). Updated networking/index.md with this week's priority table. Flagged contacts not to contact this week to avoid over-messaging active processes.
