@@ -170,7 +170,7 @@ cabinet/
 - At least one supported CLI provider:
   - **Claude Code CLI** (`npm install -g @anthropic-ai/claude-code`)
   - **Codex CLI** (`npm install -g @openai/codex` or `brew install --cask codex`)
-- macOS or Linux (Windows via WSL)
+- macOS, Linux, or Windows
 
 ## Configuration
 
@@ -191,7 +191,22 @@ npm run dev:daemon   # Terminal + job scheduler (port 3001)
 npm run dev:all      # Both servers
 npm run build        # Production build
 npm run start        # Production mode (both servers)
+npm run electron:make  # Build desktop packages for the current platform
 ```
+
+## Desktop builds
+
+On Windows, run:
+
+```bash
+npm install
+npm run electron:make
+```
+
+Electron Forge writes generated artifacts to `out/`. The unpacked Windows
+executable is created at `out/Cabinet-win32-x64/Cabinet.exe`, and installer or
+archive artifacts are written under `out/make/`. These files are generated build
+outputs and should not be committed.
 
 ---
 

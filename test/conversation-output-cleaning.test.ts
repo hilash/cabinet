@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildManualConversationPrompt } from "../src/lib/agents/conversation-runner";
+import { resolveCabinetDir } from "../src/lib/cabinets/server-paths";
 import {
   parseCabinetBlock,
   transcriptShowsCompletedRun,
@@ -37,7 +38,7 @@ test("manual cabinet-scoped prompts explicitly pin work to the cabinet root", as
 
   assert.equal(
     prompt.cwd,
-    "/Users/mybiblepath/Development/cabinet/data/hilas-cabinet"
+    resolveCabinetDir("hilas-cabinet")
   );
   assert.match(
     prompt.prompt,

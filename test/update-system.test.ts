@@ -55,3 +55,18 @@ test("detectInstallKind respects explicit environment hints first", () => {
     }
   }
 });
+
+test("detectInstallKind supports explicit Windows desktop installs", () => {
+  const original = process.env.CABINET_INSTALL_KIND;
+  process.env.CABINET_INSTALL_KIND = "electron-windows";
+
+  try {
+    assert.equal(detectInstallKind(null), "electron-windows");
+  } finally {
+    if (original === undefined) {
+      delete process.env.CABINET_INSTALL_KIND;
+    } else {
+      process.env.CABINET_INSTALL_KIND = original;
+    }
+  }
+});

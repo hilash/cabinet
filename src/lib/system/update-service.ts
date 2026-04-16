@@ -6,14 +6,18 @@ import { readUpdateStatus } from "@/lib/system/update-status";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import type { InstallKind, UpdateCheckResult } from "@/types";
 
+function isElectronDesktopInstall(installKind: InstallKind): boolean {
+  return installKind === "electron-macos" || installKind === "electron-windows";
+}
+
 function buildInstructions(installKind: InstallKind, updateAvailable: boolean, dirtyAppFiles: string[]): string[] {
   if (!updateAvailable) {
     return ["You already have the latest Cabinet release this install can see."];
   }
 
-  if (installKind === "electron-macos") {
+  if (isElectronDesktopInstall(installKind)) {
     return [
-      "Electron downloads supported updates in the background.",
+      "Cabinet desktop downloads supported updates in the background.",
       "When the update is ready, Cabinet will ask the user to restart the desktop app.",
     ];
   }

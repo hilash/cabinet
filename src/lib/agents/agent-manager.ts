@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "child_process";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { getOneShotLaunchSpec } from "./provider-runtime";
+import { RUNTIME_PATH } from "./provider-cli";
 
 export interface AgentSession {
   id: string;
@@ -89,7 +90,7 @@ export async function runAgent(
     cwd,
     env: {
       ...process.env,
-      PATH: `${process.env.HOME || ""}/.local/bin:${process.env.PATH || ""}`,
+      PATH: RUNTIME_PATH,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

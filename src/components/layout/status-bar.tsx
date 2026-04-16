@@ -133,7 +133,7 @@ export function StatusBar() {
   const didAutoPullRef = useRef(false);
   const [appAlive, setAppAlive] = useState(true);
   const [daemonAlive, setDaemonAlive] = useState(true);
-  const [installKind, setInstallKind] = useState<"source-managed" | "source-custom" | "electron-macos">("source-custom");
+  const [installKind, setInstallKind] = useState<"source-managed" | "source-custom" | "electron-macos" | "electron-windows">("source-custom");
   const [showServerPopup, setShowServerPopup] = useState(false);
   const [providerStatuses, setProviderStatuses] = useState<
     { id: string; name: string; available: boolean; authenticated: boolean }[]
@@ -145,6 +145,7 @@ export function StatusBar() {
     () => !providersLoaded || providerStatuses.some((p) => p.available && p.authenticated),
     [providersLoaded, providerStatuses],
   );
+  const isElectronInstall = installKind === "electron-macos" || installKind === "electron-windows";
 
   const fetchProviderStatus = useCallback(async () => {
     try {
@@ -470,7 +471,7 @@ export function StatusBar() {
                     <div className="pt-1.5 border-t border-border space-y-1">
                       <p className="text-[10px] font-medium text-foreground/70">How to fix</p>
                       {(!appAlive || !daemonAlive) && (
-                        installKind === "electron-macos" ? (
+                        isElectronInstall ? (
                           <p className="text-[10px] text-muted-foreground">
                             {!appAlive && !daemonAlive
                               ? "Both servers are down. Try quitting and reopening the Cabinet app."

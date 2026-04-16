@@ -1,10 +1,10 @@
 import { WebSocketServer, WebSocket } from "ws";
 import * as pty from "node-pty";
-import path from "path";
 import http from "http";
-import { execSync } from "child_process";
 import { DATA_DIR } from "../src/lib/storage/path-utils";
 import { getDaemonPort } from "../src/lib/runtime/runtime-config";
+import { RUNTIME_PATH, resolveCliCommand } from "../src/lib/agents/provider-cli";
+import { claudeCodeProvider } from "../src/lib/agents/providers/claude-code";
 
 const PORT = getDaemonPort();
 
@@ -82,48 +82,30 @@ function submitInitialPrompt(session: Session): void {
   session.pty.write("\r");
 }
 
-// Resolve the claude binary path at startup
-function resolveClaudePath(): string {
-  const candidates = [
-    path.join(process.env.HOME || "", ".local", "bin", "claude"),
-    "/usr/local/bin/claude",
-    "/opt/homebrew/bin/claude",
-  ];
+const CLAUDE_PATH = (() => {
+  try {
+    return resolveCliCommand(claudeCodeProvider);
+  } catch {
+    return "claude";
+  }
+})();
+const ptyTermName = process.platform === "win32" ? "xterm-color" : "xterm-256color";
 
-  for (const candidate of candidates) {
-    try {
-      const fs = require("fs");
-      if (fs.existsSync(candidate)) {
-        console.log(`Found claude at: ${candidate}`);
-        return candidate;
-      }
-    } catch {}
+function buildPtyEnv(): Record<string, string> {
+  const env: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    PATH: RUNTIME_PATH,
+    FORCE_COLOR: "3",
+  };
+
+  if (process.platform !== "win32") {
+    env.TERM = ptyTermName;
+    env.COLORTERM = "truecolor";
+    env.LANG = process.env.LANG || "en_US.UTF-8";
   }
 
-  try {
-    const resolved = execSync("which claude", {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        PATH: `${process.env.HOME}/.local/bin:${process.env.PATH}`,
-      },
-    }).trim();
-    if (resolved) {
-      console.log(`Resolved claude via which: ${resolved}`);
-      return resolved;
-    }
-  } catch {}
-
-  console.warn("Could not resolve claude path, using 'claude' directly");
-  return "claude";
+  return env;
 }
-
-const CLAUDE_PATH = resolveClaudePath();
-
-const enrichedPath = [
-  `${process.env.HOME}/.local/bin`,
-  process.env.PATH,
-].join(":");
 
 // Create HTTP server to handle both WebSocket upgrades and REST endpoints
 const server = http.createServer((req, res) => {
@@ -247,29 +229,19 @@ wss.on("connection", (ws, req) => {
   }
 
   // New session — spawn PTY
-  let shell: string;
-  let args: string[];
-
-  shell = CLAUDE_PATH;
-  args = prompt
+  const shell = CLAUDE_PATH;
+  const args = prompt
     ? ["--dangerously-skip-permissions", prompt]
     : ["--dangerously-skip-permissions"];
 
   let term: pty.IPty;
   try {
     term = pty.spawn(shell, args, {
-      name: "xterm-256color",
+      name: ptyTermName,
       cols: 120,
       rows: 30,
       cwd: DATA_DIR,
-      env: {
-        ...(process.env as Record<string, string>),
-        PATH: enrichedPath,
-        TERM: "xterm-256color",
-        COLORTERM: "truecolor",
-        FORCE_COLOR: "3",
-        LANG: "en_US.UTF-8",
-      },
+      env: buildPtyEnv(),
     });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);

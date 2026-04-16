@@ -2,7 +2,9 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-export const PROJECT_ROOT = process.cwd();
+export const PROJECT_ROOT = path.resolve(
+  process.env.CABINET_PROJECT_ROOT?.trim() || process.cwd()
+);
 const DEFAULT_RELEASE_MANIFEST_URL =
   "https://github.com/hilash/cabinet/releases/latest/download/cabinet-release.json";
 

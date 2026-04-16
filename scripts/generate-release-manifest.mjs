@@ -40,6 +40,12 @@ const manifest = {
       zipAssetName: "Cabinet-darwin-arm64.zip",
       dmgAssetName: "Cabinet.dmg",
     },
+    windows: {
+      zipAssetName: `Cabinet-win32-x64-${version}.zip`,
+      setupExeAssetName: `Cabinet-${version} Setup.exe`,
+      nupkgAssetName: `cabinet-${version}-full.nupkg`,
+      releasesAssetName: "RELEASES",
+    },
   },
 };
 

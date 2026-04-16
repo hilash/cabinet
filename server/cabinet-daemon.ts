@@ -33,6 +33,7 @@ import {
   getSessionLaunchSpec,
   resolveProviderId,
 } from "../src/lib/agents/provider-runtime";
+import { RUNTIME_PATH } from "../src/lib/agents/provider-cli";
 import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
 import {
   appendConversationTranscript,
@@ -104,13 +105,27 @@ getDb();
 console.log("Database ready.");
 
 const nvmBin = getNvmNodeBin();
-const enrichedPath = [
-  `${process.env.HOME}/.local/bin`,
-  "/usr/local/bin",
-  "/opt/homebrew/bin",
-  ...(nvmBin ? [nvmBin] : []),
-  process.env.PATH,
-].join(":");
+const ptyTermName = process.platform === "win32" ? "xterm-color" : "xterm-256color";
+
+function buildPtyEnv(): Record<string, string> {
+  const env: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    PATH: RUNTIME_PATH,
+    FORCE_COLOR: "3",
+  };
+
+  if (process.platform !== "win32") {
+    env.TERM = ptyTermName;
+    env.COLORTERM = "truecolor";
+    env.LANG = process.env.LANG || "en_US.UTF-8";
+  }
+
+  if (nvmBin && !env.PATH.includes(nvmBin)) {
+    env.PATH = `${nvmBin}${path.delimiter}${env.PATH}`;
+  }
+
+  return env;
+}
 
 // ===== PTY Terminal Server =====
 
@@ -142,6 +157,8 @@ interface PtySession {
 const sessions = new Map<string, PtySession>();
 const completedOutput = new Map<string, { output: string; completedAt: number }>();
 const CLAUDE_AUTO_EXIT_GRACE_MS = 1200;
+const CLAUDE_READY_CHECK_INTERVAL_MS = 500;
+const CLAUDE_READY_FALLBACK_MS = 15000;
 
 function resolveSessionCwd(input?: string): string {
   if (!input) return DATA_DIR;
@@ -373,6 +390,31 @@ function submitInitialPrompt(session: PtySession): void {
       session.pty.write("\r");
     }
   }, 150);
+}
+
+function scheduleInitialPromptSubmission(session: PtySession): void {
+  if (!session.initialPrompt || session.initialPromptSent || session.exited) {
+    return;
+  }
+
+  if (session.initialPromptTimer) {
+    clearTimeout(session.initialPromptTimer);
+    delete session.initialPromptTimer;
+  }
+
+  const waitForClaudePrompt = session.readyStrategy === "claude";
+  const waitElapsed = Date.now() - session.createdAt.getTime();
+  const claudeReady = waitForClaudePrompt && claudePromptReady(session.output.join(""));
+  const shouldFallback = waitForClaudePrompt && waitElapsed >= CLAUDE_READY_FALLBACK_MS;
+
+  if (!waitForClaudePrompt || claudeReady || shouldFallback) {
+    submitInitialPrompt(session);
+    return;
+  }
+
+  session.initialPromptTimer = setTimeout(() => {
+    scheduleInitialPromptSubmission(session);
+  }, CLAUDE_READY_CHECK_INTERVAL_MS);
 }
 
 async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
@@ -626,18 +668,11 @@ function createDetachedSession(input: {
   }
 
   const term = pty.spawn(launch.command, launch.args, {
-    name: "xterm-256color",
+    name: ptyTermName,
     cols: 120,
     rows: 30,
     cwd,
-    env: {
-      ...(process.env as Record<string, string>),
-      PATH: enrichedPath,
-      TERM: "xterm-256color",
-      COLORTERM: "truecolor",
-      FORCE_COLOR: "3",
-      LANG: "en_US.UTF-8",
-    },
+    env: buildPtyEnv(),
   });
 
   const session: PtySession = {
@@ -732,9 +767,7 @@ function createDetachedSession(input: {
   }
 
   if (session.initialPrompt) {
-    session.initialPromptTimer = setTimeout(() => {
-      submitInitialPrompt(session);
-    }, 1500);
+    scheduleInitialPromptSubmission(session);
   }
 
   return session;
@@ -1176,11 +1209,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     try {
-      // SIGTERM first, then SIGKILL after 2s if still alive
+      // Windows PTYs do not reliably support POSIX signal names.
       session.pty.kill();
       const fallback = setTimeout(() => {
         if (!session.exited) {
-          try { session.pty.kill("SIGKILL"); } catch {}
+          try {
+            if (process.platform === "win32") {
+              session.pty.kill();
+            } else {
+              session.pty.kill("SIGKILL");
+            }
+          } catch {}
         }
       }, 2000);
       session.pty.onExit(() => clearTimeout(fallback));

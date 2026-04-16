@@ -1,5 +1,4 @@
 import { build as bundle } from "esbuild";
-import { execFileSync } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 
@@ -15,7 +14,8 @@ const daemonMigrationsDir = path.join(standaloneServerDir, "migrations");
 const stagedNativeDir = path.join(standaloneDir, ".native");
 const stagedNodePtyDir = path.join(stagedNativeDir, "node-pty");
 const stagedSeedDir = path.join(standaloneDir, ".seed");
-const bundledNodeBinaryPath = path.join(standaloneBinDir, "node");
+const bundledNodeBinaryName = process.platform === "win32" ? "node.exe" : "node";
+const bundledNodeBinaryPath = path.join(standaloneBinDir, bundledNodeBinaryName);
 const rootNodePtyDir = path.join(projectRoot, "node_modules", "node-pty");
 const dataDir = path.join(projectRoot, "data");
 const agentLibraryDir = path.join(projectRoot, "src", "lib", "agents", "library");
@@ -126,19 +126,30 @@ async function stageDaemonRuntime() {
   // copies it to userData where macOS allows execution.
   await Promise.all([
     copyDirectory(path.join(rootNodePtyDir, "lib"), path.join(stagedNodePtyDir, "lib")),
-    copyDirectory(
-      path.join(rootNodePtyDir, "prebuilds", "darwin-arm64"),
-      path.join(stagedNodePtyDir, "prebuilds", "darwin-arm64")
-    ),
+    copyDirectory(path.join(rootNodePtyDir, "prebuilds"), path.join(stagedNodePtyDir, "prebuilds")),
     copyFile(path.join(rootNodePtyDir, "package.json"), path.join(stagedNodePtyDir, "package.json")),
   ]);
 
-  await fs.chmod(path.join(stagedNodePtyDir, "prebuilds", "darwin-arm64", "spawn-helper"), 0o755);
+  if (process.platform === "darwin") {
+    const prebuildsDir = path.join(stagedNodePtyDir, "prebuilds");
+    const entries = await fs.readdir(prebuildsDir, { withFileTypes: true }).catch(() => []);
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("darwin-"))
+        .map((entry) =>
+          fs
+            .chmod(path.join(prebuildsDir, entry.name, "spawn-helper"), 0o755)
+            .catch(() => undefined)
+        )
+    );
+  }
 }
 
 async function stageBundledNodeRuntime() {
   await copyFile(process.execPath, bundledNodeBinaryPath);
-  await fs.chmod(bundledNodeBinaryPath, 0o755);
+  if (process.platform !== "win32") {
+    await fs.chmod(bundledNodeBinaryPath, 0o755);
+  }
 }
 
 async function stageSeedContent() {

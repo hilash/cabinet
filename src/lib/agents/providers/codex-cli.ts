@@ -1,6 +1,19 @@
-import { execSync } from "child_process";
+import os from "os";
+import path from "path";
+import { execFileSync } from "child_process";
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
-import { checkCliProviderAvailable, resolveCliCommand, RUNTIME_PATH } from "../provider-cli";
+import {
+  checkCliProviderAvailable,
+  normalizeCliExecution,
+  resolveCliCommand,
+  RUNTIME_PATH,
+} from "../provider-cli";
+
+const homeDir = os.homedir();
+const windowsNpmBin =
+  process.platform === "win32"
+    ? path.join(process.env.APPDATA || path.join(homeDir, "AppData", "Roaming"), "npm")
+    : null;
 
 export const codexCliProvider: AgentProvider = {
   id: "codex-cli",
@@ -22,9 +35,15 @@ export const codexCliProvider: AgentProvider = {
   ],
   command: "codex",
   commandCandidates: [
-    `${process.env.HOME || ""}/.local/bin/codex`,
+    path.join(homeDir, ".local", "bin", "codex"),
     "/usr/local/bin/codex",
     "/opt/homebrew/bin/codex",
+    ...(windowsNpmBin
+      ? [
+          path.join(windowsNpmBin, "codex.cmd"),
+          path.join(windowsNpmBin, "codex.exe"),
+        ]
+      : []),
     "codex",
   ],
 
@@ -77,7 +96,8 @@ export const codexCliProvider: AgentProvider = {
       // Check auth status via `codex login status`
       try {
         const cmd = resolveCliCommand(this);
-        const output = execSync(`${cmd} login status 2>&1`, {
+        const invocation = normalizeCliExecution(cmd, ["login", "status"]);
+        const output = execFileSync(invocation.command, invocation.args, {
           encoding: "utf8",
           env: { ...process.env, PATH: RUNTIME_PATH },
           stdio: ["ignore", "pipe", "ignore"],

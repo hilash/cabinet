@@ -1,12 +1,25 @@
-import { execSync } from "child_process";
+import os from "os";
+import path from "path";
+import { execFileSync } from "child_process";
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
-import { checkCliProviderAvailable, resolveCliCommand, RUNTIME_PATH } from "../provider-cli";
+import {
+  checkCliProviderAvailable,
+  normalizeCliExecution,
+  resolveCliCommand,
+  RUNTIME_PATH,
+} from "../provider-cli";
 import { getNvmNodeBin } from "../nvm-path";
 
 const nvmClaudePath = (() => {
   const bin = getNvmNodeBin();
-  return bin ? `${bin}/claude` : null;
+  return bin ? path.join(bin, process.platform === "win32" ? "claude.cmd" : "claude") : null;
 })();
+
+const homeDir = os.homedir();
+const windowsNpmBin =
+  process.platform === "win32"
+    ? path.join(process.env.APPDATA || path.join(homeDir, "AppData", "Roaming"), "npm")
+    : null;
 
 export const claudeCodeProvider: AgentProvider = {
   id: "claude-code",
@@ -33,9 +46,15 @@ export const claudeCodeProvider: AgentProvider = {
   ],
   command: "claude",
   commandCandidates: [
-    `${process.env.HOME || ""}/.local/bin/claude`,
+    path.join(homeDir, ".local", "bin", "claude"),
     "/usr/local/bin/claude",
     "/opt/homebrew/bin/claude",
+    ...(windowsNpmBin
+      ? [
+          path.join(windowsNpmBin, "claude.cmd"),
+          path.join(windowsNpmBin, "claude.exe"),
+        ]
+      : []),
     ...(nvmClaudePath ? [nvmClaudePath] : []),
     "claude",
   ],
@@ -78,7 +97,8 @@ export const claudeCodeProvider: AgentProvider = {
       // Check actual auth status via `claude auth status`
       try {
         const cmd = resolveCliCommand(this);
-        const output = execSync(`${cmd} auth status`, {
+        const invocation = normalizeCliExecution(cmd, ["auth", "status"]);
+        const output = execFileSync(invocation.command, invocation.args, {
           encoding: "utf8",
           env: { ...process.env, PATH: RUNTIME_PATH },
           stdio: ["ignore", "pipe", "ignore"],

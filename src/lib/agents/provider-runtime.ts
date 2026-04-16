@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import type { AgentProvider, CliProviderInvocation } from "./provider-interface";
 import { providerRegistry } from "./provider-registry";
-import { resolveCliCommand, RUNTIME_PATH } from "./provider-cli";
+import { normalizeCliExecution, resolveCliCommand, RUNTIME_PATH } from "./provider-cli";
 import {
   resolveDetachedPromptLaunchMode,
   type DetachedLaunchMode,
@@ -77,8 +77,7 @@ function buildLaunchSpec(
     providerId: provider.id,
     providerName: provider.name,
     installMessage: provider.installMessage,
-    command: resolveCliCommand(provider),
-    args: invocation.args,
+    ...normalizeCliExecution(resolveCliCommand(provider), invocation.args),
     initialPrompt: invocation.initialPrompt,
     readyStrategy: invocation.readyStrategy,
   };

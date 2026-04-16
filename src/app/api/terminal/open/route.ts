@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
+import os from "os";
 
 export async function POST() {
-  const home = process.env.HOME || "~";
+  const home = os.homedir();
 
   try {
     if (process.platform === "darwin") {
       exec(`open -a Terminal "${home}"`);
     } else if (process.platform === "win32") {
-      exec(`start cmd /K "cd /d ${home}"`);
+      exec(
+        `powershell -NoProfile -Command "Start-Process powershell -ArgumentList '-NoExit','-Command','Set-Location -LiteralPath ''${home.replace(/'/g, "''")}'''"`
+      );
     } else {
       // Linux: try common terminal emulators
       exec(

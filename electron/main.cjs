@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { execFileSync } = require("child_process");
+const { execFileSync, spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const net = require("net");
-const { spawn } = require("child_process");
 const { app, BrowserWindow, dialog, autoUpdater } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
 
@@ -19,6 +18,9 @@ if (!gotSingleInstanceLock) {
 const isDev = !app.isPackaged;
 const managedDataDir = path.join(app.getPath("userData"), "cabinet-data");
 const updateStatusPath = path.join(managedDataDir, ".cabinet-state", "update-status.json");
+const bundledNodeBinaryName = process.platform === "win32" ? "node.exe" : "node";
+const electronInstallKind = process.platform === "win32" ? "electron-windows" : "electron-macos";
+const allowWindowsAutoUpdates = process.env.CABINET_ENABLE_WINDOWS_AUTO_UPDATES === "1";
 let mainWindow = null;
 let backendChildren = [];
 const DEV_APP_DISCOVERY_TIMEOUT_MS = 45_000;
@@ -95,7 +97,7 @@ function spawnNodeBackend(args, env) {
     ".next",
     "standalone",
     "bin",
-    "node"
+    bundledNodeBinaryName
   );
 
   if (fs.existsSync(bundledNodePath)) {
@@ -114,10 +116,75 @@ function packagedStandalonePath(...parts) {
   return path.join(process.resourcesPath, "app.asar.unpacked", ".next", "standalone", ...parts);
 }
 
+function normalizeExtractedNativeModules(externalNodePty) {
+  if (process.platform !== "darwin") {
+    return;
+  }
+
+  const prebuildsDir = path.join(externalNodePty, "prebuilds");
+  if (!fs.existsSync(prebuildsDir)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(prebuildsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.startsWith("darwin-")) {
+      continue;
+    }
+
+    const candidateDir = path.join(prebuildsDir, entry.name);
+    const spawnHelperPath = path.join(candidateDir, "spawn-helper");
+    const nativeModulePath = path.join(candidateDir, "pty.node");
+
+    if (fs.existsSync(spawnHelperPath)) {
+      try {
+        fs.chmodSync(spawnHelperPath, 0o755);
+      } catch {}
+    }
+
+    for (const target of [spawnHelperPath, nativeModulePath]) {
+      if (!fs.existsSync(target)) {
+        continue;
+      }
+
+      try {
+        execFileSync("xattr", ["-dr", "com.apple.quarantine", target]);
+      } catch {}
+      try {
+        execFileSync("codesign", ["--force", "--sign", "-", target]);
+      } catch {}
+    }
+  }
+}
+
+function buildWindowOptions() {
+  const options = {
+    width: 1480,
+    height: 940,
+    minWidth: 1180,
+    minHeight: 760,
+    backgroundColor: "#111111",
+    autoHideMenuBar: process.platform === "win32",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      sandbox: false,
+    },
+  };
+
+  if (process.platform === "darwin") {
+    options.titleBarStyle = "hiddenInset";
+    options.trafficLightPosition = { x: 16, y: 18 };
+  } else {
+    options.title = "Cabinet";
+  }
+
+  return options;
+}
+
 /**
- * macOS Sequoia+ blocks execution of native binaries inside .app bundles.
- * Copy node-pty to a writable location outside the bundle so spawn-helper
- * can execute, and return the external node_modules path for NODE_PATH.
+ * Copy bundled native modules to a writable location outside the app bundle.
+ * macOS requires this for node-pty spawn-helper execution and Windows can
+ * reuse the same extracted location for packaged native resolution.
  */
 function extractNativeModules() {
   const externalModulesDir = path.join(app.getPath("userData"), "native-modules");
@@ -139,20 +206,7 @@ function extractNativeModules() {
     fs.rmSync(externalNodePty, { recursive: true, force: true });
     fs.mkdirSync(externalModulesDir, { recursive: true });
     fs.cpSync(bundledNodePty, externalNodePty, { recursive: true });
-
-    // Remove quarantine flags and ad-hoc codesign native binaries so macOS allows execution
-    const prebuildsDir = path.join(externalNodePty, "prebuilds", "darwin-arm64");
-    for (const name of ["spawn-helper", "pty.node"]) {
-      const target = path.join(prebuildsDir, name);
-      if (fs.existsSync(target)) {
-        try {
-          execFileSync("xattr", ["-dr", "com.apple.quarantine", target]);
-        } catch {}
-        try {
-          execFileSync("codesign", ["--force", "--sign", "-", target]);
-        } catch {}
-      }
-    }
+    normalizeExtractedNativeModules(externalNodePty);
   }
 
   return externalModulesDir;
@@ -266,7 +320,7 @@ async function startEmbeddedCabinet() {
     NODE_ENV: "production",
     PORT: String(appPort),
     CABINET_RUNTIME: "electron",
-    CABINET_INSTALL_KIND: "electron-macos",
+    CABINET_INSTALL_KIND: electronInstallKind,
     CABINET_DATA_DIR: managedDataDir,
     CABINET_APP_PORT: String(appPort),
     CABINET_DAEMON_PORT: String(daemonPort),
@@ -292,7 +346,18 @@ async function startEmbeddedCabinet() {
 }
 
 function configureAutoUpdates() {
-  if (process.platform !== "darwin") {
+  if (isDev || !["darwin", "win32"].includes(process.platform)) {
+    return;
+  }
+
+  if (process.platform === "win32" && !allowWindowsAutoUpdates) {
+    writeUpdateStatus({
+      state: "idle",
+      completedAt: new Date().toISOString(),
+      installKind: electronInstallKind,
+      message:
+        "Windows desktop auto-updates are disabled for this build. Install a newer Cabinet Setup.exe manually.",
+    });
     return;
   }
 
@@ -306,7 +371,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "failed",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: electronInstallKind,
       message: "Electron update setup failed.",
       error: error instanceof Error ? error.message : String(error),
     });
@@ -316,7 +381,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "checking",
       startedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: electronInstallKind,
       message: "Checking for a newer Cabinet desktop release...",
     });
   });
@@ -325,7 +390,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "available",
       startedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: electronInstallKind,
       message: "A new Cabinet desktop release is downloading in the background.",
     });
   });
@@ -334,7 +399,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "idle",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: electronInstallKind,
       message: "Cabinet desktop is up to date.",
     });
   });
@@ -343,7 +408,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "failed",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: electronInstallKind,
       message: "Cabinet desktop update failed.",
       error: error instanceof Error ? error.message : String(error),
     });
@@ -353,7 +418,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "restart-required",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: electronInstallKind,
       message: "Restart Cabinet to finish applying the desktop update.",
     });
 
@@ -376,7 +441,13 @@ function configureAutoUpdates() {
 
 function cleanupBackends() {
   for (const child of backendChildren) {
-    child.kill("SIGTERM");
+    try {
+      if (process.platform === "win32") {
+        child.kill();
+      } else {
+        child.kill("SIGTERM");
+      }
+    } catch {}
   }
   backendChildren = [];
 }
@@ -384,20 +455,7 @@ function cleanupBackends() {
 async function createWindow() {
   const runtime = await startEmbeddedCabinet();
 
-  mainWindow = new BrowserWindow({
-    width: 1480,
-    height: 940,
-    minWidth: 1180,
-    minHeight: 760,
-    backgroundColor: "#111111",
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 16, y: 18 },
-    webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
-      contextIsolation: true,
-      sandbox: false,
-    },
-  });
+  mainWindow = new BrowserWindow(buildWindowOptions());
 
   if (isDev) {
     mainWindow.webContents.on("did-fail-load", async (_event, errorCode, errorDescription) => {
