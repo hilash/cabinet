@@ -28,6 +28,7 @@ const sessions = new Map<string, Session>();
 const completedOutput = new Map<string, { output: string; completedAt: number }>();
 const INITIAL_PROMPT_CHUNK_SIZE = process.platform === "win32" ? 1024 : 4096;
 const INITIAL_PROMPT_CHUNK_DELAY_MS = process.platform === "win32" ? 12 : 1;
+const INITIAL_PROMPT_SUBMIT_DELAY_MS = process.platform === "win32" ? 350 : 150;
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";
 
@@ -98,9 +99,11 @@ function submitInitialPrompt(session: Session): void {
       return;
     }
 
-    if (!session.exited) {
-      session.pty.write("\r");
-    }
+    setTimeout(() => {
+      if (!session.exited) {
+        session.pty.write("\r");
+      }
+    }, INITIAL_PROMPT_SUBMIT_DELAY_MS);
   };
 
   writeNextChunk();

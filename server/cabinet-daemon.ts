@@ -161,6 +161,7 @@ const CLAUDE_READY_CHECK_INTERVAL_MS = 500;
 const CLAUDE_READY_FALLBACK_MS = 15000;
 const INITIAL_PROMPT_CHUNK_SIZE = process.platform === "win32" ? 1024 : 4096;
 const INITIAL_PROMPT_CHUNK_DELAY_MS = process.platform === "win32" ? 12 : 1;
+const INITIAL_PROMPT_SUBMIT_DELAY_MS = process.platform === "win32" ? 350 : 150;
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";
 
@@ -403,10 +404,14 @@ function submitInitialPrompt(session: PtySession): void {
       return;
     }
 
-    // Small delay so the terminal processes the pasted text before Enter.
-    if (!session.exited) {
-      session.pty.write("\r");
-    }
+    // Give Claude's TUI time to finish processing the bracketed paste before
+    // sending Enter. Without this, Windows PTYs can show the text but miss the
+    // submit keystroke.
+    setTimeout(() => {
+      if (!session.exited) {
+        session.pty.write("\r");
+      }
+    }, INITIAL_PROMPT_SUBMIT_DELAY_MS);
   };
 
   writeNextChunk();
