@@ -159,6 +159,10 @@ const completedOutput = new Map<string, { output: string; completedAt: number }>
 const CLAUDE_AUTO_EXIT_GRACE_MS = 1200;
 const CLAUDE_READY_CHECK_INTERVAL_MS = 500;
 const CLAUDE_READY_FALLBACK_MS = 15000;
+const INITIAL_PROMPT_CHUNK_SIZE = process.platform === "win32" ? 1024 : 4096;
+const INITIAL_PROMPT_CHUNK_DELAY_MS = process.platform === "win32" ? 12 : 1;
+const BRACKETED_PASTE_START = "\x1b[200~";
+const BRACKETED_PASTE_END = "\x1b[201~";
 
 function resolveSessionCwd(input?: string): string {
   if (!input) return DATA_DIR;
@@ -383,13 +387,29 @@ function submitInitialPrompt(session: PtySession): void {
     delete session.initialPromptTimer;
   }
 
-  session.pty.write(session.initialPrompt);
-  // Small delay so the terminal processes the pasted text before Enter
-  setTimeout(() => {
+  const promptPayload = `${BRACKETED_PASTE_START}${session.initialPrompt}${BRACKETED_PASTE_END}`;
+  let offset = 0;
+
+  const writeNextChunk = () => {
+    if (session.exited) {
+      return;
+    }
+
+    const chunk = promptPayload.slice(offset, offset + INITIAL_PROMPT_CHUNK_SIZE);
+    if (chunk) {
+      session.pty.write(chunk);
+      offset += chunk.length;
+      setTimeout(writeNextChunk, INITIAL_PROMPT_CHUNK_DELAY_MS);
+      return;
+    }
+
+    // Small delay so the terminal processes the pasted text before Enter.
     if (!session.exited) {
       session.pty.write("\r");
     }
-  }, 150);
+  };
+
+  writeNextChunk();
 }
 
 function scheduleInitialPromptSubmission(session: PtySession): void {

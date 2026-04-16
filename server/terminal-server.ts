@@ -26,6 +26,10 @@ const sessions = new Map<string, Session>();
 
 // Completed session output (kept for 30 minutes for retrieval)
 const completedOutput = new Map<string, { output: string; completedAt: number }>();
+const INITIAL_PROMPT_CHUNK_SIZE = process.platform === "win32" ? 1024 : 4096;
+const INITIAL_PROMPT_CHUNK_DELAY_MS = process.platform === "win32" ? 12 : 1;
+const BRACKETED_PASTE_START = "\x1b[200~";
+const BRACKETED_PASTE_END = "\x1b[201~";
 
 // Cleanup old completed output every 5 minutes
 setInterval(() => {
@@ -78,8 +82,28 @@ function submitInitialPrompt(session: Session): void {
     delete session.initialPromptTimer;
   }
 
-  session.pty.write(session.initialPrompt);
-  session.pty.write("\r");
+  const promptPayload = `${BRACKETED_PASTE_START}${session.initialPrompt}${BRACKETED_PASTE_END}`;
+  let offset = 0;
+
+  const writeNextChunk = () => {
+    if (session.exited) {
+      return;
+    }
+
+    const chunk = promptPayload.slice(offset, offset + INITIAL_PROMPT_CHUNK_SIZE);
+    if (chunk) {
+      session.pty.write(chunk);
+      offset += chunk.length;
+      setTimeout(writeNextChunk, INITIAL_PROMPT_CHUNK_DELAY_MS);
+      return;
+    }
+
+    if (!session.exited) {
+      session.pty.write("\r");
+    }
+  };
+
+  writeNextChunk();
 }
 
 const CLAUDE_PATH = (() => {
