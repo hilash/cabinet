@@ -6,6 +6,11 @@ import { execSync } from "child_process";
 import { DATA_DIR } from "../src/lib/storage/path-utils";
 import { getDaemonPort } from "../src/lib/runtime/runtime-config";
 import { buildAgentEnv } from "./env-sanitize";
+import {
+  daemonBus,
+  type PtyCreateRequest,
+  type PtyCreatedEvent,
+} from "./daemon-bus";
 
 const PORT = getDaemonPort();
 
@@ -83,6 +88,17 @@ function submitInitialPrompt(session: Session): void {
   session.pty.write("\r");
 }
 
+interface ResolvedPtyCreateRequest extends PtyCreateRequest {
+  id: string;
+}
+
+function resolvePtyCreateRequest(input: PtyCreateRequest): ResolvedPtyCreateRequest {
+  return {
+    ...input,
+    id: input.id || `session-${Date.now()}`,
+  };
+}
+
 // Resolve the claude binary path at startup
 function resolveClaudePath(): string {
   const candidates = [
@@ -125,6 +141,138 @@ const enrichedPath = [
   `${process.env.HOME}/.local/bin`,
   process.env.PATH,
 ].join(":");
+
+function createSession(input: { sessionId: string; prompt?: string }): Session {
+  const prompt = input.prompt?.trim() || undefined;
+  const args = prompt
+    ? ["--dangerously-skip-permissions", prompt]
+    : ["--dangerously-skip-permissions"];
+
+  const term = pty.spawn(CLAUDE_PATH, args, {
+    name: "xterm-256color",
+    cols: 120,
+    rows: 30,
+    cwd: DATA_DIR,
+    env: {
+      ...buildAgentEnv(),
+      PATH: enrichedPath,
+      TERM: "xterm-256color",
+      COLORTERM: "truecolor",
+      FORCE_COLOR: "3",
+      LANG: "en_US.UTF-8",
+    },
+  });
+
+  const session: Session = {
+    id: input.sessionId,
+    pty: term,
+    ws: null,
+    createdAt: new Date(),
+    output: [],
+    exited: false,
+    exitCode: null,
+    initialPrompt: undefined,
+    initialPromptSent: false,
+  };
+
+  sessions.set(input.sessionId, session);
+  console.log(`Session ${input.sessionId} started (${prompt ? "agent" : "interactive"} mode)`);
+
+  term.onData((data: string) => {
+    session.output.push(data);
+    if (
+      session.initialPrompt &&
+      !session.initialPromptSent &&
+      claudePromptReady(session.output.join(""))
+    ) {
+      submitInitialPrompt(session);
+    }
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      session.ws.send(data);
+    }
+  });
+
+  term.onExit(({ exitCode }) => {
+    console.log(`Session ${input.sessionId} PTY exited with code ${exitCode}`);
+    session.exited = true;
+    session.exitCode = exitCode;
+    daemonBus.emit("pty:exit", {
+      sessionId: input.sessionId,
+      pid: session.pty.pid,
+      exitCode,
+    });
+    if (session.initialPromptTimer) {
+      clearTimeout(session.initialPromptTimer);
+      delete session.initialPromptTimer;
+    }
+
+    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
+      const raw = session.output.join("");
+      const plain = stripAnsi(raw);
+      completedOutput.set(input.sessionId, { output: plain, completedAt: Date.now() });
+      sessions.delete(input.sessionId);
+      session.ws.close();
+    }
+  });
+
+  if (session.initialPrompt) {
+    session.initialPromptTimer = setTimeout(() => {
+      submitInitialPrompt(session);
+    }, 1500);
+  }
+
+  return session;
+}
+
+function createOrReuseSession(input: ResolvedPtyCreateRequest): {
+  sessionId: string;
+  pid: number | null;
+  existing?: boolean;
+} {
+  const existingSession = sessions.get(input.id);
+  if (existingSession?.exited) {
+    sessions.delete(input.id);
+    completedOutput.delete(input.id);
+  } else if (existingSession) {
+    return {
+      sessionId: input.id,
+      pid: existingSession.pty.pid,
+      existing: true,
+    };
+  }
+
+  const session = createSession({
+    sessionId: input.id,
+    prompt: input.prompt,
+  });
+
+  return {
+    sessionId: session.id,
+    pid: session.pty.pid,
+  };
+}
+
+daemonBus.on("pty:create-request", ({ requestId, replyTo, ...payload }) => {
+  const request = resolvePtyCreateRequest(payload);
+  let response: PtyCreatedEvent;
+
+  try {
+    response = {
+      requestId,
+      ...createOrReuseSession(request),
+    };
+  } catch (err) {
+    response = {
+      requestId,
+      sessionId: request.id,
+      pid: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  daemonBus.emit("pty:created", response);
+  daemonBus.emit(replyTo, response);
+});
 
 // Create HTTP server to handle both WebSocket upgrades and REST endpoints
 const server = http.createServer((req, res) => {
@@ -248,29 +396,10 @@ wss.on("connection", (ws, req) => {
   }
 
   // New session — spawn PTY
-  let shell: string;
-  let args: string[];
-
-  shell = CLAUDE_PATH;
-  args = prompt
-    ? ["--dangerously-skip-permissions", prompt]
-    : ["--dangerously-skip-permissions"];
-
-  let term: pty.IPty;
   try {
-    term = pty.spawn(shell, args, {
-      name: "xterm-256color",
-      cols: 120,
-      rows: 30,
-      cwd: DATA_DIR,
-      env: {
-        ...buildAgentEnv(),
-        PATH: enrichedPath,
-        TERM: "xterm-256color",
-        COLORTERM: "truecolor",
-        FORCE_COLOR: "3",
-        LANG: "en_US.UTF-8",
-      },
+    createSession({
+      sessionId,
+      prompt,
     });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -282,35 +411,13 @@ wss.on("connection", (ws, req) => {
     return;
   }
 
-  const session: Session = {
-    id: sessionId,
-    pty: term,
-    ws,
-    createdAt: new Date(),
-    output: [],
-    exited: false,
-    exitCode: null,
-    initialPrompt: undefined,
-    initialPromptSent: false,
-  };
+  const session = sessions.get(sessionId)!;
+  session.ws = ws;
 
-  sessions.set(sessionId, session);
-  console.log(`Session ${sessionId} started (${prompt ? "agent" : "interactive"} mode)`);
-
-  // PTY output → WebSocket + capture (always capture, send only if connected)
-  term.onData((data: string) => {
-    session.output.push(data);
-    if (
-      session.initialPrompt &&
-      !session.initialPromptSent &&
-      claudePromptReady(session.output.join(""))
-    ) {
-      submitInitialPrompt(session);
-    }
-    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-      session.ws.send(data);
-    }
-  });
+  const replay = session.output.join("");
+  if (replay && ws.readyState === WebSocket.OPEN) {
+    ws.send(replay);
+  }
 
   // WebSocket input → PTY
   ws.on("message", (data: Buffer) => {
@@ -318,13 +425,13 @@ wss.on("connection", (ws, req) => {
     try {
       const parsed = JSON.parse(msg);
       if (parsed.type === "resize" && parsed.cols && parsed.rows) {
-        term.resize(parsed.cols, parsed.rows);
+        session.pty.resize(parsed.cols, parsed.rows);
         return;
       }
     } catch {
       // Not JSON, treat as terminal input
     }
-    term.write(msg);
+    session.pty.write(msg);
   });
 
   // On WebSocket close: DETACH, don't kill the PTY
@@ -333,32 +440,6 @@ wss.on("connection", (ws, req) => {
     session.ws = null;
   });
 
-  // PTY exit: finalize if no client connected, otherwise notify client
-  term.onExit(({ exitCode }) => {
-    console.log(`Session ${sessionId} PTY exited with code ${exitCode}`);
-    session.exited = true;
-    session.exitCode = exitCode;
-    if (session.initialPromptTimer) {
-      clearTimeout(session.initialPromptTimer);
-      delete session.initialPromptTimer;
-    }
-
-    if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-      // Client is connected — notify and finalize
-      const raw = session.output.join("");
-      const plain = stripAnsi(raw);
-      completedOutput.set(sessionId, { output: plain, completedAt: Date.now() });
-      sessions.delete(sessionId);
-      session.ws.close();
-    }
-    // If no client connected, session stays in map as exited — will be picked up on reconnect or cleanup
-  });
-
-  if (session.initialPrompt) {
-    session.initialPromptTimer = setTimeout(() => {
-      submitInitialPrompt(session);
-    }, 1500);
-  }
 });
 
 server.listen(PORT);

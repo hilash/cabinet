@@ -14,6 +14,7 @@ import matter from "gray-matter";
 import { DATA_DIR, resolveContentPath } from "../src/lib/storage/path-utils";
 import { getDaemonPort } from "../src/lib/runtime/runtime-config";
 import { getOrCreateDaemonToken } from "../src/lib/agents/daemon-auth";
+import { daemonBus } from "./daemon-bus";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -318,14 +319,11 @@ async function createDaemonSession(opts: {
   timeoutSeconds?: number;
 }): Promise<boolean> {
   try {
-    const res = await daemonFetch("/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(opts),
+    const res = await daemonBus.request("pty:create-request", opts, {
+      timeoutMs: 30_000,
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error(`[multica-poller] createDaemonSession failed (${res.status}): ${text.slice(0, 200)}`);
+    if (res.error) {
+      console.error(`[multica-poller] createDaemonSession failed: ${res.error}`);
       return false;
     }
     return true;

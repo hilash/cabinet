@@ -41,6 +41,11 @@ import {
   isDaemonTokenValid,
 } from "../src/lib/agents/daemon-auth";
 import {
+  daemonBus,
+  type PtyCreateRequest,
+  type PtyCreatedEvent,
+} from "./daemon-bus";
+import {
   normalizeJobConfig,
   normalizeJobId,
 } from "../src/lib/jobs/job-normalization";
@@ -414,6 +419,48 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
 
 }
 
+interface ResolvedPtyCreateRequest extends PtyCreateRequest {
+  id: string;
+}
+
+function resolvePtyCreateRequest(input: PtyCreateRequest): ResolvedPtyCreateRequest {
+  return {
+    ...input,
+    id: input.id || `session-${Date.now()}`,
+  };
+}
+
+function createOrReuseDetachedSession(input: ResolvedPtyCreateRequest): {
+  sessionId: string;
+  pid: number | null;
+  existing?: boolean;
+} {
+  const existingSession = sessions.get(input.id);
+  if (existingSession?.exited) {
+    sessions.delete(input.id);
+    completedOutput.delete(input.id);
+  } else if (existingSession) {
+    return {
+      sessionId: input.id,
+      pid: existingSession.pty.pid,
+      existing: true,
+    };
+  }
+
+  const session = createDetachedSession({
+    sessionId: input.id,
+    providerId: input.providerId,
+    prompt: input.prompt,
+    cwd: input.cwd,
+    timeoutSeconds: input.timeoutSeconds,
+  });
+
+  return {
+    sessionId: session.id,
+    pid: session.pty.pid,
+  };
+}
+
 function createDetachedSession(input: {
   sessionId: string;
   providerId?: string;
@@ -485,6 +532,11 @@ function createDetachedSession(input: {
     console.log(`Session ${input.sessionId} PTY exited with code ${exitCode}`);
     session.exited = true;
     session.exitCode = exitCode;
+    daemonBus.emit("pty:exit", {
+      sessionId: input.sessionId,
+      pid: session.pty.pid,
+      exitCode,
+    });
     if (session.timeoutHandle) {
       clearTimeout(session.timeoutHandle);
       delete session.timeoutHandle;
@@ -525,6 +577,28 @@ function createDetachedSession(input: {
 
   return session;
 }
+
+daemonBus.on("pty:create-request", async ({ requestId, replyTo, ...payload }) => {
+  const request = resolvePtyCreateRequest(payload);
+  let response: PtyCreatedEvent;
+
+  try {
+    response = {
+      requestId,
+      ...createOrReuseDetachedSession(request),
+    };
+  } catch (err) {
+    response = {
+      requestId,
+      sessionId: request.id,
+      pid: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  daemonBus.emit("pty:created", response);
+  daemonBus.emit(replyTo, response);
+});
 
 // ===== WebSocket Event Bus =====
 
@@ -894,53 +968,22 @@ const server = http.createServer(async (req, res) => {
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
       try {
-        const {
-          id,
-          providerId,
-          prompt,
-          cwd,
-          timeoutSeconds,
-        } = JSON.parse(body) as {
-          id: string;
-          providerId?: string;
-          prompt?: string;
-          cwd?: string;
-          timeoutSeconds?: number;
-        };
-        const sessionId = id || `session-${Date.now()}`;
-
-        const existingSession = sessions.get(sessionId);
-        if (existingSession?.exited) {
-          sessions.delete(sessionId);
-          completedOutput.delete(sessionId);
-        } else if (existingSession) {
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ sessionId, existing: true }));
-          return;
-        }
-
-        try {
-          createDetachedSession({
-            sessionId,
-            providerId,
-            prompt,
-            cwd,
-            timeoutSeconds,
-          });
-        } catch (err: unknown) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: errMsg }));
-          return;
-        }
-
-        console.log(`Session ${sessionId} started via HTTP (agent mode)`);
-
+        const request = resolvePtyCreateRequest(JSON.parse(body) as PtyCreateRequest);
+        const result = createOrReuseDetachedSession(request);
+        console.log(`Session ${result.sessionId} started via HTTP (agent mode)`);
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ sessionId }));
-      } catch {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid JSON" }));
+        res.end(JSON.stringify(result.existing ? { sessionId: result.sessionId, existing: true } : { sessionId: result.sessionId }));
+      } catch (err: unknown) {
+        if (err instanceof SyntaxError) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Invalid JSON" }));
+          return;
+        }
+
+        const errMsg = err instanceof Error ? err.message : String(err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: errMsg }));
+        return;
       }
     });
     return;
