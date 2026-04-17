@@ -4,6 +4,7 @@ import {
   waitForAbort,
   type ServiceModule,
 } from "../service-module";
+import { LOOPBACK_HOST } from "../terminal-server-auth";
 
 interface TerminalServerModuleOptions {
   port: number;
@@ -56,7 +57,7 @@ export function createTerminalServerModule(
           options.server.once("error", onError);
           ctx.signal.addEventListener("abort", onAbort, { once: true });
 
-          options.server.listen(options.port, () => {
+          options.server.listen(options.port, LOOPBACK_HOST, () => {
             cleanup();
             options.onStarted?.();
             state.up();

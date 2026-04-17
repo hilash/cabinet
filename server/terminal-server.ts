@@ -11,6 +11,11 @@ import {
   type PtyCreateRequest,
   type PtyCreatedEvent,
 } from "./daemon-bus";
+import {
+  LOOPBACK_HOST,
+  requireTerminalServerHttpAuth,
+  requireTerminalServerWebSocketAuth,
+} from "./terminal-server-auth";
 
 const PORT = getDaemonPort();
 
@@ -276,18 +281,11 @@ daemonBus.on("pty:create-request", ({ requestId, replyTo, ...payload }) => {
 
 // Create HTTP server to handle both WebSocket upgrades and REST endpoints
 const server = http.createServer((req, res) => {
-  // CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  const url = new URL(req.url || "", `http://${LOOPBACK_HOST}:${PORT}`);
 
-  if (req.method === "OPTIONS") {
-    res.writeHead(204);
-    res.end();
+  if (!requireTerminalServerHttpAuth(req, res, url)) {
     return;
   }
-
-  const url = new URL(req.url || "", `http://localhost:${PORT}`);
 
   // GET /session/:id/output — retrieve captured output for a completed session
   const outputMatch = url.pathname.match(/^\/session\/([^/]+)\/output$/);
@@ -338,13 +336,18 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server });
 
-console.log(`Terminal WebSocket server running on ws://localhost:${PORT}`);
-console.log(`Session output API on http://localhost:${PORT}/session/:id/output`);
+console.log(`Terminal WebSocket server running on ws://${LOOPBACK_HOST}:${PORT}`);
+console.log(`Session output API on http://${LOOPBACK_HOST}:${PORT}/session/:id/output`);
 console.log(`Using claude binary: ${CLAUDE_PATH}`);
 console.log(`Working directory: ${DATA_DIR}`);
 
 wss.on("connection", (ws, req) => {
-  const url = new URL(req.url || "", `http://localhost:${PORT}`);
+  const url = new URL(req.url || "", `http://${LOOPBACK_HOST}:${PORT}`);
+
+  if (!requireTerminalServerWebSocketAuth(ws, req, url)) {
+    return;
+  }
+
   const sessionId = url.searchParams.get("id") || `session-${Date.now()}`;
   const prompt = url.searchParams.get("prompt")?.trim() || undefined;
 
@@ -442,7 +445,7 @@ wss.on("connection", (ws, req) => {
 
 });
 
-server.listen(PORT);
+server.listen(PORT, LOOPBACK_HOST);
 
 // Handle server-level errors gracefully
 wss.on("error", (err) => {
