@@ -1,83 +1,107 @@
-import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import {
   createTask,
   getTasksForAgent,
   getAllTasks,
   updateTask,
+  type TaskStatus,
 } from "@/lib/agents/task-inbox";
+import {
+  HttpError,
+  createGetHandler,
+  createHandler,
+} from "@/lib/http/create-handler";
+
+const taskMutationSchema = z
+  .object({
+    action: z.string().optional(),
+    agent: z.string().optional(),
+    taskId: z.string().optional(),
+    status: z.enum(["pending", "in_progress", "completed", "failed"]).optional(),
+    result: z.string().optional(),
+    fromAgent: z.string().optional(),
+    fromEmoji: z.string().optional(),
+    fromName: z.string().optional(),
+    toAgent: z.string().optional(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    kbRefs: z.array(z.string()).optional(),
+    priority: z.number().optional(),
+    channel: z.string().optional(),
+  })
+  .passthrough();
 
 // GET /api/agents/tasks?agent=slug&status=pending
 // or GET /api/agents/tasks?all=true  (all tasks across agents)
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const agent = searchParams.get("agent");
-  const status = searchParams.get("status") as
-    | "pending"
-    | "in_progress"
-    | "completed"
-    | "failed"
-    | null;
-  const all = searchParams.get("all");
+export const GET = createGetHandler({
+  handler: async (req) => {
+    const { searchParams } = new URL(req.url);
+    const agent = searchParams.get("agent");
+    const status = searchParams.get("status") as TaskStatus | null;
+    const all = searchParams.get("all");
 
-  if (all === "true") {
-    const tasks = await getAllTasks(status ?? undefined);
-    return NextResponse.json({ tasks });
-  }
+    if (all === "true") {
+      const tasks = await getAllTasks(status ?? undefined);
+      return { tasks };
+    }
 
-  if (!agent) {
-    return NextResponse.json(
-      { error: "agent query param required" },
-      { status: 400 }
-    );
-  }
+    if (!agent) {
+      throw new HttpError(400, "agent query param required");
+    }
 
-  const tasks = await getTasksForAgent(agent, status ?? undefined);
-  return NextResponse.json({ tasks });
-}
+    const tasks = await getTasksForAgent(agent, status ?? undefined);
+    return { tasks };
+  },
+});
 
 // POST /api/agents/tasks
 // Body: { fromAgent, toAgent, title, description, kbRefs?, priority?, channel? }
 // or { action: "update", agent, taskId, status, result? }
-export async function POST(req: NextRequest) {
-  const body = await req.json();
+export const POST = createHandler({
+  input: taskMutationSchema,
+  handler: async (body) => {
+    if (body.action === "update") {
+      const { agent, taskId, status, result } = body;
+      if (!agent || !taskId || !status) {
+        throw new HttpError(400, "agent, taskId, and status required");
+      }
 
-  if (body.action === "update") {
-    const { agent, taskId, status, result } = body;
-    if (!agent || !taskId || !status) {
-      return NextResponse.json(
-        { error: "agent, taskId, and status required" },
-        { status: 400 }
-      );
+      const updated = await updateTask(agent, taskId, { status, result });
+      if (!updated) {
+        throw new HttpError(404, "Task not found");
+      }
+
+      return { task: updated };
     }
-    const updated = await updateTask(agent, taskId, { status, result });
-    if (!updated) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+
+    const {
+      fromAgent,
+      fromEmoji,
+      fromName,
+      toAgent,
+      channel,
+      title,
+      description,
+      kbRefs,
+      priority,
+    } = body;
+
+    if (!fromAgent || !toAgent || !title) {
+      throw new HttpError(400, "fromAgent, toAgent, and title required");
     }
-    return NextResponse.json({ task: updated });
-  }
 
-  // Create new task
-  const { fromAgent, toAgent, title, description, kbRefs, priority, channel,
-    fromEmoji, fromName } = body;
+    const task = await createTask({
+      fromAgent,
+      fromEmoji,
+      fromName,
+      toAgent,
+      channel: channel || "general",
+      title,
+      description: description || "",
+      kbRefs: kbRefs || [],
+      priority: priority || 3,
+    });
 
-  if (!fromAgent || !toAgent || !title) {
-    return NextResponse.json(
-      { error: "fromAgent, toAgent, and title required" },
-      { status: 400 }
-    );
-  }
-
-  const task = await createTask({
-    fromAgent,
-    fromEmoji,
-    fromName,
-    toAgent,
-    channel: channel || "general",
-    title,
-    description: description || "",
-    kbRefs: kbRefs || [],
-    priority: priority || 3,
-  });
-
-  return NextResponse.json({ task });
-}
+    return { task };
+  },
+});

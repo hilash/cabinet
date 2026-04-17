@@ -1,29 +1,48 @@
-import { NextRequest, NextResponse } from "next/server";
 import { getSession, stopAgent } from "@/lib/agents/agent-manager";
+import {
+  HttpError,
+  createGetHandler,
+  createHandler,
+} from "@/lib/http/create-handler";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
-  try {
-    const { id } = await params;
-    const session = getSession(id);
-    if (!session) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
-    }
-    return NextResponse.json(session);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
 }
 
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
-  try {
-    const { id } = await params;
-    const stopped = stopAgent(id);
-    return NextResponse.json({ ok: true, stopped });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+export async function GET(req: Request, { params }: RouteParams) {
+  const { id } = await params;
+  return createGetHandler({
+    handler: async () => {
+      try {
+        const session = getSession(id);
+        if (!session) {
+          throw new HttpError(404, "Session not found");
+        }
+
+        return session;
+      } catch (error) {
+        if (error instanceof HttpError) {
+          throw error;
+        }
+
+        throw new HttpError(500, getErrorMessage(error));
+      }
+    },
+  })(req);
+}
+
+export async function DELETE(req: Request, { params }: RouteParams) {
+  const { id } = await params;
+  return createHandler<void, { ok: true; stopped: boolean }>({
+    handler: async () => {
+      try {
+        const stopped = stopAgent(id);
+        return { ok: true, stopped };
+      } catch (error) {
+        throw new HttpError(500, getErrorMessage(error));
+      }
+    },
+  })(req);
 }

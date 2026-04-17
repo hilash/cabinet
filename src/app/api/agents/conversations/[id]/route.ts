@@ -1,30 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
-import { deleteConversation, readConversationDetail } from "@/lib/agents/conversation-store";
+import {
+  deleteConversation,
+  readConversationDetail,
+} from "@/lib/agents/conversation-store";
+import {
+  HttpError,
+  createGetHandler,
+  createHandler,
+} from "@/lib/http/create-handler";
 
 export async function GET(
-  _req: NextRequest,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const detail = await readConversationDetail(id);
+  return createGetHandler({
+    handler: async () => {
+      const detail = await readConversationDetail(id);
 
-  if (!detail) {
-    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-  }
+      if (!detail) {
+        throw new HttpError(404, "Conversation not found");
+      }
 
-  return NextResponse.json(detail);
+      return detail;
+    },
+  })(req);
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const deleted = await deleteConversation(id);
+  return createHandler<void, { ok: true }>({
+    handler: async () => {
+      const deleted = await deleteConversation(id);
 
-  if (!deleted) {
-    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-  }
+      if (!deleted) {
+        throw new HttpError(404, "Conversation not found");
+      }
 
-  return NextResponse.json({ ok: true });
+      return { ok: true };
+    },
+  })(req);
 }
