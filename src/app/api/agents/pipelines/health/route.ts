@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   deleteHealthSchedule,
   getHealthReport,
@@ -8,22 +8,23 @@ import {
   upsertHealthSchedule,
 } from "@/lib/agents/health-pipeline";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import {
+  createGetHandler,
+  createHandler,
+  HttpError,
+} from "@/lib/http/create-handler";
 
-export async function GET(req: NextRequest) {
-  try {
+export const GET = createGetHandler({
+  handler: async (req) => {
     const { searchParams } = new URL(req.url);
 
-    // Single report lookup by id
     const reportId = searchParams.get("reportId");
     if (reportId) {
       const report = await getHealthReport(reportId);
       if (!report) {
-        return NextResponse.json(
-          { error: "Report not found" },
-          { status: 404 }
-        );
+        throw new HttpError(404, "Report not found");
       }
-      return NextResponse.json({ report });
+      return { report };
     }
 
     const reportsLimitRaw = searchParams.get("reportsLimit");
@@ -34,22 +35,18 @@ export async function GET(req: NextRequest) {
     const [schedules, reports] = await Promise.all([
       listHealthSchedules(),
       listHealthReports(
-        Number.isFinite(reportsLimit) && reportsLimit > 0 ? reportsLimit : 20
+        Number.isFinite(reportsLimit) && reportsLimit > 0 ? reportsLimit : 20,
       ),
     ]);
 
-    return NextResponse.json({ schedules, reports });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return { schedules, reports };
+  },
+});
 
-// Track in-flight health runs so GET can report "running" status
 const runningHealthChecks = new Map<string, { startedAt: string }>();
 
-export async function POST(req: NextRequest) {
-  try {
+export const POST = createHandler({
+  handler: async (_input, req) => {
     const body = await req.json();
     const action = typeof body.action === "string" ? body.action : "run";
     const appOrigin = new URL(req.url).origin;
@@ -63,7 +60,6 @@ export async function POST(req: NextRequest) {
 
       runningHealthChecks.set(reportId, { startedAt: new Date().toISOString() });
 
-      // Fire and forget — run in background
       void runHealthPipeline({
         profile,
         source,
@@ -80,49 +76,31 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         { ok: true, reportId, status: "running" },
-        { status: 202 }
+        { status: 202 },
       );
     }
 
     if (action === "status") {
       const id = typeof body.reportId === "string" ? body.reportId : "";
       if (!id) {
-        return NextResponse.json(
-          { error: "reportId is required" },
-          { status: 400 }
-        );
+        throw new HttpError(400, "reportId is required");
       }
-      // Check if still running
       if (runningHealthChecks.has(id)) {
-        return NextResponse.json({ reportId: id, status: "running" });
+        return { reportId: id, status: "running" };
       }
-      // Check if report exists on disk
       const report = await getHealthReport(id);
       if (report) {
-        return NextResponse.json({
-          reportId: id,
-          status: "completed",
-          report,
-        });
+        return { reportId: id, status: "completed", report };
       }
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+      throw new HttpError(404, "Report not found");
     }
 
     if (action === "upsert-schedule") {
       if (typeof body.name !== "string" || !body.name.trim()) {
-        return NextResponse.json(
-          { error: "name is required" },
-          { status: 400 }
-        );
+        throw new HttpError(400, "name is required");
       }
       if (typeof body.schedule !== "string" || !body.schedule.trim()) {
-        return NextResponse.json(
-          { error: "schedule is required" },
-          { status: 400 }
-        );
+        throw new HttpError(400, "schedule is required");
       }
 
       const schedule = await upsertHealthSchedule({
@@ -133,27 +111,21 @@ export async function POST(req: NextRequest) {
         enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
       });
       await reloadDaemonSchedules().catch(() => {});
-      return NextResponse.json({ ok: true, schedule });
+      return { ok: true, schedule };
     }
 
     if (action === "delete-schedule") {
       if (typeof body.id !== "string" || !body.id.trim()) {
-        return NextResponse.json({ error: "id is required" }, { status: 400 });
+        throw new HttpError(400, "id is required");
       }
       const deleted = await deleteHealthSchedule(body.id.trim());
       if (!deleted) {
-        return NextResponse.json(
-          { error: "Schedule not found" },
-          { status: 404 }
-        );
+        throw new HttpError(404, "Schedule not found");
       }
       await reloadDaemonSchedules().catch(() => {});
-      return NextResponse.json({ ok: true });
+      return { ok: true };
     }
 
-    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    throw new HttpError(400, "Unknown action");
+  },
+});

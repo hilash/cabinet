@@ -1,42 +1,42 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   listChannels,
   createChannel,
   getLatestMessageTime,
 } from "@/lib/chat/chat-io";
+import {
+  createGetHandler,
+  createHandler,
+  HttpError,
+} from "@/lib/http/create-handler";
 
-export async function GET() {
-  try {
+export const GET = createGetHandler({
+  handler: async () => {
     const channels = await listChannels();
-    // Enrich with latest message time
     const enriched = channels.map((ch) => ({
       ...ch,
       lastMessageAt: getLatestMessageTime(ch.slug),
     }));
-    return NextResponse.json({ channels: enriched });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return { channels: enriched };
+  },
+});
 
-export async function POST(req: NextRequest) {
-  try {
+export const POST = createHandler({
+  handler: async (_input, req) => {
     const body = await req.json();
     const { slug, name, members, description } = body;
 
     if (!slug || !name) {
-      return NextResponse.json(
-        { error: "slug and name are required" },
-        { status: 400 }
-      );
+      throw new HttpError(400, "slug and name are required");
     }
 
-    await createChannel({ slug, name, members: members || [], description });
-    return NextResponse.json({ ok: true }, { status: 201 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    const status = message.includes("already exists") ? 409 : 500;
-    return NextResponse.json({ error: message }, { status });
-  }
-}
+    try {
+      await createChannel({ slug, name, members: members || [], description });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      const status = message.includes("already exists") ? 409 : 500;
+      throw new HttpError(status, message);
+    }
+
+    return { ok: true };
+  },
+});

@@ -1,48 +1,49 @@
-import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import {
-  listPersonas,
-  writePersona,
-} from "@/lib/agents/persona-manager";
+import { listPersonas, writePersona } from "@/lib/agents/persona-manager";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
-import { HttpError } from "@/lib/http/create-handler";
+import {
+  createGetHandler,
+  createHandler,
+  HttpError,
+} from "@/lib/http/create-handler";
 
-// Initialize heartbeats on first request
 let initialized = false;
 
-export async function GET() {
-  if (!initialized) {
-    await reloadDaemonSchedules().catch(() => {});
-    initialized = true;
-  }
+export const GET = createGetHandler({
+  handler: async () => {
+    if (!initialized) {
+      await reloadDaemonSchedules().catch(() => {});
+      initialized = true;
+    }
 
-  const personas = await listPersonas();
-  const activeHeartbeats = personas
-    .filter((persona) => persona.active && !!persona.heartbeat)
-    .map((persona) => persona.slug);
-  const runningCounts = await getRunningConversationCounts();
+    const personas = await listPersonas();
+    const activeHeartbeats = personas
+      .filter((persona) => persona.active && !!persona.heartbeat)
+      .map((persona) => persona.slug);
+    const runningCounts = await getRunningConversationCounts();
 
-  return NextResponse.json({
-    personas: personas.map((persona) => ({
-      ...persona,
-      runningCount: runningCounts[persona.slug] || 0,
-    })),
-    activeHeartbeats,
-  });
-}
+    return {
+      personas: personas.map((persona) => ({
+        ...persona,
+        runningCount: runningCounts[persona.slug] || 0,
+      })),
+      activeHeartbeats,
+    };
+  },
+});
 
-export async function POST(req: NextRequest) {
-  try {
+export const POST = createHandler({
+  handler: async (_input, req) => {
     const body = await req.json();
     const { slug, ...personaData } = body;
 
     if (!slug) {
-      return NextResponse.json({ error: "slug is required" }, { status: 400 });
+      throw new HttpError(400, "slug is required");
     }
 
     assertValidSlug(slug);
@@ -57,13 +58,6 @@ export async function POST(req: NextRequest) {
 
     await reloadDaemonSchedules().catch(() => {});
 
-    return NextResponse.json({ ok: true }, { status: 201 });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: "internal_error", message }, { status: 500 });
-  }
-}
+    return { ok: true };
+  },
+});

@@ -1,60 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
-import { HttpError } from "@/lib/http/create-handler";
+import { createHandler, HttpError } from "@/lib/http/create-handler";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 
 const LIBRARY_DIR = path.join(DATA_DIR, ".agents", ".library");
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
+type RouteParams = { params: Promise<{ slug: string }> };
+
+export async function POST(req: NextRequest, { params }: RouteParams) {
   const { slug } = await params;
+  return createHandler({
+    handler: async () => {
+      assertValidSlug(slug);
+      const templateDir = path.join(LIBRARY_DIR, slug);
+      const targetDir = path.join(AGENTS_DIR, slug);
 
-  try {
-    assertValidSlug(slug);
-    const templateDir = path.join(LIBRARY_DIR, slug);
-    const targetDir = path.join(AGENTS_DIR, slug);
+      const personaPath = path.join(templateDir, "persona.md");
+      try {
+        await fs.access(personaPath);
+      } catch {
+        throw new HttpError(404, `Template "${slug}" not found`);
+      }
 
-    // Verify template exists
-    const personaPath = path.join(templateDir, "persona.md");
-    try {
-      await fs.access(personaPath);
-    } catch {
-      return NextResponse.json(
-        { error: `Template "${slug}" not found` },
-        { status: 404 }
-      );
-    }
+      try {
+        await fs.access(targetDir);
+        throw new HttpError(409, `Agent "${slug}" already exists`);
+      } catch (err) {
+        if (err instanceof HttpError) throw err;
+      }
 
-    // Check if agent already exists
-    try {
-      await fs.access(targetDir);
-      return NextResponse.json(
-        { error: `Agent "${slug}" already exists` },
-        { status: 409 }
-      );
-    } catch {
-      // Good — doesn't exist yet
-    }
+      await copyDir(templateDir, targetDir);
+      await ensureAgentScaffold(targetDir);
 
-    // Copy template directory to active agents
-    await copyDir(templateDir, targetDir);
-
-    await ensureAgentScaffold(targetDir);
-
-    return NextResponse.json({ ok: true, slug }, { status: 201 });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+      return { ok: true, slug };
+    },
+  })(req);
 }
 
 async function copyDir(src: string, dest: string): Promise<void> {

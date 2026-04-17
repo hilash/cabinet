@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { HttpError } from "@/lib/http/create-handler";
+import { createHandler, HttpError } from "@/lib/http/create-handler";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
@@ -22,8 +21,8 @@ interface OnboardingRequest {
   selectedAgents: string[];
 }
 
-export async function POST(req: NextRequest) {
-  try {
+export const POST = createHandler({
+  handler: async (_input, req) => {
     const body = (await req.json()) as OnboardingRequest;
     const { answers, selectedAgents } = body;
 
@@ -37,7 +36,6 @@ export async function POST(req: NextRequest) {
       assertValidSlug(slug, "selectedAgents");
     }
 
-    // 1. Save company config
     await fs.mkdir(CONFIG_DIR, { recursive: true });
     await fs.writeFile(
       path.join(CONFIG_DIR, "company.json"),
@@ -54,23 +52,22 @@ export async function POST(req: NextRequest) {
           setupDate: new Date().toISOString(),
         },
         null,
-        2
-      )
+        2,
+      ),
     );
 
-    // 2. Mark onboarding as complete
     await fs.writeFile(
       path.join(CONFIG_DIR, "onboarding-complete.json"),
-      JSON.stringify({ completed: true, date: new Date().toISOString() })
+      JSON.stringify({ completed: true, date: new Date().toISOString() }),
     );
 
-    // Also write the old-format config so existing config check works
-    await fs.writeFile(
-      path.join(CONFIG_DIR, "../.config.json"),
-      JSON.stringify({ exists: true })
-    ).catch(() => {});
+    await fs
+      .writeFile(
+        path.join(CONFIG_DIR, "../.config.json"),
+        JSON.stringify({ exists: true }),
+      )
+      .catch(() => {});
 
-    // 3. Instantiate selected agents from library templates
     for (const slug of selectedAgents) {
       const templateDir = path.join(LIBRARY_DIR, slug);
       const targetDir = path.join(AGENTS_DIR, slug);
@@ -78,10 +75,9 @@ export async function POST(req: NextRequest) {
       try {
         await fs.access(templateDir);
       } catch {
-        continue; // Template doesn't exist, skip
+        continue;
       }
 
-      // Skip if agent already exists
       try {
         await fs.access(targetDir);
         continue;
@@ -89,15 +85,12 @@ export async function POST(req: NextRequest) {
         // Good, doesn't exist
       }
 
-      // Copy template
       await copyDir(templateDir, targetDir);
 
-      // Create standard subdirectories
       for (const subdir of ["jobs", "skills", "sessions", "memory"]) {
         await fs.mkdir(path.join(targetDir, subdir), { recursive: true });
       }
 
-      // Inject company context into persona.md
       const personaPath = path.join(targetDir, "persona.md");
       try {
         const raw = await fs.readFile(personaPath, "utf-8");
@@ -106,7 +99,7 @@ export async function POST(req: NextRequest) {
           .replace(/\{\{company_description\}\}/g, answers.description)
           .replace(
             /\{\{goals\}\}/g,
-            answers.goals || answers.priority || ""
+            answers.goals || answers.priority || "",
           );
         await fs.writeFile(personaPath, injected);
       } catch {
@@ -114,12 +107,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Create chat channels from all agent channel references
     await fs.mkdir(CHAT_DIR, { recursive: true });
 
-    // Collect all channels referenced by agents + map members
     const channelMembers = new Map<string, Set<string>>();
-    // Always create #general with all agents
     channelMembers.set("general", new Set(selectedAgents));
 
     for (const slug of selectedAgents) {
@@ -134,7 +124,6 @@ export async function POST(req: NextRequest) {
           }
           channelMembers.get(ch)!.add(slug);
         }
-        // Also add leadership agents to all channels
         if (data.type === "lead") {
           for (const [, members] of channelMembers) {
             members.add(slug);
@@ -159,37 +148,30 @@ export async function POST(req: NextRequest) {
         slug,
         name: slug.charAt(0).toUpperCase() + slug.slice(1),
         members: Array.from(members),
-        description:
-          channelDescriptions[slug] || `${slug} team channel`,
-      })
+        description: channelDescriptions[slug] || `${slug} team channel`,
+      }),
     );
 
     await fs.writeFile(
       path.join(CHAT_DIR, "channels.json"),
-      JSON.stringify(channels, null, 2)
+      JSON.stringify(channels, null, 2),
     );
 
-    // Create channel directories
     for (const ch of channels) {
       assertValidSlug(ch.slug, "channel");
       const chDir = path.join(CHAT_DIR, ch.slug);
       await fs.mkdir(chDir, { recursive: true });
-      // Only create files if they don't exist (don't wipe existing messages)
       const msgPath = path.join(chDir, "messages.md");
       const pinPath = path.join(chDir, "pins.json");
       await fs.writeFile(msgPath, "", { flag: "wx" }).catch(() => {});
-      await fs.writeFile(pinPath, JSON.stringify([]), { flag: "wx" }).catch(() => {});
+      await fs
+        .writeFile(pinPath, JSON.stringify([]), { flag: "wx" })
+        .catch(() => {});
     }
 
-    return NextResponse.json({ ok: true }, { status: 201 });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return { ok: true };
+  },
+});
 
 async function copyDir(src: string, dest: string): Promise<void> {
   await fs.mkdir(dest, { recursive: true });

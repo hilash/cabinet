@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
+import { createHandler, HttpError } from "@/lib/http/create-handler";
 import { gitPull } from "@/lib/git/git-service";
 
-export async function POST() {
-  try {
-    const result = await gitPull();
-    return NextResponse.json(result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ pulled: false, summary: message }, { status: 500 });
-  }
-}
+export const POST = createHandler({
+  handler: async () => {
+    try {
+      return await gitPull();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      throw new HttpError(500, message);
+    }
+  },
+});

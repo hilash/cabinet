@@ -1,13 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
+import { createHandler } from "@/lib/http/create-handler";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 
-export async function POST(req: NextRequest) {
-  try {
-    const { markdown } = await req.json();
-    if (!markdown) return NextResponse.json({ html: "" });
-    const html = await markdownToHtml(markdown);
-    return NextResponse.json({ html });
-  } catch (error) {
-    return NextResponse.json({ html: "" }, { status: 500 });
-  }
-}
+export const POST = createHandler({
+  handler: async (_input, req) => {
+    try {
+      const { markdown } = await req.json();
+      if (!markdown) return { html: "" };
+      const html = await markdownToHtml(markdown);
+      return { html };
+    } catch {
+      return { html: "" };
+    }
+  },
+});

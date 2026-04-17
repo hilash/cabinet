@@ -1,34 +1,32 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   listRequirementPipelines,
   runRequirementPipeline,
 } from "@/lib/agents/requirement-pipeline";
+import {
+  createGetHandler,
+  createHandler,
+  HttpError,
+} from "@/lib/http/create-handler";
 
-export async function GET(req: NextRequest) {
-  try {
+export const GET = createGetHandler({
+  handler: async (req) => {
     const { searchParams } = new URL(req.url);
     const limitRaw = searchParams.get("limit");
     const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 30;
     const pipelines = await listRequirementPipelines(
-      Number.isFinite(limit) && limit > 0 ? limit : 30
+      Number.isFinite(limit) && limit > 0 ? limit : 30,
     );
-    return NextResponse.json({ pipelines });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return { pipelines };
+  },
+});
 
-export async function POST(req: NextRequest) {
-  try {
+export const POST = createHandler({
+  handler: async (_input, req) => {
     const body = await req.json();
     const requirement =
       typeof body.requirement === "string" ? body.requirement.trim() : "";
     if (!requirement) {
-      return NextResponse.json(
-        { error: "requirement is required" },
-        { status: 400 }
-      );
+      throw new HttpError(400, "requirement is required");
     }
 
     const pipeline = await runRequirementPipeline({
@@ -36,15 +34,10 @@ export async function POST(req: NextRequest) {
       providerId:
         typeof body.providerId === "string" ? body.providerId : undefined,
       channel: typeof body.channel === "string" ? body.channel : undefined,
-      maxTasks:
-        typeof body.maxTasks === "number" ? body.maxTasks : undefined,
-      autoRun:
-        typeof body.autoRun === "boolean" ? body.autoRun : undefined,
+      maxTasks: typeof body.maxTasks === "number" ? body.maxTasks : undefined,
+      autoRun: typeof body.autoRun === "boolean" ? body.autoRun : undefined,
     });
 
-    return NextResponse.json({ ok: true, pipeline }, { status: 201 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return { ok: true, pipeline };
+  },
+});

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { createGetHandler, createHandler, HttpError } from "@/lib/http/create-handler";
 import {
   getActiveSessions,
   getRecentSessions,
@@ -6,28 +6,22 @@ import {
   getAgentStats,
 } from "@/lib/agents/agent-manager";
 
-export async function GET() {
-  try {
+export const GET = createGetHandler({
+  handler: async () => {
     const active = getActiveSessions();
     const recent = getRecentSessions();
     const stats = getAgentStats();
-    return NextResponse.json({ active, recent, stats });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return { active, recent, stats };
+  },
+});
 
-export async function POST(req: NextRequest) {
-  try {
+export const POST = createHandler({
+  handler: async (_input, req) => {
     const body = await req.json();
     const { taskTitle, prompt, taskId, workdir, providerId } = body;
 
     if (!prompt) {
-      return NextResponse.json(
-        { error: "prompt is required" },
-        { status: 400 }
-      );
+      throw new HttpError(400, "prompt is required");
     }
 
     const sessionId = await runAgent(
@@ -35,12 +29,9 @@ export async function POST(req: NextRequest) {
       prompt,
       taskId,
       workdir,
-      providerId
+      providerId,
     );
 
-    return NextResponse.json({ ok: true, sessionId }, { status: 201 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return { ok: true, sessionId };
+  },
+});

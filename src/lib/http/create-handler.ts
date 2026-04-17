@@ -15,11 +15,11 @@ export class HttpError extends Error {
 
 interface CreateHandlerOptions<TInput, TOutput> {
   input?: ZodSchema<TInput>;
-  handler: (input: TInput, req: Request) => Promise<TOutput>;
+  handler: (input: TInput, req: Request) => Promise<TOutput | Response>;
 }
 
 interface CreateGetHandlerOptions<TOutput> {
-  handler: (req: Request) => Promise<TOutput>;
+  handler: (req: Request) => Promise<TOutput | Response>;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -63,11 +63,13 @@ export function createHandler<TInput, TOutput>({
         }
 
         const result = await handler(parsedInput.data, req);
+        if (result instanceof Response) return result as NextResponse;
         return NextResponse.json(result);
       }
 
       const result = await handler(undefined as TInput, req);
 
+      if (result instanceof Response) return result as NextResponse;
       return NextResponse.json(result);
     } catch (error) {
       return toErrorResponse(error);
@@ -83,6 +85,7 @@ export function createGetHandler<TOutput>({
   return async function routeHandler(req: Request): Promise<NextResponse> {
     try {
       const result = await handler(req);
+      if (result instanceof Response) return result as NextResponse;
       return NextResponse.json(result);
     } catch (error) {
       return toErrorResponse(error);

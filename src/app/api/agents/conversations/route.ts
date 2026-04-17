@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { createGetHandler, createHandler, HttpError } from "@/lib/http/create-handler";
 import {
   buildEditorConversationPrompt,
   buildManualConversationPrompt,
@@ -6,11 +6,10 @@ import {
 } from "@/lib/agents/conversation-runner";
 import { listConversationMetas } from "@/lib/agents/conversation-store";
 import { readMemory, writeMemory } from "@/lib/agents/persona-manager";
-import { HttpError } from "@/lib/http/create-handler";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 
-export async function GET(req: NextRequest) {
-  try {
+export const GET = createGetHandler({
+  handler: async (req) => {
     const { searchParams } = new URL(req.url);
     const agentSlug = searchParams.get("agent") || undefined;
     const pagePath = searchParams.get("pagePath") || undefined;
@@ -39,25 +38,20 @@ export async function GET(req: NextRequest) {
       limit,
     });
 
-    return NextResponse.json({ conversations });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return { conversations };
+  },
+});
 
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: "internal_error", message }, { status: 500 });
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
+export const POST = createHandler({
+  handler: async (_input, req) => {
     const body = await req.json();
     const source = body.source === "editor" ? "editor" : "manual";
     const agentSlug = source === "editor" ? "editor" : body.agentSlug || "general";
     const userMessage = (body.userMessage || "").trim();
     const mentionedPaths = Array.isArray(body.mentionedPaths)
-      ? body.mentionedPaths.filter((value: unknown): value is string => typeof value === "string")
+      ? body.mentionedPaths.filter(
+          (value: unknown): value is string => typeof value === "string",
+        )
       : [];
     const pagePath =
       typeof body.pagePath === "string" && body.pagePath.trim()
@@ -65,17 +59,11 @@ export async function POST(req: NextRequest) {
         : undefined;
 
     if (!userMessage) {
-      return NextResponse.json(
-        { error: "userMessage is required" },
-        { status: 400 }
-      );
+      throw new HttpError(400, "userMessage is required");
     }
 
     if (source === "editor" && !pagePath) {
-      return NextResponse.json(
-        { error: "pagePath is required for editor conversations" },
-        { status: 400 }
-      );
+      throw new HttpError(400, "pagePath is required for editor conversations");
     }
 
     assertValidSlug(agentSlug, "agentSlug");
@@ -113,12 +101,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ ok: true, conversation }, { status: 201 });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    return { ok: true, conversation };
+  },
+});

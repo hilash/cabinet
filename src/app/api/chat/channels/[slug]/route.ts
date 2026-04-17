@@ -1,69 +1,62 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getChannel, getMessages, postMessage, togglePin } from "@/lib/chat/chat-io";
+import {
+  createGetHandler,
+  createHandler,
+  HttpError,
+} from "@/lib/http/create-handler";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
+type RouteParams = { params: Promise<{ slug: string }> };
+
+export async function GET(req: NextRequest, { params }: RouteParams) {
   const { slug } = await params;
-  try {
-    const channel = await getChannel(slug);
-    if (!channel) {
-      return NextResponse.json({ error: "Channel not found" }, { status: 404 });
-    }
+  return createGetHandler({
+    handler: async (r) => {
+      const channel = await getChannel(slug);
+      if (!channel) {
+        throw new HttpError(404, "Channel not found");
+      }
 
-    const url = new URL(req.url);
-    const limit = parseInt(url.searchParams.get("limit") || "100");
-    const before = url.searchParams.get("before") || undefined;
+      const url = new URL(r.url);
+      const limit = parseInt(url.searchParams.get("limit") || "100");
+      const before = url.searchParams.get("before") || undefined;
 
-    const messages = getMessages(slug, limit, before);
-    return NextResponse.json({ channel, messages });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+      const messages = getMessages(slug, limit, before);
+      return { channel, messages };
+    },
+  })(req);
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
+export async function POST(req: NextRequest, { params }: RouteParams) {
   const { slug } = await params;
-  try {
-    const body = await req.json();
+  return createHandler({
+    handler: async (_input, r) => {
+      const body = await r.json();
 
-    // Handle pin action
-    if (body.action === "pin" && body.messageId) {
-      const pinned = togglePin(body.messageId);
-      return NextResponse.json({ ok: true, pinned });
-    }
+      if (body.action === "pin" && body.messageId) {
+        const pinned = togglePin(body.messageId);
+        return { ok: true, pinned };
+      }
 
-    // Post new message
-    const { fromId, fromType, content, replyTo } = body;
+      const { fromId, fromType, content, replyTo } = body;
 
-    if (!fromId || !content) {
-      return NextResponse.json(
-        { error: "fromId and content are required" },
-        { status: 400 }
+      if (!fromId || !content) {
+        throw new HttpError(400, "fromId and content are required");
+      }
+
+      const msg = postMessage(
+        slug,
+        fromId,
+        fromType || "human",
+        content,
+        replyTo,
       );
-    }
 
-    const msg = postMessage(
-      slug,
-      fromId,
-      fromType || "human",
-      content,
-      replyTo
-    );
+      const mentions = (content.match(/@([a-z0-9-]+)/g) || []).map(
+        (m: string) => m.slice(1),
+      );
 
-    // Detect @mentions for agent triggering
-    const mentions = (content.match(/@([a-z0-9-]+)/g) || []).map((m: string) =>
-      m.slice(1)
-    );
-
-    return NextResponse.json({ message: msg, mentions }, { status: 201 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+      return { message: msg, mentions };
+    },
+  })(req);
 }

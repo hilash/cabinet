@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { providerRegistry } from "@/lib/agents/provider-registry";
 import {
   getConfiguredDefaultProviderId,
@@ -10,9 +9,11 @@ import {
   getProviderUsage,
   updateProviderSettingsWithMigrations,
 } from "@/lib/agents/provider-management";
+import { NextResponse } from "next/server";
+import { createGetHandler, createHandler } from "@/lib/http/create-handler";
 
-export async function GET() {
-  try {
+export const GET = createGetHandler({
+  handler: async () => {
     const providers = providerRegistry.listAll();
     const settings = await readProviderSettings();
     const usage = await getProviderUsage();
@@ -37,62 +38,64 @@ export async function GET() {
           },
           ...status,
         };
-      })
+      }),
     );
 
-    return NextResponse.json({
+    return {
       providers: results,
       defaultProvider: getConfiguredDefaultProviderId(settings),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    };
+  },
+});
 
-export async function PUT(req: Request) {
-  try {
+export const PUT = createHandler({
+  handler: async (_input, req) => {
     const body = await req.json();
-    const result = await updateProviderSettingsWithMigrations({
-      defaultProvider:
-        typeof body.defaultProvider === "string"
-          ? body.defaultProvider
-          : providerRegistry.defaultProvider,
-      disabledProviderIds: Array.isArray(body.disabledProviderIds)
-        ? body.disabledProviderIds.filter((value: unknown): value is string => typeof value === "string")
-        : [],
-      migrations: Array.isArray(body.migrations)
-        ? body.migrations.flatMap((value: unknown) => {
-            if (!value || typeof value !== "object") return [];
-            const migration = value as Record<string, unknown>;
-            if (
-              typeof migration.fromProviderId !== "string" ||
-              typeof migration.toProviderId !== "string"
-            ) {
-              return [];
-            }
-            return [{
-              fromProviderId: migration.fromProviderId,
-              toProviderId: migration.toProviderId,
-            }];
-          })
-        : [],
-    });
+    try {
+      const result = await updateProviderSettingsWithMigrations({
+        defaultProvider:
+          typeof body.defaultProvider === "string"
+            ? body.defaultProvider
+            : providerRegistry.defaultProvider,
+        disabledProviderIds: Array.isArray(body.disabledProviderIds)
+          ? body.disabledProviderIds.filter(
+              (value: unknown): value is string => typeof value === "string",
+            )
+          : [],
+        migrations: Array.isArray(body.migrations)
+          ? body.migrations.flatMap((value: unknown) => {
+              if (!value || typeof value !== "object") return [];
+              const migration = value as Record<string, unknown>;
+              if (
+                typeof migration.fromProviderId !== "string" ||
+                typeof migration.toProviderId !== "string"
+              ) {
+                return [];
+              }
+              return [
+                {
+                  fromProviderId: migration.fromProviderId,
+                  toProviderId: migration.toProviderId,
+                },
+              ];
+            })
+          : [],
+      });
 
-    return NextResponse.json({
-      ok: true,
-      settings: result.settings,
-      usage: result.usage,
-      migrationsApplied: result.migrationsApplied,
-    });
-  } catch (error) {
-    if (error instanceof ProviderSettingsConflictError) {
-      return NextResponse.json({
-        error: error.message,
-        conflicts: error.conflicts,
-      }, { status: 409 });
+      return {
+        ok: true,
+        settings: result.settings,
+        usage: result.usage,
+        migrationsApplied: result.migrationsApplied,
+      };
+    } catch (error) {
+      if (error instanceof ProviderSettingsConflictError) {
+        return NextResponse.json(
+          { error: error.message, conflicts: error.conflicts },
+          { status: 409 },
+        );
+      }
+      throw error;
     }
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+  },
+});
