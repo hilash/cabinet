@@ -80,6 +80,46 @@ async function pruneLocaleDirectory(resourceDir) {
   );
 }
 
+// Next.js standalone embeds its production build at `.next/standalone/.next/`
+// (BUILD_ID, server/, static/, manifest JSONs). When electron-packager builds
+// the asar, the nested dotfile directory `.next/standalone/.next/` does not
+// fully unpack alongside `.next/standalone/` itself — the files end up inside
+// app.asar. Our runtime executes `server.js` via a bundled plain `node` binary
+// (not Electron), so asar's virtual fs is invisible and Next.js fails with
+// "Could not find a production build in the './.next' directory".
+//
+// Fix: after packaging, extract that nested subtree from app.asar into
+// app.asar.unpacked so plain Node can read it from disk.
+async function ensureInnerStandaloneUnpacked(buildPath, electronVersion, platform, arch, done) {
+  void (async () => {
+    const asarLib = require("@electron/asar");
+    const appBundles = await collectAppBundles(buildPath);
+
+    for (const appPath of appBundles) {
+      const asarPath = path.join(appPath, "Contents", "Resources", "app.asar");
+      const unpackedRoot = path.join(appPath, "Contents", "Resources", "app.asar.unpacked");
+      if (!(await pathExists(asarPath))) continue;
+
+      const unpackedInnerNext = path.join(unpackedRoot, ".next", "standalone", ".next");
+      if (await pathExists(path.join(unpackedInnerNext, "BUILD_ID"))) continue;
+
+      const tmpExtract = path.join(buildPath, `.asar-inner-next-${Date.now()}`);
+      try {
+        asarLib.extractAll(asarPath, tmpExtract);
+        const srcInner = path.join(tmpExtract, ".next", "standalone", ".next");
+        if (await pathExists(srcInner)) {
+          await fs.mkdir(path.dirname(unpackedInnerNext), { recursive: true });
+          await fs.cp(srcInner, unpackedInnerNext, { recursive: true, force: true });
+        }
+      } finally {
+        await fs.rm(tmpExtract, { recursive: true, force: true });
+      }
+    }
+
+    done();
+  })().catch(done);
+}
+
 function codesignNativeBinaries(buildPath, electronVersion, platform, arch, done) {
   if (platform !== "darwin" || process.env.APPLE_ID) {
     done();
@@ -149,12 +189,17 @@ module.exports = {
     appCopyright: "© 2026 Hila Shmuel",
     appCategoryType: "public.app-category.productivity",
     asar: {
+      // Note: the inner dotfile subtree `.next/standalone/.next/` is not
+      // reliably unpacked by unpackDir alone (electron-packager nested
+      // dotfile behavior). A belt-and-suspenders afterComplete hook
+      // (ensureInnerStandaloneUnpacked) guarantees it ends up in
+      // app.asar.unpacked where the bundled plain-node runtime can read it.
       unpackDir: ".next/standalone",
     },
     extraResource: ["./build/multica-server", "./build/migrations"],
     prune: true,
     ignore: PACKAGER_IGNORE,
-    afterComplete: [codesignNativeBinaries, pruneMacLocales],
+    afterComplete: [ensureInnerStandaloneUnpacked, codesignNativeBinaries, pruneMacLocales],
     osxSign: process.env.APPLE_ID
       ? {
           identity: process.env.APPLE_SIGN_IDENTITY,
