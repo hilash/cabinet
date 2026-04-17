@@ -66,6 +66,18 @@ test("terminal server HTTP routes allow Bearer-authenticated requests", () => {
   assert.equal(response.body, "");
 });
 
+test("terminal server HTTP routes reject tokens passed via query string", () => {
+  const response = createResponseRecorder();
+  const allowed = requireTerminalServerHttpAuth(
+    { headers: {} },
+    response,
+    new URL(`http://127.0.0.1/session/test/output?token=${daemonToken}`),
+  );
+
+  assert.equal(allowed, false);
+  assert.equal(response.statusCode, 401);
+});
+
 test("terminal server WebSocket connections close with 1008 when token is missing", () => {
   const closeCalls: Array<{ code: number; reason: string }> = [];
   const allowed = requireTerminalServerWebSocketAuth(

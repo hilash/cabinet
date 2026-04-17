@@ -1,10 +1,13 @@
 import * as crypto from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { getManagedDataDir } from "@/lib/runtime/runtime-config";
 
 const AUTH_SALT_BYTES = 16;
 const HASH_BYTES = 32;
-const AUTH_SALT_PATH = path.join(process.cwd(), "data/.agents/.config/auth-salt");
+// Resolve against getManagedDataDir (CABINET_DATA_DIR / persisted config / OS default)
+// so packaged Electron writes the salt to the user data dir, not inside the signed .app bundle.
+const AUTH_SALT_PATH = path.join(getManagedDataDir(), ".agents/.config/auth-salt");
 const HEX_RE = /^[0-9a-f]+$/i;
 
 export const passwordHashRuntime = {

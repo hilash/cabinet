@@ -1,6 +1,11 @@
 import path from "path";
 import fs from "fs/promises";
-import { DEFAULT_CABINET_CONFIG, type CabinetIntegrationConfig } from "@/lib/config/schema";
+import {
+  DEFAULT_CABINET_CONFIG,
+  parseIntegrationConfig,
+  type CabinetIntegrationConfig,
+} from "@/lib/config/schema";
+import { ZodError } from "zod";
 import { redactSecrets, restoreRedactedSecrets } from "@/lib/config/redact";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import {
@@ -42,15 +47,29 @@ export const GET = createGetHandler({
 
 export const PUT = createHandler({
   handler: async (_input, req) => {
+    const body = await req.json();
+    const currentConfig = await readConfigFile();
+    const merged = mergeWithDefaults(
+      restoreRedactedSecrets(currentConfig, body) as Partial<IntegrationConfig>,
+    );
+
+    let validated: CabinetIntegrationConfig;
     try {
-      const body = await req.json();
-      const currentConfig = await readConfigFile();
-      const nextConfig = restoreRedactedSecrets(currentConfig, body);
+      validated = parseIntegrationConfig(merged);
+    } catch (err) {
+      if (err instanceof ZodError) {
+        throw new HttpError(400, `Invalid integration config: ${err.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; ")}`);
+      }
+      throw err;
+    }
+
+    try {
       await fs.mkdir(CONFIG_DIR, { recursive: true });
-      await fs.writeFile(INTEGRATIONS_FILE, JSON.stringify(nextConfig, null, 2), "utf-8");
-      return { ok: true };
+      await fs.writeFile(INTEGRATIONS_FILE, JSON.stringify(validated, null, 2), "utf-8");
     } catch (err) {
       throw new HttpError(500, String(err));
     }
+
+    return { ok: true };
   },
 });

@@ -12,23 +12,38 @@ interface TerminalServerAuthResponse {
   end(body?: string): unknown;
 }
 
-export function getTerminalServerToken(
-  req: Pick<http.IncomingMessage, "headers">,
-  url: URL,
-): string | null {
+function getHeaderToken(req: Pick<http.IncomingMessage, "headers">): string | null {
   const authHeader = Array.isArray(req.headers.authorization)
     ? req.headers.authorization[0]
     : req.headers.authorization;
 
-  return getTokenFromAuthorizationHeader(authHeader) || url.searchParams.get("token");
+  return getTokenFromAuthorizationHeader(authHeader);
+}
+
+// HTTP routes must use the Authorization header only. Tokens in the query
+// string leak into reverse-proxy logs, shell history (ps), and browser
+// history, so reject them here even if the caller appended `?token=`.
+export function getTerminalServerHttpToken(
+  req: Pick<http.IncomingMessage, "headers">,
+): string | null {
+  return getHeaderToken(req);
+}
+
+// WebSocket connections opened from the browser cannot set custom headers,
+// so the query-string fallback is the only way for the UI to authenticate.
+export function getTerminalServerWebSocketToken(
+  req: Pick<http.IncomingMessage, "headers">,
+  url: URL,
+): string | null {
+  return getHeaderToken(req) || url.searchParams.get("token");
 }
 
 export function requireTerminalServerHttpAuth(
   req: Pick<http.IncomingMessage, "headers">,
   res: TerminalServerAuthResponse,
-  url: URL,
+  _url: URL,
 ): boolean {
-  if (isDaemonTokenValid(getTerminalServerToken(req, url))) {
+  if (isDaemonTokenValid(getTerminalServerHttpToken(req))) {
     return true;
   }
 
@@ -42,7 +57,7 @@ export function requireTerminalServerWebSocketAuth(
   req: Pick<http.IncomingMessage, "headers">,
   url: URL,
 ): boolean {
-  if (isDaemonTokenValid(getTerminalServerToken(req, url))) {
+  if (isDaemonTokenValid(getTerminalServerWebSocketToken(req, url))) {
     return true;
   }
 

@@ -21,7 +21,7 @@ import {
   createGetHandler,
   createHandler,
 } from "@/lib/http/create-handler";
-import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
+import { assertValidFilename, assertValidSlug } from "@/lib/agents/persona/slug-utils";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -34,11 +34,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
       const sessionTs = searchParams.get("session");
       if (sessionTs) {
+        const normalizedTs = sessionTs.replace(/[:.]/g, "-");
+        const sessionFilename = `${normalizedTs}.txt`;
+        assertValidFilename(sessionFilename, "session");
         const sessionsDir = path.join(DATA_DIR, ".agents", slug, "sessions");
-        const sessionFile = path.join(sessionsDir, `${sessionTs.replace(/[:.]/g, "-")}.txt`);
-        if (!sessionFile.startsWith(sessionsDir)) {
-          throw new HttpError(400, "Invalid path");
-        }
+        const sessionFile = path.join(sessionsDir, sessionFilename);
         try {
           const output = await fs.readFile(sessionFile, "utf-8");
           return { output };

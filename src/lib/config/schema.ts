@@ -156,3 +156,7 @@ export const DEFAULT_CABINET_CONFIG: CabinetConfig = {
 export function parseCabinetConfig(raw: unknown): CabinetConfig {
   return cabinetConfigSchema.parse(raw);
 }
+
+export function parseIntegrationConfig(raw: unknown): CabinetIntegrationConfig {
+  return integrationConfigSchema.parse(raw);
+}
