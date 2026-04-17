@@ -50,10 +50,21 @@ async function readCabinetConfigFile(dataDir: string): Promise<CabinetConfig> {
   if (
     parsedJson !== null &&
     typeof parsedJson === "object" &&
-    !Array.isArray(parsedJson) &&
-    "runtime" in parsedJson
+    !Array.isArray(parsedJson)
   ) {
-    delete (parsedJson as Record<string, unknown>).runtime;
+    const record = parsedJson as Record<string, unknown>;
+    if ("runtime" in record) {
+      delete record.runtime;
+    }
+    const integrations = record.integrations;
+    if (
+      integrations !== null &&
+      typeof integrations === "object" &&
+      !Array.isArray(integrations) &&
+      "scheduling" in integrations
+    ) {
+      delete (integrations as Record<string, unknown>).scheduling;
+    }
   }
 
   try {

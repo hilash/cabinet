@@ -63,7 +63,6 @@ function mergeLegacyIntegrations(raw: unknown): CabinetIntegrationConfig {
   const rawTelegram = isRecord(rawNotifications.telegram) ? rawNotifications.telegram : {};
   const rawSlack = isRecord(rawNotifications.slack_webhook) ? rawNotifications.slack_webhook : {};
   const rawEmail = isRecord(rawNotifications.email) ? rawNotifications.email : {};
-  const rawScheduling = isRecord(raw.scheduling) ? raw.scheduling : {};
   const rawMcpServers = isRecord(raw.mcp_servers) ? raw.mcp_servers : {};
 
   const serverNames = new Set([
@@ -147,24 +146,6 @@ function mergeLegacyIntegrations(raw: unknown): CabinetIntegrationConfig {
             ? rawEmail.to
             : fallback.notifications.email.to,
       },
-    },
-    scheduling: {
-      max_concurrent_agents:
-        typeof rawScheduling.max_concurrent_agents === "number"
-          ? rawScheduling.max_concurrent_agents
-          : fallback.scheduling.max_concurrent_agents,
-      default_heartbeat_interval:
-        typeof rawScheduling.default_heartbeat_interval === "string"
-          ? rawScheduling.default_heartbeat_interval
-          : fallback.scheduling.default_heartbeat_interval,
-      active_hours:
-        typeof rawScheduling.active_hours === "string"
-          ? rawScheduling.active_hours
-          : fallback.scheduling.active_hours,
-      pause_on_error:
-        typeof rawScheduling.pause_on_error === "boolean"
-          ? rawScheduling.pause_on_error
-          : fallback.scheduling.pause_on_error,
     },
   };
 }

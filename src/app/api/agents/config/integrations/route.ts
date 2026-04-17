@@ -33,7 +33,6 @@ export const PUT = createHandler({
     const merged: IntegrationConfig = {
       mcp_servers: { ...current.integrations.mcp_servers, ...restored?.mcp_servers },
       notifications: { ...current.integrations.notifications, ...restored?.notifications },
-      scheduling: { ...current.integrations.scheduling, ...restored?.scheduling },
     };
 
     let validated: CabinetIntegrationConfig;

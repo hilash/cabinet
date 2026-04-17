@@ -15,7 +15,6 @@ import {
   EyeOff,
   Save,
   Loader2,
-  Clock,
   CloudDownload,
   Palette,
   Check,
@@ -61,12 +60,6 @@ interface IntegrationConfig {
     telegram: { enabled: boolean; bot_token: string; chat_id: string };
     slack_webhook: { enabled: boolean; url: string };
     email: { enabled: boolean; frequency: "hourly" | "daily"; to: string };
-  };
-  scheduling: {
-    max_concurrent_agents: number;
-    default_heartbeat_interval: string;
-    active_hours: string;
-    pause_on_error: boolean;
   };
 }
 
@@ -368,14 +361,6 @@ export function SettingsPage() {
       notif[parts[0]] = { ...(notif[parts[0]] as Record<string, unknown>), [parts[1]]: value };
     }
     setConfig({ ...config, notifications: notif as IntegrationConfig["notifications"] });
-  };
-
-  const updateScheduling = (field: string, value: unknown) => {
-    if (!config) return;
-    setConfig({
-      ...config,
-      scheduling: { ...config.scheduling, [field]: value },
-    });
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -1049,25 +1034,6 @@ export function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-border pt-6 mt-6">
-                  <h3 className="text-[14px] font-semibold mb-1">Scheduling Defaults</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Configure default scheduling behavior for agents and jobs.
-                  </p>
-                  <div className="bg-card border border-border rounded-lg p-3 space-y-3">
-                    <div>
-                      <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Max Concurrent Agents</label>
-                      <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Active Hours
-                      </label>
-                      <div className="w-full mt-0.5 h-7 bg-muted/30 border border-border/50 rounded" />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Coming Soon overlay */}
@@ -1076,7 +1042,7 @@ export function SettingsPage() {
                   <Plug className="h-6 w-6 text-muted-foreground/50" />
                   <span className="text-[13px] font-semibold">Coming Soon</span>
                   <p className="text-[12px] text-muted-foreground text-center max-w-[220px]">
-                    MCP servers, scheduling, and third-party integrations.
+                    MCP servers and third-party integrations.
                   </p>
                 </div>
               </div>

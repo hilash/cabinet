@@ -76,12 +76,6 @@ function makeConfig() {
         smtp_user: "notify@example.com",
       },
     },
-    scheduling: {
-      max_concurrent_agents: 5,
-      default_heartbeat_interval: "*/10 * * * *",
-      active_hours: "9-18",
-      pause_on_error: true,
-    },
   };
 }
 
@@ -106,7 +100,6 @@ test("redactSecrets masks known secret fields and preserves non-secret values", 
   assert.equal(redacted.notifications.email.to, "alerts@example.com");
   assert.equal(redacted.mcp_servers.reddit.env.REDDIT_CLIENT_ID, "public-client-id");
   assert.equal(redacted.mcp_servers.email.env.SMTP_HOST, "smtp.example.com");
-  assert.equal(redacted.scheduling.max_concurrent_agents, 5);
 
   assert.equal(config.notifications.telegram.bot_token, "telegram-token-9999");
   assert.equal(config.mcp_servers.github.env.GITHUB_TOKEN, "ghp_token_8a2f");

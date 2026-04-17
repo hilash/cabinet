@@ -37,7 +37,6 @@ test("migrateFromLegacy handles integrations.json only", async (t) => {
   assert.equal(config.integrations.notifications.browser_push, false);
   assert.equal(config.integrations.notifications.telegram.enabled, true);
   assert.equal(config.integrations.notifications.telegram.bot_token, "telegram-token");
-  assert.equal(config.integrations.scheduling.max_concurrent_agents, 10);
   assert.deepEqual(config.schedules, []);
   await assert.doesNotReject(
     fs.access(path.join(dataDir, ".agents", ".config", "cabinet.config.migrated-at")),

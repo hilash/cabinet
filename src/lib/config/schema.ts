@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * cabinet.config.json holds *global operator config* only:
- *   - integrations (MCP servers, notifications, scheduling policy)
+ *   - integrations (MCP servers, notifications)
  *   - health-check schedules
  *
  * Per-agent runtime settings live in `.agents/<slug>/persona.md` frontmatter.
@@ -10,6 +10,8 @@ import { z } from "zod";
  * Company profile lives in `.agents/.config/company.json`.
  * Do not re-introduce a `runtime.personas` mirror here — it was removed
  * because it duplicated persona.md without any consumer.
+ * Do not re-introduce an `integrations.scheduling` block — it had no
+ * runtime consumer (the scheduler reads per-job/per-persona settings).
  */
 
 const mcpServerSchema = z.object({
@@ -41,12 +43,6 @@ const integrationConfigSchema = z.object({
       frequency: z.enum(["hourly", "daily"]),
       to: z.string(),
     }).strict(),
-  }).strict(),
-  scheduling: z.object({
-    max_concurrent_agents: z.number().int(),
-    default_heartbeat_interval: z.string(),
-    active_hours: z.string(),
-    pause_on_error: z.boolean(),
   }).strict(),
 }).strict();
 
@@ -136,12 +132,6 @@ export const DEFAULT_CABINET_CONFIG: CabinetConfig = {
         frequency: "daily",
         to: "",
       },
-    },
-    scheduling: {
-      max_concurrent_agents: 10,
-      default_heartbeat_interval: "*/15 * * * *",
-      active_hours: "8-22",
-      pause_on_error: true,
     },
   },
   schedules: [],
