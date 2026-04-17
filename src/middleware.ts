@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyPassword } from "@/lib/auth/password-hash";
 
-async function hashToken(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + "cabinet-salt");
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+export const runtime = "nodejs";
 
 export async function middleware(req: NextRequest) {
   const password = process.env.KB_PASSWORD || "";
@@ -30,9 +25,9 @@ export async function middleware(req: NextRequest) {
   }
 
   const token = req.cookies.get("kb-auth")?.value;
-  const expected = await hashToken(password);
+  const authenticated = token ? await verifyPassword(password, token) : false;
 
-  if (token !== expected) {
+  if (!authenticated) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

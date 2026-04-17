@@ -3,17 +3,14 @@ import {
   HttpError,
   createHandler,
 } from "@/lib/http/create-handler";
+import {
+  hashPassword,
+  verifyPassword,
+} from "@/lib/auth/password-hash";
 
 const KB_PASSWORD = process.env.KB_PASSWORD || "";
 const AUTH_ENABLED = KB_PASSWORD.length > 0;
-
-async function hashToken(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + "cabinet-salt");
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+const expectedPasswordHashPromise = AUTH_ENABLED ? hashPassword(KB_PASSWORD) : Promise.resolve("");
 
 export const POST = createHandler({
   handler: async (_input, req) => {
@@ -22,14 +19,14 @@ export const POST = createHandler({
     }
 
     const { password } = await req.json();
+    const expectedPasswordHash = await expectedPasswordHashPromise;
 
-    if (password !== KB_PASSWORD) {
+    if (!(await verifyPassword(password, expectedPasswordHash))) {
       throw new HttpError(401, "Invalid password");
     }
 
-    const token = await hashToken(password);
     const cookieStore = await cookies();
-    cookieStore.set("kb-auth", token, {
+    cookieStore.set("kb-auth", expectedPasswordHash, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production" && process.env.KB_ALLOW_HTTP !== "1",
       sameSite: "lax",
