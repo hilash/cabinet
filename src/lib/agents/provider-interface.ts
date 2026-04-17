@@ -31,6 +31,11 @@ export interface AgentProvider {
   apiKeyEnvVar?: string;
   runPrompt?(prompt: string, context: string): Promise<string>;
 
+  // Optional: post-process one-shot stdout. Used when the provider is
+  // invoked with a structured output format (e.g. stream-json) and the
+  // caller expects plain assistant text.
+  parseOneShotStdout?(stdout: string): string;
+
   // Common
   isAvailable(): Promise<boolean>;
   healthCheck(): Promise<ProviderStatus>;

@@ -155,7 +155,10 @@ export async function runOneShotProviderPrompt(input: {
       settled = true;
       clearTimeout(timeoutHandle);
       if (code === 0) {
-        resolve(stdout.trim());
+        const parsed = provider.parseOneShotStdout
+          ? provider.parseOneShotStdout(stdout)
+          : stdout.trim();
+        resolve(parsed);
       } else {
         reject(new Error(stderr || `Exited with code ${code}`));
       }

@@ -3,6 +3,58 @@ import type { AgentProvider, ProviderStatus } from "../provider-interface";
 import { checkCliProviderAvailable, resolveCliCommand, RUNTIME_PATH } from "../provider-cli";
 import { getNvmNodeBin } from "../nvm-path";
 
+// Parse stream-json NDJSON output from Claude Code headless mode. The final
+// assistant reply is carried on the terminal "result" event as `.result`.
+// Fallback: scan assistant messages and join their text content. If neither
+// yields anything, return the trimmed raw stdout so the caller still sees
+// something rather than an empty string.
+export function extractFinalResultFromStreamJson(stdout: string): string {
+  const lines = stdout.split("\n");
+  let resultEventText: string | null = null;
+  const assistantTextChunks: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed[0] !== "{") continue;
+
+    let event: unknown;
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+
+    if (!event || typeof event !== "object") continue;
+    const e = event as Record<string, unknown>;
+
+    if (e.type === "result" && typeof e.result === "string") {
+      resultEventText = e.result;
+      continue;
+    }
+
+    if (e.type === "assistant" && e.message && typeof e.message === "object") {
+      const msg = e.message as Record<string, unknown>;
+      const content = msg.content;
+      if (Array.isArray(content)) {
+        for (const block of content) {
+          if (
+            block &&
+            typeof block === "object" &&
+            (block as Record<string, unknown>).type === "text" &&
+            typeof (block as Record<string, unknown>).text === "string"
+          ) {
+            assistantTextChunks.push((block as Record<string, unknown>).text as string);
+          }
+        }
+      }
+    }
+  }
+
+  if (resultEventText !== null) return resultEventText.trim();
+  if (assistantTextChunks.length > 0) return assistantTextChunks.join("\n").trim();
+  return stdout.trim();
+}
+
 const nvmClaudePath = (() => {
   const bin = getNvmNodeBin();
   return bin ? `${bin}/claude` : null;
@@ -29,7 +81,19 @@ export const claudeCodeProvider: AgentProvider = {
   ],
 
   buildArgs(prompt: string, _workdir: string): string[] {
-    return ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"];
+    // Structured output: stream-json emits newline-delimited events and ends
+    // with a "result" event whose .result field is the final assistant text.
+    // More robust than --output-format text for pipelines that need to parse
+    // JSON back out of the reply — they get exactly what the model emitted
+    // without interleaved progress logs or trailing tool-call noise.
+    return [
+      "--dangerously-skip-permissions",
+      "-p",
+      prompt,
+      "--output-format",
+      "stream-json",
+      "--verbose",
+    ];
   },
 
   buildOneShotInvocation(prompt: string, workdir: string) {
@@ -37,6 +101,10 @@ export const claudeCodeProvider: AgentProvider = {
       command: this.command || "claude",
       args: this.buildArgs ? this.buildArgs(prompt, workdir) : [],
     };
+  },
+
+  parseOneShotStdout(stdout: string): string {
+    return extractFinalResultFromStreamJson(stdout);
   },
 
   buildSessionInvocation(prompt: string | undefined, _workdir: string) {
