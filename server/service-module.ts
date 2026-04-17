@@ -1,9 +1,11 @@
 import type Database from "better-sqlite3";
+import type { CabinetConfig } from "../src/lib/config/schema";
 
 export interface ServiceContext {
   signal: AbortSignal;
   dataDir: string;
   db: Database.Database;
+  config: CabinetConfig;
   log: (msg: string) => void;
 }
 

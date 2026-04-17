@@ -23,6 +23,14 @@ import { getDb, closeDb } from "./db";
 import type { ServiceContext, ServiceModule } from "./service-module";
 import { DATA_DIR } from "../src/lib/storage/path-utils";
 import {
+  loadCabinetConfig,
+  watchCabinetConfig,
+} from "../src/lib/config/cabinet-config";
+import {
+  DEFAULT_CABINET_CONFIG,
+  type CabinetConfig,
+} from "../src/lib/config/schema";
+import {
   getAppOrigin,
   getDaemonPort,
 } from "../src/lib/runtime/runtime-config";
@@ -1120,6 +1128,8 @@ wssEvents.on("connection", (ws) => {
 const INTEGRATIONS_FILE = path.join(DATA_DIR, ".agents", ".config", "integrations.json");
 const serviceAbortController = new AbortController();
 let serviceModules: ServiceModule[] = [];
+let currentCabinetConfig: CabinetConfig = DEFAULT_CABINET_CONFIG;
+let stopWatchingCabinetConfig: (() => void) | null = null;
 
 function formatDaemonError(err: unknown): string {
   if (err instanceof Error) {
@@ -1134,6 +1144,7 @@ function buildServiceContext(signal: AbortSignal, module: ServiceModule): Servic
     signal,
     dataDir: DATA_DIR,
     db,
+    config: currentCabinetConfig,
     log: (msg: string) => {
       console.log(`[service:${module.name}] ${msg}`);
     },
@@ -1225,20 +1236,32 @@ const telegramModule = createTelegramModule({
 });
 serviceModules = [terminalModule, multicaModule, telegramModule];
 
-void Promise.all(
-  serviceModules.map((module) =>
-    superviseService(
-      module.name,
-      async (signal) => {
-        await module.start(buildServiceContext(signal, module));
-      },
-      {
-        signal: serviceAbortController.signal,
-      },
+async function startServiceSupervisor(): Promise<void> {
+  currentCabinetConfig = await loadCabinetConfig(DATA_DIR);
+  stopWatchingCabinetConfig = watchCabinetConfig(DATA_DIR, async (config) => {
+    currentCabinetConfig = config;
+    await reloadModules((module) => true);
+  });
+
+  await Promise.all(
+    serviceModules.map((module) =>
+      superviseService(
+        module.name,
+        async (signal) => {
+          await module.start(buildServiceContext(signal, module));
+        },
+        {
+          signal: serviceAbortController.signal,
+        },
+      ),
     ),
-  ),
-).catch((err) => {
+  );
+}
+
+void startServiceSupervisor().catch((err) => {
   console.error("[supervisor] fatal startup error:", formatDaemonError(err));
+  process.exitCode = 1;
+  void shutdown();
 });
 
 // ===== Graceful Shutdown =====
@@ -1249,6 +1272,9 @@ async function shutdown(): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log("\nShutting down...");
+  stopWatchingCabinetConfig?.();
+  stopWatchingCabinetConfig = null;
+  await scheduleWatcher.close().catch(() => {});
   serviceAbortController.abort();
   for (const [, task] of scheduledJobs) {
     task.stop();
