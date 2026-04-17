@@ -25,7 +25,7 @@ const PACKAGER_IGNORE = [
   /^\/src(?:\/|$)/,
   /^\/data(?:\/|$)/,
   /^\/\.next\/(?!standalone(?:\/|$)).*/,
-  /^\/node_modules\/(?!update-electron-app(?:\/|$)|github-url-to-object(?:\/|$)|is-url(?:\/|$)|ms(?:\/|$)|electron-squirrel-startup(?:\/|$)|debug(?:\/|$)).*/,
+  /^\/node_modules\/(?!update-electron-app(?:\/|$)|github-url-to-object(?:\/|$)|is-url(?:\/|$)|ms(?:\/|$)|electron-squirrel-startup(?:\/|$)|debug(?:\/|$)|ws(?:\/|$)).*/,
   /^\/(?:AI-claude-editor\.md|CLAUDE\.md|PRD\.md|PROGRESS\.md|README\.md|LICENSE\.md|package-lock\.json|eslint\.config\.mjs|forge\.config\.cjs|next\.config\.ts|next-env\.d\.ts|postcss\.config\.mjs|run-agent\.sh|skills-lock\.json|tsconfig\.json|tsconfig\.tsbuildinfo|\.env\.example|\.env\.local|\.dockerignore|\.gitignore|components\.json)$/i,
 ];
 
