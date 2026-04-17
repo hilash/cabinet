@@ -3,8 +3,7 @@ import * as pty from "node-pty";
 import path from "path";
 import http from "http";
 import { execSync } from "child_process";
-import { DATA_DIR } from "../src/lib/storage/path-utils";
-import { getDaemonPort } from "../src/lib/runtime/runtime-config";
+import { getDaemonPort, getManagedDataDir } from "../src/lib/runtime/runtime-config";
 import { buildAgentEnv } from "./env-sanitize";
 import {
   daemonBus,
@@ -18,6 +17,16 @@ import {
 } from "./terminal-server-auth";
 
 const PORT = getDaemonPort();
+
+function resolveDataDir(dataDir?: string): string {
+  return path.resolve(dataDir ?? getManagedDataDir());
+}
+
+let currentDataDir = resolveDataDir();
+
+export function setTerminalServerDataDir(options: { dataDir?: string } = {}): void {
+  currentDataDir = resolveDataDir(options.dataDir);
+}
 
 interface Session {
   id: string;
@@ -157,7 +166,7 @@ function createSession(input: { sessionId: string; prompt?: string }): Session {
     name: "xterm-256color",
     cols: 120,
     rows: 30,
-    cwd: DATA_DIR,
+    cwd: currentDataDir,
     env: {
       ...buildAgentEnv(),
       PATH: enrichedPath,
@@ -339,7 +348,7 @@ const wss = new WebSocketServer({ server });
 console.log(`Terminal WebSocket server running on ws://${LOOPBACK_HOST}:${PORT}`);
 console.log(`Session output API on http://${LOOPBACK_HOST}:${PORT}/session/:id/output`);
 console.log(`Using claude binary: ${CLAUDE_PATH}`);
-console.log(`Working directory: ${DATA_DIR}`);
+console.log(`Working directory: ${currentDataDir}`);
 
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url || "", `http://${LOOPBACK_HOST}:${PORT}`);

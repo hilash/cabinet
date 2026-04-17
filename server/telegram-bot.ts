@@ -12,18 +12,51 @@
 import fs from "fs";
 import path from "path";
 import { execFile } from "child_process";
-import { DATA_DIR } from "../src/lib/storage/path-utils";
+import { getLegacyIntegrationsPath } from "../src/lib/config/paths";
+import type { CabinetConfig } from "../src/lib/config/schema";
+import { getManagedDataDir } from "../src/lib/runtime/runtime-config";
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const CONFIG_FILE = path.join(DATA_DIR, ".agents", ".config", "integrations.json");
-const TRACKING_DIR = path.join(DATA_DIR, ".agents", ".telegram");
-const TRACKING_FILE = path.join(TRACKING_DIR, "tracked-issues.json");
-const WORKSPACE_ID_FILE = path.join(TRACKING_DIR, "workspace-id.txt");
-
 const MULTICA_API_URL = (process.env.MULTICA_API_URL || "http://localhost:18080").replace(/\/+$/, "");
+
+interface TelegramBotRuntimeOptions {
+  dataDir?: string;
+  cabinetConfig?: CabinetConfig;
+}
+
+function resolveDataDir(dataDir?: string): string {
+  return path.resolve(dataDir ?? getManagedDataDir());
+}
+
+let currentDataDir = resolveDataDir();
+let currentCabinetConfig: CabinetConfig | null = null;
+
+function setTelegramRuntimeOptions(options?: TelegramBotRuntimeOptions): void {
+  currentDataDir = resolveDataDir(options?.dataDir);
+  currentCabinetConfig = options?.cabinetConfig ?? null;
+}
+
+function getTelegramRuntimeOptions(): TelegramBotRuntimeOptions {
+  return currentCabinetConfig
+    ? { dataDir: currentDataDir, cabinetConfig: currentCabinetConfig }
+    : { dataDir: currentDataDir };
+}
+
+function getTrackingPaths(dataDir = currentDataDir): {
+  trackingDir: string;
+  trackingFile: string;
+  workspaceIdFile: string;
+} {
+  const trackingDir = path.join(dataDir, ".agents", ".telegram");
+  return {
+    trackingDir,
+    trackingFile: path.join(trackingDir, "tracked-issues.json"),
+    workspaceIdFile: path.join(trackingDir, "workspace-id.txt"),
+  };
+}
 
 /** Read the dynamic PAT from multica-pat.json (written by Electron main on startup). */
 function readMulticaPATFile(filePath: string): string {
@@ -37,25 +70,9 @@ function readMulticaPATFile(filePath: string): string {
   }
 }
 
-function multicaPATCandidates(): string[] {
+function multicaPATCandidates(dataDir = currentDataDir): string[] {
   const candidates = new Set<string>();
-  candidates.add(path.resolve(DATA_DIR, "..", "multica-pat.json"));
-
-  if (process.env.CABINET_DATA_DIR) {
-    candidates.add(path.resolve(process.env.CABINET_DATA_DIR, "..", "multica-pat.json"));
-  }
-
-  const home = process.env.HOME || "";
-  if (home) {
-    candidates.add(path.join(home, "Library", "Application Support", "cabinet", "multica-pat.json"));
-    candidates.add(path.join(home, "Library", "Application Support", "Cabinet", "multica-pat.json"));
-  }
-
-  const appData = process.env.APPDATA || "";
-  if (appData) {
-    candidates.add(path.join(appData, "cabinet", "multica-pat.json"));
-    candidates.add(path.join(appData, "Cabinet", "multica-pat.json"));
-  }
+  candidates.add(path.join(dataDir, ".agents", ".config", "multica-pat.json"));
 
   return [...candidates];
 }
@@ -63,7 +80,7 @@ function multicaPATCandidates(): string[] {
 function readMulticaPAT(): string {
   // Always read from file FIRST — the file has the latest PAT from the current
   // multica-server instance. process.env.MULTICA_PAT may be stale if the server restarted.
-  for (const candidate of multicaPATCandidates()) {
+  for (const candidate of multicaPATCandidates(currentDataDir)) {
     const token = readMulticaPATFile(candidate);
     if (token) {
       process.env.MULTICA_PAT = token;
@@ -482,15 +499,17 @@ async function resolveAgentIdByPrefix(prefix: string): Promise<string | null> {
 
 function saveTracking(): void {
   try {
-    fs.mkdirSync(TRACKING_DIR, { recursive: true });
+    const { trackingDir, trackingFile } = getTrackingPaths();
+    fs.mkdirSync(trackingDir, { recursive: true });
     const data = Object.fromEntries(trackedIssues);
-    fs.writeFileSync(TRACKING_FILE, JSON.stringify(data, null, 2), "utf-8");
+    fs.writeFileSync(trackingFile, JSON.stringify(data, null, 2), "utf-8");
   } catch { /* ignore */ }
 }
 
 function loadTracking(): void {
   try {
-    const raw = fs.readFileSync(TRACKING_FILE, "utf-8");
+    const { trackingFile } = getTrackingPaths();
+    const raw = fs.readFileSync(trackingFile, "utf-8");
     const data = JSON.parse(raw) as Record<string, TrackedIssue>;
     trackedIssues = new Map(Object.entries(data));
     const now = Date.now();
@@ -504,8 +523,9 @@ function loadTracking(): void {
 
 function readWorkspaceIdFromFile(): string {
   try {
-    if (!fs.existsSync(WORKSPACE_ID_FILE)) return "";
-    return fs.readFileSync(WORKSPACE_ID_FILE, "utf-8").trim();
+    const { workspaceIdFile } = getTrackingPaths();
+    if (!fs.existsSync(workspaceIdFile)) return "";
+    return fs.readFileSync(workspaceIdFile, "utf-8").trim();
   } catch {
     return "";
   }
@@ -514,8 +534,9 @@ function readWorkspaceIdFromFile(): string {
 function persistWorkspaceId(nextWorkspaceId: string): void {
   if (!nextWorkspaceId) return;
   try {
-    fs.mkdirSync(TRACKING_DIR, { recursive: true });
-    fs.writeFileSync(WORKSPACE_ID_FILE, nextWorkspaceId, "utf-8");
+    const { trackingDir, workspaceIdFile } = getTrackingPaths();
+    fs.mkdirSync(trackingDir, { recursive: true });
+    fs.writeFileSync(workspaceIdFile, nextWorkspaceId, "utf-8");
   } catch {
     // ignore
   }
@@ -526,9 +547,17 @@ function persistWorkspaceId(nextWorkspaceId: string): void {
 // ---------------------------------------------------------------------------
 
 function loadConfig(): TelegramConfig | null {
+  if (currentCabinetConfig) {
+    return currentCabinetConfig.integrations.notifications.telegram;
+  }
+
   try {
-    const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
-    const json = JSON.parse(raw);
+    const raw = fs.readFileSync(getLegacyIntegrationsPath(currentDataDir), "utf-8");
+    const json = JSON.parse(raw) as {
+      notifications?: {
+        telegram?: TelegramConfig;
+      };
+    };
     return json.notifications?.telegram || null;
   } catch {
     return null;
@@ -1562,13 +1591,16 @@ function scheduleNextPoll(): void {
 // Public API
 // ---------------------------------------------------------------------------
 
-export async function startTelegramBot(): Promise<void> {
+export async function startTelegramBot(options: TelegramBotRuntimeOptions = {}): Promise<void> {
   if (botActive) {
     stopTelegramBot();
   }
+  setTelegramRuntimeOptions(options);
   config = loadConfig();
   if (!config?.enabled || !config?.bidirectional || !config?.bot_token) {
-    console.log("[telegram-bot] disabled (set telegram.bidirectional=true in integrations.json)");
+    console.log(
+      "[telegram-bot] disabled (set integrations.notifications.telegram.bidirectional=true in cabinet config)",
+    );
     return;
   }
 
@@ -1595,12 +1627,14 @@ export function stopTelegramBot(): void {
   saveTracking();
 }
 
-export async function reloadTelegramBot(): Promise<void> {
+export async function reloadTelegramBot(options?: TelegramBotRuntimeOptions): Promise<void> {
   const wasActive = botActive;
   if (wasActive) stopTelegramBot();
+  const nextOptions = options ?? getTelegramRuntimeOptions();
+  setTelegramRuntimeOptions(nextOptions);
   config = loadConfig();
   if (config?.enabled && config?.bidirectional && config?.bot_token) {
-    await startTelegramBot();
+    await startTelegramBot(nextOptions);
   } else if (wasActive) {
     console.log("[telegram-bot] stopped (config changed)");
   }

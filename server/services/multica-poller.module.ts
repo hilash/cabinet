@@ -17,6 +17,7 @@ export function createMulticaPollerModule(
   options: MulticaPollerModuleOptions = {},
 ): ServiceModule {
   const state = createServiceState();
+  let dataDir: string | null = null;
 
   return {
     name: "multica-poller",
@@ -29,7 +30,8 @@ export function createMulticaPollerModule(
           return;
         }
 
-        startMulticaPoller();
+        dataDir = ctx.dataDir;
+        startMulticaPoller({ dataDir: ctx.dataDir });
         state.up();
         await waitForAbort(ctx.signal);
       } catch (err) {
@@ -49,7 +51,7 @@ export function createMulticaPollerModule(
     async reload() {
       state.starting();
       try {
-        reloadMulticaPoller();
+        reloadMulticaPoller(dataDir ? { dataDir } : {});
         state.up();
       } catch (err) {
         state.down(err);

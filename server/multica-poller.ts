@@ -11,8 +11,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import matter from "gray-matter";
-import { DATA_DIR, resolveContentPath } from "../src/lib/storage/path-utils";
-import { getDaemonPort } from "../src/lib/runtime/runtime-config";
+import { getDaemonPort, getManagedDataDir } from "../src/lib/runtime/runtime-config";
 import { getOrCreateDaemonToken } from "../src/lib/agents/daemon-auth";
 import { daemonBus } from "./daemon-bus";
 
@@ -25,10 +24,87 @@ const POLL_INTERVAL_MS = 30_000;     // 30s between task polls per agent
 const TASK_TIMEOUT_MS = 30 * 60_000; // 30 min max execution per task
 const WAIT_POLL_MS = 3_000;          // 3s between session-output polls
 
-const AGENTS_DIR = path.join(DATA_DIR, ".agents");
-const MULTICA_DAEMON_TOKEN_FILE = path.join(AGENTS_DIR, "multica-daemon-token.json");
 const DAEMON_TOKEN_REFRESH_MS = 24 * 60 * 60_000; // refresh when < 1d remaining
-const WORKSPACE_ID_FILE = path.join(AGENTS_DIR, ".telegram", "workspace-id.txt");
+
+interface MulticaPollerOptions {
+  dataDir?: string;
+}
+
+function resolveDataDir(dataDir?: string): string {
+  return path.resolve(dataDir ?? getManagedDataDir());
+}
+
+function isWithinDirectory(baseDir: string, candidatePath: string): boolean {
+  const relative = path.relative(baseDir, candidatePath);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function resolveNearestRealPath(targetPath: string): string {
+  let currentPath = targetPath;
+  const missingSegments: string[] = [];
+
+  while (true) {
+    try {
+      const realPath = fs.realpathSync(currentPath);
+      return path.resolve(realPath, ...missingSegments.reverse());
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+
+      const parentPath = path.dirname(currentPath);
+      if (parentPath === currentPath) {
+        return targetPath;
+      }
+
+      missingSegments.push(path.basename(currentPath));
+      currentPath = parentPath;
+    }
+  }
+}
+
+function resolveContentPathInDataDir(dataDir: string, virtualPath: string): string {
+  const resolved = path.resolve(dataDir, virtualPath);
+  if (!isWithinDirectory(dataDir, resolved)) {
+    throw new Error("Path traversal detected");
+  }
+
+  try {
+    const realDataDir = fs.realpathSync(dataDir);
+    const realResolved = resolveNearestRealPath(resolved);
+    if (!isWithinDirectory(realDataDir, realResolved)) {
+      throw new Error("Path traversal detected");
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  return resolved;
+}
+
+let currentDataDir = resolveDataDir();
+
+function setMulticaPollerOptions(options?: MulticaPollerOptions): void {
+  currentDataDir = resolveDataDir(options?.dataDir);
+}
+
+function getAgentsDir(dataDir = currentDataDir): string {
+  return path.join(dataDir, ".agents");
+}
+
+function getMulticaDaemonTokenFile(dataDir = currentDataDir): string {
+  return path.join(getAgentsDir(dataDir), "multica-daemon-token.json");
+}
+
+function getWorkspaceIdFile(dataDir = currentDataDir): string {
+  return path.join(getAgentsDir(dataDir), ".telegram", "workspace-id.txt");
+}
+
+function getMulticaPatFile(dataDir = currentDataDir): string {
+  return path.join(getAgentsDir(dataDir), ".config", "multica-pat.json");
+}
 
 function readMulticaPATFile(filePath: string): string {
   try {
@@ -41,31 +117,15 @@ function readMulticaPATFile(filePath: string): string {
   }
 }
 
-function multicaPATCandidates(): string[] {
+function multicaPATCandidates(dataDir = currentDataDir): string[] {
   const candidates = new Set<string>();
-  candidates.add(path.resolve(DATA_DIR, "..", "multica-pat.json"));
-
-  if (process.env.CABINET_DATA_DIR) {
-    candidates.add(path.resolve(process.env.CABINET_DATA_DIR, "..", "multica-pat.json"));
-  }
-
-  const home = process.env.HOME || "";
-  if (home) {
-    candidates.add(path.join(home, "Library", "Application Support", "cabinet", "multica-pat.json"));
-    candidates.add(path.join(home, "Library", "Application Support", "Cabinet", "multica-pat.json"));
-  }
-
-  const appData = process.env.APPDATA || "";
-  if (appData) {
-    candidates.add(path.join(appData, "cabinet", "multica-pat.json"));
-    candidates.add(path.join(appData, "Cabinet", "multica-pat.json"));
-  }
+  candidates.add(getMulticaPatFile(dataDir));
 
   return [...candidates];
 }
 
 function getMulticaPAT(): string {
-  for (const candidate of multicaPATCandidates()) {
+  for (const candidate of multicaPATCandidates(currentDataDir)) {
     const token = readMulticaPATFile(candidate);
     if (token) {
       process.env.MULTICA_PAT = token;
@@ -96,8 +156,9 @@ let cachedDaemonToken: DaemonTokenCacheEntry | null = null;
 
 function readDaemonTokenCache(): DaemonTokenCacheEntry | null {
   try {
-    if (!fs.existsSync(MULTICA_DAEMON_TOKEN_FILE)) return null;
-    const raw = fs.readFileSync(MULTICA_DAEMON_TOKEN_FILE, "utf-8");
+    const daemonTokenFile = getMulticaDaemonTokenFile();
+    if (!fs.existsSync(daemonTokenFile)) return null;
+    const raw = fs.readFileSync(daemonTokenFile, "utf-8");
     const data = JSON.parse(raw) as Partial<DaemonTokenCacheEntry>;
     if (!data.token || !data.daemon_id || !data.workspace_id || !data.expires_at) return null;
     return data as DaemonTokenCacheEntry;
@@ -108,9 +169,10 @@ function readDaemonTokenCache(): DaemonTokenCacheEntry | null {
 
 function writeDaemonTokenCache(entry: DaemonTokenCacheEntry): void {
   try {
-    fs.mkdirSync(path.dirname(MULTICA_DAEMON_TOKEN_FILE), { recursive: true });
-    fs.writeFileSync(MULTICA_DAEMON_TOKEN_FILE, JSON.stringify(entry, null, 2), { mode: 0o600 });
-    fs.chmodSync(MULTICA_DAEMON_TOKEN_FILE, 0o600);
+    const daemonTokenFile = getMulticaDaemonTokenFile();
+    fs.mkdirSync(path.dirname(daemonTokenFile), { recursive: true });
+    fs.writeFileSync(daemonTokenFile, JSON.stringify(entry, null, 2), { mode: 0o600 });
+    fs.chmodSync(daemonTokenFile, 0o600);
   } catch (err) {
     console.warn("[multica-poller] failed to persist daemon token cache:", (err as Error).message);
   }
@@ -126,8 +188,9 @@ function daemonTokenFresh(entry: DaemonTokenCacheEntry | null, workspaceId: stri
 
 function readWorkspaceIdFromFile(): string {
   try {
-    if (!fs.existsSync(WORKSPACE_ID_FILE)) return "";
-    return fs.readFileSync(WORKSPACE_ID_FILE, "utf-8").trim();
+    const workspaceIdFile = getWorkspaceIdFile();
+    if (!fs.existsSync(workspaceIdFile)) return "";
+    return fs.readFileSync(workspaceIdFile, "utf-8").trim();
   } catch {
     return "";
   }
@@ -197,7 +260,7 @@ async function getOrExchangeMulticaDaemonToken(): Promise<string> {
 
 function invalidateDaemonTokenCache(): void {
   cachedDaemonToken = null;
-  try { fs.unlinkSync(MULTICA_DAEMON_TOKEN_FILE); } catch { /* ignore */ }
+  try { fs.unlinkSync(getMulticaDaemonTokenFile()); } catch { /* ignore */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -385,13 +448,14 @@ function readPersonaSummary(agentDir: string, slug: string): PersonaSummary | nu
 }
 
 function scanPersonas(): PersonaSummary[] {
-  if (!fs.existsSync(AGENTS_DIR)) return [];
+  const agentsDir = getAgentsDir();
+  if (!fs.existsSync(agentsDir)) return [];
   const results: PersonaSummary[] = [];
   try {
-    const entries = fs.readdirSync(AGENTS_DIR, { withFileTypes: true });
+    const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-      const summary = readPersonaSummary(AGENTS_DIR, entry.name);
+      const summary = readPersonaSummary(agentsDir, entry.name);
       if (summary) results.push(summary);
     }
   } catch {
@@ -473,6 +537,7 @@ function buildTaskPrompt(task: MulticaTask, persona: PersonaSummary): string {
 
 async function executeTask(task: MulticaTask, persona: PersonaSummary): Promise<void> {
   console.log(`[multica-poller] executing task ${task.id} (issue: ${task.issue_id}) for agent ${persona.slug}`);
+  const dataDir = currentDataDir;
 
   // 1. Notify Multica: task has started
   await multicaPost(`/api/daemon/tasks/${task.id}/start`, {});
@@ -482,18 +547,20 @@ async function executeTask(task: MulticaTask, persona: PersonaSummary): Promise<
 
   // 3. Resolve working directory — both prior_work_dir (from Multica server)
   // and persona.workdir (from local frontmatter) are untrusted user input and
-  // must resolve inside DATA_DIR. resolveContentPath throws on traversal.
+  // must resolve inside the service data dir. resolveContentPathInDataDir throws on traversal.
   let cwd: string;
   try {
     if (task.prior_work_dir && task.prior_work_dir.trim()) {
       const prior = task.prior_work_dir.trim();
       cwd = path.isAbsolute(prior)
-        ? (prior === DATA_DIR || prior.startsWith(DATA_DIR + path.sep) ? prior : resolveContentPath(path.relative(DATA_DIR, prior)))
-        : resolveContentPath(prior);
+        ? (prior === dataDir || prior.startsWith(dataDir + path.sep)
+            ? prior
+            : resolveContentPathInDataDir(dataDir, path.relative(dataDir, prior)))
+        : resolveContentPathInDataDir(dataDir, prior);
     } else if (persona.workdir && persona.workdir !== "/data") {
-      cwd = resolveContentPath(persona.workdir.replace(/^\/+/, ""));
+      cwd = resolveContentPathInDataDir(dataDir, persona.workdir.replace(/^\/+/, ""));
     } else {
-      cwd = DATA_DIR;
+      cwd = dataDir;
     }
   } catch (err) {
     const msg = `unsafe workdir for task ${task.id}: ${(err as Error).message}`;
@@ -606,7 +673,8 @@ function scheduleNextPoll(state: AgentState): void {
 // ---------------------------------------------------------------------------
 
 /** Reload personas and (re)start polling for those with multica_runtime_id. */
-export function reloadMulticaPoller(): void {
+export function reloadMulticaPoller(options: MulticaPollerOptions = {}): void {
+  setMulticaPollerOptions(options);
   if (!getMulticaPAT()) {
     // Don't spam logs on every reload if PAT is not configured
     return;
@@ -641,14 +709,15 @@ export function reloadMulticaPoller(): void {
 }
 
 /** Start the Multica task poller. Call after the daemon HTTP server is listening. */
-export function startMulticaPoller(): void {
+export function startMulticaPoller(options: MulticaPollerOptions = {}): void {
+  setMulticaPollerOptions(options);
   if (!getMulticaPAT()) {
     console.log("[multica-poller] MULTICA_PAT not set — task polling disabled");
     return;
   }
 
   pollerActive = true;
-  reloadMulticaPoller();
+  reloadMulticaPoller({ dataDir: currentDataDir });
 
   const agentCount = agentStates.size;
   if (agentCount === 0) {

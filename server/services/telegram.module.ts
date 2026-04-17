@@ -1,4 +1,5 @@
 import { reloadTelegramBot, startTelegramBot, stopTelegramBot } from "../telegram-bot";
+import { loadCabinetConfig } from "../../src/lib/config/cabinet-config";
 import {
   createServiceState,
   waitForAbort,
@@ -11,6 +12,7 @@ interface TelegramModuleOptions {
 
 export function createTelegramModule(options: TelegramModuleOptions = {}): ServiceModule {
   const state = createServiceState();
+  let dataDir: string | null = null;
 
   return {
     name: "telegram-bot",
@@ -23,7 +25,11 @@ export function createTelegramModule(options: TelegramModuleOptions = {}): Servi
           return;
         }
 
-        await startTelegramBot();
+        dataDir = ctx.dataDir;
+        await startTelegramBot({
+          dataDir: ctx.dataDir,
+          cabinetConfig: ctx.config,
+        });
         state.up();
         await waitForAbort(ctx.signal);
       } catch (err) {
@@ -43,7 +49,14 @@ export function createTelegramModule(options: TelegramModuleOptions = {}): Servi
     async reload() {
       state.starting();
       try {
-        await reloadTelegramBot();
+        if (!dataDir) {
+          await reloadTelegramBot();
+        } else {
+          await reloadTelegramBot({
+            dataDir,
+            cabinetConfig: await loadCabinetConfig(dataDir),
+          });
+        }
         state.up();
       } catch (err) {
         state.down(err);

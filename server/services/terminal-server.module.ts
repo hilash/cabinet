@@ -59,6 +59,7 @@ export function createTerminalServerModule(
 
           options.server.listen(options.port, LOOPBACK_HOST, () => {
             cleanup();
+            ctx.log(`terminal server listening on port ${options.port} (dataDir: ${ctx.dataDir})`);
             options.onStarted?.();
             state.up();
             resolve();
