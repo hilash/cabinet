@@ -1,16 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
 import { getDaemonSessionOutput } from "@/lib/agents/daemon-client";
+import {
+  HttpError,
+  createGetHandler,
+} from "@/lib/http/create-handler";
+
+type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  req: Request,
+  { params }: RouteParams
 ) {
-  try {
-    const { id } = await params;
-    const output = await getDaemonSessionOutput(id);
-    return NextResponse.json(output);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load daemon output";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  const { id } = await params;
+  return createGetHandler({
+    handler: async () => {
+      try {
+        return await getDaemonSessionOutput(id);
+      } catch (error) {
+        throw new HttpError(
+          500,
+          error instanceof Error ? error.message : "Failed to load daemon output"
+        );
+      }
+    },
+  })(req);
 }

@@ -1,24 +1,33 @@
-import { NextRequest, NextResponse } from "next/server";
 import { manualCommit, getStatus } from "@/lib/git/git-service";
+import {
+  HttpError,
+  createGetHandler,
+  createHandler,
+} from "@/lib/http/create-handler";
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const message = body.message || "Manual commit from KB";
-    const committed = await manualCommit(message);
-    return NextResponse.json({ ok: true, committed });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
 }
 
-export async function GET() {
-  try {
-    const status = await getStatus();
-    return NextResponse.json(status);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+export const POST = createHandler({
+  handler: async (_input, req) => {
+    try {
+      const body = await req.json();
+      const message = body.message || "Manual commit from KB";
+      const committed = await manualCommit(message);
+      return { ok: true, committed };
+    } catch (error) {
+      throw new HttpError(500, getErrorMessage(error));
+    }
+  },
+});
+
+export const GET = createGetHandler({
+  handler: async () => {
+    try {
+      return await getStatus();
+    } catch (error) {
+      throw new HttpError(500, getErrorMessage(error));
+    }
+  },
+});

@@ -1,31 +1,43 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   getRequirementPipeline,
   isValidRequirementPipelineId,
 } from "@/lib/agents/requirement-pipeline";
+import {
+  HttpError,
+  createGetHandler,
+} from "@/lib/http/create-handler";
+
+type RouteParams = { params: Promise<{ id: string }> };
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
 
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  req: Request,
+  { params }: RouteParams
 ) {
-  try {
-    const { id } = await params;
-    if (!isValidRequirementPipelineId(id)) {
-      return NextResponse.json(
-        { error: "Invalid pipeline id" },
-        { status: 400 }
-      );
-    }
-    const pipeline = await getRequirementPipeline(id);
-    if (!pipeline) {
-      return NextResponse.json(
-        { error: "Pipeline not found" },
-        { status: 404 }
-      );
-    }
-    return NextResponse.json({ pipeline });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  const { id } = await params;
+  return createGetHandler({
+    handler: async () => {
+      try {
+        if (!isValidRequirementPipelineId(id)) {
+          throw new HttpError(400, "Invalid pipeline id");
+        }
+
+        const pipeline = await getRequirementPipeline(id);
+        if (!pipeline) {
+          throw new HttpError(404, "Pipeline not found");
+        }
+
+        return { pipeline };
+      } catch (error) {
+        if (error instanceof HttpError) {
+          throw error;
+        }
+
+        throw new HttpError(500, getErrorMessage(error));
+      }
+    },
+  })(req);
 }

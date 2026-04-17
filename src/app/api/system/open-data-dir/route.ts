@@ -1,7 +1,10 @@
 import { spawn } from "child_process";
 import path from "path";
-import { NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  HttpError,
+  createHandler,
+} from "@/lib/http/create-handler";
 
 export const dynamic = "force-dynamic";
 
@@ -20,44 +23,53 @@ function getOpenCommand(targetPath: string, reveal?: boolean): { command: string
   }
 }
 
-export async function POST(request: Request) {
-  try {
-    let targetPath = DATA_DIR;
-
-    // Optional subpath to open a specific item
-    const body = await request.json().catch(() => null);
-    if (body?.subpath) {
-      const resolved = path.resolve(DATA_DIR, body.subpath);
-      if (!resolved.startsWith(DATA_DIR)) {
-        return NextResponse.json({ error: "Invalid path" }, { status: 400 });
-      }
-      targetPath = resolved;
-    }
-
-    // Reveal in Finder when opening a specific subpath
-    const { command, args } = getOpenCommand(targetPath, !!body?.subpath);
-
-    await new Promise<void>((resolve, reject) => {
-      const proc = spawn(command, args, {
-        stdio: "ignore",
-      });
-
-      proc.on("error", (error) => {
-        reject(error);
-      });
-
-      proc.on("close", (code) => {
-        if (code === 0) {
-          resolve();
-          return;
-        }
-        reject(new Error(`Command exited with code ${code}`));
-      });
-    });
-
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
 }
+
+export const POST = createHandler({
+  handler: async (_input, request) => {
+    try {
+      let targetPath = DATA_DIR;
+
+      // Optional subpath to open a specific item
+      const body = await request.json().catch(() => null);
+      if (body?.subpath) {
+        const resolved = path.resolve(DATA_DIR, body.subpath);
+        if (!resolved.startsWith(DATA_DIR)) {
+          throw new HttpError(400, "Invalid path");
+        }
+        targetPath = resolved;
+      }
+
+      // Reveal in Finder when opening a specific subpath
+      const { command, args } = getOpenCommand(targetPath, !!body?.subpath);
+
+      await new Promise<void>((resolve, reject) => {
+        const proc = spawn(command, args, {
+          stdio: "ignore",
+        });
+
+        proc.on("error", (error) => {
+          reject(error);
+        });
+
+        proc.on("close", (code) => {
+          if (code === 0) {
+            resolve();
+            return;
+          }
+          reject(new Error(`Command exited with code ${code}`));
+        });
+      });
+
+      return { ok: true };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+
+      throw new HttpError(500, getErrorMessage(error));
+    }
+  },
+});

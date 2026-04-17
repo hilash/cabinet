@@ -1,5 +1,9 @@
 import { spawn } from "child_process";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import {
+  HttpError,
+  createHandler,
+} from "@/lib/http/create-handler";
 
 function isAllowedBrowserOrigin(value: string | null): boolean {
   if (!value) {
@@ -67,24 +71,31 @@ async function openTerminal(home: string): Promise<void> {
   throw new Error(`Opening Terminal is not supported on ${process.platform}`);
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
 export async function POST(request: NextRequest) {
-  // Local-only Electron helper: keep this POST-only so setup flows can open a terminal
-  // without first doing a daemon-auth round trip from the renderer.
-  if (request.method !== "POST") {
-    return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-  }
+  return createHandler({
+    handler: async () => {
+      // Local-only Electron helper: keep this POST-only so setup flows can open a terminal
+      // without first doing a daemon-auth round trip from the renderer.
+      if (request.method !== "POST") {
+        throw new HttpError(405, "Method not allowed");
+      }
 
-  if (!isAllowedRequestSource(request)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+      if (!isAllowedRequestSource(request)) {
+        throw new HttpError(403, "Forbidden");
+      }
 
-  const home = process.env.HOME || "~";
+      const home = process.env.HOME || "~";
 
-  try {
-    await openTerminal(home);
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+      try {
+        await openTerminal(home);
+        return { ok: true };
+      } catch (error) {
+        throw new HttpError(500, getErrorMessage(error));
+      }
+    },
+  })(request);
 }

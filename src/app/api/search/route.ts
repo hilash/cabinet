@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import matter from "gray-matter";
 import { DATA_DIR, isHiddenEntry } from "@/lib/storage/path-utils";
 import { listDirectory, readFileContent, fileExists } from "@/lib/storage/fs-operations";
+import {
+  HttpError,
+  createGetHandler,
+} from "@/lib/http/create-handler";
 
 interface SearchResult {
   path: string;
@@ -104,21 +107,27 @@ function extractSnippet(content: string, query: string): string {
   return snippet;
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const q = req.nextUrl.searchParams.get("q")?.trim() || "";
-    const tag = req.nextUrl.searchParams.get("tag")?.trim() || undefined;
-
-    if (!q && !tag) {
-      return NextResponse.json([]);
-    }
-
-    const results: SearchResult[] = [];
-    await collectPages(DATA_DIR, { query: q, tag }, results);
-
-    return NextResponse.json(results.slice(0, 20));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
 }
+
+export const GET = createGetHandler({
+  handler: async (req) => {
+    try {
+      const url = new URL(req.url);
+      const q = url.searchParams.get("q")?.trim() || "";
+      const tag = url.searchParams.get("tag")?.trim() || undefined;
+
+      if (!q && !tag) {
+        return [] as SearchResult[];
+      }
+
+      const results: SearchResult[] = [];
+      await collectPages(DATA_DIR, { query: q, tag }, results);
+
+      return results.slice(0, 20);
+    } catch (error) {
+      throw new HttpError(500, getErrorMessage(error));
+    }
+  },
+});

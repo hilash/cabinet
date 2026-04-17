@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { JOB_LIBRARY_TEMPLATES } from "@/lib/jobs/job-library";
+import { createGetHandler } from "@/lib/http/create-handler";
 
-export async function GET() {
-  return NextResponse.json({ templates: JOB_LIBRARY_TEMPLATES });
-}
+export const GET = createGetHandler({
+  handler: async () => ({ templates: JOB_LIBRARY_TEMPLATES }),
+});

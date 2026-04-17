@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   postMessage,
   getMessages,
@@ -10,114 +9,123 @@ import { sendNotification, shouldNotify } from "@/lib/agents/notification-servic
 import { runQuickResponse } from "@/lib/agents/heartbeat";
 
 import { getRespondingAgents } from "@/lib/agents/responding-agents";
+import {
+  HttpError,
+  createGetHandler,
+  createHandler,
+} from "@/lib/http/create-handler";
 
 const respondingAgents = getRespondingAgents();
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
+export const GET = createGetHandler({
+  handler: async (req) => {
+    const { searchParams } = new URL(req.url);
 
-  // List channels (always include defaults)
-  if (searchParams.get("channels") === "true") {
-    const existing = await listChannels();
-    const defaults = ["general", "marketing", "alerts"];
-    const channels = [...new Set([...defaults, ...existing])];
-    return NextResponse.json({ channels });
-  }
+    // List channels (always include defaults)
+    if (searchParams.get("channels") === "true") {
+      const existing = await listChannels();
+      const defaults = ["general", "marketing", "alerts"];
+      const channels = [...new Set([...defaults, ...existing])];
+      return { channels };
+    }
 
-  const channel = searchParams.get("channel");
-  const limit = parseInt(searchParams.get("limit") || "50", 10);
+    const channel = searchParams.get("channel");
+    const limit = parseInt(searchParams.get("limit") || "50", 10);
 
-  // Get messages for specific channel or recent across all
-  if (channel) {
-    const messages = await getMessages(channel, limit);
-    return NextResponse.json({ messages });
-  }
+    // Get messages for specific channel or recent across all
+    if (channel) {
+      const messages = await getMessages(channel, limit);
+      return { messages };
+    }
 
-  const messages = await getRecentMessages(limit);
-  return NextResponse.json({ messages });
-}
+    const messages = await getRecentMessages(limit);
+    return { messages };
+  },
+});
 
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { channel, agent, type, content, mentions, kbRefs, emoji, displayName, thread } = body;
+export const POST = createHandler({
+  handler: async (_input, req) => {
+    const body = await req.json();
+    const { channel, agent, type, content, mentions, kbRefs, emoji, displayName, thread } = body;
 
-  if (!channel || !content) {
-    return NextResponse.json({ error: "channel and content required" }, { status: 400 });
-  }
+    if (!channel || !content) {
+      throw new HttpError(400, "channel and content required");
+    }
 
-  await postMessage({
-    channel,
-    agent: agent || "human",
-    emoji: emoji || undefined,
-    displayName: displayName || undefined,
-    type: type || "message",
-    content,
-    mentions: mentions || [],
-    kbRefs: kbRefs || [],
-    ...(thread ? { thread } : {}),
-  });
-
-  // Send external notifications for alerts and @human mentions
-  if (shouldNotify(channel, content, mentions)) {
-    sendNotification({
-      title: type === "alert" ? "Agent Alert" : `Message in #${channel}`,
-      message: content.slice(0, 300),
-      agentName: displayName || agent,
-      agentEmoji: emoji,
+    await postMessage({
       channel,
-      severity: type === "alert" ? "critical" : channel === "alerts" ? "warning" : "info",
-    }).catch(() => {}); // Fire and forget
-  }
+      agent: agent || "human",
+      emoji: emoji || undefined,
+      displayName: displayName || undefined,
+      type: type || "message",
+      content,
+      mentions: mentions || [],
+      kbRefs: kbRefs || [],
+      ...(thread ? { thread } : {}),
+    });
 
-  // Route @mentions from humans to agent inboxes AND trigger quick response
-  if ((agent || "human") === "human") {
-    const mentionedSlugs = extractMentions(content);
-    const personas = await listPersonas();
-    const slugSet = new Set(personas.map((p) => p.slug));
+    // Send external notifications for alerts and @human mentions
+    if (shouldNotify(channel, content, mentions)) {
+      sendNotification({
+        title: type === "alert" ? "Agent Alert" : `Message in #${channel}`,
+        message: content.slice(0, 300),
+        agentName: displayName || agent,
+        agentEmoji: emoji,
+        channel,
+        severity: type === "alert" ? "critical" : channel === "alerts" ? "warning" : "info",
+      }).catch(() => {}); // Fire and forget
+    }
 
-    if (mentionedSlugs.length > 0) {
-      // Specific @mentions — respond with the first mentioned agent
-      for (const mentioned of mentionedSlugs) {
-        if (slugSet.has(mentioned)) {
-          await sendMessage("human", mentioned, `[Slack #${channel}] ${content}`);
+    // Route @mentions from humans to agent inboxes AND trigger quick response
+    if ((agent || "human") === "human") {
+      const mentionedSlugs = extractMentions(content);
+      const personas = await listPersonas();
+      const slugSet = new Set(personas.map((p) => p.slug));
+
+      if (mentionedSlugs.length > 0) {
+        // Specific @mentions — respond with the first mentioned agent
+        for (const mentioned of mentionedSlugs) {
+          if (slugSet.has(mentioned)) {
+            await sendMessage("human", mentioned, `[Slack #${channel}] ${content}`);
+          }
         }
-      }
 
-      // Trigger a quick response from the first valid mentioned agent (fire-and-forget)
-      const respondingSlug = mentionedSlugs.find((s) => slugSet.has(s));
-      if (respondingSlug) {
-        respondingAgents.set(respondingSlug, { channel, since: Date.now() });
-        runQuickResponse(respondingSlug, content, channel)
-          .catch(() => {})
-          .finally(() => respondingAgents.delete(respondingSlug));
-      }
-    } else {
-      // No specific @mention — route to the department lead for this channel
-      // Channel name often matches a department (e.g., #marketing → marketing lead)
-      const channelDeptMap: Record<string, string> = {
-        general: "leadership",
-        marketing: "marketing",
-        engineering: "engineering",
-        operations: "operations",
-        alerts: "leadership",
-      };
-      const targetDept = channelDeptMap[channel];
-      if (targetDept) {
-        const lead = personas.find(
-          (p) => p.department === targetDept && p.type === "lead"
-        );
-        if (lead) {
-          respondingAgents.set(lead.slug, { channel, since: Date.now() });
-          runQuickResponse(lead.slug, content, channel)
+        // Trigger a quick response from the first valid mentioned agent (fire-and-forget)
+        const respondingSlug = mentionedSlugs.find((s) => slugSet.has(s));
+        if (respondingSlug) {
+          respondingAgents.set(respondingSlug, { channel, since: Date.now() });
+          runQuickResponse(respondingSlug, content, channel)
             .catch(() => {})
-            .finally(() => respondingAgents.delete(lead.slug));
+            .finally(() => respondingAgents.delete(respondingSlug));
+        }
+      } else {
+        // No specific @mention — route to the department lead for this channel
+        // Channel name often matches a department (e.g., #marketing → marketing lead)
+        const channelDeptMap: Record<string, string> = {
+          general: "leadership",
+          marketing: "marketing",
+          engineering: "engineering",
+          operations: "operations",
+          alerts: "leadership",
+        };
+        const targetDept = channelDeptMap[channel];
+        if (targetDept) {
+          const lead = personas.find(
+            (p) => p.department === targetDept && p.type === "lead"
+          );
+          if (lead) {
+            respondingAgents.set(lead.slug, { channel, since: Date.now() });
+            runQuickResponse(lead.slug, content, channel)
+              .catch(() => {})
+              .finally(() => respondingAgents.delete(lead.slug));
+          }
         }
       }
     }
-  }
 
-  return NextResponse.json({ ok: true });
-}
+    return { ok: true };
+  },
+});
 
 /**
  * Extract @agent-slug mentions from message content.

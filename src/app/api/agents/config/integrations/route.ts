@@ -1,7 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  HttpError,
+  createGetHandler,
+  createHandler,
+} from "@/lib/http/create-handler";
 
 const CONFIG_DIR = path.join(DATA_DIR, ".agents", ".config");
 const INTEGRATIONS_FILE = path.join(CONFIG_DIR, "integrations.json");
@@ -103,29 +107,32 @@ const DEFAULT_CONFIG: IntegrationConfig = {
   },
 };
 
-export async function GET() {
-  try {
-    const raw = await fs.readFile(INTEGRATIONS_FILE, "utf-8");
-    const config = JSON.parse(raw);
-    // Merge with defaults to ensure all fields exist
-    const merged = {
-      mcp_servers: { ...DEFAULT_CONFIG.mcp_servers, ...config.mcp_servers },
-      notifications: { ...DEFAULT_CONFIG.notifications, ...config.notifications },
-      scheduling: { ...DEFAULT_CONFIG.scheduling, ...config.scheduling },
-    };
-    return NextResponse.json(merged);
-  } catch {
-    return NextResponse.json(DEFAULT_CONFIG);
-  }
-}
+export const GET = createGetHandler({
+  handler: async () => {
+    try {
+      const raw = await fs.readFile(INTEGRATIONS_FILE, "utf-8");
+      const config = JSON.parse(raw);
+      // Merge with defaults to ensure all fields exist
+      return {
+        mcp_servers: { ...DEFAULT_CONFIG.mcp_servers, ...config.mcp_servers },
+        notifications: { ...DEFAULT_CONFIG.notifications, ...config.notifications },
+        scheduling: { ...DEFAULT_CONFIG.scheduling, ...config.scheduling },
+      };
+    } catch {
+      return DEFAULT_CONFIG;
+    }
+  },
+});
 
-export async function PUT(req: NextRequest) {
-  try {
-    const body = await req.json();
-    await fs.mkdir(CONFIG_DIR, { recursive: true });
-    await fs.writeFile(INTEGRATIONS_FILE, JSON.stringify(body, null, 2), "utf-8");
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
-  }
-}
+export const PUT = createHandler({
+  handler: async (_input, req) => {
+    try {
+      const body = await req.json();
+      await fs.mkdir(CONFIG_DIR, { recursive: true });
+      await fs.writeFile(INTEGRATIONS_FILE, JSON.stringify(body, null, 2), "utf-8");
+      return { ok: true };
+    } catch (err) {
+      throw new HttpError(500, String(err));
+    }
+  },
+});

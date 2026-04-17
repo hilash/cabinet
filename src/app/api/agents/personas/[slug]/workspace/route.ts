@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { readPersona } from "@/lib/agents/persona-manager";
+import {
+  HttpError,
+  createGetHandler,
+} from "@/lib/http/create-handler";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -30,36 +33,40 @@ async function scanDir(dir: string, basePath: string): Promise<Array<{ path: str
   return results;
 }
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export async function GET(req: Request, { params }: RouteParams) {
   const { slug } = await params;
-  const persona = await readPersona(slug);
-  if (!persona) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  return createGetHandler({
+    handler: async () => {
+      const persona = await readPersona(slug);
+      if (!persona) {
+        throw new HttpError(404, "Not found");
+      }
 
-  const allFiles: Array<{ path: string; name: string; modified: string }> = [];
+      const allFiles: Array<{ path: string; name: string; modified: string }> = [];
 
-  // 1. Scan agent's private workspace
-  const workspaceDir = path.join(DATA_DIR, ".agents", slug, "workspace");
-  const workspaceFiles = await scanDir(workspaceDir, workspaceDir);
-  allFiles.push(...workspaceFiles);
+      // 1. Scan agent's private workspace
+      const workspaceDir = path.join(DATA_DIR, ".agents", slug, "workspace");
+      const workspaceFiles = await scanDir(workspaceDir, workspaceDir);
+      allFiles.push(...workspaceFiles);
 
-  // 2. Scan agent's output_dir (KB department folder) if configured
-  const outputDir = (persona as unknown as Record<string, unknown>).output_dir as string | undefined;
-  if (outputDir) {
-    const resolvedDir = path.resolve(DATA_DIR, outputDir.replace(/^\/data\//, ""));
-    // Safety: must be under DATA_DIR
-    if (resolvedDir.startsWith(DATA_DIR)) {
-      const outputFiles = await scanDir(resolvedDir, resolvedDir);
-      allFiles.push(...outputFiles);
-    }
-  }
+      // 2. Scan agent's output_dir (KB department folder) if configured
+      const outputDir = (persona as unknown as Record<string, unknown>).output_dir as string | undefined;
+      if (outputDir) {
+        const resolvedDir = path.resolve(DATA_DIR, outputDir.replace(/^\/data\//, ""));
+        // Safety: must be under DATA_DIR
+        if (resolvedDir.startsWith(DATA_DIR)) {
+          const outputFiles = await scanDir(resolvedDir, resolvedDir);
+          allFiles.push(...outputFiles);
+        }
+      }
 
-  // Sort by modified date, newest first
-  allFiles.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+      // Sort by modified date, newest first
+      allFiles.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
 
-  return NextResponse.json({
-    files: allFiles,
-    outputDir: outputDir || null,
-  });
+      return {
+        files: allFiles,
+        outputDir: outputDir || null,
+      };
+    },
+  })(req);
 }

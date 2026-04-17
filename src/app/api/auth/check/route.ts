@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { createGetHandler } from "@/lib/http/create-handler";
 
 const KB_PASSWORD = process.env.KB_PASSWORD || "";
 const AUTH_ENABLED = KB_PASSWORD.length > 0;
@@ -12,15 +12,17 @@ async function hashToken(password: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function GET() {
-  if (!AUTH_ENABLED) {
-    return NextResponse.json({ authenticated: true, authEnabled: false });
-  }
+export const GET = createGetHandler({
+  handler: async () => {
+    if (!AUTH_ENABLED) {
+      return { authenticated: true, authEnabled: false };
+    }
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("kb-auth")?.value;
-  const expected = await hashToken(KB_PASSWORD);
-  const authenticated = token === expected;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("kb-auth")?.value;
+    const expected = await hashToken(KB_PASSWORD);
+    const authenticated = token === expected;
 
-  return NextResponse.json({ authenticated, authEnabled: true });
-}
+    return { authenticated, authEnabled: true };
+  },
+});

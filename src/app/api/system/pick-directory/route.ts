@@ -1,5 +1,8 @@
 import { spawn } from "child_process";
-import { NextResponse } from "next/server";
+import {
+  HttpError,
+  createHandler,
+} from "@/lib/http/create-handler";
 
 export const dynamic = "force-dynamic";
 
@@ -35,57 +38,62 @@ function getPickerCommand(): { command: string; args: string[] } {
   }
 }
 
-export async function POST() {
-  try {
-    const { command, args } = getPickerCommand();
-
-    const selectedPath = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(command, args, {
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-
-      let stdout = "";
-      let stderr = "";
-
-      proc.stdout.on("data", (chunk: Buffer) => {
-        stdout += chunk.toString();
-      });
-
-      proc.stderr.on("data", (chunk: Buffer) => {
-        stderr += chunk.toString();
-      });
-
-      proc.on("error", reject);
-
-      proc.on("close", (code) => {
-        const trimmed = stdout.trim();
-
-        if (code === 0) {
-          resolve(trimmed);
-          return;
-        }
-
-        const combined = `${stdout}\n${stderr}`.toLowerCase();
-        if (
-          combined.includes("user canceled") ||
-          combined.includes("user cancelled") ||
-          combined.includes("error number -128")
-        ) {
-          resolve("");
-          return;
-        }
-
-        reject(new Error(stderr.trim() || `Command exited with code ${code}`));
-      });
-    });
-
-    if (!selectedPath) {
-      return NextResponse.json({ cancelled: true });
-    }
-
-    return NextResponse.json({ ok: true, path: selectedPath });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
 }
+
+export const POST = createHandler({
+  handler: async () => {
+    try {
+      const { command, args } = getPickerCommand();
+
+      const selectedPath = await new Promise<string>((resolve, reject) => {
+        const proc = spawn(command, args, {
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+
+        let stdout = "";
+        let stderr = "";
+
+        proc.stdout.on("data", (chunk: Buffer) => {
+          stdout += chunk.toString();
+        });
+
+        proc.stderr.on("data", (chunk: Buffer) => {
+          stderr += chunk.toString();
+        });
+
+        proc.on("error", reject);
+
+        proc.on("close", (code) => {
+          const trimmed = stdout.trim();
+
+          if (code === 0) {
+            resolve(trimmed);
+            return;
+          }
+
+          const combined = `${stdout}\n${stderr}`.toLowerCase();
+          if (
+            combined.includes("user canceled") ||
+            combined.includes("user cancelled") ||
+            combined.includes("error number -128")
+          ) {
+            resolve("");
+            return;
+          }
+
+          reject(new Error(stderr.trim() || `Command exited with code ${code}`));
+        });
+      });
+
+      if (!selectedPath) {
+        return { cancelled: true };
+      }
+
+      return { ok: true, path: selectedPath };
+    } catch (error) {
+      throw new HttpError(500, getErrorMessage(error));
+    }
+  },
+});

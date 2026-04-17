@@ -1,7 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 import { runCodeReviewPipeline } from "@/lib/agents/review-pipeline";
+import {
+  HttpError,
+  createHandler,
+} from "@/lib/http/create-handler";
 import {
   validateTaskReviewSchema,
   type TaskReviewResult,
@@ -50,14 +53,15 @@ function cleanProviderJson(text: string): string {
   return cleaned.trim();
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
 async function handleTaskReview(body: TaskReviewPayload) {
   const { taskId, title, description, tags, linkedPages, providerId } = body;
 
   if (!title) {
-    return NextResponse.json(
-      { error: "title is required" },
-      { status: 400 }
-    );
+    throw new HttpError(400, "title is required");
   }
 
   const prompt = `You are an AI task reviewer for a startup knowledge base. Review this task and suggest improvements.
@@ -97,10 +101,7 @@ Rules:
   try {
     parsed = JSON.parse(cleanProviderJson(result));
   } catch {
-    return NextResponse.json(
-      { error: "AI returned invalid JSON response. Please retry." },
-      { status: 502 }
-    );
+    throw new HttpError(502, "AI returned invalid JSON response. Please retry.");
   }
 
   let review: TaskReviewResult;
@@ -108,78 +109,74 @@ Rules:
     review = validateTaskReviewSchema(parsed);
   } catch (err) {
     const reason = err instanceof Error ? err.message : "unknown";
-    return NextResponse.json(
-      { error: `AI response failed schema validation: ${reason}` },
-      { status: 502 }
-    );
+    throw new HttpError(502, `AI response failed schema validation: ${reason}`);
   }
 
-  return NextResponse.json({
+  return {
     ok: true,
     mode: "task",
     taskId,
     review,
-  });
+  };
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as TaskReviewPayload & CodeReviewPayload;
-    const mode = typeof body.mode === "string" ? body.mode.trim().toLowerCase() : "";
+export const POST = createHandler({
+  handler: async (_input, req) => {
+    try {
+      const body = (await req.json()) as TaskReviewPayload & CodeReviewPayload;
+      const mode = typeof body.mode === "string" ? body.mode.trim().toLowerCase() : "";
 
-    if (mode && mode !== "task" && mode !== "code") {
-      return NextResponse.json(
-        { error: "mode must be task or code" },
-        { status: 400 }
-      );
+      if (mode && mode !== "task" && mode !== "code") {
+        throw new HttpError(400, "mode must be task or code");
+      }
+
+      if (mode === "task" || (!mode && body.title)) {
+        return await handleTaskReview(body);
+      }
+
+      if (!mode) {
+        throw new HttpError(400, "mode is required when title is not provided");
+      }
+
+      const options = body.options || {};
+      const result = await runCodeReviewPipeline({
+        providerId: body.providerId || options.providerId,
+        workdir: body.workdir || options.workdir,
+        compareRange: body.compareRange || options.compareRange,
+        baseRef: body.baseRef || options.baseRef,
+        headRef: body.headRef || options.headRef,
+        includePaths: Array.isArray(body.includePaths)
+          ? body.includePaths
+          : options.includePaths,
+        maxDiffChars:
+          typeof body.maxDiffChars === "number"
+            ? body.maxDiffChars
+            : options.maxDiffChars,
+        maxFiles:
+          typeof body.maxFiles === "number"
+            ? body.maxFiles
+            : options.maxFiles,
+        timeoutMs:
+          typeof body.timeoutMs === "number"
+            ? body.timeoutMs
+            : options.timeoutMs,
+        saveArtifact:
+          typeof body.saveArtifact === "boolean"
+            ? body.saveArtifact
+            : options.saveArtifact,
+      });
+
+      return {
+        ok: true,
+        mode: "code",
+        ...result,
+      };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+
+      throw new HttpError(500, getErrorMessage(error));
     }
-
-    if (mode === "task" || (!mode && body.title)) {
-      return await handleTaskReview(body);
-    }
-
-    if (!mode) {
-      return NextResponse.json(
-        { error: "mode is required when title is not provided" },
-        { status: 400 }
-      );
-    }
-
-    const options = body.options || {};
-    const result = await runCodeReviewPipeline({
-      providerId: body.providerId || options.providerId,
-      workdir: body.workdir || options.workdir,
-      compareRange: body.compareRange || options.compareRange,
-      baseRef: body.baseRef || options.baseRef,
-      headRef: body.headRef || options.headRef,
-      includePaths: Array.isArray(body.includePaths)
-        ? body.includePaths
-        : options.includePaths,
-      maxDiffChars:
-        typeof body.maxDiffChars === "number"
-          ? body.maxDiffChars
-          : options.maxDiffChars,
-      maxFiles:
-        typeof body.maxFiles === "number"
-          ? body.maxFiles
-          : options.maxFiles,
-      timeoutMs:
-        typeof body.timeoutMs === "number"
-          ? body.timeoutMs
-          : options.timeoutMs,
-      saveArtifact:
-        typeof body.saveArtifact === "boolean"
-          ? body.saveArtifact
-          : options.saveArtifact,
-    });
-
-    return NextResponse.json({
-      ok: true,
-      mode: "code",
-      ...result,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+  },
+});

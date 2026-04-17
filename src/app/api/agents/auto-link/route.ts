@@ -1,7 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
 import { buildTree } from "@/lib/storage/tree-builder";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
+import {
+  HttpError,
+  createHandler,
+} from "@/lib/http/create-handler";
 import type { TreeNode } from "@/types";
 
 function flattenPaths(nodes: TreeNode[]): string[] {
@@ -13,17 +16,22 @@ function flattenPaths(nodes: TreeNode[]): string[] {
   return paths;
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const { title, description } = await req.json();
-    if (!title) {
-      return NextResponse.json({ error: "title is required" }, { status: 400 });
-    }
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
 
-    const tree = await buildTree();
-    const pageList = flattenPaths(tree).join("\n");
+export const POST = createHandler({
+  handler: async (_input, req) => {
+    try {
+      const { title, description } = await req.json();
+      if (!title) {
+        throw new HttpError(400, "title is required");
+      }
 
-    const prompt = `Given this task:
+      const tree = await buildTree();
+      const pageList = flattenPaths(tree).join("\n");
+
+      const prompt = `Given this task:
 Title: ${title}
 Description: ${description || "None"}
 
@@ -33,26 +41,30 @@ ${pageList}
 Return ONLY a JSON array of page paths that are relevant to this task. Example: ["companies/competitors", "engineering/api-docs"]
 If no pages are relevant, return []. Return ONLY the JSON array, nothing else.`;
 
-    const result = await runOneShotProviderPrompt({
-      prompt,
-      cwd: DATA_DIR,
-      timeoutMs: 30_000,
-    });
+      const result = await runOneShotProviderPrompt({
+        prompt,
+        cwd: DATA_DIR,
+        timeoutMs: 30_000,
+      });
 
-    // Parse the JSON array from Claude's response
-    let linkedPages: string[] = [];
-    try {
-      const match = result.match(/\[[\s\S]*\]/);
-      if (match) {
-        linkedPages = JSON.parse(match[0]);
+      // Parse the JSON array from Claude's response
+      let linkedPages: string[] = [];
+      try {
+        const match = result.match(/\[[\s\S]*\]/);
+        if (match) {
+          linkedPages = JSON.parse(match[0]);
+        }
+      } catch {
+        linkedPages = [];
       }
-    } catch {
-      linkedPages = [];
-    }
 
-    return NextResponse.json({ linkedPages });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+      return { linkedPages };
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+
+      throw new HttpError(500, getErrorMessage(error));
+    }
+  },
+});

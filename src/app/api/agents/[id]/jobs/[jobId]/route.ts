@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   loadAgentJobsBySlug,
   saveAgentJob,
@@ -10,83 +9,112 @@ import {
   jobIdMatches,
   normalizeJobConfig,
 } from "@/lib/jobs/job-normalization";
+import {
+  HttpError,
+  createGetHandler,
+  createHandler,
+} from "@/lib/http/create-handler";
+
+type RouteParams = { params: Promise<{ id: string; jobId: string }> };
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
 
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string; jobId: string }> }
+  req: Request,
+  { params }: RouteParams
 ) {
   const { id: slug, jobId } = await params;
-  try {
-    const jobs = await loadAgentJobsBySlug(slug);
-    const job = jobs.find((j) => jobIdMatches(j.id, jobId));
-    if (!job) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
-    }
-    return NextResponse.json({ job });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return createGetHandler({
+    handler: async () => {
+      try {
+        const jobs = await loadAgentJobsBySlug(slug);
+        const job = jobs.find((j) => jobIdMatches(j.id, jobId));
+        if (!job) {
+          throw new HttpError(404, "Job not found");
+        }
+
+        return { job };
+      } catch (error) {
+        if (error instanceof HttpError) {
+          throw error;
+        }
+
+        throw new HttpError(500, getErrorMessage(error));
+      }
+    },
+  })(req);
 }
 
 export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string; jobId: string }> }
+  req: Request,
+  { params }: RouteParams
 ) {
   const { id: slug, jobId } = await params;
-  try {
-    const jobs = await loadAgentJobsBySlug(slug);
-    const existing = jobs.find((j) => jobIdMatches(j.id, jobId));
-    if (!existing) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
-    }
+  return createHandler({
+    handler: async (_input, request) => {
+      try {
+        const jobs = await loadAgentJobsBySlug(slug);
+        const existing = jobs.find((j) => jobIdMatches(j.id, jobId));
+        if (!existing) {
+          throw new HttpError(404, "Job not found");
+        }
 
-    const body = await req.json();
+        const body = await request.json();
 
-    // Handle run action
-    if (body.action === "run") {
-      const run = await executeJob(existing);
-      return NextResponse.json({ ok: true, run });
-    }
+        // Handle run action
+        if (body.action === "run") {
+          const run = await executeJob(existing);
+          return { ok: true, run };
+        }
 
-    // Handle toggle action
-    if (body.action === "toggle") {
-      existing.enabled = !existing.enabled;
-      existing.updatedAt = new Date().toISOString();
-      await saveAgentJob(slug, existing);
-      await reloadDaemonSchedules().catch(() => {});
-      return NextResponse.json({ ok: true, job: existing });
-    }
+        // Handle toggle action
+        if (body.action === "toggle") {
+          existing.enabled = !existing.enabled;
+          existing.updatedAt = new Date().toISOString();
+          await saveAgentJob(slug, existing);
+          await reloadDaemonSchedules().catch(() => {});
+          return { ok: true, job: existing };
+        }
 
-    // Update fields
-    const updated = {
-      ...existing,
-      ...body,
-      id: existing.id,
-      agentSlug: slug,
-      updatedAt: new Date().toISOString(),
-    };
-    const normalized = normalizeJobConfig(updated, slug, existing.id);
-    await saveAgentJob(slug, normalized);
-    await reloadDaemonSchedules().catch(() => {});
-    return NextResponse.json({ ok: true, job: normalized });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+        // Update fields
+        const updated = {
+          ...existing,
+          ...body,
+          id: existing.id,
+          agentSlug: slug,
+          updatedAt: new Date().toISOString(),
+        };
+        const normalized = normalizeJobConfig(updated, slug, existing.id);
+        await saveAgentJob(slug, normalized);
+        await reloadDaemonSchedules().catch(() => {});
+        return { ok: true, job: normalized };
+      } catch (error) {
+        if (error instanceof HttpError) {
+          throw error;
+        }
+
+        throw new HttpError(500, getErrorMessage(error));
+      }
+    },
+  })(req);
 }
 
 export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string; jobId: string }> }
+  req: Request,
+  { params }: RouteParams
 ) {
   const { id: slug, jobId } = await params;
-  try {
-    await deleteAgentJob(slug, jobId);
-    await reloadDaemonSchedules().catch(() => {});
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return createGetHandler({
+    handler: async () => {
+      try {
+        await deleteAgentJob(slug, jobId);
+        await reloadDaemonSchedules().catch(() => {});
+        return { ok: true };
+      } catch (error) {
+        throw new HttpError(500, getErrorMessage(error));
+      }
+    },
+  })(req);
 }

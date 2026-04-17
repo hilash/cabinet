@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { listPersonas } from "@/lib/agents/persona-manager";
+import { createGetHandler } from "@/lib/http/create-handler";
 
 interface GalleryItem {
   name: string;
@@ -147,32 +147,34 @@ async function fileExists(p: string): Promise<boolean> {
   }
 }
 
-export async function GET() {
-  try {
-    const personas = await listPersonas();
-    const allItems: GalleryItem[] = [];
+export const GET = createGetHandler({
+  handler: async () => {
+    try {
+      const personas = await listPersonas();
+      const allItems: GalleryItem[] = [];
 
-    for (const persona of personas) {
-      if (persona.slug === "editor") continue;
+      for (const persona of personas) {
+        if (persona.slug === "editor") continue;
 
-      const workspaceDir = path.join(DATA_DIR, ".agents", persona.slug, "workspace");
-      const basePath = `.agents/${persona.slug}/workspace`;
-      const items = await scanWorkspace(
-        workspaceDir,
-        persona.name,
-        persona.emoji || "🤖",
-        persona.slug,
-        persona.department || "general",
-        basePath,
-      );
-      allItems.push(...items);
+        const workspaceDir = path.join(DATA_DIR, ".agents", persona.slug, "workspace");
+        const basePath = `.agents/${persona.slug}/workspace`;
+        const items = await scanWorkspace(
+          workspaceDir,
+          persona.name,
+          persona.emoji || "🤖",
+          persona.slug,
+          persona.department || "general",
+          basePath,
+        );
+        allItems.push(...items);
+      }
+
+      // Sort by modified date, newest first
+      allItems.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+
+      return { items: allItems };
+    } catch {
+      return { items: [] as GalleryItem[] };
     }
-
-    // Sort by modified date, newest first
-    allItems.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-
-    return NextResponse.json({ items: allItems });
-  } catch {
-    return NextResponse.json({ items: [] });
-  }
-}
+  },
+});

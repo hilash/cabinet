@@ -1,6 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getOrCreateDaemonToken } from "@/lib/agents/daemon-auth";
 import { getPublicDaemonWsOrigin } from "@/lib/runtime/runtime-config";
+import {
+  HttpError,
+  createGetHandler,
+} from "@/lib/http/create-handler";
 
 function getClientIp(request: NextRequest): string | null {
   const nextRequest = request as NextRequest & { ip?: string | null };
@@ -23,15 +27,19 @@ function isLoopbackIp(ip: string): boolean {
 }
 
 export async function GET(request: NextRequest) {
-  const clientIp = getClientIp(request);
+  return createGetHandler({
+    handler: async () => {
+      const clientIp = getClientIp(request);
 
-  // Local-only tool: if Next.js exposes a client IP (or forwarded loopback IP), require loopback.
-  // When local Electron requests do not include source IP metadata, stay permissive rather than
-  // trusting the client-controlled Host header.
-  if (clientIp && !isLoopbackIp(clientIp)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+      // Local-only tool: if Next.js exposes a client IP (or forwarded loopback IP), require loopback.
+      // When local Electron requests do not include source IP metadata, stay permissive rather than
+      // trusting the client-controlled Host header.
+      if (clientIp && !isLoopbackIp(clientIp)) {
+        throw new HttpError(403, "Forbidden");
+      }
 
-  const token = await getOrCreateDaemonToken();
-  return NextResponse.json({ token, wsOrigin: getPublicDaemonWsOrigin() });
+      const token = await getOrCreateDaemonToken();
+      return { token, wsOrigin: getPublicDaemonWsOrigin() };
+    },
+  })(request);
 }

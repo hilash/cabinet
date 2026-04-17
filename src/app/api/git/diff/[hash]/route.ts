@@ -1,15 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
 import { getDiff } from "@/lib/git/git-service";
+import {
+  HttpError,
+  createGetHandler,
+} from "@/lib/http/create-handler";
 
 type RouteParams = { params: Promise<{ hash: string }> };
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
-  try {
-    const { hash } = await params;
-    const diff = await getDiff(hash);
-    return NextResponse.json({ diff });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
+export async function GET(req: Request, { params }: RouteParams) {
+  const { hash } = await params;
+  return createGetHandler({
+    handler: async () => {
+      try {
+        const diff = await getDiff(hash);
+        return { diff };
+      } catch (error) {
+        throw new HttpError(500, getErrorMessage(error));
+      }
+    },
+  })(req);
 }
