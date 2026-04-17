@@ -1,27 +1,7 @@
-import path from "path";
-import fs from "fs/promises";
 import { execFile } from "child_process";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-
-const CONFIG_FILE = path.join(DATA_DIR, ".agents", ".config", "integrations.json");
-
-interface NotificationConfig {
-  notifications: {
-    browser_push: boolean;
-    telegram: { enabled: boolean; bot_token: string; chat_id: string };
-    slack_webhook: { enabled: boolean; url: string };
-    email: { enabled: boolean; frequency: string; to: string };
-  };
-}
-
-async function loadConfig(): Promise<NotificationConfig | null> {
-  try {
-    const raw = await fs.readFile(CONFIG_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
+import { loadCabinetConfig } from "@/lib/config/cabinet-config";
+import type { CabinetIntegrationConfig } from "@/lib/config/schema";
 
 /**
  * Send a notification to all configured channels.
@@ -35,16 +15,20 @@ export async function sendNotification(opts: {
   channel?: string;
   severity?: "info" | "warning" | "critical";
 }): Promise<{ sent: string[] }> {
-  const config = await loadConfig();
-  if (!config) return { sent: [] };
+  let notifications: CabinetIntegrationConfig["notifications"];
+  try {
+    const config = await loadCabinetConfig(DATA_DIR);
+    notifications = config.integrations.notifications;
+  } catch {
+    return { sent: [] };
+  }
 
   const sent: string[] = [];
   const { title, message, agentName, agentEmoji, severity } = opts;
 
   // Telegram
-  if (config.notifications.telegram?.enabled) {
-    const { bot_token, chat_id } = config.notifications.telegram;
-    const proxy = (config.notifications.telegram as Record<string, unknown>).proxy as string | undefined;
+  if (notifications.telegram?.enabled) {
+    const { bot_token, chat_id, proxy } = notifications.telegram;
     if (bot_token && chat_id) {
       try {
         const icon = severity === "critical" ? "\u{1F6A8}" : severity === "warning" ? "\u{26A0}\u{FE0F}" : "\u{1F4E2}";
@@ -62,7 +46,6 @@ export async function sendNotification(opts: {
           disable_web_page_preview: true,
         });
 
-        // 使用 curl 发送（支持代理）
         const args = ["-s", "-X", "POST", url, "-H", "Content-Type: application/json", "-d", payload];
         if (proxy) {
           args.unshift("--proxy", proxy);
@@ -82,8 +65,8 @@ export async function sendNotification(opts: {
   }
 
   // Slack webhook
-  if (config.notifications.slack_webhook?.enabled) {
-    const { url } = config.notifications.slack_webhook;
+  if (notifications.slack_webhook?.enabled) {
+    const { url } = notifications.slack_webhook;
     if (url) {
       try {
         const icon = severity === "critical" ? ":rotating_light:" : severity === "warning" ? ":warning:" : ":loudspeaker:";

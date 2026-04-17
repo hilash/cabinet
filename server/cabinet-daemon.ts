@@ -36,8 +36,6 @@ import { createDaemonSupervisor } from "./daemon-supervisor";
 
 const PORT = getDaemonPort();
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
-const HEALTH_SCHEDULES_FILE = path.join(DATA_DIR, ".agents", ".health", "schedules.json");
-const INTEGRATIONS_FILE = path.join(DATA_DIR, ".agents", ".config", "integrations.json");
 const ALLOWED_BROWSER_ORIGINS = new Set(
   [
     getAppOrigin(),
@@ -70,7 +68,7 @@ const eventBus = createEventBus();
 
 const scheduler = createScheduler({
   agentsDir: AGENTS_DIR,
-  healthSchedulesFile: HEALTH_SCHEDULES_FILE,
+  dataDir: DATA_DIR,
   getAppOrigin,
 });
 
@@ -130,8 +128,6 @@ const supervisor = createDaemonSupervisor({
   dataDir: DATA_DIR,
   db,
   agentsDir: AGENTS_DIR,
-  integrationsFile: INTEGRATIONS_FILE,
-  healthSchedulesFile: HEALTH_SCHEDULES_FILE,
   server,
   port: PORT,
   scheduler,

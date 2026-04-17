@@ -21,8 +21,6 @@ export interface DaemonSupervisorOptions {
   dataDir: string;
   db: Database.Database;
   agentsDir: string;
-  integrationsFile: string;
-  healthSchedulesFile: string;
   server: http.Server;
   port: number;
   scheduler: Scheduler;
@@ -114,8 +112,6 @@ export function createDaemonSupervisor(opts: DaemonSupervisorOptions): DaemonSup
     [
       path.join(opts.agentsDir, "*/persona.md"),
       path.join(opts.agentsDir, "*/jobs/*.yaml"),
-      opts.healthSchedulesFile,
-      opts.integrationsFile,
     ],
     { ignoreInitial: true },
   );
@@ -125,15 +121,13 @@ export function createDaemonSupervisor(opts: DaemonSupervisorOptions): DaemonSup
     if (filePath && filePath.endsWith("persona.md")) {
       void reloadModules((module) => module.name === "multica-poller");
     }
-    if (filePath && filePath.endsWith("integrations.json")) {
-      void reloadModules((module) => module.name === "telegram-bot");
-    }
   });
 
   async function start(): Promise<void> {
     currentConfig = await loadCabinetConfig(opts.dataDir);
     stopWatchingConfig = watchCabinetConfig(opts.dataDir, async (config) => {
       currentConfig = config;
+      opts.scheduler.queueReload();
       await reloadModules(() => true);
     });
 

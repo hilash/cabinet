@@ -7,6 +7,7 @@ import {
   normalizeJobConfig,
   normalizeJobId,
 } from "../src/lib/jobs/job-normalization";
+import { loadCabinetConfig } from "../src/lib/config/cabinet-config";
 
 export interface JobConfig {
   id: string;
@@ -40,7 +41,7 @@ export interface Scheduler {
 
 export interface SchedulerOptions {
   agentsDir: string;
-  healthSchedulesFile: string;
+  dataDir: string;
   getAppOrigin: () => string;
   reloadDebounceMs?: number;
 }
@@ -206,34 +207,21 @@ export function createScheduler(opts: SchedulerOptions): Scheduler {
       }
     }
 
-    if (fs.existsSync(opts.healthSchedulesFile)) {
-      try {
-        const raw = fs.readFileSync(opts.healthSchedulesFile, "utf-8");
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          for (const item of parsed) {
-            if (!item || typeof item !== "object") continue;
-            const config = item as Partial<HealthScheduleConfig>;
-            if (
-              typeof config.id === "string" &&
-              config.id.trim() &&
-              typeof config.schedule === "string" &&
-              config.schedule.trim() &&
-              config.enabled !== false
-            ) {
-              scheduleHealthCheck({
-                id: config.id.trim(),
-                name: typeof config.name === "string" ? config.name : undefined,
-                schedule: config.schedule.trim(),
-                enabled: config.enabled,
-              });
-              healthCount++;
-            }
-          }
+    try {
+      const config = await loadCabinetConfig(opts.dataDir);
+      for (const schedule of config.schedules) {
+        if (schedule.id.trim() && schedule.schedule.trim() && schedule.enabled) {
+          scheduleHealthCheck({
+            id: schedule.id.trim(),
+            name: schedule.name,
+            schedule: schedule.schedule.trim(),
+            enabled: schedule.enabled,
+          });
+          healthCount++;
         }
-      } catch {
-        // Skip malformed health schedules.
       }
+    } catch {
+      // Skip malformed health schedules.
     }
 
     console.log(

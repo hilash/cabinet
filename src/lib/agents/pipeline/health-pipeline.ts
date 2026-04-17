@@ -7,10 +7,11 @@ import { DATA_DIR } from "@/lib/storage/path-utils";
 import { getAppOrigin } from "@/lib/runtime/runtime-config";
 import { postSystemMessage } from "@/lib/agents/runtime/slack-manager";
 import { sendNotification } from "@/lib/agents/runtime/notification-service";
+import { loadCabinetConfig, saveCabinetConfig } from "@/lib/config/cabinet-config";
+import type { CabinetSchedule } from "@/lib/config/schema";
 
 const HEALTH_ROOT = path.join(DATA_DIR, ".agents", ".health");
 const HEALTH_REPORTS_DIR = path.join(HEALTH_ROOT, "reports");
-const HEALTH_SCHEDULES_FILE = path.join(HEALTH_ROOT, "schedules.json");
 
 export type HealthProfile = "quick" | "full";
 
@@ -303,25 +304,33 @@ async function runCommandStep(input: {
   };
 }
 
+function toHealthSchedule(schedule: CabinetSchedule): HealthSchedule | null {
+  if (!schedule.name) return null;
+  const now = nowIso();
+  return {
+    id: schedule.id,
+    name: schedule.name,
+    schedule: schedule.schedule,
+    profile: schedule.profile ?? "quick",
+    enabled: schedule.enabled,
+    createdAt: schedule.createdAt ?? now,
+    updatedAt: schedule.updatedAt ?? schedule.createdAt ?? now,
+    lastRunAt: schedule.lastRunAt,
+    lastStatus: schedule.lastStatus,
+    lastReportId: schedule.lastReportId,
+  };
+}
+
 async function readSchedules(): Promise<HealthSchedule[]> {
-  await ensureHealthDirs();
-  try {
-    const raw = await fs.readFile(HEALTH_SCHEDULES_FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item) => item && typeof item === "object") as HealthSchedule[];
-  } catch {
-    return [];
-  }
+  const config = await loadCabinetConfig(DATA_DIR);
+  return config.schedules
+    .map(toHealthSchedule)
+    .filter((schedule): schedule is HealthSchedule => schedule !== null);
 }
 
 async function writeSchedules(schedules: HealthSchedule[]): Promise<void> {
-  await ensureHealthDirs();
-  await fs.writeFile(
-    HEALTH_SCHEDULES_FILE,
-    JSON.stringify(schedules, null, 2),
-    "utf8"
-  );
+  const config = await loadCabinetConfig(DATA_DIR);
+  await saveCabinetConfig(DATA_DIR, { ...config, schedules });
 }
 
 async function saveHealthReport(report: HealthReport): Promise<string> {
