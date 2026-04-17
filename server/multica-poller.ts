@@ -9,8 +9,9 @@
 
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import matter from "gray-matter";
-import { DATA_DIR } from "../src/lib/storage/path-utils";
+import { DATA_DIR, resolveContentPath } from "../src/lib/storage/path-utils";
 import { getDaemonPort } from "../src/lib/runtime/runtime-config";
 import { getOrCreateDaemonToken } from "../src/lib/agents/daemon-auth";
 
@@ -24,6 +25,9 @@ const TASK_TIMEOUT_MS = 30 * 60_000; // 30 min max execution per task
 const WAIT_POLL_MS = 3_000;          // 3s between session-output polls
 
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
+const MULTICA_DAEMON_TOKEN_FILE = path.join(AGENTS_DIR, "multica-daemon-token.json");
+const DAEMON_TOKEN_REFRESH_MS = 24 * 60 * 60_000; // refresh when < 1d remaining
+const WORKSPACE_ID_FILE = path.join(AGENTS_DIR, ".telegram", "workspace-id.txt");
 
 function readMulticaPATFile(filePath: string): string {
   try {
@@ -70,6 +74,129 @@ function getMulticaPAT(): string {
 
   const envPat = process.env.MULTICA_PAT?.trim();
   return envPat || "";
+}
+
+// ---------------------------------------------------------------------------
+// Multica daemon token (mdt_) — workspace-scoped, replaces user PAT for
+// /api/daemon/* calls so that a PAT leak can't be used against the full user
+// API. Obtained via POST /api/daemon/auth/exchange. Backed by a file cache to
+// survive cabinet restarts. Falls back to user PAT on exchange failure so
+// existing deployments keep working.
+// ---------------------------------------------------------------------------
+
+interface DaemonTokenCacheEntry {
+  token: string;
+  daemon_id: string;
+  workspace_id: string;
+  expires_at: string; // RFC3339
+}
+
+let cachedDaemonToken: DaemonTokenCacheEntry | null = null;
+
+function readDaemonTokenCache(): DaemonTokenCacheEntry | null {
+  try {
+    if (!fs.existsSync(MULTICA_DAEMON_TOKEN_FILE)) return null;
+    const raw = fs.readFileSync(MULTICA_DAEMON_TOKEN_FILE, "utf-8");
+    const data = JSON.parse(raw) as Partial<DaemonTokenCacheEntry>;
+    if (!data.token || !data.daemon_id || !data.workspace_id || !data.expires_at) return null;
+    return data as DaemonTokenCacheEntry;
+  } catch {
+    return null;
+  }
+}
+
+function writeDaemonTokenCache(entry: DaemonTokenCacheEntry): void {
+  try {
+    fs.mkdirSync(path.dirname(MULTICA_DAEMON_TOKEN_FILE), { recursive: true });
+    fs.writeFileSync(MULTICA_DAEMON_TOKEN_FILE, JSON.stringify(entry, null, 2), { mode: 0o600 });
+    fs.chmodSync(MULTICA_DAEMON_TOKEN_FILE, 0o600);
+  } catch (err) {
+    console.warn("[multica-poller] failed to persist daemon token cache:", (err as Error).message);
+  }
+}
+
+function daemonTokenFresh(entry: DaemonTokenCacheEntry | null, workspaceId: string): boolean {
+  if (!entry) return false;
+  if (entry.workspace_id !== workspaceId) return false;
+  const expiresAt = new Date(entry.expires_at).getTime();
+  if (!Number.isFinite(expiresAt)) return false;
+  return expiresAt - Date.now() > DAEMON_TOKEN_REFRESH_MS;
+}
+
+function readWorkspaceIdFromFile(): string {
+  try {
+    if (!fs.existsSync(WORKSPACE_ID_FILE)) return "";
+    return fs.readFileSync(WORKSPACE_ID_FILE, "utf-8").trim();
+  } catch {
+    return "";
+  }
+}
+
+function resolveWorkspaceIdSync(): string {
+  const envId = process.env.MULTICA_WORKSPACE_ID?.trim();
+  if (envId) return envId;
+  return readWorkspaceIdFromFile();
+}
+
+async function exchangeDaemonToken(workspaceId: string, daemonId: string, pat: string): Promise<DaemonTokenCacheEntry | null> {
+  try {
+    const res = await fetch(`${MULTICA_API_URL}/api/daemon/auth/exchange`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${pat}`,
+      },
+      body: JSON.stringify({ workspace_id: workspaceId, daemon_id: daemonId }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn(`[multica-poller] daemon token exchange → ${res.status}: ${text.slice(0, 200)}`);
+      return null;
+    }
+    const data = await res.json() as { token?: string; daemon_id?: string; expires_at?: string };
+    if (!data.token || !data.daemon_id || !data.expires_at) {
+      console.warn("[multica-poller] daemon token exchange: malformed response");
+      return null;
+    }
+    return { token: data.token, daemon_id: data.daemon_id, workspace_id: workspaceId, expires_at: data.expires_at };
+  } catch (err) {
+    console.warn("[multica-poller] daemon token exchange failed:", (err as Error).message);
+    return null;
+  }
+}
+
+async function getOrExchangeMulticaDaemonToken(): Promise<string> {
+  const workspaceId = resolveWorkspaceIdSync();
+  if (!workspaceId) return "";
+
+  if (daemonTokenFresh(cachedDaemonToken, workspaceId)) {
+    return cachedDaemonToken!.token;
+  }
+
+  const onDisk = readDaemonTokenCache();
+  if (daemonTokenFresh(onDisk, workspaceId)) {
+    cachedDaemonToken = onDisk;
+    return onDisk!.token;
+  }
+
+  const pat = getMulticaPAT();
+  if (!pat) return "";
+
+  const daemonId = onDisk?.daemon_id && onDisk.workspace_id === workspaceId
+    ? onDisk.daemon_id
+    : crypto.randomUUID();
+
+  const fresh = await exchangeDaemonToken(workspaceId, daemonId, pat);
+  if (!fresh) return "";
+
+  cachedDaemonToken = fresh;
+  writeDaemonTokenCache(fresh);
+  return fresh.token;
+}
+
+function invalidateDaemonTokenCache(): void {
+  cachedDaemonToken = null;
+  try { fs.unlinkSync(MULTICA_DAEMON_TOKEN_FILE); } catch { /* ignore */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -121,10 +248,15 @@ let pollerActive = false;
 // Multica HTTP helpers
 // ---------------------------------------------------------------------------
 
-function multicaHeaders(): Record<string, string> {
+async function multicaDaemonHeaders(): Promise<Record<string, string>> {
   const h: Record<string, string> = { "Content-Type": "application/json" };
-  const multicaPAT = getMulticaPAT();
-  if (multicaPAT) h["Authorization"] = `Bearer ${multicaPAT}`;
+  const mdt = await getOrExchangeMulticaDaemonToken();
+  if (mdt) {
+    h["Authorization"] = `Bearer ${mdt}`;
+    return h;
+  }
+  const pat = getMulticaPAT();
+  if (pat) h["Authorization"] = `Bearer ${pat}`;
   return h;
 }
 
@@ -135,9 +267,24 @@ async function multicaPost<T = unknown>(
   try {
     const res = await fetch(`${MULTICA_API_URL}${urlPath}`, {
       method: "POST",
-      headers: multicaHeaders(),
+      headers: await multicaDaemonHeaders(),
       body: JSON.stringify(body),
     });
+    if (res.status === 401 && cachedDaemonToken) {
+      invalidateDaemonTokenCache();
+      const retry = await fetch(`${MULTICA_API_URL}${urlPath}`, {
+        method: "POST",
+        headers: await multicaDaemonHeaders(),
+        body: JSON.stringify(body),
+      });
+      if (!retry.ok) {
+        const text = await retry.text().catch(() => "");
+        console.warn(`[multica-poller] POST ${urlPath} → ${retry.status}: ${text.slice(0, 200)}`);
+        return null;
+      }
+      if (retry.status === 204) return null;
+      return retry.json() as Promise<T>;
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.warn(`[multica-poller] POST ${urlPath} → ${res.status}: ${text.slice(0, 200)}`);
@@ -335,14 +482,26 @@ async function executeTask(task: MulticaTask, persona: PersonaSummary): Promise<
   // 2. Build prompt
   const prompt = buildTaskPrompt(task, persona);
 
-  // 3. Resolve working directory
+  // 3. Resolve working directory — both prior_work_dir (from Multica server)
+  // and persona.workdir (from local frontmatter) are untrusted user input and
+  // must resolve inside DATA_DIR. resolveContentPath throws on traversal.
   let cwd: string;
-  if (task.prior_work_dir && task.prior_work_dir.trim()) {
-    cwd = task.prior_work_dir;
-  } else if (persona.workdir && persona.workdir !== "/data") {
-    cwd = path.join(DATA_DIR, persona.workdir.replace(/^\/+/, ""));
-  } else {
-    cwd = DATA_DIR;
+  try {
+    if (task.prior_work_dir && task.prior_work_dir.trim()) {
+      const prior = task.prior_work_dir.trim();
+      cwd = path.isAbsolute(prior)
+        ? (prior === DATA_DIR || prior.startsWith(DATA_DIR + path.sep) ? prior : resolveContentPath(path.relative(DATA_DIR, prior)))
+        : resolveContentPath(prior);
+    } else if (persona.workdir && persona.workdir !== "/data") {
+      cwd = resolveContentPath(persona.workdir.replace(/^\/+/, ""));
+    } else {
+      cwd = DATA_DIR;
+    }
+  } catch (err) {
+    const msg = `unsafe workdir for task ${task.id}: ${(err as Error).message}`;
+    console.warn(`[multica-poller] ${msg}`);
+    await multicaPost(`/api/daemon/tasks/${task.id}/fail`, { error: msg });
+    return;
   }
 
   // 4. Start PTY session via cabinet daemon
@@ -398,11 +557,16 @@ async function pollOnce(state: AgentState): Promise<void> {
       `${MULTICA_API_URL}/api/daemon/runtimes/${summary.runtimeId}/tasks/claim`,
       {
         method: "POST",
-        headers: multicaHeaders(),
+        headers: await multicaDaemonHeaders(),
         body: JSON.stringify({}),
       }
     );
     if (res.status === 204 || res.status === 404) return; // no tasks
+    if (res.status === 401 && cachedDaemonToken) {
+      invalidateDaemonTokenCache();
+      console.warn(`[multica-poller] claim got 401; invalidated daemon token, will retry next cycle`);
+      return;
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.warn(`[multica-poller] claim failed (${res.status}): ${text.slice(0, 200)}`);
@@ -493,6 +657,30 @@ export function startMulticaPoller(): void {
     console.log("[multica-poller] no agents with multica_runtime_id found — polling inactive");
   } else {
     console.log(`[multica-poller] polling ${agentCount} agent(s) every ${POLL_INTERVAL_MS / 1000}s`);
+    // Sweep orphan tasks for each runtime. Without this, a task dispatched
+    // while the cabinet daemon was offline stays pinned as "dispatched" on
+    // the Multica side forever and blocks new claims.
+    void sweepOrphanTasks();
+  }
+}
+
+async function sweepOrphanTasks(): Promise<void> {
+  const runtimes = new Set<string>();
+  for (const state of agentStates.values()) {
+    if (state.summary.runtimeId) runtimes.add(state.summary.runtimeId);
+  }
+  for (const runtimeId of runtimes) {
+    try {
+      const resp = await multicaPost(`/api/daemon/runtimes/${runtimeId}/tasks/sweep`, {});
+      if (resp && typeof resp === "object" && "failed" in resp) {
+        const failed = (resp as { failed?: unknown[] }).failed ?? [];
+        if (failed.length > 0) {
+          console.log(`[multica-poller] swept ${failed.length} orphan task(s) for runtime ${runtimeId}`);
+        }
+      }
+    } catch (err) {
+      console.warn(`[multica-poller] sweep failed for runtime ${runtimeId}: ${(err as Error).message}`);
+    }
   }
 }
 
