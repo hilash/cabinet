@@ -1,10 +1,9 @@
 /**
  * Cabinet Daemon — unified background server
  *
- * Thin composer that wires six self-contained modules:
+ * Thin composer that wires five self-contained modules:
  * - pty-manager         — PTY session lifecycle (WS terminal + headless sessions)
  * - scheduler           — cron-driven jobs, heartbeats, health checks
- * - event-bus           — real-time WebSocket fan-out to the web UI
  * - daemon-http         — REST endpoints consumed by the Next.js app
  * - daemon-supervisor   — service modules + config watcher + chokidar reload
  * - service-supervisor  — restart policy for each sub-service
@@ -28,7 +27,6 @@ import { resolveProviderId } from "../src/lib/agents/provider-runtime";
 import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
 import { isDaemonTokenValid } from "../src/lib/agents/daemon-auth";
 import { createPtyManager } from "./pty-manager";
-import { createEventBus } from "./event-bus";
 import { createScheduler } from "./scheduler";
 import { createDaemonRequestHandler } from "./daemon-http";
 import { extractDaemonRequestToken } from "./daemon-http-auth";
@@ -64,8 +62,6 @@ const pty = createPtyManager({
   port: PORT,
 });
 
-const eventBus = createEventBus();
-
 const scheduler = createScheduler({
   agentsDir: AGENTS_DIR,
   dataDir: DATA_DIR,
@@ -84,7 +80,6 @@ const server = http.createServer(
 );
 
 const wssPty = new WebSocketServer({ noServer: true });
-const wssEvents = new WebSocketServer({ noServer: true });
 
 server.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url || "", `http://localhost:${PORT}`);
@@ -94,11 +89,7 @@ server.on("upgrade", (req, socket, head) => {
     return;
   }
 
-  if (url.pathname === "/events" || url.pathname === "/api/daemon/events") {
-    wssEvents.handleUpgrade(req, socket, head, (ws) => {
-      wssEvents.emit("connection", ws, req);
-    });
-  } else if (url.pathname === "/" || url.pathname === "/api/daemon/pty") {
+  if (url.pathname === "/" || url.pathname === "/api/daemon/pty") {
     wssPty.handleUpgrade(req, socket, head, (ws) => {
       wssPty.emit("connection", ws, req);
     });
@@ -112,16 +103,8 @@ wssPty.on("connection", (ws, req) => {
   pty.handleConnection(ws, req as http.IncomingMessage);
 });
 
-wssEvents.on("connection", (ws) => {
-  eventBus.handleConnection(ws);
-});
-
 wssPty.on("error", (err) => {
   console.error("PTY WebSocket error:", err.message);
-});
-
-wssEvents.on("error", (err) => {
-  console.error("Events WebSocket error:", err.message);
 });
 
 const supervisor = createDaemonSupervisor({
@@ -134,7 +117,6 @@ const supervisor = createDaemonSupervisor({
   onTerminalReady: () => {
     console.log(`Cabinet Daemon running on port ${PORT}`);
     console.log(`  Terminal WebSocket: ws://localhost:${PORT}/api/daemon/pty`);
-    console.log(`  Events WebSocket: ws://localhost:${PORT}/api/daemon/events`);
     console.log(`  Session API: http://localhost:${PORT}/sessions`);
     console.log(`  Reload schedules: POST http://localhost:${PORT}/reload-schedules`);
     console.log(`  Health check: http://localhost:${PORT}/health`);
