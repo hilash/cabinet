@@ -151,6 +151,7 @@ type TelegramInlineKeyboard = TelegramInlineButton[][];
 let botActive = false;
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 let responsePollTimer: ReturnType<typeof setInterval> | null = null;
+let pollGeneration = 0;
 let lastUpdateId = 0;
 let config: TelegramConfig | null = null;
 let workspaceId = "";
@@ -1593,8 +1594,8 @@ async function pollResponses(): Promise<void> {
 // Telegram long-polling loop
 // ---------------------------------------------------------------------------
 
-async function pollOnce(): Promise<void> {
-  if (!botActive || !config) return;
+async function pollOnce(generation: number): Promise<void> {
+  if (!botActive || generation !== pollGeneration || !config) return;
 
   const updates = await telegramCall<TelegramUpdate[]>("getUpdates", {
     offset: lastUpdateId + 1,
@@ -1604,6 +1605,9 @@ async function pollOnce(): Promise<void> {
 
   if (!updates || updates.length === 0) return;
 
+  // Even if we were reloaded mid long-poll, finish processing this batch so the
+  // offset advances — otherwise Telegram redelivers to the next generation and
+  // side-effecting handlers (e.g. posting "已启动") fire twice.
   const startingOffset = lastUpdateId;
   for (const update of updates) {
     lastUpdateId = Math.max(lastUpdateId, update.update_id);
@@ -1651,19 +1655,23 @@ let consecutivePollErrors = 0;
 
 function scheduleNextPoll(): void {
   if (!botActive) return;
+  const generation = pollGeneration;
   // Exponential backoff on consecutive errors (429, network, etc.)
   const delay = consecutivePollErrors > 0
     ? Math.min(1000 * Math.pow(2, consecutivePollErrors), 60_000) // max 60s
     : 1000;
   pollTimer = setTimeout(async () => {
+    if (generation !== pollGeneration) return;
     try {
-      await pollOnce();
+      await pollOnce(generation);
+      if (generation !== pollGeneration) return;
       consecutivePollErrors = 0;
     } catch (err) {
+      if (generation !== pollGeneration) return;
       consecutivePollErrors++;
       console.warn(`[telegram-bot] poll error (${consecutivePollErrors}):`, (err as Error).message);
     }
-    scheduleNextPoll();
+    if (generation === pollGeneration && botActive) scheduleNextPoll();
   }, delay);
 }
 
@@ -1705,6 +1713,11 @@ export async function startTelegramBot(options: TelegramBotRuntimeOptions = {}):
 
 export function stopTelegramBot(): void {
   botActive = false;
+  // Bump generation so any in-flight pollOnce / pending setTimeout callback
+  // sees a mismatch and exits without spawning the next poll. clearTimeout
+  // alone is not enough — it does not abort the curl child process already
+  // awaiting in telegramCall.
+  pollGeneration++;
   if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   if (responsePollTimer) { clearInterval(responsePollTimer); responsePollTimer = null; }
   if (hourResetTimer) { clearInterval(hourResetTimer); hourResetTimer = null; }
@@ -1713,8 +1726,33 @@ export function stopTelegramBot(): void {
 
 export async function reloadTelegramBot(options?: TelegramBotRuntimeOptions): Promise<void> {
   const wasActive = botActive;
-  if (wasActive) stopTelegramBot();
   const nextOptions = options ?? getTelegramRuntimeOptions();
+  const nextDataDir = resolveDataDir(nextOptions.dataDir);
+
+  // Peek the next telegram slice WITHOUT mutating currentDataDir/currentCabinetConfig —
+  // we must be able to stop the old bot against its original data dir if we decide
+  // to restart. Callers (telegram.module.ts::reload) always pass cabinetConfig; the
+  // undefined-cabinetConfig path is the legacy fallback.
+  const nextConfig: TelegramConfig | null = nextOptions.cabinetConfig
+    ? nextOptions.cabinetConfig.integrations.notifications.telegram
+    : null;
+
+  // Fast path: nothing relevant changed — leave state untouched entirely.
+  // dataDir equality matters because trackedIssues / lastUpdateId / workspaceId
+  // are tied to a specific directory; a dir switch requires reload of that state.
+  if (
+    wasActive &&
+    currentDataDir === nextDataDir &&
+    config &&
+    nextConfig &&
+    JSON.stringify(config) === JSON.stringify(nextConfig)
+  ) {
+    return;
+  }
+
+  // Stop BEFORE swapping state so saveTracking()/saveLastUpdateId() write back
+  // to the *old* dataDir the in-flight poll was actually serving.
+  if (wasActive) stopTelegramBot();
   setTelegramRuntimeOptions(nextOptions);
   config = loadConfig();
   if (config?.enabled && config?.bidirectional && config?.bot_token) {
