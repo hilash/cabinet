@@ -64,6 +64,7 @@ function getTrackingPaths(dataDir = currentDataDir): {
 const POLL_TIMEOUT_S = 30;
 const RESPONSE_POLL_MS = 10_000;
 const ISSUE_TTL_MS = 2 * 60 * 60 * 1000;
+const STUCK_WARNING_MS = 5 * 60 * 1000;
 const ISSUE_PREFIX_CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_ISSUES_PER_HOUR = 20;
 const MAX_CHATS_PER_HOUR = 60;
@@ -110,6 +111,7 @@ interface TrackedIssue {
   lastStatus: string;
   multicaErrorCount?: number;
   createdAt: number;
+  stuckWarnedAt?: number;
 }
 
 interface MulticaAgent {
@@ -1503,6 +1505,30 @@ async function pollResponses(): Promise<void> {
               text: progressText,
             }, 10_000);
           }
+        }
+
+        // --- Stuck detection: warn once if task stays in "todo" too long ---
+        if (
+          !isTerminal &&
+          issue.status === "todo" &&
+          !tracking.stuckWarnedAt &&
+          now - tracking.createdAt > STUCK_WARNING_MS
+        ) {
+          await sendMessage(
+            tracking.chatId,
+            [
+              `⚠️ *${tracking.identifier}* 已 ${Math.floor((now - tracking.createdAt) / 60000)} 分钟未开始执行。`,
+              "",
+              "可能原因：",
+              "• Cabinet 本地没有 persona 绑定到该 Agent 的 `multica_runtime_id`",
+              "• 本地 agent 进程未运行或已崩溃",
+              "",
+              `发送 \`/cancel ${tracking.identifier.split("-").pop()}\` 停止跟踪，或直接发消息走聊天模式。`,
+            ].join("\n"),
+            { replyTo: tracking.messageId },
+          ).catch(() => {});
+          tracking.stuckWarnedAt = now;
+          saveTracking();
         }
 
         // Always track status
