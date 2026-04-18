@@ -1,5 +1,5 @@
 import type http from "http";
-import { getTokenFromAuthorizationHeader } from "../src/lib/agents/daemon-auth";
+import { getTokenFromAuthorizationHeader } from "../src/lib/agents/runtime/daemon-auth";
 
 export interface CorsOptions {
   allowedBrowserOrigins: Set<string>;

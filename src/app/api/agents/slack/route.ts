@@ -3,12 +3,12 @@ import {
   getMessages,
   getRecentMessages,
   listChannels,
-} from "@/lib/agents/slack-manager";
-import { sendMessage, listPersonas } from "@/lib/agents/persona-manager";
-import { sendNotification, shouldNotify } from "@/lib/agents/notification-service";
-import { runQuickResponse } from "@/lib/agents/heartbeat";
+} from "@/lib/agents/runtime/slack-manager";
+import { sendMessage, listPersonas } from "@/lib/agents/persona/persona-manager";
+import { sendNotification, shouldNotify } from "@/lib/agents/runtime/notification-service";
+import { runQuickResponse } from "@/lib/agents/persona/heartbeat";
 
-import { getRespondingAgents } from "@/lib/agents/responding-agents";
+import { getRespondingAgents } from "@/lib/agents/runtime/responding-agents";
 import {
   HttpError,
   createGetHandler,

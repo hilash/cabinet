@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { loadAgentJobsBySlug, saveAgentJob } from "@/lib/jobs/job-manager";
 import type { JobConfig } from "@/types/jobs";
-import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import { reloadDaemonSchedules } from "@/lib/agents/runtime/daemon-client";
 import { normalizeJobConfig } from "@/lib/jobs/job-normalization";
 import { createGetHandler, createHandler } from "@/lib/http/create-handler";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";

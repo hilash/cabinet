@@ -1,6 +1,6 @@
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
-import { runCodeReviewPipeline } from "@/lib/agents/review-pipeline";
+import { runOneShotProviderPrompt } from "@/lib/agents/runtime/provider-runtime";
+import { runCodeReviewPipeline } from "@/lib/agents/pipeline/review-pipeline";
 import {
   HttpError,
   createHandler,

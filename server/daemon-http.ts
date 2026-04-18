@@ -5,8 +5,8 @@ import {
   finalizeConversation,
   readConversationMeta,
   readConversationTranscript,
-} from "../src/lib/agents/conversation-store";
-import { isDaemonTokenValid } from "../src/lib/agents/daemon-auth";
+} from "../src/lib/agents/runtime/conversation-store";
+import { isDaemonTokenValid } from "../src/lib/agents/runtime/daemon-auth";
 import { writeCabinetDaemonHealthResponse } from "./cabinet-daemon-health";
 import type { ServiceModule } from "./service-module";
 import type { PtyCreateRequest } from "./daemon-bus";

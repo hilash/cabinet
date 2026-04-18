@@ -1,4 +1,4 @@
-import { listPersonaWorkspaceFiles } from "@/lib/agents/persona-manager";
+import { listPersonaWorkspaceFiles } from "@/lib/agents/persona/persona-manager";
 import {
   HttpError,
   createGetHandler,

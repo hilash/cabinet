@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import path from "path";
-import { listPersonas } from "@/lib/agents/persona-manager";
-import { getGoalState } from "@/lib/agents/goal-manager";
-import { getMessages } from "@/lib/agents/slack-manager";
-import { getRespondingAgents } from "@/lib/agents/responding-agents";
+import { listPersonas } from "@/lib/agents/persona/persona-manager";
+import { getGoalState } from "@/lib/agents/persona/goal-manager";
+import { getMessages } from "@/lib/agents/runtime/slack-manager";
+import { getRespondingAgents } from "@/lib/agents/runtime/responding-agents";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { getDirectorySignature } from "@/lib/storage/fs-operations";
-import { getRunningConversationCounts, drainConversationNotifications } from "@/lib/agents/conversation-store";
+import { getRunningConversationCounts, drainConversationNotifications } from "@/lib/agents/runtime/conversation-store";
 
 async function getDataDirVersion(): Promise<string> {
   const dataSig = await getDirectorySignature(DATA_DIR);

@@ -1,7 +1,7 @@
 import {
   listRequirementPipelines,
   runRequirementPipeline,
-} from "@/lib/agents/requirement-pipeline";
+} from "@/lib/agents/pipeline/requirement-pipeline";
 import {
   createGetHandler,
   createHandler,

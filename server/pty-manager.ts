@@ -5,13 +5,13 @@ import path from "path";
 import {
   getSessionLaunchSpec,
   resolveProviderId,
-} from "../src/lib/agents/provider-runtime";
+} from "../src/lib/agents/runtime/provider-runtime";
 import { buildAgentEnv } from "./env-sanitize";
 import {
   appendConversationTranscript,
   finalizeConversation,
   readConversationMeta,
-} from "../src/lib/agents/conversation-store";
+} from "../src/lib/agents/runtime/conversation-store";
 import {
   daemonBus,
   type PtyCreateRequest,

@@ -1,4 +1,4 @@
-import { providerRegistry } from "@/lib/agents/provider-registry";
+import { providerRegistry } from "@/lib/agents/provider/provider-registry";
 import {
   HttpError,
   createGetHandler,

@@ -1,4 +1,4 @@
-import { listDaemonSessions } from "@/lib/agents/daemon-client";
+import { listDaemonSessions } from "@/lib/agents/runtime/daemon-client";
 import {
   HttpError,
   createGetHandler,

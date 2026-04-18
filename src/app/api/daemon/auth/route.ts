@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getOrCreateDaemonToken } from "@/lib/agents/daemon-auth";
+import { getOrCreateDaemonToken } from "@/lib/agents/runtime/daemon-auth";
 import { getPublicDaemonWsOrigin } from "@/lib/runtime/runtime-config";
 import {
   HttpError,

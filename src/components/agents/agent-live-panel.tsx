@@ -21,7 +21,7 @@ import {
   useAIPanelStore,
   type AgentLiveSession,
 } from "@/stores/ai-panel-store";
-import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona-manager";
+import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona/persona-manager";
 
 interface AgentLivePanelProps {
   persona: AgentPersona;

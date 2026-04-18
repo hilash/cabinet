@@ -23,9 +23,9 @@ import {
   getAppOrigin,
   getDaemonPort,
 } from "../src/lib/runtime/runtime-config";
-import { resolveProviderId } from "../src/lib/agents/provider-runtime";
-import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
-import { isDaemonTokenValid } from "../src/lib/agents/daemon-auth";
+import { resolveProviderId } from "../src/lib/agents/runtime/provider-runtime";
+import { getNvmNodeBin } from "../src/lib/agents/provider/nvm-path";
+import { isDaemonTokenValid } from "../src/lib/agents/runtime/daemon-auth";
 import { createPtyManager } from "./pty-manager";
 import { createScheduler } from "./scheduler";
 import { createDaemonRequestHandler } from "./daemon-http";

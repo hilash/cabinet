@@ -3,9 +3,9 @@ import {
   buildEditorConversationPrompt,
   buildManualConversationPrompt,
   startConversationRun,
-} from "@/lib/agents/conversation-runner";
-import { listConversationMetas } from "@/lib/agents/conversation-store";
-import { readMemory, writeMemory } from "@/lib/agents/persona-manager";
+} from "@/lib/agents/runtime/conversation-runner";
+import { listConversationMetas } from "@/lib/agents/runtime/conversation-store";
+import { readMemory, writeMemory } from "@/lib/agents/persona/persona-manager";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 
 export const GET = createGetHandler({

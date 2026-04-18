@@ -10,10 +10,10 @@ import {
   sendMessage,
   getHeartbeatHistory,
   readSessionOutput,
-} from "@/lib/agents/persona-manager";
-import { startManualHeartbeat } from "@/lib/agents/heartbeat";
-import { updateGoal, getGoalHistory } from "@/lib/agents/goal-manager";
-import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+} from "@/lib/agents/persona/persona-manager";
+import { startManualHeartbeat } from "@/lib/agents/persona/heartbeat";
+import { updateGoal, getGoalHistory } from "@/lib/agents/persona/goal-manager";
+import { reloadDaemonSchedules } from "@/lib/agents/runtime/daemon-client";
 import {
   HttpError,
   createGetHandler,

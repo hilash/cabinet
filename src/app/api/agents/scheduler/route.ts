@@ -1,8 +1,8 @@
 import {
   listPersonas,
   writePersona,
-} from "@/lib/agents/persona-manager";
-import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+} from "@/lib/agents/persona/persona-manager";
+import { reloadDaemonSchedules } from "@/lib/agents/runtime/daemon-client";
 import {
   HttpError,
   createGetHandler,

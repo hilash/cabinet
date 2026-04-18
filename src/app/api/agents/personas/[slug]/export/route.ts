@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exportPersonaBundle } from "@/lib/agents/persona-manager";
+import { exportPersonaBundle } from "@/lib/agents/persona/persona-manager";
 import { HttpError } from "@/lib/http/create-handler";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 

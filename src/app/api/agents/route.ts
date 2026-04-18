@@ -4,7 +4,7 @@ import {
   getRecentSessions,
   runAgent,
   getAgentStats,
-} from "@/lib/agents/agent-manager";
+} from "@/lib/agents/runtime/agent-manager";
 
 export const GET = createGetHandler({
   handler: async () => {

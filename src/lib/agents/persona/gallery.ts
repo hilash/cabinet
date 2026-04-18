@@ -7,7 +7,7 @@ import {
   readFileContent,
   statPath,
 } from "@/lib/storage/fs-operations";
-import { listPersonas } from "@/lib/agents/persona-manager";
+import { listPersonas } from "@/lib/agents/persona/persona-manager";
 
 export interface GalleryItem {
   name: string;

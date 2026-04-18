@@ -1,4 +1,4 @@
-import { getSession, stopAgent } from "@/lib/agents/agent-manager";
+import { getSession, stopAgent } from "@/lib/agents/runtime/agent-manager";
 import {
   HttpError,
   createGetHandler,

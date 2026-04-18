@@ -1,6 +1,6 @@
 import { buildTree } from "@/lib/storage/tree-builder";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
+import { runOneShotProviderPrompt } from "@/lib/agents/runtime/provider-runtime";
 import {
   HttpError,
   createHandler,

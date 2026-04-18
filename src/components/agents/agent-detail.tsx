@@ -25,8 +25,8 @@ import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { cn } from "@/lib/utils";
-import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona-manager";
-import { cronToHuman } from "@/lib/agents/cron-utils";
+import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona/persona-manager";
+import { cronToHuman } from "@/lib/agents/persona/cron-utils";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 
 type TabId = "definition" | "jobs" | "sessions";

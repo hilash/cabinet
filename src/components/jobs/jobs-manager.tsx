@@ -16,7 +16,7 @@ import { Button } from "@multica/ui/components/ui/button";
 import { ScrollArea } from "@multica/ui/components/ui/scroll-area";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
-import { cronToHuman } from "@/lib/agents/cron-utils";
+import { cronToHuman } from "@/lib/agents/persona/cron-utils";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
