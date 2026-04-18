@@ -57,7 +57,7 @@ interface IntegrationConfig {
   mcp_servers: Record<string, McpServer>;
   notifications: {
     browser_push: boolean;
-    telegram: { enabled: boolean; bot_token: string; chat_id: string };
+    telegram: { enabled: boolean; bot_token: string; chat_id: string; bidirectional?: boolean };
     slack_webhook: { enabled: boolean; url: string };
     email: { enabled: boolean; frequency: "hourly" | "daily"; to: string };
   };
@@ -1052,73 +1052,262 @@ export function SettingsPage() {
 
           {/* Notifications Tab */}
           {tab === "notifications" && (
-            <div className="relative">
-              {/* Blurred content preview */}
-              <div className="pointer-events-none select-none blur-[2px] opacity-70" aria-hidden="true">
-                <div>
-                  <h3 className="text-[14px] font-semibold mb-1">通知渠道</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Configure how you receive alerts when agents need your attention.
-                  </p>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-[14px] font-semibold mb-1">通知渠道</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Configure how you receive alerts when agents post to #alerts or mention @human.
+                </p>
+
+                {configLoading || !config ? (
+                  <p className="text-[13px] text-muted-foreground">加载中...</p>
+                ) : (
                   <div className="space-y-3">
-                    {[
-                      { icon: "🔔", name: "Browser Push", desc: "Instant alerts when Cabinet tab is open or PWA installed" },
-                      { icon: "✈️", name: "Telegram", desc: "Instant mobile notifications via Telegram bot" },
-                      { icon: "💬", name: "Slack Webhook", desc: "Forward alerts to your team's Slack channel" },
-                      { icon: "📧", name: "Email Digest", desc: "Batched summary of alerts and agent activity" },
-                    ].map((ch) => (
-                      <div key={ch.name} className="bg-card border border-border rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className="text-lg">{ch.icon}</span>
-                            <div>
-                              <p className="text-[13px] font-medium">{ch.name}</p>
-                              <p className="text-[11px] text-muted-foreground">{ch.desc}</p>
+                    {/* Telegram */}
+                    <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">✈️</span>
+                          <div>
+                            <p className="text-[13px] font-medium">Telegram</p>
+                            <p className="text-[11px] text-muted-foreground">Instant mobile notifications via Telegram bot</p>
+                          </div>
+                        </div>
+                        <label className="inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={config.notifications.telegram.enabled}
+                            onChange={(e) => updateNotif("telegram.enabled", e.target.checked)}
+                          />
+                          <span className="h-4 w-8 rounded-full bg-muted-foreground/30 relative peer-checked:bg-primary transition-colors">
+                            <span className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white peer-checked:translate-x-4 transition-transform" style={{ transform: config.notifications.telegram.enabled ? "translateX(1rem)" : "translateX(0)" }} />
+                          </span>
+                        </label>
+                      </div>
+                      {config.notifications.telegram.enabled && (
+                        <div className="space-y-2 pt-1">
+                          <div>
+                            <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Bot Token</label>
+                            <div className="relative mt-0.5">
+                              <Input
+                                type={revealedKeys.has("telegram.bot_token") ? "text" : "password"}
+                                value={config.notifications.telegram.bot_token}
+                                onChange={(e) => updateNotif("telegram.bot_token", e.target.value)}
+                                placeholder="123456789:ABC-DEF..."
+                                className="h-8 text-[12px] pr-9 font-mono"
+                              />
+                              <button
+                                onClick={() => toggleReveal("telegram.bot_token")}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                type="button"
+                                aria-label={revealedKeys.has("telegram.bot_token") ? "Hide" : "Show"}
+                              >
+                                {revealedKeys.has("telegram.bot_token") ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              </button>
                             </div>
+                            <p className="text-[10px] text-muted-foreground/60 mt-1">
+                              Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="underline">@BotFather</a> on Telegram and paste the token here.
+                            </p>
                           </div>
-                          <div className="h-4 w-8 rounded-full bg-muted-foreground/30 relative">
-                            <span className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white" />
+                          <div>
+                            <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Chat ID</label>
+                            <Input
+                              type="text"
+                              value={config.notifications.telegram.chat_id}
+                              onChange={(e) => updateNotif("telegram.chat_id", e.target.value)}
+                              placeholder="-100123456789 or 987654321"
+                              className="h-8 text-[12px] mt-0.5 font-mono"
+                            />
+                            <p className="text-[10px] text-muted-foreground/60 mt-1">
+                              Group ID (starts with -100) or your user ID. Get it by messaging <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="underline">@userinfobot</a>.
+                            </p>
                           </div>
+                          <label className="flex items-center gap-2 text-[12px] pt-1">
+                            <input
+                              type="checkbox"
+                              checked={config.notifications.telegram.bidirectional ?? false}
+                              onChange={(e) => updateNotif("telegram.bidirectional", e.target.checked)}
+                              className="h-3.5 w-3.5"
+                            />
+                            <span>双向控制（允许从 Telegram 创建任务、查看状态）</span>
+                          </label>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      )}
+                    </div>
 
-                <div className="border-t border-border pt-6 mt-6">
-                  <h3 className="text-[14px] font-semibold mb-1">告警规则</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Notifications are triggered automatically for these events:
-                  </p>
-                  <div className="space-y-2">
-                    {[
-                      { event: "#alerts channel messages", desc: "Any agent posting to the alerts channel" },
-                      { event: "@human mentions", desc: "When an agent mentions @human in any channel" },
-                      { event: "Goal floor breached", desc: "A goal drops below its minimum threshold" },
-                      { event: "Agent health degraded", desc: "3+ consecutive heartbeat failures" },
-                    ].map((rule) => (
-                      <div key={rule.event} className="flex items-center justify-between bg-card border border-border rounded-lg px-3 py-2">
-                        <div>
-                          <p className="text-[12px] font-medium">{rule.event}</p>
-                          <p className="text-[10px] text-muted-foreground/60">{rule.desc}</p>
+                    {/* Slack Webhook */}
+                    <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">💬</span>
+                          <div>
+                            <p className="text-[13px] font-medium">Slack Webhook</p>
+                            <p className="text-[11px] text-muted-foreground">Forward alerts to a Slack channel via incoming webhook</p>
+                          </div>
                         </div>
-                        <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">始终开启</span>
+                        <label className="inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={config.notifications.slack_webhook.enabled}
+                            onChange={(e) => updateNotif("slack_webhook.enabled", e.target.checked)}
+                          />
+                          <span className="h-4 w-8 rounded-full bg-muted-foreground/30 relative peer-checked:bg-primary transition-colors">
+                            <span className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white transition-transform" style={{ transform: config.notifications.slack_webhook.enabled ? "translateX(1rem)" : "translateX(0)" }} />
+                          </span>
+                        </label>
                       </div>
-                    ))}
+                      {config.notifications.slack_webhook.enabled && (
+                        <div className="space-y-2 pt-1">
+                          <div>
+                            <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">Webhook URL</label>
+                            <div className="relative mt-0.5">
+                              <Input
+                                type={revealedKeys.has("slack_webhook.url") ? "text" : "password"}
+                                value={config.notifications.slack_webhook.url}
+                                onChange={(e) => updateNotif("slack_webhook.url", e.target.value)}
+                                placeholder="https://hooks.slack.com/services/..."
+                                className="h-8 text-[12px] pr-9 font-mono"
+                              />
+                              <button
+                                onClick={() => toggleReveal("slack_webhook.url")}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                type="button"
+                                aria-label={revealedKeys.has("slack_webhook.url") ? "Hide" : "Show"}
+                              >
+                                {revealedKeys.has("slack_webhook.url") ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground/60 mt-1">
+                              Create an incoming webhook at <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noreferrer" className="underline">api.slack.com/messaging/webhooks</a>.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Email */}
+                    <div className="bg-card border border-border rounded-lg p-3 space-y-2 opacity-75">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">📧</span>
+                          <div>
+                            <p className="text-[13px] font-medium flex items-center gap-2">
+                              Email Digest
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-normal">后端未实现</span>
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">Batched summary of alerts — config is saved but nothing sends yet</p>
+                          </div>
+                        </div>
+                        <label className="inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={config.notifications.email.enabled}
+                            onChange={(e) => updateNotif("email.enabled", e.target.checked)}
+                          />
+                          <span className="h-4 w-8 rounded-full bg-muted-foreground/30 relative peer-checked:bg-primary transition-colors">
+                            <span className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white transition-transform" style={{ transform: config.notifications.email.enabled ? "translateX(1rem)" : "translateX(0)" }} />
+                          </span>
+                        </label>
+                      </div>
+                      {config.notifications.email.enabled && (
+                        <div className="space-y-2 pt-1">
+                          <div>
+                            <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">收件邮箱</label>
+                            <Input
+                              type="email"
+                              value={config.notifications.email.to}
+                              onChange={(e) => updateNotif("email.to", e.target.value)}
+                              placeholder="you@example.com"
+                              className="h-8 text-[12px] mt-0.5"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-muted-foreground/70 uppercase tracking-wide">频率</label>
+                            <select
+                              value={config.notifications.email.frequency}
+                              onChange={(e) => updateNotif("email.frequency", e.target.value)}
+                              className="mt-0.5 w-full h-8 px-2 text-[12px] bg-background border border-border rounded-md"
+                            >
+                              <option value="hourly">每小时</option>
+                              <option value="daily">每日</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Browser Push */}
+                    <div className="bg-card border border-border rounded-lg p-3 space-y-2 opacity-75">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">🔔</span>
+                          <div>
+                            <p className="text-[13px] font-medium flex items-center gap-2">
+                              Browser Push
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-normal">后端未实现</span>
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">Browser-level push notifications (no service worker wired yet)</p>
+                          </div>
+                        </div>
+                        <label className="inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={config.notifications.browser_push}
+                            onChange={(e) => updateNotif("browser_push", e.target.checked)}
+                          />
+                          <span className="h-4 w-8 rounded-full bg-muted-foreground/30 relative peer-checked:bg-primary transition-colors">
+                            <span className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white transition-transform" style={{ transform: config.notifications.browser_push ? "translateX(1rem)" : "translateX(0)" }} />
+                          </span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
+                )}
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <h3 className="text-[14px] font-semibold mb-1">告警规则</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Notifications fire automatically on these events (not user-configurable):
+                </p>
+                <div className="space-y-2">
+                  {[
+                    { event: "#alerts channel messages", desc: "Any agent posting to the alerts channel" },
+                    { event: "@human mentions", desc: "When an agent mentions @human in any channel" },
+                  ].map((rule) => (
+                    <div key={rule.event} className="flex items-center justify-between bg-card border border-border rounded-lg px-3 py-2">
+                      <div>
+                        <p className="text-[12px] font-medium">{rule.event}</p>
+                        <p className="text-[10px] text-muted-foreground/60">{rule.desc}</p>
+                      </div>
+                      <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">始终开启</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Coming Soon overlay */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 bg-background/80 backdrop-blur-sm rounded-xl px-8 py-6 border border-border shadow-lg">
-                  <Bell className="h-6 w-6 text-muted-foreground/50" />
-                  <span className="text-[13px] font-semibold">Coming Soon</span>
-                  <p className="text-[12px] text-muted-foreground text-center max-w-[220px]">
-                    Browser push, Telegram, Slack, and email notifications.
-                  </p>
+              {config && (
+                <div className="flex items-center gap-2 pt-2">
+                  <Button size="sm" onClick={saveConfig} disabled={saving}>
+                    {saving ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    保存通知配置
+                  </Button>
+                  {saved && (
+                    <span className="text-[11px] text-emerald-500 flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      已保存
+                    </span>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
