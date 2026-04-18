@@ -1,11 +1,4 @@
-import fs from "fs";
-import path from "path";
 import type http from "http";
-import {
-  finalizeConversation,
-  readConversationMeta,
-  readConversationTranscript,
-} from "../src/lib/agents/runtime/conversation-store";
 import { isDaemonTokenValid } from "../src/lib/agents/runtime/daemon-auth";
 import { writeCabinetDaemonHealthResponse } from "./cabinet-daemon-health";
 import type { ServiceModule } from "./service-module";
@@ -17,7 +10,7 @@ import {
   extractDaemonRequestToken,
   rejectUnauthorized,
 } from "./daemon-http-auth";
-import { stripAnsi, transcriptShowsCompletedRun } from "./terminal-utils";
+import { resolveSessionOutput } from "./session-output";
 
 export interface DaemonHttpOptions {
   port: number;
@@ -53,64 +46,12 @@ export function createDaemonRequestHandler(opts: DaemonHttpOptions): Handler {
     const outputMatch = url.pathname.match(/^\/session\/([^/]+)\/output$/);
     if (outputMatch && req.method === "GET") {
       const sessionId = outputMatch[1];
-
-      const active = pty.getActiveSessionSnapshot(sessionId);
-      if (active) {
+      const snapshot = await resolveSessionOutput(sessionId, { pty, dataDir });
+      if (snapshot) {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(active));
+        res.end(JSON.stringify(snapshot));
         return;
       }
-
-      const conversationMeta = await readConversationMeta(sessionId).catch(() => null);
-      if (conversationMeta) {
-        const transcript = await readConversationTranscript(sessionId).catch(() => "");
-        const plainTranscript = stripAnsi(transcript);
-        let prompt = "";
-        if (conversationMeta.promptPath) {
-          const promptPath = path.join(dataDir, conversationMeta.promptPath);
-          if (fs.existsSync(promptPath)) {
-            prompt = fs.readFileSync(promptPath, "utf8");
-          }
-        }
-        if (
-          conversationMeta.status === "running" &&
-          transcriptShowsCompletedRun(plainTranscript, prompt)
-        ) {
-          await finalizeConversation(sessionId, {
-            status: "completed",
-            exitCode: 0,
-            output: plainTranscript,
-          }).catch(() => null);
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({
-              sessionId,
-              status: "completed",
-              output: plainTranscript,
-            }),
-          );
-          return;
-        }
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            sessionId,
-            status: conversationMeta.status,
-            output: plainTranscript,
-          }),
-        );
-        return;
-      }
-
-      const completed = pty.getCompletedOutput(sessionId);
-      if (completed) {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({ sessionId, status: "completed", output: completed.output }),
-        );
-        return;
-      }
-
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Session not found" }));
       return;

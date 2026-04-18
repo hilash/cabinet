@@ -2,6 +2,7 @@ import {
   reloadMulticaPoller,
   startMulticaPoller,
   stopMulticaPoller,
+  type SessionOutputResolver,
 } from "../multica-poller";
 import {
   createServiceState,
@@ -11,10 +12,11 @@ import {
 
 interface MulticaPollerModuleOptions {
   waitUntilReady?: (signal: AbortSignal) => Promise<void>;
+  resolveSessionOutput: SessionOutputResolver;
 }
 
 export function createMulticaPollerModule(
-  options: MulticaPollerModuleOptions = {},
+  options: MulticaPollerModuleOptions,
 ): ServiceModule {
   const state = createServiceState();
   let dataDir: string | null = null;
@@ -31,7 +33,10 @@ export function createMulticaPollerModule(
         }
 
         dataDir = ctx.dataDir;
-        startMulticaPoller({ dataDir: ctx.dataDir });
+        startMulticaPoller({
+          dataDir: ctx.dataDir,
+          resolveSessionOutput: options.resolveSessionOutput,
+        });
         state.up();
         await waitForAbort(ctx.signal);
       } catch (err) {
@@ -51,7 +56,11 @@ export function createMulticaPollerModule(
     async reload() {
       state.starting();
       try {
-        reloadMulticaPoller(dataDir ? { dataDir } : {});
+        reloadMulticaPoller(
+          dataDir
+            ? { dataDir, resolveSessionOutput: options.resolveSessionOutput }
+            : { resolveSessionOutput: options.resolveSessionOutput },
+        );
         state.up();
       } catch (err) {
         state.down(err);

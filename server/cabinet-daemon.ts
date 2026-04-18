@@ -114,6 +114,7 @@ const supervisor = createDaemonSupervisor({
   server,
   port: PORT,
   scheduler,
+  pty,
   onTerminalReady: () => {
     console.log(`Cabinet Daemon running on port ${PORT}`);
     console.log(`  Terminal WebSocket: ws://localhost:${PORT}/api/daemon/pty`);

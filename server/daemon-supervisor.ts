@@ -16,6 +16,8 @@ import { createTerminalServerModule } from "./services/terminal-server.module";
 import { createMulticaPollerModule } from "./services/multica-poller.module";
 import { createTelegramModule } from "./services/telegram.module";
 import type { Scheduler } from "./scheduler";
+import type { PtyManager } from "./pty-manager";
+import { resolveSessionOutput } from "./session-output";
 
 export interface DaemonSupervisorOptions {
   dataDir: string;
@@ -24,6 +26,7 @@ export interface DaemonSupervisorOptions {
   server: http.Server;
   port: number;
   scheduler: Scheduler;
+  pty: PtyManager;
   onTerminalReady: () => void;
 }
 
@@ -73,6 +76,8 @@ export function createDaemonSupervisor(opts: DaemonSupervisorOptions): DaemonSup
 
   const multicaModule = createMulticaPollerModule({
     waitUntilReady: (signal) => waitForServiceUp(terminalModule, signal),
+    resolveSessionOutput: (sessionId) =>
+      resolveSessionOutput(sessionId, { pty: opts.pty, dataDir: opts.dataDir }),
   });
   const telegramModule = createTelegramModule({
     waitUntilReady: (signal) => waitForServiceUp(terminalModule, signal),

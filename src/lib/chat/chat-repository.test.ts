@@ -10,9 +10,13 @@ function createRepository(): MemoryChannelRepository {
   return new MemoryChannelRepository();
 }
 
+// `createdAt` is a Date.now() ISO string and the "before" filter is strictly
+// less-than. A 2ms delay is within Linux CI timer jitter — two adjacent ticks
+// can collapse into the same millisecond and break pagination ordering.
+// 10ms keeps tests fast while staying outside setTimeout drift.
 function waitForNextTick(): Promise<void> {
   return new Promise((resolve) => {
-    setTimeout(resolve, 2);
+    setTimeout(resolve, 10);
   });
 }
 

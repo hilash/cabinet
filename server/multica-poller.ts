@@ -11,8 +11,8 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import matter from "gray-matter";
-import { getDaemonPort, getManagedDataDir } from "../src/lib/runtime/runtime-config";
-import { getOrCreateDaemonToken } from "../src/lib/agents/runtime/daemon-auth";
+import { getManagedDataDir } from "../src/lib/runtime/runtime-config";
+import type { SessionOutputSnapshot } from "./session-output";
 import { daemonBus } from "./daemon-bus";
 import { readMulticaPAT, readMulticaWorkspaceId } from "./multica-auth";
 
@@ -27,8 +27,13 @@ const WAIT_POLL_MS = 3_000;          // 3s between session-output polls
 
 const DAEMON_TOKEN_REFRESH_MS = 24 * 60 * 60_000; // refresh when < 1d remaining
 
+export type SessionOutputResolver = (
+  sessionId: string,
+) => Promise<SessionOutputSnapshot | null>;
+
 interface MulticaPollerOptions {
   dataDir?: string;
+  resolveSessionOutput?: SessionOutputResolver;
 }
 
 function resolveDataDir(dataDir?: string): string {
@@ -86,9 +91,13 @@ function resolveContentPathInDataDir(dataDir: string, virtualPath: string): stri
 }
 
 let currentDataDir = resolveDataDir();
+let currentSessionOutputResolver: SessionOutputResolver | null = null;
 
 function setMulticaPollerOptions(options?: MulticaPollerOptions): void {
   currentDataDir = resolveDataDir(options?.dataDir);
+  if (options?.resolveSessionOutput) {
+    currentSessionOutputResolver = options.resolveSessionOutput;
+  }
 }
 
 function getAgentsDir(dataDir = currentDataDir): string {
@@ -315,16 +324,8 @@ async function multicaPost<T = unknown>(
 }
 
 // ---------------------------------------------------------------------------
-// Daemon HTTP helpers (call cabinet daemon's own API)
+// In-process daemon calls (no loopback HTTP)
 // ---------------------------------------------------------------------------
-
-async function daemonFetch(urlPath: string, init?: RequestInit): Promise<Response> {
-  const token = await getOrCreateDaemonToken();
-  const headers = new Headers(init?.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  const base = `http://127.0.0.1:${getDaemonPort()}`;
-  return fetch(`${base}${urlPath}`, { ...init, headers });
-}
 
 async function createDaemonSession(opts: {
   id: string;
@@ -352,14 +353,24 @@ async function waitForSession(
   sessionId: string,
   timeoutMs: number,
 ): Promise<{ status: string; output: string }> {
+  const resolver = currentSessionOutputResolver;
+  if (!resolver) {
+    // startMulticaPoller should always be invoked with a resolver (the daemon
+    // supervisor binds one to the PtyManager). Reaching this means the poller
+    // is running without its usual wiring — fail loud rather than silently
+    // treat every task as a 30-minute timeout.
+    return {
+      status: "failed",
+      output: "multica-poller: resolveSessionOutput not configured",
+    };
+  }
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     await sleep(WAIT_POLL_MS);
     try {
-      const res = await daemonFetch(`/session/${sessionId}/output`);
-      if (res.ok) {
-        const data = await res.json() as { status: string; output: string };
-        if (data.status !== "running") return data;
+      const snapshot = await resolver(sessionId);
+      if (snapshot && snapshot.status !== "running") {
+        return snapshot;
       }
     } catch {
       // retry
