@@ -1,5 +1,5 @@
 import { HttpError, createHandler } from "@/lib/http/create-handler";
-import { importAgentBundle } from "@/lib/agents/import-bundle";
+import { importAgentBundle } from "@/lib/agents/setup/import-bundle";
 
 export const POST = createHandler({
   handler: async (_input, req) => {

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createHandler } from "@/lib/http/create-handler";
-import { instantiateFromLibrary } from "@/lib/agents/library";
+import { instantiateFromLibrary } from "@/lib/agents/setup/library";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 

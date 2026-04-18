@@ -1,4 +1,4 @@
-import { readCompany, writeCompany } from "@/lib/agents/company";
+import { readCompany, writeCompany } from "@/lib/agents/setup/company";
 import { createGetHandler, createHandler } from "@/lib/http/create-handler";
 
 export const GET = createGetHandler({

@@ -10,7 +10,7 @@ import {
   writeFileContent,
 } from "@/lib/storage/fs-operations";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
-import { writeCompany } from "@/lib/agents/company";
+import { writeCompany } from "@/lib/agents/setup/company";
 
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 const LIBRARY_DIR = path.join(AGENTS_DIR, ".library");

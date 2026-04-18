@@ -2,7 +2,7 @@ import { createHandler, HttpError } from "@/lib/http/create-handler";
 import {
   runOnboarding,
   type OnboardingRequest,
-} from "@/lib/agents/onboarding";
+} from "@/lib/agents/setup/onboarding";
 
 export const POST = createHandler({
   handler: async (_input, req) => {
