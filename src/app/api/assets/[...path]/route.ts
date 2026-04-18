@@ -1,3 +1,8 @@
+// fs boundary: this route streams raw file bytes (with MIME-typed headers) and
+// accepts raw text writes. `createHandler` assumes JSON body in / JSON out and
+// would force us to base64 every asset or bypass the wrapper for the response,
+// so staying raw is simpler than fighting the abstraction.
+
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { resolveContentPath } from "@/lib/storage/path-utils";

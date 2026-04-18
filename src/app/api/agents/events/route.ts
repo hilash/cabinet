@@ -18,6 +18,10 @@ async function getDataDirVersion(): Promise<string> {
 /**
  * GET /api/agents/events — Server-Sent Events for real-time Mission Control updates.
  * Pushes agent status, goal progress, and new Slack messages every 3 seconds.
+ *
+ * Does not use `createGetHandler`: SSE requires a long-lived ReadableStream with
+ * custom headers, and errors inside the tick are intentionally swallowed to keep
+ * the stream alive. The wrapper's one-shot JSON-response shape does not apply.
  */
 export async function GET() {
   const encoder = new TextEncoder();

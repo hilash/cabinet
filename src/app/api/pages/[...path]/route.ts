@@ -1,3 +1,9 @@
+// Does not use `createHandler`: GET maps lib errors containing "not found" to
+// 404 and POST maps "already exists" to 409 via string matching. Moving that
+// mapping into the wrapper would require lib layers to throw typed HTTP errors,
+// which is out of scope for a pure-refactor pass. Kept raw until the page-io
+// module gains typed error classes.
+
 import { NextRequest, NextResponse } from "next/server";
 import { readPage, writePage, createPage, deletePage, movePage, renamePage } from "@/lib/storage/page-io";
 import { autoCommit } from "@/lib/git/git-service";
