@@ -65,6 +65,25 @@ export async function fileExists(absPath: string): Promise<boolean> {
   }
 }
 
+export interface PathStat {
+  size: number;
+  modifiedIso: string;
+  isDirectory: boolean;
+}
+
+export async function statPath(absPath: string): Promise<PathStat | null> {
+  try {
+    const stat = await fs.stat(absPath);
+    return {
+      size: stat.size,
+      modifiedIso: stat.mtime.toISOString(),
+      isDirectory: stat.isDirectory(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function ensureDataDir(): Promise<void> {
   await ensureDirectory(DATA_DIR);
 }
