@@ -63,5 +63,3 @@ export function createMulticaPollerModule(
     },
   };
 }
-
-export const multicaPollerModule = createMulticaPollerModule();

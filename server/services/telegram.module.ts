@@ -68,5 +68,3 @@ export function createTelegramModule(options: TelegramModuleOptions = {}): Servi
     },
   };
 }
-
-export const telegramModule = createTelegramModule();
