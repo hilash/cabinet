@@ -1,7 +1,4 @@
 import { NextRequest } from "next/server";
-import path from "path";
-import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
 import {
   readPersona,
   writePersona,
@@ -12,6 +9,7 @@ import {
   readInbox,
   sendMessage,
   getHeartbeatHistory,
+  readSessionOutput,
 } from "@/lib/agents/persona-manager";
 import { startManualHeartbeat } from "@/lib/agents/heartbeat";
 import { updateGoal, getGoalHistory } from "@/lib/agents/goal-manager";
@@ -21,7 +19,7 @@ import {
   createGetHandler,
   createHandler,
 } from "@/lib/http/create-handler";
-import { assertValidFilename, assertValidSlug } from "@/lib/agents/persona/slug-utils";
+import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -34,17 +32,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
       const sessionTs = searchParams.get("session");
       if (sessionTs) {
-        const normalizedTs = sessionTs.replace(/[:.]/g, "-");
-        const sessionFilename = `${normalizedTs}.txt`;
-        assertValidFilename(sessionFilename, "session");
-        const sessionsDir = path.join(DATA_DIR, ".agents", slug, "sessions");
-        const sessionFile = path.join(sessionsDir, sessionFilename);
-        try {
-          const output = await fs.readFile(sessionFile, "utf-8");
-          return { output };
-        } catch {
-          return { output: null };
-        }
+        const output = await readSessionOutput(slug, sessionTs);
+        return { output };
       }
 
       const persona = await readPersona(slug);

@@ -68,3 +68,38 @@ export async function fileExists(absPath: string): Promise<boolean> {
 export async function ensureDataDir(): Promise<void> {
   await ensureDirectory(DATA_DIR);
 }
+
+export interface WalkedFile {
+  absPath: string;
+  name: string;
+  modifiedIso: string;
+}
+
+export async function walkFilesWithMtime(rootDir: string): Promise<WalkedFile[]> {
+  const results: WalkedFile[] = [];
+  try {
+    const entries = await fs.readdir(rootDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      const fullPath = path.join(rootDir, entry.name);
+      if (entry.isDirectory()) {
+        const sub = await walkFilesWithMtime(fullPath);
+        results.push(...sub);
+      } else if (entry.isFile()) {
+        try {
+          const stat = await fs.stat(fullPath);
+          results.push({
+            absPath: fullPath,
+            name: entry.name,
+            modifiedIso: stat.mtime.toISOString(),
+          });
+        } catch {
+          // skip files we can't stat
+        }
+      }
+    }
+  } catch {
+    // rootDir missing; return empty
+  }
+  return results;
+}

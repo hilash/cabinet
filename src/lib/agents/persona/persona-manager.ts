@@ -8,6 +8,7 @@ import {
   fileExists,
   ensureDirectory,
   listDirectory,
+  walkFilesWithMtime,
 } from "@/lib/storage/fs-operations";
 import { runHeartbeat } from "@/lib/agents/persona/heartbeat";
 import { getGoalState } from "@/lib/agents/persona/goal-manager";
@@ -455,4 +456,84 @@ export async function registerAllHeartbeats(): Promise<void> {
 
 export function getRegisteredHeartbeats(): string[] {
   return Array.from(heartbeatJobs.keys());
+}
+
+// --- Sessions & exports ---
+
+export async function readSessionOutput(slug: string, sessionTs: string): Promise<string | null> {
+  assertValidSlug(slug);
+  const normalizedTs = sessionTs.replace(/[:.]/g, "-");
+  const sessionFilename = `${normalizedTs}.txt`;
+  assertValidFilename(sessionFilename, "session");
+  const sessionFile = path.join(AGENTS_DIR, slug, "sessions", sessionFilename);
+  if (!(await fileExists(sessionFile))) return null;
+  return readFileContent(sessionFile);
+}
+
+export interface PersonaBundle {
+  version: 2;
+  exportedAt: string;
+  agent: {
+    slug: string;
+    frontmatter: Record<string, unknown>;
+    body: string;
+  };
+  workspaceIndex: string | null;
+}
+
+export async function exportPersonaBundle(slug: string): Promise<PersonaBundle | null> {
+  assertValidSlug(slug);
+  const agentFile = path.join(AGENTS_DIR, slug, "persona.md");
+  if (!(await fileExists(agentFile))) return null;
+
+  const agentMd = await readFileContent(agentFile);
+  const { data: frontmatter, content: body } = matter(agentMd);
+
+  let workspaceIndex: string | null = null;
+  const wsIndexPath = path.join(AGENTS_DIR, slug, "workspace", "index.md");
+  if (await fileExists(wsIndexPath)) {
+    workspaceIndex = await readFileContent(wsIndexPath);
+  }
+
+  return {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    agent: {
+      slug,
+      frontmatter: frontmatter as Record<string, unknown>,
+      body: body.trim(),
+    },
+    workspaceIndex,
+  };
+}
+
+export interface PersonaWorkspaceListing {
+  files: Array<{ path: string; name: string; modified: string }>;
+  outputDir: string | null;
+}
+
+export async function listPersonaWorkspaceFiles(slug: string): Promise<PersonaWorkspaceListing | null> {
+  assertValidSlug(slug);
+  const persona = await readPersona(slug);
+  if (!persona) return null;
+
+  const workspaceDir = path.join(AGENTS_DIR, slug, "workspace");
+  const scanned = [...await walkFilesWithMtime(workspaceDir)];
+
+  const outputDir = (persona as unknown as Record<string, unknown>).output_dir as string | undefined;
+  if (outputDir) {
+    const resolvedDir = path.resolve(DATA_DIR, outputDir.replace(/^\/data\//, ""));
+    if (resolvedDir.startsWith(DATA_DIR)) {
+      scanned.push(...await walkFilesWithMtime(resolvedDir));
+    }
+  }
+
+  const files = scanned.map((entry) => ({
+    path: path.relative(DATA_DIR, entry.absPath),
+    name: entry.name,
+    modified: entry.modifiedIso,
+  }));
+  files.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+
+  return { files, outputDir: outputDir || null };
 }
