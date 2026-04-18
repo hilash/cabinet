@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# host-specific install config (holds absolute dataDir)
+.cabinet-install.json
+
 # vercel
 .vercel
 
