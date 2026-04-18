@@ -50,12 +50,14 @@ function getTrackingPaths(dataDir = currentDataDir): {
   trackingDir: string;
   trackingFile: string;
   workspaceIdFile: string;
+  offsetFile: string;
 } {
   const trackingDir = path.join(dataDir, ".agents", ".telegram");
   return {
     trackingDir,
     trackingFile: path.join(trackingDir, "tracked-issues.json"),
     workspaceIdFile: path.join(trackingDir, "workspace-id.txt"),
+    offsetFile: path.join(trackingDir, "last-update-id.txt"),
   };
 }
 
@@ -506,6 +508,23 @@ function loadTracking(): void {
   } catch {
     trackedIssues = new Map();
   }
+}
+
+function saveLastUpdateId(): void {
+  try {
+    const { trackingDir, offsetFile } = getTrackingPaths();
+    fs.mkdirSync(trackingDir, { recursive: true });
+    fs.writeFileSync(offsetFile, String(lastUpdateId), "utf-8");
+  } catch { /* ignore */ }
+}
+
+function loadLastUpdateId(): void {
+  try {
+    const { offsetFile } = getTrackingPaths();
+    const raw = fs.readFileSync(offsetFile, "utf-8").trim();
+    const parsed = parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed > 0) lastUpdateId = parsed;
+  } catch { /* ignore */ }
 }
 
 function persistWorkspaceId(nextWorkspaceId: string): void {
@@ -1559,6 +1578,7 @@ async function pollOnce(): Promise<void> {
 
   if (!updates || updates.length === 0) return;
 
+  const startingOffset = lastUpdateId;
   for (const update of updates) {
     lastUpdateId = Math.max(lastUpdateId, update.update_id);
 
@@ -1597,6 +1617,8 @@ async function pollOnce(): Promise<void> {
       await sendMessage(chatId, `❌ 处理出错: ${(err as Error).message}`).catch(() => {});
     }
   }
+
+  if (lastUpdateId > startingOffset) saveLastUpdateId();
 }
 
 let consecutivePollErrors = 0;
@@ -1641,6 +1663,7 @@ export async function startTelegramBot(options: TelegramBotRuntimeOptions = {}):
   lastWorkspaceResolveAt = 0;
   workspaceId = await ensureWorkspaceId(true);
   loadTracking();
+  loadLastUpdateId();
 
   botActive = true;
   hourResetTimer = setInterval(() => {
