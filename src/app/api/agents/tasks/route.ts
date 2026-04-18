@@ -5,7 +5,7 @@ import {
   getAllTasks,
   updateTask,
   type TaskStatus,
-} from "@/lib/agents/task-inbox";
+} from "@/lib/agents/inbox/task-inbox";
 import {
   HttpError,
   createGetHandler,

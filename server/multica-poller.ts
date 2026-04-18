@@ -12,7 +12,7 @@ import path from "path";
 import crypto from "crypto";
 import matter from "gray-matter";
 import { getDaemonPort, getManagedDataDir } from "../src/lib/runtime/runtime-config";
-import { getOrCreateDaemonToken } from "../src/lib/agents/daemon-auth";
+import { getOrCreateDaemonToken } from "../src/lib/agents/runtime/daemon-auth";
 import { daemonBus } from "./daemon-bus";
 import { readMulticaPAT, readMulticaWorkspaceId } from "./multica-auth";
 

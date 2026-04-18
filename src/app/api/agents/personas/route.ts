@@ -1,10 +1,10 @@
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { listPersonas, writePersona } from "@/lib/agents/persona-manager";
-import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
-import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
-import { ensureAgentScaffold } from "@/lib/agents/scaffold";
-import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
+import { listPersonas, writePersona } from "@/lib/agents/persona/persona-manager";
+import { reloadDaemonSchedules } from "@/lib/agents/runtime/daemon-client";
+import { getRunningConversationCounts } from "@/lib/agents/runtime/conversation-store";
+import { ensureAgentScaffold } from "@/lib/agents/persona/scaffold";
+import { getDefaultProviderId } from "@/lib/agents/runtime/provider-runtime";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 import {
   createGetHandler,

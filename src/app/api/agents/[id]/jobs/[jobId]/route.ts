@@ -4,7 +4,7 @@ import {
   deleteAgentJob,
   executeJob,
 } from "@/lib/jobs/job-manager";
-import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import { reloadDaemonSchedules } from "@/lib/agents/runtime/daemon-client";
 import {
   jobIdMatches,
   normalizeJobConfig,

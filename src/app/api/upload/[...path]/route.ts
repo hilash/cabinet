@@ -1,3 +1,6 @@
+// fs boundary: consumes multipart/form-data uploads and writes them to the
+// filesystem. `createHandler` only parses JSON bodies, so this route stays raw.
+
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { resolveContentPath } from "@/lib/storage/path-utils";

@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@multica/ui/components/ui/button";
 import { GoalBar } from "./goal-bar";
 import { EditAgentDialog } from "./edit-agent-dialog";
-import { cronToHuman } from "@/lib/agents/cron-utils";
+import { cronToHuman } from "@/lib/agents/persona/cron-utils";
 import type { GoalMetric, SlackMessage } from "@/types/agents";
 
 interface AgentDetail {

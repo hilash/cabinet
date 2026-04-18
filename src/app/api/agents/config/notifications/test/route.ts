@@ -1,5 +1,5 @@
 import { createHandler } from "@/lib/http/create-handler";
-import { sendNotification } from "@/lib/agents/notification-service";
+import { sendNotification } from "@/lib/agents/runtime/notification-service";
 
 export const POST = createHandler({
   handler: async () => {

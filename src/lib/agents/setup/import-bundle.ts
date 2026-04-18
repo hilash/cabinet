@@ -1,8 +1,8 @@
 import path from "path";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { writePersona } from "@/lib/agents/persona-manager";
-import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
+import { writePersona } from "@/lib/agents/persona/persona-manager";
+import { getDefaultProviderId } from "@/lib/agents/runtime/provider-runtime";
 import { HttpError } from "@/lib/http/create-handler";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 import {

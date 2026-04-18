@@ -6,8 +6,8 @@ import {
   listHealthSchedules,
   runHealthPipeline,
   upsertHealthSchedule,
-} from "@/lib/agents/health-pipeline";
-import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+} from "@/lib/agents/pipeline/health-pipeline";
+import { reloadDaemonSchedules } from "@/lib/agents/runtime/daemon-client";
 import {
   createGetHandler,
   createHandler,

@@ -9,7 +9,7 @@ import {
 } from "@/lib/storage/fs-operations";
 import { HttpError } from "@/lib/http/create-handler";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
-import { ensureAgentScaffold } from "@/lib/agents/scaffold";
+import { ensureAgentScaffold } from "@/lib/agents/persona/scaffold";
 
 const LIBRARY_DIR = path.join(DATA_DIR, ".agents", ".library");
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");

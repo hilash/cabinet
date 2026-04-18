@@ -9,14 +9,14 @@ import {
   ensureDirectory,
   listDirectory,
 } from "@/lib/storage/fs-operations";
-import { startJobConversation } from "@/lib/agents/conversation-runner";
-import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import { startJobConversation } from "@/lib/agents/runtime/conversation-runner";
+import { reloadDaemonSchedules } from "@/lib/agents/runtime/daemon-client";
 import {
   jobIdMatches,
   normalizeJobConfig,
   normalizeJobId,
 } from "@/lib/jobs/job-normalization";
-import { resolveEnabledProviderId } from "@/lib/agents/provider-settings";
+import { resolveEnabledProviderId } from "@/lib/agents/provider/provider-settings";
 import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
 
 const JOBS_DIR = path.join(DATA_DIR, ".jobs");

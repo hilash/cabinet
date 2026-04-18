@@ -1,14 +1,14 @@
-import { providerRegistry } from "@/lib/agents/provider-registry";
+import { providerRegistry } from "@/lib/agents/provider/provider-registry";
 import {
   getConfiguredDefaultProviderId,
   isProviderEnabled,
   readProviderSettings,
-} from "@/lib/agents/provider-settings";
+} from "@/lib/agents/provider/provider-settings";
 import {
   ProviderSettingsConflictError,
   getProviderUsage,
   updateProviderSettingsWithMigrations,
-} from "@/lib/agents/provider-management";
+} from "@/lib/agents/provider/provider-management";
 import { NextResponse } from "next/server";
 import { createGetHandler, createHandler } from "@/lib/http/create-handler";
 

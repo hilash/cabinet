@@ -1,4 +1,4 @@
-import { parseCabinetBlock } from "../src/lib/agents/conversation-store";
+import { parseCabinetBlock } from "../src/lib/agents/runtime/conversation-store";
 
 export function stripAnsi(str: string): string {
   return str

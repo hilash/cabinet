@@ -1,7 +1,7 @@
 import {
   getRequirementPipeline,
   isValidRequirementPipelineId,
-} from "@/lib/agents/requirement-pipeline";
+} from "@/lib/agents/pipeline/requirement-pipeline";
 import {
   HttpError,
   createGetHandler,

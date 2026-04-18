@@ -1,7 +1,7 @@
 import {
   deleteConversation,
   readConversationDetail,
-} from "@/lib/agents/conversation-store";
+} from "@/lib/agents/runtime/conversation-store";
 import {
   HttpError,
   createGetHandler,

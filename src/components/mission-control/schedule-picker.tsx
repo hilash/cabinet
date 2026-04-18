@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Clock, ChevronDown } from "lucide-react";
-import { cronToHuman } from "@/lib/agents/cron-utils";
+import { cronToHuman } from "@/lib/agents/persona/cron-utils";
 
 interface SchedulePickerProps {
   value: string; // cron expression

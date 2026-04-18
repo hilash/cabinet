@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { readConversationDetail } from "@/lib/agents/conversation-store";
+import { readConversationDetail } from "@/lib/agents/runtime/conversation-store";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { CopyButton } from "./copy-button";
 import { parseTranscript } from "./transcript-parser";

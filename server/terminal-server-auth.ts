@@ -3,7 +3,7 @@ import type { WebSocket } from "ws";
 import {
   getTokenFromAuthorizationHeader,
   isDaemonTokenValid,
-} from "../src/lib/agents/daemon-auth";
+} from "../src/lib/agents/runtime/daemon-auth";
 
 export const LOOPBACK_HOST = "127.0.0.1";
 

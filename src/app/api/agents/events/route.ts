@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import path from "path";
-import { listPersonas } from "@/lib/agents/persona-manager";
-import { getGoalState } from "@/lib/agents/goal-manager";
-import { getMessages } from "@/lib/agents/slack-manager";
-import { getRespondingAgents } from "@/lib/agents/responding-agents";
+import { listPersonas } from "@/lib/agents/persona/persona-manager";
+import { getGoalState } from "@/lib/agents/persona/goal-manager";
+import { getMessages } from "@/lib/agents/runtime/slack-manager";
+import { getRespondingAgents } from "@/lib/agents/runtime/responding-agents";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { getDirectorySignature } from "@/lib/storage/fs-operations";
-import { getRunningConversationCounts, drainConversationNotifications } from "@/lib/agents/conversation-store";
+import { getRunningConversationCounts, drainConversationNotifications } from "@/lib/agents/runtime/conversation-store";
 
 async function getDataDirVersion(): Promise<string> {
   const dataSig = await getDirectorySignature(DATA_DIR);
@@ -18,6 +18,10 @@ async function getDataDirVersion(): Promise<string> {
 /**
  * GET /api/agents/events — Server-Sent Events for real-time Mission Control updates.
  * Pushes agent status, goal progress, and new Slack messages every 3 seconds.
+ *
+ * Does not use `createGetHandler`: SSE requires a long-lived ReadableStream with
+ * custom headers, and errors inside the tick are intentionally swallowed to keep
+ * the stream alive. The wrapper's one-shot JSON-response shape does not apply.
  */
 export async function GET() {
   const encoder = new TextEncoder();
