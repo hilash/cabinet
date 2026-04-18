@@ -1,86 +1,21 @@
-import path from "path";
-import fs from "fs/promises";
-import matter from "gray-matter";
-import { DATA_DIR } from "@/lib/storage/path-utils";
-import { writePersona } from "@/lib/agents/persona-manager";
-import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
-import {
-  HttpError,
-  createHandler,
-} from "@/lib/http/create-handler";
-import { assertValidSlug } from "@/lib/agents/persona/slug-utils";
-
-async function ensureDir(dir: string) {
-  try { await fs.mkdir(dir, { recursive: true }); } catch { /* exists */ }
-}
+import { HttpError, createHandler } from "@/lib/http/create-handler";
+import { importAgentBundle } from "@/lib/agents/import-bundle";
 
 export const POST = createHandler({
   handler: async (_input, req) => {
     try {
       const bundle = await req.json();
-
-      if (!bundle.agent?.slug || !bundle.agent?.frontmatter) {
-        throw new HttpError(400, "Invalid bundle format");
-      }
-
-      assertValidSlug(bundle.agent.slug);
-
-      let slug = bundle.agent.slug;
-      const agentDir = path.join(DATA_DIR, ".agents", slug);
-      try {
-        await fs.access(path.join(agentDir, "persona.md"));
-        slug = `${slug}-imported-${Date.now().toString(36).slice(-4)}`;
-        assertValidSlug(slug);
-      } catch { /* doesn't exist, use original slug */ }
-
-      const fm = bundle.agent.frontmatter;
-      fm.active = false;
-      await writePersona(slug, {
-        name: fm.name || slug,
-        role: fm.role || "",
-        provider: fm.provider || getDefaultProviderId(),
-        heartbeat: fm.heartbeat || "0 8 * * *",
-        budget: fm.budget || 100,
-        active: false,
-        workdir: fm.workdir || "/data",
-        focus: fm.focus || [],
-        tags: fm.tags || [],
-        emoji: fm.emoji || "🤖",
-        department: fm.department || "general",
-        type: fm.type || "specialist",
-        goals: fm.goals || [],
-        channels: fm.channels || ["general"],
-        workspace: fm.workspace || "workspace",
-        slug,
-        body: bundle.agent.body || "",
-      });
-
-      const workspaceDir = path.join(DATA_DIR, ".agents", slug, "workspace");
-      await ensureDir(workspaceDir);
-
-      if (bundle.workspaceIndex) {
-        const { data: wsFm, content: wsBody } = matter(bundle.workspaceIndex);
-        wsFm.title = `${fm.name || slug} — Workspace`;
-        const newWsContent = matter.stringify(wsBody, wsFm);
-        await fs.writeFile(path.join(workspaceDir, "index.md"), newWsContent, "utf-8");
-      }
-
-      await ensureDir(path.join(DATA_DIR, ".agents", ".memory", slug));
-      await ensureDir(path.join(DATA_DIR, ".agents", slug, "workspace", "reports"));
-      await ensureDir(path.join(DATA_DIR, ".agents", slug, "workspace", "data"));
-
+      const { slug, displayName } = await importAgentBundle(bundle);
       return {
         success: true,
         slug,
-        message: `Agent "${fm.name || slug}" imported successfully (paused by default).`,
+        message: `Agent "${displayName}" imported successfully (paused by default).`,
       };
     } catch (err) {
-      if (err instanceof HttpError) {
-        throw err;
-      }
+      if (err instanceof HttpError) throw err;
       throw new HttpError(
         500,
-        `Import failed: ${err instanceof Error ? err.message : "unknown error"}`
+        `Import failed: ${err instanceof Error ? err.message : "unknown error"}`,
       );
     }
   },
