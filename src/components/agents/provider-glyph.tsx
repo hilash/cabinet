@@ -8,6 +8,7 @@ const PROVIDER_IMAGE_BY_ICON: Record<string, string> = {
   bot:
     "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/OpenAI_logo_2025_%28symbol%29.svg/960px-OpenAI_logo_2025_%28symbol%29.svg.png?_=20250205041901",
   gemini: "/providers/gemini.svg",
+  minimax: "/providers/minimax.svg",
 };
 
 export function ProviderGlyph({
