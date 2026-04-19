@@ -2,6 +2,7 @@ import type { AgentProvider, ProviderRegistry } from "./provider-interface";
 import { claudeCodeProvider } from "./providers/claude-code";
 import { codexCliProvider } from "./providers/codex-cli";
 import { geminiCliProvider } from "./providers/gemini-cli";
+import { minimaxApiProvider } from "./providers/minimax-api";
 
 class ProviderRegistryImpl implements ProviderRegistry {
   providers = new Map<string, AgentProvider>();
@@ -41,6 +42,4 @@ export const providerRegistry = new ProviderRegistryImpl();
 providerRegistry.register(claudeCodeProvider);
 providerRegistry.register(codexCliProvider);
 providerRegistry.register(geminiCliProvider);
-
-// Future providers will be registered here:
-// providerRegistry.register(anthropicApiProvider);
+providerRegistry.register(minimaxApiProvider);
