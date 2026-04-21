@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-21] Rebased PR #32 (Windows Electron support) onto origin/main (80ca3df, 35+ commits ahead). Re-homed Windows path/command resolution into `adapters/utils.ts` to fit main's adapter architecture, fixed CodeRabbit's shell-injection and process-tree termination concerns, extended postinstall.mjs for darwin-x64, and force-pushed to the fork. All PR-specific tests pass; 6 pre-existing Windows failures remain.
+
 [2026-04-16] Claude Code model labels now include version numbers in the runtime picker ("Claude Opus 4.7", "Claude Sonnet 4.6", "Claude Haiku 4.5"), with Opus listed first.
 
 [2026-04-16] Runtime picker: fixed gap between tabs and model table by wrapping the TabsList in a flex container, eliminating the CSS inline-flex baseline descender space that was adding ~4px below the tab buttons. Inactive tabs now use bg-muted/60 so the active tab stands out clearly.
