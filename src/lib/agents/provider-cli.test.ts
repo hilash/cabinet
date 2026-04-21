@@ -1,4 +1,4 @@
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -11,8 +11,9 @@ import {
   resolveCliCommand,
 } from "./provider-cli";
 
-async function createExecutableScript(source: string): Promise<string> {
+async function createExecutableScript(t: TestContext, source: string): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "cabinet-provider-cli-test-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
   const scriptPath = path.join(
     dir,
     process.platform === "win32" ? "fake-provider.cmd" : "fake-provider.sh"
@@ -26,8 +27,8 @@ async function createExecutableScript(source: string): Promise<string> {
   return scriptPath;
 }
 
-test("resolveCliCommand prefers an existing command candidate path", async () => {
-  const scriptPath = await createExecutableScript("#!/bin/sh\nexit 0\n");
+test("resolveCliCommand prefers an existing command candidate path", async (t) => {
+  const scriptPath = await createExecutableScript(t, "#!/bin/sh\nexit 0\n");
   const provider: AgentProvider = {
     id: "test-cli-provider",
     name: "Test CLI Provider",
@@ -50,8 +51,8 @@ test("resolveCliCommand prefers an existing command candidate path", async () =>
   assert.equal(resolveCliCommand(provider), scriptPath);
 });
 
-test("checkCliProviderAvailable uses resolved command candidates", async () => {
-  const scriptPath = await createExecutableScript("#!/bin/sh\nexit 0\n");
+test("checkCliProviderAvailable uses resolved command candidates", async (t) => {
+  const scriptPath = await createExecutableScript(t, "#!/bin/sh\nexit 0\n");
   const provider: AgentProvider = {
     id: "test-cli-provider",
     name: "Test CLI Provider",
