@@ -104,11 +104,18 @@ export interface AgentPersona {
   focus: string[];
   tags: string[];
   /**
-   * Skill slugs this agent uses. Resolved against the user's skill catalog
-   * at `~/.cabinet/skills/<slug>/` and symlinked into a managed tmpdir
-   * before every run (see `_shared/skills-injection.ts`).
+   * Skill keys this agent has attached. Resolved at run time by
+   * `src/lib/agents/skills/loader.ts` against four origins (cabinet-scoped,
+   * cabinet-root, system, legacy-home) and symlinked into a managed tmpdir
+   * for adapters that support it (see `_shared/skills-injection.ts`).
    */
   skills?: string[];
+  /**
+   * Skill keys recommended for this persona — preselected toggles in the
+   * new-agent dialog so users get a "good first run" without knowing the
+   * catalog. Plan reference: docs/SKILLS_PLAN.md C8.
+   */
+  recommendedSkills?: string[];
   // New fields (all optional for backward compat)
   emoji: string;
   department: string;
@@ -237,6 +244,11 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
           (value): value is string => typeof value === "string" && value.trim() !== ""
         )
       : undefined,
+    recommendedSkills: Array.isArray(data.recommendedSkills)
+      ? (data.recommendedSkills as unknown[]).filter(
+          (value): value is string => typeof value === "string" && value.trim() !== ""
+        )
+      : undefined,
     // New fields with backward-compatible defaults
     emoji: (data.emoji as string) || "🤖",
     department: (data.department as string) || "general",
@@ -360,6 +372,13 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
     ...(Array.isArray(merged.skills) && merged.skills.length > 0
       ? {
           skills: merged.skills.filter(
+            (slug): slug is string => typeof slug === "string" && slug.trim() !== ""
+          ),
+        }
+      : {}),
+    ...(Array.isArray(merged.recommendedSkills) && merged.recommendedSkills.length > 0
+      ? {
+          recommendedSkills: merged.recommendedSkills.filter(
             (slug): slug is string => typeof slug === "string" && slug.trim() !== ""
           ),
         }

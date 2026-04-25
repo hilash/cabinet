@@ -11,6 +11,9 @@ budget: 80
 active: true
 workdir: /data
 workspace: /product
+recommendedSkills:
+  - kb-page-author
+  - git-commit-hygiene
 ---
 
 # Product Manager Agent

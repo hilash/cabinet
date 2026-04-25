@@ -11,6 +11,8 @@ budget: 100
 active: true
 workdir: /data
 workspace: /cabinet-example
+recommendedSkills:
+  - kb-page-author
 channels:
   - general
   - content

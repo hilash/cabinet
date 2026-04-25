@@ -32,6 +32,7 @@ import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { flattenTree } from "@/lib/tree-utils";
 import { createConversation } from "@/lib/agents/conversation-client";
+import type { SkillEntry } from "@/lib/agents/skills/types";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { JobConfig } from "@/types/jobs";
@@ -154,6 +155,28 @@ export function StartWorkDialog({
     });
   }, [selectedAgent]);
 
+  const [skillCatalog, setSkillCatalog] = useState<SkillEntry[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    const params = new URLSearchParams();
+    if (cabinetPath) params.set("cabinet", cabinetPath);
+    params.set("origins", "cabinet,linked");
+    fetch(`/api/agents/skills?${params}`)
+      .then((res) => (res.ok ? res.json() : { entries: [] }))
+      .then((data: { entries?: SkillEntry[] }) => {
+        if (cancelled) return;
+        const managed = (data.entries ?? []).filter(
+          (e) => e.origin !== "system" && e.origin !== "legacy-home",
+        );
+        setSkillCatalog(managed);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, cabinetPath]);
+
   const mentionItems: MentionableItem[] = useMemo(
     () => [
       ...agents.map((a) => ({
@@ -163,6 +186,12 @@ export function StartWorkDialog({
         sublabel: a.role ?? "",
         icon: a.emoji,
       })),
+      ...skillCatalog.map((s) => ({
+        type: "skill" as const,
+        id: s.key,
+        label: s.name,
+        sublabel: s.description ?? `skill: ${s.key}`,
+      })),
       ...flattenTree(treeNodes).map((p) => ({
         type: "page" as const,
         id: p.path,
@@ -170,7 +199,7 @@ export function StartWorkDialog({
         sublabel: p.path,
       })),
     ],
-    [agents, treeNodes]
+    [agents, skillCatalog, treeNodes]
   );
 
   // One composer for task + routine (both need a prompt). Heartbeat mode
@@ -179,13 +208,18 @@ export function StartWorkDialog({
   const stashedPromptRef = useRef<string>("");
 
   const runNow = useCallback(
-    async (message: string, mentionedPaths: string[]) => {
+    async (
+      message: string,
+      mentionedPaths: string[],
+      mentionedSkills: string[],
+    ) => {
       const resolvedAgent = selectedAgent;
       if (!resolvedAgent) throw new Error("No agent available.");
       const result = await createConversation({
         agentSlug: resolvedAgent.slug,
         userMessage: message,
         mentionedPaths,
+        mentionedSkills,
         cabinetPath: resolvedAgent.cabinetPath || cabinetPath,
         ...taskRuntime,
       });
@@ -255,12 +289,12 @@ export function StartWorkDialog({
 
   const composer = useComposer({
     items: mentionItems,
-    onSubmit: async ({ message, mentionedPaths }) => {
+    onSubmit: async ({ message, mentionedPaths, mentionedSkills }) => {
       setSubmitting(true);
       setError(null);
       try {
         if (mode === "now") {
-          await runNow(message, mentionedPaths);
+          await runNow(message, mentionedPaths, mentionedSkills);
         } else if (mode === "recurring") {
           await saveRoutine(message);
         } else {

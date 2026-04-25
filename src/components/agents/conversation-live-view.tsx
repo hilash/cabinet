@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { appendConversationCabinetPath } from "@/lib/agents/conversation-identity";
 import { ConversationContentViewer } from "@/components/agents/conversation-content-viewer";
+import { SkillsOfferedFooter } from "@/components/skills/skills-offered-footer";
 import {
   artifactPathToTreePath,
   inferPageTypeFromPath,
@@ -147,6 +148,7 @@ export function ConversationLiveView({
           {detail.transcript ? (
             <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/10 p-4">
               <ConversationContentViewer text={detail.transcript} />
+              <SkillsOfferedFooter meta={detail.meta} />
             </div>
           ) : (
             <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-border px-4 py-10 text-center">

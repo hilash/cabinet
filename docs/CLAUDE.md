@@ -30,6 +30,7 @@ src/
   app/api/agents/providers/  → Provider, model, adapter metadata
   app/api/agents/tasks/      → Task board data
   app/api/agents/scheduler/  → Scheduler control/status
+  app/api/agents/skills/     → Skill library: list/CRUD, import (github/skills.sh/local), bundle-into-cabinet, trust, scan, catalog
   app/api/git/               → Git log, diff, commit endpoints
   stores/                    → Zustand (tree, editor, ai-panel, task, app)
   components/sidebar/        → Tree navigation, drag-and-drop, context menu
@@ -40,13 +41,15 @@ src/
   components/agents/         → Agents workspace + live/result conversation views
   components/jobs/           → Jobs manager UI
   components/terminal/       → xterm.js web terminal
-  components/composer/       → Shared composer + task runtime picker
+  components/composer/       → Shared composer + task runtime picker (supports @page, @agent, @skill mentions)
+  components/skills/         → Skill library, detail page, add dialog, picker, "Skills offered" transcript footer
   components/search/         → Cmd+K search dialog
   components/layout/         → App shell, header
   lib/storage/               → Filesystem ops (path-utils, page-io, tree-builder, task-io)
   lib/markdown/              → MD↔HTML conversion
   lib/git/                   → Git service (auto-commit, history, diff)
   lib/agents/                → Adapter runtime, conversation runner, personas, providers
+  lib/agents/skills/         → Multi-origin skill loader, trust gating, sync (mount/symlink), discovery scan, lock file
   lib/jobs/                  → Job scheduler (node-cron)
 server/
   cabinet-daemon.ts          → Unified daemon: structured adapter runs, PTY sessions, scheduler, event bus
@@ -70,6 +73,7 @@ data/                        → Content directory (KB pages, tasks, jobs)
 12. **Linked repos** — `.repo.yaml` in a data dir links it to a Git repo (local path + remote URL). Agents use this to read/search source code in context. See `data/CLAUDE.md` for full spec.
 13. **Office documents** — `.docx`, `.xlsx`/`.xlsm`, `.pptx` render inline via dynamically-imported client viewers (docx-preview, SheetJS, pptx-preview). Read-only; "Download" + "Reveal" actions in the viewer header. Legacy binary formats (`.doc`, `.xls`, `.ppt`) keep the Fallback viewer.
 14. **Google Workspace pages** — a markdown page with a `google:` frontmatter key (`url`, optional `kind` / `embedUrl`) is rendered by `GoogleDocViewer` instead of the Tiptap editor. The iframe needs "Anyone with the link" or "Publish to Web" on Google's side. OAuth-based sync is not yet implemented.
+15. **Skills** — Anthropic-format skill bundles (`SKILL.md` + frontmatter + optional `references/`/`scripts/`/`assets/`). Resolved across four origins with precedence: cabinet-scoped (`data/<cabinet>/.agents/skills/`) > cabinet-root (`<repo>/.agents/skills/`) > linked-repo > system (`~/.claude/skills/`, `~/.agents/skills/`) > legacy-home (`~/.cabinet/skills/`). Personas reference skills by key in `skills:` (persistent attachment) and `recommendedSkills:` (template defaults shown as preselected toggles in the new-agent flow). Trust gating evaluates each skill at mount time using auto-detected trust level × verified-publisher × author `trust-policy:` frontmatter; operator decisions persist in `.cabinet/skills-trust.json`. Compose `@skill-name` to attach a skill run-only without persisting to the persona. Plan: `docs/SKILLS_PLAN.md`.
 
 ## AI Editing Behavior (CRITICAL)
 
@@ -82,7 +86,7 @@ When Cabinet starts an AI edit or task run:
 5. **Models should edit targeted files directly when useful** and reflect durable value in KB files, not only transcript text.
 6. **If content gets corrupted** — users can restore from Version History (clock icon → select commit → Restore)
 
-The AI panel supports `@` mentions — users type `@PageName` to attach other pages as context. The mentioned pages' content is fetched and appended to the prompt so Claude has full context.
+The AI panel supports `@` mentions — users type `@PageName` to attach pages as context, `@AgentName` to dispatch to another agent, or `@skill-name` to attach a skill for this run only (does NOT persist to the persona's `skills:` list). Mentioned pages' content is fetched and appended to the prompt; mentioned skills are merged with the persona's skills and trust-gated before mounting via `prepareSkillMount`.
 
 
 ## Commands
@@ -95,6 +99,7 @@ npm run dev:all      # Start both servers
 npm run debug:chrome # Launch Chrome with CDP on localhost:9222 for frontend debugging
 npm run build        # Production build
 npm run lint         # ESLint
+npm run skills:sync  # Verify skills-lock.json against on-disk skill bundles (drift report)
 ```
 
 ## Frontend Debugging

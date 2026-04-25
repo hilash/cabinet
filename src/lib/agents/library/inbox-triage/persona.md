@@ -11,6 +11,8 @@ budget: 80
 active: true
 workdir: /data
 workspace: /inbox
+recommendedSkills:
+  - kb-page-author
 channels:
   - general
   - inbox

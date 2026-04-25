@@ -204,6 +204,12 @@ export interface CreateConversationRequest extends ConversationRuntimeOverride {
   userMessage: string;
   mentionedPaths?: string[];
   /**
+   * Skill keys mentioned in the composer (`@skill-name`). Attached to this
+   * one-shot run only — they are NOT saved to the persona's `skills:` list.
+   * Per Decision §2 in docs/SKILLS_PLAN.md.
+   */
+  mentionedSkills?: string[];
+  /**
    * Virtual paths of files the user attached to the composer. During
    * kickoff these sit under `.agents/.conversations/_pending/{stagingClientUuid}/attachments/`;
    * the server moves them to the newly-created conversation's dir and

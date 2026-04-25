@@ -11,6 +11,8 @@ budget: 30
 active: true
 workdir: /data
 workspace: /legal
+recommendedSkills:
+  - kb-page-author
 ---
 
 # Legal Advisor Agent

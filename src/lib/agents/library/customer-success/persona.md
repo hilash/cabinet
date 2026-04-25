@@ -11,6 +11,8 @@ budget: 80
 active: true
 workdir: /data
 workspace: /customers
+recommendedSkills:
+  - kb-page-author
 ---
 
 # Customer Success Agent

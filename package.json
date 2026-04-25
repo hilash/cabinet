@@ -18,6 +18,7 @@
     "electron:package": "npm run build && npm run electron:prep && electron-forge package",
     "electron:make": "npm run build && npm run electron:prep && electron-forge make",
     "lint": "eslint src server electron scripts test eslint.config.mjs next.config.ts",
+    "skills:sync": "tsx scripts/skills-sync.ts",
     "test:unit": "tsx --test test/update-system.test.ts",
     "test": "tsx --test test/*.test.ts",
     "postinstall": "node scripts/postinstall.mjs"

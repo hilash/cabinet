@@ -6,6 +6,14 @@ import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
 interface ContinueBody {
   userMessage?: string;
   mentionedPaths?: string[];
+  /**
+   * Skill keys @-mentioned in the composer for this turn. Run-only — they
+   * are not persisted to the persona. NOTE: continuation re-uses the prior
+   * session's mounted skills directory; new mentions take effect for the
+   * next agent message but a live PTY session may not pick up newly-added
+   * skills until it respawns. See docs/SKILLS_PLAN.md.
+   */
+  mentionedSkills?: string[];
   attachmentPaths?: string[];
   cabinetPath?: string;
   providerId?: string;
@@ -54,6 +62,9 @@ export async function POST(
   const mentionedPaths = Array.isArray(body.mentionedPaths)
     ? body.mentionedPaths.filter((v): v is string => typeof v === "string")
     : [];
+  const mentionedSkills = Array.isArray(body.mentionedSkills)
+    ? body.mentionedSkills.filter((v): v is string => typeof v === "string")
+    : [];
   const attachmentPaths = Array.isArray(body.attachmentPaths)
     ? body.attachmentPaths.filter((v): v is string => typeof v === "string")
     : [];
@@ -84,6 +95,7 @@ export async function POST(
   void continueConversationRun(id, {
     userMessage,
     mentionedPaths,
+    mentionedSkills,
     attachmentPaths,
     cabinetPath: existing.cabinetPath ?? cabinetPath,
     providerId: runtime.providerId,

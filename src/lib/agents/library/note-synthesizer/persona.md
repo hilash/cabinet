@@ -11,6 +11,8 @@ budget: 100
 active: true
 workdir: /data
 workspace: /notes
+recommendedSkills:
+  - kb-page-author
 channels:
   - general
   - notes

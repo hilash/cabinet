@@ -4,10 +4,10 @@ import { useState, useRef, useCallback, useMemo } from "react";
 import type { UseComposerAttachmentsReturn } from "@/components/composer/use-composer-attachments";
 
 export interface MentionableItem {
-  type: "page" | "agent";
-  id: string; // path for pages, slug for agents
-  label: string; // title for pages, name for agents
-  sublabel: string; // path for pages, role for agents
+  type: "page" | "agent" | "skill";
+  id: string; // path for pages, slug for agents, key for skills
+  label: string; // title for pages, name for agents/skills
+  sublabel: string; // path for pages, role for agents, description for skills
   icon?: string; // emoji for agents
 }
 
@@ -15,6 +15,8 @@ export interface ComposerPayload {
   message: string;
   mentionedPaths: string[];
   mentionedAgents: string[];
+  /** Skill keys mentioned in the composer — attached to this run only (run-only by default per Decision §2). */
+  mentionedSkills: string[];
   attachmentPaths: string[];
   stagingClientUuid?: string;
 }
@@ -37,7 +39,7 @@ export interface UseComposerOptions {
 export interface UseComposerReturn {
   input: string;
   setInput: (value: string) => void;
-  mentions: { paths: string[]; agents: string[] };
+  mentions: { paths: string[]; agents: string[]; skills: string[] };
   showDropdown: boolean;
   filteredItems: MentionableItem[];
   dropdownIndex: number;
@@ -46,7 +48,7 @@ export interface UseComposerReturn {
   handleChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   insertMention: (item: MentionableItem) => void;
-  removeMention: (type: "page" | "agent", id: string) => void;
+  removeMention: (type: "page" | "agent" | "skill", id: string) => void;
   submit: (directMessage?: string) => Promise<void>;
   reset: () => void;
 }
@@ -64,6 +66,7 @@ export function useComposer({
   const [input, setInput] = useState("");
   const [mentionedPaths, setMentionedPaths] = useState<string[]>([]);
   const [mentionedAgents, setMentionedAgents] = useState<string[]>(initialAgentsRef.current);
+  const [mentionedSkills, setMentionedSkills] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -82,7 +85,7 @@ export function useComposer({
   }, [items, mentionQuery, showDropdown]);
 
   const findLabelForMention = useCallback(
-    (type: "page" | "agent", id: string): string => {
+    (type: "page" | "agent" | "skill", id: string): string => {
       const item = items.find((i) => i.type === type && i.id === id);
       return item?.label || id;
     },
@@ -107,6 +110,12 @@ export function useComposer({
           // Never auto-remove agents that were pre-selected as defaults
           if (initialAgentsRef.current.includes(slug)) return true;
           const label = findLabelForMention("agent", slug);
+          return value.includes(`@${label}`);
+        })
+      );
+      setMentionedSkills((current) =>
+        current.filter((key) => {
+          const label = findLabelForMention("skill", key);
           return value.includes(`@${label}`);
         })
       );
@@ -148,6 +157,10 @@ export function useComposer({
           setMentionedPaths((prev) =>
             prev.includes(item.id) ? prev : [...prev, item.id]
           );
+        } else if (item.type === "skill") {
+          setMentionedSkills((prev) =>
+            prev.includes(item.id) ? prev : [...prev, item.id]
+          );
         } else {
           setMentionedAgents((prev) =>
             prev.includes(item.id) ? prev : [...prev, item.id]
@@ -171,9 +184,11 @@ export function useComposer({
   );
 
   const removeMention = useCallback(
-    (type: "page" | "agent", id: string) => {
+    (type: "page" | "agent" | "skill", id: string) => {
       if (type === "page") {
         setMentionedPaths((prev) => prev.filter((p) => p !== id));
+      } else if (type === "skill") {
+        setMentionedSkills((prev) => prev.filter((k) => k !== id));
       } else {
         setMentionedAgents((prev) => prev.filter((a) => a !== id));
       }
@@ -185,6 +200,7 @@ export function useComposer({
     setInput("");
     setMentionedPaths([]);
     setMentionedAgents(initialAgentsRef.current);
+    setMentionedSkills([]);
     setShowDropdown(false);
     setMentionQuery("");
     setMentionIndex(0);
@@ -199,6 +215,7 @@ export function useComposer({
 
     const paths = [...mentionedPaths];
     const agents = [...mentionedAgents];
+    const skills = [...mentionedSkills];
     const attachmentPaths = attachments
       ? attachments.ready
           .map((a) => a.virtualPath)
@@ -217,22 +234,25 @@ export function useComposer({
         message: msg,
         mentionedPaths: paths,
         mentionedAgents: agents,
+        mentionedSkills: skills,
         attachmentPaths,
         stagingClientUuid: kickoffStagingUuid,
       });
       setInput("");
       setMentionedPaths([]);
       setMentionedAgents(initialAgentsRef.current);
+      setMentionedSkills([]);
       attachments?.clear();
     } catch {
       // Restore input on failure
       setInput(msg);
       setMentionedPaths(paths);
       setMentionedAgents(agents);
+      setMentionedSkills(skills);
     } finally {
       setSubmitting(false);
     }
-  }, [input, disabled, submitting, mentionedPaths, mentionedAgents, onSubmit, attachments, stagingClientUuid]);
+  }, [input, disabled, submitting, mentionedPaths, mentionedAgents, mentionedSkills, onSubmit, attachments, stagingClientUuid]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -295,7 +315,7 @@ export function useComposer({
   return {
     input,
     setInput,
-    mentions: { paths: mentionedPaths, agents: mentionedAgents },
+    mentions: { paths: mentionedPaths, agents: mentionedAgents, skills: mentionedSkills },
     showDropdown,
     filteredItems,
     dropdownIndex: mentionIndex,

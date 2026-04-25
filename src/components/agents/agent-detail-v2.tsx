@@ -1611,9 +1611,12 @@ function SkillsMultiSelect({
         </div>
       ) : catalog.length === 0 && selected.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2.5 text-[11px] text-muted-foreground">
-          No skills detected. Create a directory under{" "}
-          <code className="rounded bg-muted px-1 py-0.5">~/.cabinet/skills/</code> with a{" "}
-          <code className="rounded bg-muted px-1 py-0.5">SKILL.md</code> to see it here.
+          No skills detected.{" "}
+          <a href="/skills" className="underline hover:text-foreground">
+            Add one from the library
+          </a>{" "}
+          or drop a <code className="rounded bg-muted px-1 py-0.5">SKILL.md</code> into{" "}
+          <code className="rounded bg-muted px-1 py-0.5">.agents/skills/&lt;name&gt;/</code>.
         </div>
       ) : (
         <div className="flex flex-wrap gap-1.5">

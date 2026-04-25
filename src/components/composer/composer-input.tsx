@@ -136,6 +136,7 @@ export function ComposerInput({
   const hasChips =
     composer.mentions.paths.length > 0 ||
     composer.mentions.agents.length > 0 ||
+    composer.mentions.skills.length > 0 ||
     (attachments?.attachments.length ?? 0) > 0;
 
   return (
@@ -213,6 +214,7 @@ export function ComposerInput({
             <MentionChips
               mentionedPaths={composer.mentions.paths}
               mentionedAgents={composer.mentions.agents}
+              mentionedSkills={composer.mentions.skills}
               items={items}
               onRemove={composer.removeMention}
               inline

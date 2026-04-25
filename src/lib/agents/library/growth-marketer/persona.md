@@ -11,6 +11,8 @@ budget: 80
 active: true
 workdir: /data
 workspace: /marketing/growth
+recommendedSkills:
+  - kb-page-author
 ---
 
 # Growth Marketer Agent

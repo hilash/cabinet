@@ -88,6 +88,9 @@ export async function POST(req: NextRequest) {
     const mentionedPaths = Array.isArray(body.mentionedPaths)
       ? body.mentionedPaths.filter((value: unknown): value is string => typeof value === "string")
       : [];
+    const mentionedSkills = Array.isArray(body.mentionedSkills)
+      ? body.mentionedSkills.filter((value: unknown): value is string => typeof value === "string")
+      : [];
     const attachmentPaths = Array.isArray(body.attachmentPaths)
       ? body.attachmentPaths.filter(
           (value: unknown): value is string => typeof value === "string"
@@ -170,6 +173,7 @@ export async function POST(req: NextRequest) {
         "mentionedPaths" in conversationInput
           ? conversationInput.mentionedPaths
           : mentionedPaths,
+      mentionedSkills,
       attachmentPaths,
       stagingClientUuid,
       cwd: conversationInput.cwd,

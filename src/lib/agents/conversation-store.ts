@@ -1192,6 +1192,19 @@ export async function finalizeConversation(
     });
   }
 
+  // Skill mount cleanup: tmpdirs created by `syncSkillsToTmpdir` /
+  // `prepareSkillMount` for this session are removed when the conversation
+  // is finalized. Pre-finalize this was a slow leak under /tmp/cabinet-skills.
+  // Lazy-imported to avoid pulling skill loader code into the store at load.
+  try {
+    const { cleanupSkillsTmpdir } = await import(
+      "./adapters/_shared/skills-injection"
+    );
+    cleanupSkillsTmpdir(id);
+  } catch {
+    /* cleanup is best-effort */
+  }
+
   return meta;
 }
 

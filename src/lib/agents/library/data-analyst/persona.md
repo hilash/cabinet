@@ -11,6 +11,8 @@ budget: 80
 active: true
 workdir: /data
 workspace: /analytics
+recommendedSkills:
+  - kb-page-author
 ---
 
 # Data Analyst Agent

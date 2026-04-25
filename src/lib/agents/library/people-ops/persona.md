@@ -11,6 +11,8 @@ budget: 50
 active: true
 workdir: /data
 workspace: /people
+recommendedSkills:
+  - kb-page-author
 ---
 
 # People Ops Agent

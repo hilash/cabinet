@@ -11,6 +11,8 @@ import {
 import { agentAdapterRegistry } from "./adapters/registry";
 import type { AdapterExecutionContext } from "./adapters/types";
 import { syncSkillsToTmpdir } from "./adapters/_shared/skills-injection";
+import { buildSkillIndex, resolveDesiredSkills } from "./skills/loader";
+import { prepareSkillMount } from "./skills/sync";
 import { supportsTerminalResume } from "./adapters/legacy-ids";
 import {
   appendAgentTurn,
@@ -60,6 +62,12 @@ interface StartConversationInput {
   adapterType?: string;
   adapterConfig?: Record<string, unknown>;
   mentionedPaths?: string[];
+  /**
+   * Skill keys mentioned in the composer (`@skill-name`). Run-only — merged
+   * with the persona's `skills:` for this run, NOT persisted to the persona.
+   * Per Decision §2 in docs/SKILLS_PLAN.md.
+   */
+  mentionedSkills?: string[];
   /**
    * Virtual paths of composer attachments. When `stagingClientUuid` is
    * also set, these are kickoff-staging paths that get moved into the
@@ -341,10 +349,14 @@ export async function buildManualConversationPrompt(input: {
       ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
       : baseCwd;
 
+  const skillBundles = await resolveDesiredSkills(persona?.skills, input.cabinetPath);
+  const skillIndex = buildSkillIndex(skillBundles);
+
   const prompt = [
     buildCabinetRequirementHeader(),
     "",
     buildAgentContextHeader(persona, input.agentSlug),
+    ...(skillIndex ? ["", skillIndex] : []),
     "",
     ...buildKnowledgeBaseScopeInstructions(baseCwd, input.cabinetPath),
     "Reflect useful outputs in KB files, not only in terminal text.",
@@ -411,10 +423,14 @@ export async function buildEditorConversationPrompt(input: {
       ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
       : baseCwd;
 
+  const skillBundles = await resolveDesiredSkills(persona?.skills, input.cabinetPath);
+  const skillIndex = buildSkillIndex(skillBundles);
+
   const prompt = [
     buildCabinetRequirementHeader(),
     "",
     buildAgentContextHeader(persona, "editor"),
+    ...(skillIndex ? ["", skillIndex] : []),
     "",
     `You are editing the page at /data/${input.pagePath}.`,
     `Prefer making the requested changes directly in ${input.pagePath} unless the task clearly belongs in another KB file.`,
@@ -472,11 +488,13 @@ export async function startConversationRun(
   const skillsPersona = input.agentSlug
     ? await readPersona(input.agentSlug, input.cabinetPath)
     : null;
+  // Merge persona's persisted skills with any composer @-mentioned skills
+  // (run-only). Dedup preserves order: persona skills first, then mentions.
   // We defer the actual symlink materialization until we know the meta.id.
-  // For now, capture the slug list we'll attach.
-  const requestedSkillSlugs = skillsPersona?.skills?.length
-    ? skillsPersona.skills
-    : null;
+  const personaSkills = skillsPersona?.skills ?? [];
+  const runOnlySkills = input.mentionedSkills ?? [];
+  const mergedSkills = Array.from(new Set([...personaSkills, ...runOnlySkills]));
+  const requestedSkillSlugs = mergedSkills.length > 0 ? mergedSkills : null;
   const baseAdapterConfig: Record<string, unknown> | undefined = requestedSkillSlugs
     ? { ...(input.adapterConfig || {}), skills: requestedSkillSlugs }
     : input.adapterConfig;
@@ -554,14 +572,43 @@ export async function startConversationRun(
     }
   }
 
-  const skillsSync = requestedSkillSlugs
-    ? syncSkillsToTmpdir(meta.id, requestedSkillSlugs)
+  // Trust-gated mount: prepareSkillMount evaluates each desired skill against
+  // its declared trust-policy + the cabinet's prior decisions, only mounts
+  // skills that resolve to "allow", and surfaces "needs-prompt"/"blocked"
+  // entries on the mount snapshot so a UI hook can prompt the operator.
+  // Falls back to the legacy slug-only mount when prepareSkillMount returns
+  // nothing (e.g. on first run before trust file exists) — preserves the
+  // original behavior so this is a safe-by-default upgrade.
+  const skillMount = requestedSkillSlugs
+    ? await prepareSkillMount({
+        sessionId: meta.id,
+        desiredKeys: requestedSkillSlugs,
+        cabinetPath: input.cabinetPath ?? null,
+      })
     : null;
-  const spawnAdapterConfig: Record<string, unknown> | undefined = skillsSync
+  const legacyFallback =
+    !skillMount && requestedSkillSlugs
+      ? syncSkillsToTmpdir(meta.id, requestedSkillSlugs)
+      : null;
+  const spawnAdapterConfig: Record<string, unknown> | undefined = skillMount
     ? {
         ...(baseAdapterConfig || {}),
-        skillsDir: skillsSync.dir,
-        skills: skillsSync.resolved.map((entry) => entry.slug),
+        skillsDir: skillMount.dir,
+        skills: skillMount.mounted.map((entry) => entry.key),
+        skillsNeedsPrompt: skillMount.needsPrompt.map((e) => ({
+          key: e.skill.key,
+          reason: e.reason,
+        })),
+        skillsBlocked: skillMount.blocked.map((e) => ({
+          key: e.skill.key,
+          reason: e.reason,
+        })),
+      }
+    : legacyFallback
+    ? {
+        ...(baseAdapterConfig || {}),
+        skillsDir: legacyFallback.dir,
+        skills: legacyFallback.resolved.map((entry) => entry.slug),
       }
     : baseAdapterConfig;
 
@@ -931,6 +978,15 @@ export async function startJobConversation(
 export interface ContinueConversationInput {
   userMessage: string;
   mentionedPaths?: string[];
+  /**
+   * Skill keys mentioned in the composer for this turn. Run-only — not
+   * persisted to the persona. Currently passed through to the user-turn
+   * record for transcript display; live PTY sessions can't dynamically
+   * add `--add-dir` mounts mid-conversation, so newly-mentioned skills
+   * effectively only inform the model via the prompt context for this
+   * turn. See docs/SKILLS_PLAN.md for the full caveat.
+   */
+  mentionedSkills?: string[];
   /**
    * Virtual paths of composer attachments for this follow-up turn.
    * Uploaded directly to `{conversationId}/attachments/` (no staging,

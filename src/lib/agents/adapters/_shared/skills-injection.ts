@@ -1,21 +1,22 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
+import { listSkills, readSkill } from "@/lib/agents/skills/loader";
+import type { SkillEntry } from "@/lib/agents/skills/types";
 
 /**
- * Cabinet's skill catalog lives at `~/.cabinet/skills/<slug>/`. Each skill is
- * a directory containing a `SKILL.md` (free-form instructions the CLI reads
- * into its context) plus any scripts or reference files the skill needs.
+ * Cabinet's skill catalog spans multiple origins (cabinet-scoped, cabinet-root,
+ * system, linked-repo, legacy-home). See `src/lib/agents/skills/loader.ts` for
+ * the full model and `docs/SKILLS_PLAN.md` for design rationale.
  *
- * Per-run, the daemon symlinks each agent's selected skills into a managed
- * tmpdir and passes that dir to the adapter. Adapters that support a skills
- * contract (Claude's `--add-dir`, Cursor's equivalent, etc.) read the tmpdir
- * out of `adapterConfig.skillsDir` and pass it through; adapters that don't
- * know about skills leave the directory unreferenced and the contents are
- * invisible to the CLI — harmless no-op.
- *
- * Shape of `AdapterSkillSnapshot` (declared in `../types.ts`):
- *   { available: Array<{ slug, name, description?, path }>, selected: string[] }
+ * This module is the runtime-mount layer: per-run, the daemon symlinks each
+ * agent's selected skills into a managed tmpdir and passes that dir to the
+ * adapter. Adapters that support a skills contract (Claude's `--add-dir`,
+ * Cursor's equivalent, etc.) read the tmpdir out of `adapterConfig.skillsDir`
+ * and pass it through; adapters that don't know about skills leave the
+ * directory unreferenced and the contents are invisible to the CLI —
+ * harmless no-op.
  */
 
 export interface SkillCatalogEntry {
@@ -25,62 +26,119 @@ export interface SkillCatalogEntry {
   path: string;
 }
 
-function resolveCatalogRoot(): string {
-  const home = process.env.HOME || os.homedir() || "/tmp";
-  return path.join(home, ".cabinet", "skills");
+function homeDir(): string {
+  return process.env.HOME || os.homedir() || "/tmp";
 }
 
-function firstSectionLine(markdown: string): string | null {
-  for (const raw of markdown.split("\n")) {
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
-    if (trimmed.startsWith("#")) {
-      return trimmed.replace(/^#+\s*/, "").trim() || null;
-    }
-    if (trimmed.startsWith("---")) continue;
-    return trimmed.slice(0, 200);
+interface SyncOriginConfig {
+  dir: string;
+  origin: SkillEntry["origin"];
+}
+
+function syncCatalogOrigins(): SyncOriginConfig[] {
+  const home = homeDir();
+  return [
+    { dir: path.join(PROJECT_ROOT, ".agents", "skills"), origin: "cabinet-root" },
+    { dir: path.join(home, ".claude", "skills"), origin: "system" },
+    { dir: path.join(home, ".agents", "skills"), origin: "system" },
+    { dir: path.join(home, ".cabinet", "skills"), origin: "legacy-home" },
+  ];
+}
+
+function readSkillNameAndDescription(skillDir: string): { name: string; description?: string } {
+  const slug = path.basename(skillDir);
+  const skillMd = path.join(skillDir, "SKILL.md");
+  let name = slug;
+  let description: string | undefined;
+  let md: string;
+  try {
+    md = fs.readFileSync(skillMd, "utf-8");
+  } catch {
+    return { name };
   }
-  return null;
+  // Cheap frontmatter-aware parse: grab `name:` and `description:` if present.
+  let nameFromFrontmatter = false;
+  let body = md;
+  if (md.startsWith("---")) {
+    const closing = md.indexOf("\n---", 3);
+    if (closing !== -1) {
+      const front = md.slice(3, closing);
+      body = md.slice(closing + 4);
+      const nameMatch = front.match(/^name:\s*(.+)$/m);
+      const descMatch = front.match(/^description:\s*([\s\S]+?)(?:\n[a-zA-Z_-]+:|$)/m);
+      if (nameMatch) {
+        name = nameMatch[1].trim();
+        nameFromFrontmatter = true;
+      }
+      if (descMatch) description = descMatch[1].trim().replace(/\n\s+/g, " ").slice(0, 300);
+    }
+  }
+  // Fallback: pull name from the first H1 if frontmatter didn't supply one.
+  if (!nameFromFrontmatter) {
+    for (const raw of body.split("\n")) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith("#")) {
+        const heading = line.replace(/^#+\s*/, "").trim();
+        if (heading) name = heading;
+        break;
+      }
+      break; // first non-blank wasn't a heading; keep slug
+    }
+  }
+  if (!description) {
+    for (const raw of body.split("\n")) {
+      const line = raw.trim();
+      if (!line || line.startsWith("#")) continue;
+      description = line.slice(0, 300);
+      break;
+    }
+  }
+  return { name, description };
 }
 
 /**
- * Scan `~/.cabinet/skills/` and return every skill directory as a catalog
- * entry. Each entry's `name` falls back to the slug if no heading is found.
- * Silently returns `[]` when the catalog doesn't exist yet (first-run case).
+ * Synchronous catalog walk across host origins (cabinet-root, system, legacy).
+ * Cabinet-scoped origins require a `cabinetPath` and an async loader call;
+ * use `readSkillCatalogRich` when scope is needed.
+ *
+ * Higher-precedence origins win on key collision: cabinet-root > system > legacy-home.
  */
 export function readSkillCatalog(): SkillCatalogEntry[] {
-  const root = resolveCatalogRoot();
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(root, { withFileTypes: true });
-  } catch {
-    return [];
+  const collected: SkillCatalogEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const { dir } of syncCatalogOrigins()) {
+    let dirents: fs.Dirent[];
+    try {
+      dirents = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const dirent of dirents) {
+      if (!dirent.isDirectory() && !dirent.isSymbolicLink()) continue;
+      if (dirent.name.startsWith(".")) continue;
+      if (seen.has(dirent.name)) continue;
+      seen.add(dirent.name);
+      const skillDir = path.join(dir, dirent.name);
+      const { name, description } = readSkillNameAndDescription(skillDir);
+      collected.push({ slug: dirent.name, name, description, path: skillDir });
+    }
   }
 
-  const catalog: SkillCatalogEntry[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-    const dir = path.join(root, entry.name);
-    const skillMdPath = path.join(dir, "SKILL.md");
-    let name = entry.name;
-    let description: string | undefined;
-    try {
-      const md = fs.readFileSync(skillMdPath, "utf-8");
-      const heading = firstSectionLine(md);
-      if (heading) name = heading;
-      // Very small description guess: first non-heading line in the body.
-      const lines = md.split("\n").map((line) => line.trim());
-      const descIdx = lines.findIndex(
-        (line, i) => i > 0 && line && !line.startsWith("#") && !line.startsWith("---")
-      );
-      if (descIdx !== -1) description = lines[descIdx].slice(0, 300);
-    } catch {
-      // No SKILL.md — slug is the name.
-    }
-    catalog.push({ slug: entry.name, name, description, path: dir });
-  }
-  catalog.sort((a, b) => a.slug.localeCompare(b.slug));
-  return catalog;
+  collected.sort((a, b) => a.slug.localeCompare(b.slug));
+  return collected;
+}
+
+/**
+ * Async variant — preferred for UI/API code. Returns the full SkillEntry
+ * shape (origin, trust level, file inventory, allowed-tools, etc.) so
+ * surfaces can render proper provenance and security signals.
+ */
+export async function readSkillCatalogRich(opts: {
+  cabinetPath?: string;
+} = {}): Promise<SkillEntry[]> {
+  return listSkills({ cabinetPath: opts.cabinetPath });
 }
 
 function safeMkdir(dir: string): void {
@@ -92,16 +150,16 @@ function safeMkdir(dir: string): void {
  * the agent's selected skill directories. Returns the tmpdir path so the
  * adapter can point the CLI at it (e.g. Claude `--add-dir <dir>`).
  *
- * If the selection is empty or the catalog is empty, returns `null` — the
+ * If the selection is empty or no skills resolve, returns `null` — the
  * caller should skip wiring `skillsDir` into adapterConfig entirely in that
  * case so the CLI spawn isn't polluted with a no-op flag.
  *
- * Idempotent: calling twice for the same sessionId reuses the same dir
- * but re-materializes the symlinks to reflect the latest selection.
+ * Idempotent: calling twice for the same sessionId reuses the same dir but
+ * re-materializes the symlinks to reflect the latest selection.
  */
 export function syncSkillsToTmpdir(
   sessionId: string,
-  desiredSlugs: string[]
+  desiredSlugs: string[],
 ): { dir: string; resolved: SkillCatalogEntry[] } | null {
   if (!Array.isArray(desiredSlugs) || desiredSlugs.length === 0) return null;
   const catalog = readSkillCatalog();
@@ -119,11 +177,9 @@ export function syncSkillsToTmpdir(
   safeMkdir(base);
   const dir = path.join(base, sessionId);
   try {
-    // Clean any stale contents from a previous turn so selection changes
-    // take effect instead of accumulating.
     fs.rmSync(dir, { recursive: true, force: true });
   } catch {
-    // fine
+    /* fine */
   }
   safeMkdir(dir);
 
@@ -132,9 +188,6 @@ export function syncSkillsToTmpdir(
     try {
       fs.symlinkSync(entry.path, linkPath, "dir");
     } catch (err) {
-      // Symlink creation can fail on Windows without admin or if the name
-      // already exists. Fall back to a shallow copy so the skill is still
-      // reachable, even if it won't reflect live edits.
       if ((err as NodeJS.ErrnoException)?.code !== "EEXIST") {
         try {
           fs.cpSync(entry.path, linkPath, { recursive: true });
@@ -158,6 +211,10 @@ export function cleanupSkillsTmpdir(sessionId: string): void {
   try {
     fs.rmSync(dir, { recursive: true, force: true });
   } catch {
-    // already gone
+    /* already gone */
   }
 }
+
+// Async loader is canonical for new code; legacy sync facades stay for
+// back-compat with existing callers (e.g. the conversation runner).
+export { readSkill };

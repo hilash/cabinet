@@ -105,10 +105,11 @@ Clicking an agent opens a **detail view with a vertical sidebar** for navigation
 - Persona instructions rendered as readable text
 
 #### Section: Skills
-- List of skills available to this agent
-- Each skill: name, description, type (tool/capability)
-- Skills are MD files in the agent's `/skills/` directory
-- [+ Add Skill] opens a picker (global skill library + custom)
+- List of skills attached to this agent (its persona's `skills:` field)
+- Each skill: name, description, origin badge, trust level
+- Skills are **shared** Anthropic-format SKILL.md bundles — agents reference them by key, they aren't per-agent files. Library lives in cabinet-root or cabinet-scoped `.agents/skills/` (see "Skill SKILL.md Format" below for the schema and `docs/SKILLS_PLAN.md` for the full origin model).
+- The agent detail Skills section is multi-select; toggling persists to the persona's `skills:` array via PUT `/api/agents/personas/<slug>`.
+- New agents created from a library template auto-promote `recommendedSkills` → `skills` so they have a "good first run" without manual setup.
 
 #### Section: Jobs
 - List of the agent's recurring jobs
@@ -290,20 +291,47 @@ on_complete:
 Search subreddits for posts relevant to {{company_description}}...
 ```
 
-### Skill .md Format
+### Skill SKILL.md Format
+
+Cabinet adopts the Anthropic-compatible skill format used by Claude Code, Codex CLI, and Gemini CLI. Skills live as directories with `SKILL.md` + optional `references/`, `assets/`, `scripts/` subdirs.
 
 ```markdown
 ---
-name: Web Search
-slug: web-search
-description: Search the web for information
-type: tool
+name: web-search                      # kebab-case key, must match dir name
+description: >                        # ROUTING logic, not marketing copy
+  Use when the agent needs to search the web for current information.
+  Don't use for queries answerable from the KB or attached files.
+allowed-tools: Bash(curl *)           # optional, comma-separated
+trust-policy: prompt-once             # optional, Cabinet-specific:
+                                      # auto-allow | prompt-once | always-prompt | refuse
 ---
 
 # Web Search
 
-This skill allows the agent to search the web using the built-in search capability.
+Detailed instructions the agent reads when this skill is expanded…
 ```
+
+**Origins** (resolution precedence — first match wins on key collision):
+1. **Cabinet (scoped)** — `data/<cabinet>/.agents/skills/<key>/`
+2. **Cabinet (root)** — `<repo>/.agents/skills/<key>/`
+3. **Linked repo** — `<linked>/.agents/skills/<key>/` (read-only, via `.repo.yaml`)
+4. **System** — `~/.claude/skills/<key>/` and `~/.agents/skills/<key>/` (host-managed; Claude Code already loads these)
+5. **Legacy** — `~/.cabinet/skills/<key>/` (back-compat single-origin location)
+
+**Trust gating** runs at mount time: bundle's auto-detected `trustLevel` (`markdown_only` | `assets` | `scripts_executables`) × verified-publisher signal × author `trust-policy` frontmatter. Operator approve/revoke decisions persist in `.cabinet/skills-trust.json`.
+
+**Persona attachment** — agent persona frontmatter:
+```yaml
+skills:
+  - web-search          # active attachments
+  - shadcn
+recommendedSkills:      # template defaults, auto-promoted to skills on agent creation
+  - kb-page-author
+```
+
+**Composer `@`-mention** — typing `@skill-name` attaches the skill to the run **only**, not the persona. Use the agent detail Skills section for persistent attachment.
+
+See `docs/SKILLS_PLAN.md` for the full design and `docs/CLAUDE.md` Rule 15 for runtime semantics.
 
 ---
 

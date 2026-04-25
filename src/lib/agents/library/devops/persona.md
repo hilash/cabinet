@@ -11,6 +11,9 @@ budget: 80
 active: true
 workdir: /data
 workspace: /engineering/devops
+recommendedSkills:
+  - git-commit-hygiene
+  - kb-page-author
 ---
 
 # DevOps Engineer Agent

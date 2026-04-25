@@ -11,6 +11,8 @@ budget: 80
 active: true
 workdir: /data
 workspace: /marketing/copy
+recommendedSkills:
+  - kb-page-author
 ---
 
 # Copywriter Agent

@@ -28,10 +28,15 @@ function createSkill(home: string, slug: string, content: string): string {
   return dir;
 }
 
-test("readSkillCatalog returns empty when the catalog doesn't exist", () => {
-  withTempHome(() => {
+test("readSkillCatalog returns nothing from a fresh legacy home", () => {
+  withTempHome((home) => {
     const catalog = readSkillCatalog();
-    assert.deepEqual(catalog, []);
+    // The catalog now spans multiple origins (cabinet-root, system, legacy-home).
+    // We can only assert the empty-tmp-HOME contribution: nothing from this
+    // home dir should appear. Other origins (e.g. the repo's `.agents/skills/`)
+    // may legitimately contribute skills.
+    const fromLegacyHome = catalog.filter((e) => e.path.startsWith(home));
+    assert.deepEqual(fromLegacyHome, []);
   });
 });
 
@@ -40,11 +45,13 @@ test("readSkillCatalog reads heading + description from SKILL.md", () => {
     createSkill(home, "code-review", "# Code Review\n\nReview a PR for regressions.\n");
     createSkill(home, "no-md", ""); // slug-named fallback
     const catalog = readSkillCatalog();
-    assert.equal(catalog.length, 2);
     const byReview = catalog.find((e) => e.slug === "code-review");
-    assert.ok(byReview);
+    assert.ok(byReview, "code-review should be present in the catalog");
     assert.equal(byReview.name, "Code Review");
     assert.equal(byReview.description, "Review a PR for regressions.");
+    const byNoMd = catalog.find((e) => e.slug === "no-md");
+    assert.ok(byNoMd, "no-md should be present in the catalog (slug fallback)");
+    assert.equal(byNoMd.name, "no-md");
   });
 });
 

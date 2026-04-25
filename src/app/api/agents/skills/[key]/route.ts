@@ -1,0 +1,72 @@
+import { NextResponse } from "next/server";
+import fs from "fs/promises";
+import path from "path";
+import matter from "gray-matter";
+import { readSkill } from "@/lib/agents/skills/loader";
+
+interface RouteContext {
+  params: Promise<{ key: string }>;
+}
+
+export async function GET(request: Request, context: RouteContext): Promise<NextResponse> {
+  const { key } = await context.params;
+  const url = new URL(request.url);
+  const cabinetPath = url.searchParams.get("cabinet") || undefined;
+  const bundle = await readSkill(key, { cabinetPath });
+  if (!bundle) {
+    return NextResponse.json({ error: "skill not found" }, { status: 404 });
+  }
+  return NextResponse.json({ skill: bundle });
+}
+
+export async function PATCH(request: Request, context: RouteContext): Promise<NextResponse> {
+  const { key } = await context.params;
+  const url = new URL(request.url);
+  const cabinetPath = url.searchParams.get("cabinet") || undefined;
+  const bundle = await readSkill(key, { cabinetPath });
+  if (!bundle) {
+    return NextResponse.json({ error: "skill not found" }, { status: 404 });
+  }
+  if (!bundle.editable) {
+    return NextResponse.json(
+      { error: `skill is read-only (origin: ${bundle.origin})` },
+      { status: 403 },
+    );
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    body?: string;
+    frontmatter?: Record<string, unknown>;
+  };
+
+  const skillMdPath = path.join(bundle.path, "SKILL.md");
+  const existingRaw = await fs.readFile(skillMdPath, "utf-8").catch(() => "");
+  const existing = matter(existingRaw);
+  const nextData = body.frontmatter
+    ? { ...existing.data, ...body.frontmatter }
+    : existing.data;
+  const nextBody = body.body ?? existing.content;
+  const written = matter.stringify(nextBody, nextData);
+  await fs.writeFile(skillMdPath, written, "utf-8");
+
+  const updated = await readSkill(key, { cabinetPath });
+  return NextResponse.json({ skill: updated });
+}
+
+export async function DELETE(request: Request, context: RouteContext): Promise<NextResponse> {
+  const { key } = await context.params;
+  const url = new URL(request.url);
+  const cabinetPath = url.searchParams.get("cabinet") || undefined;
+  const bundle = await readSkill(key, { cabinetPath });
+  if (!bundle) {
+    return NextResponse.json({ error: "skill not found" }, { status: 404 });
+  }
+  if (!bundle.editable) {
+    return NextResponse.json(
+      { error: `skill is read-only (origin: ${bundle.origin}) — cannot delete from this surface` },
+      { status: 403 },
+    );
+  }
+  await fs.rm(bundle.path, { recursive: true, force: true });
+  return NextResponse.json({ ok: true });
+}

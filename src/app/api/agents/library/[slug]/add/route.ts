@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
+import matter from "gray-matter";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
@@ -50,7 +51,17 @@ export async function POST(
 
     await ensureAgentScaffold(targetDir);
 
-    return NextResponse.json({ ok: true, slug, cabinetPath }, { status: 201 });
+    // Promote `recommendedSkills` into active `skills` for fresh agents (C8).
+    // The library template's `recommendedSkills:` are sensible defaults per
+    // role; activating them on creation gives a "good first run" without
+    // making the user open the Skills section to find what to attach. The
+    // user can always deselect from the agent detail Skills section.
+    const promoted = await promoteRecommendedSkills(path.join(targetDir, "persona.md"));
+
+    return NextResponse.json(
+      { ok: true, slug, cabinetPath, promotedSkills: promoted },
+      { status: 201 },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -70,5 +81,32 @@ async function copyDir(src: string, dest: string): Promise<void> {
     } else {
       await fs.copyFile(srcPath, destPath);
     }
+  }
+}
+
+/**
+ * Read the freshly-copied persona.md, and if it has `recommendedSkills` and
+ * `skills` is empty, write `skills = recommendedSkills` back. Returns the
+ * promoted slugs (or [] if nothing changed). Best-effort: failures don't
+ * block agent creation.
+ */
+async function promoteRecommendedSkills(personaPath: string): Promise<string[]> {
+  try {
+    const raw = await fs.readFile(personaPath, "utf-8");
+    const parsed = matter(raw);
+    const recommended = parsed.data.recommendedSkills;
+    if (!Array.isArray(recommended) || recommended.length === 0) return [];
+    const existing = parsed.data.skills;
+    if (Array.isArray(existing) && existing.length > 0) return [];
+    const cleanRecommended = recommended.filter(
+      (v): v is string => typeof v === "string" && v.trim().length > 0,
+    );
+    if (cleanRecommended.length === 0) return [];
+    const nextData = { ...parsed.data, skills: cleanRecommended };
+    const nextMd = matter.stringify(parsed.content, nextData);
+    await fs.writeFile(personaPath, nextMd, "utf-8");
+    return cleanRecommended;
+  } catch {
+    return [];
   }
 }

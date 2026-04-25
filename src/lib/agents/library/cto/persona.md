@@ -11,6 +11,9 @@ budget: 100
 active: true
 workdir: /data
 workspace: /engineering
+recommendedSkills:
+  - git-commit-hygiene
+  - shadcn
 ---
 
 # CTO Agent

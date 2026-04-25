@@ -11,6 +11,8 @@ budget: 100
 active: true
 workdir: /data
 workspace: /operations
+recommendedSkills:
+  - kb-page-author
 ---
 
 # COO Agent
