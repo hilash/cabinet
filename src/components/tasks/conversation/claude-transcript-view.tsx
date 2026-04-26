@@ -20,6 +20,36 @@ interface ClaudeTranscriptTurn {
   toolUses?: Array<{ id?: string; name: string; input?: unknown }>;
 }
 
+// Audit #059 + #060: clean up two recurring transcript pathologies
+// at render time so existing JSONLs (we don't rewrite Claude's own log)
+// still display correctly.
+//   - Sub-agent status events sometimes arrive concatenated without line
+//     breaks (e.g. "Agent 4 (foo) completed.Agent 1 (bar) done.").
+//     Insert a newline before each "Agent <n> (" boundary.
+//   - Shell init noise like "running .zshenv 🌸" leaks in when the
+//     spawned CLI shells out and the user's ~/.zshenv echoes. The PTY
+//     env now suppresses the source (ZDOTDIR=/dev/null), but transcripts
+//     captured before that fix still carry the line — strip it from the
+//     top of any message text we render.
+const SHELL_INIT_NOISE_PATTERNS = [
+  /^running\s+\.zshenv[^\n]*\n+/i,
+  /^running\s+\.zshrc[^\n]*\n+/i,
+  /^running\s+\.bashrc[^\n]*\n+/i,
+];
+
+export function normalizeAgentText(text: string): string {
+  if (!text) return text;
+  let out = text;
+  for (const pattern of SHELL_INIT_NOISE_PATTERNS) {
+    out = out.replace(pattern, "");
+  }
+  // Heuristic boundary insert: before any "Agent <number> (" that follows
+  // a non-whitespace character, drop a newline. Limited to digits to
+  // avoid colliding with prose mentions of "Agent N (" in regular copy.
+  out = out.replace(/(\S)(?=Agent \d+ \()/g, "$1\n");
+  return out;
+}
+
 interface ClaudeTranscriptResponse {
   sessionId: string | null;
   jsonlPath: string | null;
@@ -159,7 +189,7 @@ function TurnCard({ turn }: { turn: ClaudeTranscriptTurn }) {
       </header>
       {turn.text ? (
         <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-foreground [overflow-wrap:anywhere]">
-          {turn.text}
+          {normalizeAgentText(turn.text)}
         </p>
       ) : null}
       {turn.toolUses?.length ? (

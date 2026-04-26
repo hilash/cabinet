@@ -3,7 +3,9 @@ import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import {
+  GLOBAL_AGENTS_DIR,
   listPersonas,
+  readPersona,
   writePersona,
 } from "@/lib/agents/persona-manager";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
@@ -61,9 +63,15 @@ export async function POST(req: NextRequest) {
     ...personaData,
   }, cabinetPath);
 
-  const agentDir = cabinetPath
-    ? path.join(DATA_DIR, cabinetPath, ".agents", slug)
-    : path.join(DATA_DIR, ".agents", slug);
+  // Globals scaffold under data/.global-agents/<slug>/, not under any cabinet.
+  // Re-read the persona so we know where writePersona actually landed it.
+  const written = await readPersona(slug, cabinetPath);
+  const agentDir =
+    written?.scope === "global"
+      ? path.join(GLOBAL_AGENTS_DIR, slug)
+      : cabinetPath
+        ? path.join(DATA_DIR, cabinetPath, ".agents", slug)
+        : path.join(DATA_DIR, ".agents", slug);
   await ensureAgentScaffold(agentDir);
 
   await reloadDaemonSchedules().catch(() => {});

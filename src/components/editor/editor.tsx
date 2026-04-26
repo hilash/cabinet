@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { Sparkles, Code2, Loader2 } from "lucide-react";
+import { Sparkles, Code2, Loader2, FilePlus } from "lucide-react";
 import { editorExtensions } from "./extensions";
 import { EditorToolbar } from "./editor-toolbar";
 import { SlashCommands } from "./slash-commands";
@@ -110,7 +110,7 @@ function resolveInternalLink(
 }
 
 export function KBEditor() {
-  const { currentPath, content, saveStatus, frontmatter, isLoading } = useEditorStore();
+  const { currentPath, content, saveStatus, frontmatter, isLoading, loadStatus, createMissingPage } = useEditorStore();
   const isRtl = frontmatter?.dir === "rtl";
   const { open: openAI, clearMessages } = useAIPanelStore();
   const isLoadingRef = useRef(false);
@@ -335,6 +335,35 @@ export function KBEditor() {
           <p className="text-sm text-muted-foreground/70">
             Select a page from the sidebar or create a new one
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Path resolved to a folder (or otherwise-missing target) without an
+  // index.md. Render an explicit placeholder + Create CTA instead of
+  // dropping the user into an empty editor that pretends to be the page.
+  if (loadStatus === "missing") {
+    const slug = currentPath.split("/").pop() || currentPath;
+    const inferredTitle = slug
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        <div className="max-w-md text-center space-y-4 px-6">
+          <p className="text-lg font-medium tracking-[-0.02em] text-foreground">
+            This folder doesn&apos;t have an <code className="px-1 py-0.5 rounded bg-muted text-[12px]">index.md</code>
+          </p>
+          <p className="text-sm text-muted-foreground/80">
+            <code className="px-1 py-0.5 rounded bg-muted text-[12px]">{currentPath}</code> exists, but there&apos;s no page to show. Create one to start writing — sub-pages will be listed automatically.
+          </p>
+          <button
+            onClick={() => void createMissingPage(inferredTitle)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[13px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <FilePlus className="h-3.5 w-3.5" />
+            Create page
+          </button>
         </div>
       </div>
     );

@@ -151,6 +151,16 @@ export function createPtyManager(deps: PtyManagerDeps): PtyManager {
         COLORTERM: "truecolor",
         FORCE_COLOR: "3",
         LANG: "en_US.UTF-8",
+        // Audit #060/#125: agent CLIs occasionally spawn sub-shells (zsh,
+        // bash) for git/node operations. If the user has echoes in their
+        // ~/.zshenv (or BASH_ENV-sourced files), the noise lands in the
+        // PTY stream and shows up as the first agent message. Pointing
+        // ZDOTDIR at /dev/null makes zsh skip .zshenv/.zshrc/.zlogin;
+        // clearing BASH_ENV prevents non-interactive bash from sourcing
+        // anything analogous. Neither affects the agent CLI itself —
+        // these only matter if the CLI shells out.
+        ZDOTDIR: "/dev/null",
+        BASH_ENV: "",
       },
     });
 

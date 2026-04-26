@@ -409,9 +409,11 @@ export async function buildEditorConversationPrompt(input: {
   adapterConfig?: Record<string, unknown>;
   providerId: string;
 }> {
+  // readPersona walks: cabinet-local → global tier → any cabinet (slug-unique).
+  // Library template is the final fallback for fresh installs that haven't
+  // bootstrapped the global yet (instrumentation hook hasn't fired).
   const persona =
     (await readPersona("editor", input.cabinetPath)) ||
-    (await readPersona("editor")) ||
     (await readLibraryPersona("editor", input.cabinetPath));
   const combinedMentionedPaths = Array.from(
     new Set([input.pagePath, ...(input.mentionedPaths || [])])

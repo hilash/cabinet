@@ -1,12 +1,14 @@
 import path from "path";
+import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { fileExists, readFileContent } from "@/lib/storage/fs-operations";
+import { ensureDirectory, fileExists, readFileContent } from "@/lib/storage/fs-operations";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import { getDefaultProviderId } from "./provider-runtime";
 import { resolveEnabledProviderId } from "./provider-settings";
-import type { AgentPersona } from "./persona-manager";
+import { GLOBAL_AGENTS_DIR, type AgentPersona } from "./persona-manager";
+import { ensureAgentScaffold } from "./scaffold";
 
 export const SEEDED_AGENT_LIBRARY_DIR = path.join(DATA_DIR, ".agents", ".library");
 export const SOURCE_AGENT_LIBRARY_DIR = path.join(
@@ -16,6 +18,14 @@ export const SOURCE_AGENT_LIBRARY_DIR = path.join(
   "agents",
   "library"
 );
+
+/**
+ * Slugs that ship as shared, cabinet-spanning identities. The editor is the
+ * canonical generalist — without it as a global, the LLM roster in any
+ * cabinet that didn't explicitly install the editor will fall back to
+ * "writing-coach (best specialist fit)" and similar misroutes.
+ */
+const GLOBAL_AGENT_SLUGS = ["editor"] as const;
 
 import { getMandatoryAgentsForRoom, type RoomType } from "@/lib/onboarding/rooms";
 
@@ -56,6 +66,48 @@ export function mergeMandatoryAgentSlugs(
 ): string[] {
   const mandatory = getMandatoryAgentSlugs(roomType);
   return Array.from(new Set([...mandatory, ...selectedAgents]));
+}
+
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+  await ensureDirectory(dest);
+  const entries = await fs.readdir(src, { withFileTypes: true });
+  await Promise.all(
+    entries.map(async (entry) => {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        await copyDirRecursive(srcPath, destPath);
+      } else if (entry.isFile()) {
+        await fs.copyFile(srcPath, destPath);
+      }
+    })
+  );
+}
+
+/**
+ * Bootstrap shared, cabinet-spanning agents by copying their library
+ * templates into `data/.global-agents/<slug>/` if missing. Idempotent:
+ * existing global agents are left alone (the user may have edited them).
+ *
+ * Called once on app boot. Fresh installs get the editor automatically;
+ * existing installs get it on the next boot after this lands.
+ */
+export async function ensureGlobalAgents(): Promise<void> {
+  await ensureDirectory(GLOBAL_AGENTS_DIR);
+  for (const slug of GLOBAL_AGENT_SLUGS) {
+    const targetDir = path.join(GLOBAL_AGENTS_DIR, slug);
+    if (await fileExists(path.join(targetDir, "persona.md"))) continue;
+    const templateDir = await resolveAgentTemplateDir(slug);
+    if (!templateDir) {
+      // The library template is missing — non-fatal, just log. The editor
+      // resolver chain in conversation-runner falls back to readLibraryPersona,
+      // so callers degrade gracefully even without bootstrap.
+      console.warn(`ensureGlobalAgents: library template for "${slug}" not found; skipping bootstrap.`);
+      continue;
+    }
+    await copyDirRecursive(templateDir, targetDir);
+    await ensureAgentScaffold(targetDir);
+  }
 }
 
 export async function readLibraryPersona(

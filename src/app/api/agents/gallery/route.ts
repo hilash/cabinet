@@ -155,15 +155,21 @@ export async function GET() {
     for (const persona of personas) {
       if (persona.slug === "editor") continue;
 
-      const workspaceDir = path.join(
-        DATA_DIR,
-        persona.cabinetPath && persona.cabinetPath !== "." ? persona.cabinetPath : "",
-        ".agents",
-        persona.slug,
-        "workspace"
-      );
-      const basePath =
-        persona.cabinetPath && persona.cabinetPath !== "."
+      // Globals live at `data/.global-agents/<slug>/workspace`, not under
+      // any cabinet's .agents dir.
+      const isGlobal = persona.scope === "global";
+      const workspaceDir = isGlobal
+        ? path.join(DATA_DIR, ".global-agents", persona.slug, "workspace")
+        : path.join(
+            DATA_DIR,
+            persona.cabinetPath && persona.cabinetPath !== "." ? persona.cabinetPath : "",
+            ".agents",
+            persona.slug,
+            "workspace"
+          );
+      const basePath = isGlobal
+        ? `.global-agents/${persona.slug}/workspace`
+        : persona.cabinetPath && persona.cabinetPath !== "."
           ? `${persona.cabinetPath}/.agents/${persona.slug}/workspace`
           : `.agents/${persona.slug}/workspace`;
       const items = await scanWorkspace(

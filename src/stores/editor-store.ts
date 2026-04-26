@@ -1,16 +1,25 @@
 import { create } from "zustand";
 import type { FrontMatter, SaveStatus } from "@/types";
-import { fetchPage, savePage } from "@/lib/api/client";
+import { fetchPage, savePage, FetchPageError, createPageApi } from "@/lib/api/client";
+
+// Load and save are independent error surfaces. The previous design folded
+// load failures (page 404, fetch error) into `saveStatus: "error"`, which
+// the bottom-bar pill rendered as "Save failed" even though no save had
+// been attempted. `loadStatus` lets the editor distinguish "this page
+// doesn't exist yet" from "your save failed" without lying to the user.
+export type LoadStatus = "idle" | "loading" | "ok" | "missing" | "error";
 
 interface EditorState {
   currentPath: string | null;
   content: string;
   frontmatter: FrontMatter | null;
   saveStatus: SaveStatus;
+  loadStatus: LoadStatus;
   isDirty: boolean;
   isLoading: boolean;
 
   loadPage: (path: string) => Promise<void>;
+  createMissingPage: (title: string) => Promise<void>;
   updateContent: (content: string) => void;
   updateFrontmatter: (updates: Partial<FrontMatter>) => void;
   save: () => Promise<void>;
@@ -55,6 +64,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   content: "",
   frontmatter: null,
   saveStatus: "idle",
+  loadStatus: "idle",
   isDirty: false,
   isLoading: false,
 
@@ -66,7 +76,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Navigating to a new path: synchronously clear the previous file's
     // content so the editor can't render stale content while the fetch
     // resolves. Without this, clicking an artifact briefly shows whatever
-    // page was open before.
+    // page was open before. saveStatus is reset because a previous page's
+    // save error is not relevant to the new page.
     const prevPath = get().currentPath;
     if (prevPath !== path) {
       set({
@@ -74,6 +85,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         content: "",
         frontmatter: null,
         saveStatus: "idle",
+        loadStatus: "loading",
         isDirty: false,
         isLoading: true,
       });
@@ -89,6 +101,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         content: cached.content,
         frontmatter: cached.frontmatter,
         saveStatus: "idle",
+        loadStatus: "loading",
         isDirty: false,
         isLoading: false,
       });
@@ -104,6 +117,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         content: page.content,
         frontmatter: page.frontmatter,
         saveStatus: "idle",
+        loadStatus: "ok",
         isDirty: false,
         isLoading: false,
       });
@@ -112,21 +126,40 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         content: page.content,
         frontmatter: page.frontmatter,
       });
-    } catch {
+    } catch (err) {
       if (get().currentPath !== path) return;
+      const status = err instanceof FetchPageError ? err.status : undefined;
+      const loadStatus: LoadStatus = status === 404 ? "missing" : "error";
       if (!cached) {
         set({
           currentPath: path,
           content: "",
           frontmatter: null,
-          saveStatus: "error",
+          saveStatus: "idle",
+          loadStatus,
           isDirty: false,
           isLoading: false,
         });
       } else {
-        set({ isLoading: false });
+        set({ isLoading: false, loadStatus });
       }
     }
+  },
+
+  createMissingPage: async (title: string) => {
+    const path = get().currentPath;
+    if (!path) return;
+    set({ loadStatus: "loading" });
+    try {
+      await createPageApi(path, title);
+    } catch {
+      set({ loadStatus: "error" });
+      return;
+    }
+    // Re-fetch the newly created page so the editor pulls in the
+    // server-generated frontmatter (order, title, etc.) rather than a
+    // best-effort local guess.
+    await get().loadPage(path);
   },
 
   updateContent: (content: string) => {
@@ -180,6 +213,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       content: "",
       frontmatter: null,
       saveStatus: "idle",
+      loadStatus: "idle",
       isDirty: false,
       isLoading: false,
     });

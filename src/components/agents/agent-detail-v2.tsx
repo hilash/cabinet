@@ -902,6 +902,17 @@ function Hero({
                 <span>{persona.department}</span>
               </>
             )}
+            {persona.scope === "global" && (
+              <>
+                <span className="opacity-40">·</span>
+                <span
+                  className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] text-violet-300"
+                  title="Shared across all cabinets — edits apply everywhere"
+                >
+                  Global
+                </span>
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -1488,6 +1499,12 @@ function DetailsSection({
 }) {
   return (
     <Section title="Details">
+      {persona.scope === "global" && (
+        <div className="mb-3 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-[12px] text-violet-200">
+          <span className="font-medium">Editing global agent</span> — changes
+          apply across every cabinet that uses this agent.
+        </div>
+      )}
       <div className="grid grid-cols-6 gap-x-3 gap-y-3">
         <Field
           label="Display name"

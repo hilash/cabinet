@@ -7,9 +7,18 @@ export async function fetchTree(showHidden = false): Promise<TreeNode[]> {
   return res.json();
 }
 
+export class FetchPageError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = "FetchPageError";
+  }
+}
+
 export async function fetchPage(path: string): Promise<PageData> {
   const res = await fetch(`/api/pages/${path}`);
-  if (!res.ok) throw new Error(`Failed to fetch page: ${path}`);
+  if (!res.ok) {
+    throw new FetchPageError(`Failed to fetch page: ${path}`, res.status);
+  }
   return res.json();
 }
 

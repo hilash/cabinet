@@ -1,8 +1,71 @@
+// Audit #082: ~110 avatars in a single grid was overwhelming; categories
+// let the picker default to a small "Silhouettes" set and tab into the
+// rest only when the user wants to.
+export type AvatarCategory =
+  | "silhouettes"
+  | "historical"
+  | "musicians"
+  | "fantasy"
+  | "video-games"
+  | "cartoons"
+  | "superheroes"
+  | "spooky";
+
+export const AVATAR_CATEGORY_ORDER: AvatarCategory[] = [
+  "silhouettes",
+  "historical",
+  "musicians",
+  "fantasy",
+  "video-games",
+  "cartoons",
+  "superheroes",
+  "spooky",
+];
+
+export const AVATAR_CATEGORY_LABEL: Record<AvatarCategory, string> = {
+  silhouettes: "Silhouettes",
+  historical: "Historical",
+  musicians: "Musicians",
+  fantasy: "Fantasy",
+  "video-games": "Video games",
+  cartoons: "Cartoons",
+  superheroes: "Superheroes",
+  spooky: "Spooky",
+};
+
 export interface AvatarPreset {
   id: string;
   file: string; // path under /public
   label: string;
+  /**
+   * Optional explicit category. If omitted, inferred from the avatar's
+   * numeric id range — see {@link getAvatarCategory}. Adding the field
+   * to a specific preset wins over the range-based default.
+   */
+  category?: AvatarCategory;
   suggestedFor?: string[]; // agent slugs where this is a natural fit
+}
+
+/**
+ * Derive the category for a preset. The avatar set ships in numeric
+ * ranges that map to the categories below (`scripts/generate-*.mjs`
+ * preserve this layout). Centralizing the mapping keeps the catalog
+ * data flat — no need to annotate 110+ entries.
+ */
+export function getAvatarCategory(preset: AvatarPreset): AvatarCategory {
+  if (preset.category) return preset.category;
+  const num = parseInt(preset.id.replace(/^avatar-/, ""), 10);
+  if (!Number.isFinite(num)) return "historical";
+  if (num >= 1 && num <= 12) return "silhouettes";
+  if (num >= 51 && num <= 60) return "musicians";
+  if (num >= 69 && num <= 76) return "fantasy";
+  if (num >= 77 && num <= 86) return "video-games";
+  if (num >= 87 && num <= 90) return "cartoons";
+  if (num >= 91 && num <= 100) return "superheroes";
+  if (num >= 101 && num <= 107) return "spooky";
+  if (num >= 108 && num <= 112) return "cartoons";
+  // 13–50, 61–68: scientists, presidents, painters, headmasters, abolitionists.
+  return "historical";
 }
 
 export const AVATAR_PRESETS: AvatarPreset[] = [

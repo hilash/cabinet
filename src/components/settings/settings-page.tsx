@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import {
@@ -67,7 +67,14 @@ import {
 } from "@/hooks/use-user-profile";
 import { ICON_PICKER_KEYS, getIconByKey } from "@/lib/agents/icon-catalog";
 import { AGENT_PALETTE } from "@/lib/themes";
-import { AVATAR_PRESETS } from "@/lib/agents/avatar-catalog";
+import {
+  AVATAR_PRESETS,
+  AVATAR_CATEGORY_LABEL,
+  AVATAR_CATEGORY_ORDER,
+  getAvatarCategory,
+  type AvatarCategory,
+  type AvatarPreset,
+} from "@/lib/agents/avatar-catalog";
 import Image from "next/image";
 import { sendTelemetry } from "@/lib/telemetry/browser";
 import {
@@ -1740,6 +1747,223 @@ function SkillsSettings() {
   );
 }
 
+// Audit #082: 110+ avatars in a single grid was overwhelming. Defaults
+// to the 12 silhouettes; a search field filters across all categories;
+// "Browse all" toggles category tabs. Reused by ProfileTab.
+function AvatarPicker({
+  selectedId,
+  onSelect,
+  onClear,
+}: {
+  selectedId?: string;
+  onSelect: (id: string) => void;
+  onClear: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [browseAll, setBrowseAll] = useState(false);
+  const [tab, setTab] = useState<AvatarCategory>("silhouettes");
+
+  const presetsByCategory = useMemo(() => {
+    const map = new Map<AvatarCategory, AvatarPreset[]>();
+    for (const cat of AVATAR_CATEGORY_ORDER) map.set(cat, []);
+    for (const preset of AVATAR_PRESETS) {
+      const cat = getAvatarCategory(preset);
+      const list = map.get(cat);
+      if (list) list.push(preset);
+    }
+    return map;
+  }, []);
+
+  const trimmed = query.trim().toLowerCase();
+  const isSearching = trimmed.length > 0;
+
+  const visiblePresets: AvatarPreset[] = useMemo(() => {
+    if (isSearching) {
+      return AVATAR_PRESETS.filter((p) =>
+        p.label.toLowerCase().includes(trimmed),
+      );
+    }
+    if (!browseAll) {
+      return presetsByCategory.get("silhouettes") ?? [];
+    }
+    return presetsByCategory.get(tab) ?? [];
+  }, [browseAll, isSearching, presetsByCategory, tab, trimmed]);
+
+  const totalCount = AVATAR_PRESETS.length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="search"
+          placeholder="Search avatars…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="h-8 max-w-xs text-[12px]"
+        />
+        {!isSearching && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-[11px]"
+            onClick={() => setBrowseAll((v) => !v)}
+          >
+            {browseAll ? "Show favorites" : `Browse all (${totalCount})`}
+          </Button>
+        )}
+      </div>
+
+      {!isSearching && browseAll && (
+        <div className="flex flex-wrap gap-1">
+          {AVATAR_CATEGORY_ORDER.map((cat) => {
+            const count = presetsByCategory.get(cat)?.length ?? 0;
+            if (count === 0) return null;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setTab(cat)}
+                className={cn(
+                  "rounded-md px-2 py-1 text-[11px] transition-colors",
+                  tab === cat
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                )}
+              >
+                {AVATAR_CATEGORY_LABEL[cat]}{" "}
+                <span className="opacity-60">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="grid max-h-64 grid-cols-8 gap-2 overflow-y-auto pr-1">
+        <button
+          type="button"
+          onClick={onClear}
+          className={cn(
+            "flex h-12 w-12 items-center justify-center rounded-full border-2 bg-muted text-[10px] text-muted-foreground",
+            !selectedId ? "border-foreground" : "border-transparent",
+          )}
+          title="Use icon instead"
+        >
+          None
+        </button>
+        {visiblePresets.map((preset) => {
+          const selected = selectedId === preset.id;
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => onSelect(preset.id)}
+              className={cn(
+                "h-12 w-12 overflow-hidden rounded-full border-2 transition-all",
+                selected ? "border-foreground" : "border-transparent",
+              )}
+              title={preset.label}
+            >
+              <Image
+                src={preset.file}
+                alt={preset.label}
+                width={48}
+                height={48}
+                className="h-full w-full object-cover"
+                unoptimized
+              />
+            </button>
+          );
+        })}
+        {visiblePresets.length === 0 && (
+          <p className="col-span-full px-2 py-3 text-[11px] text-muted-foreground">
+            No avatars match &ldquo;{query}&rdquo;.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Audit #082: a flat ~120-icon grid was overwhelming. Add a search field
+// and only render filtered results (or the first 24 if no query) so the
+// section stays under one screen. Toggling the same key clears the field.
+function IconPicker({
+  selectedKey,
+  onSelect,
+}: {
+  selectedKey: string;
+  onSelect: (next: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+
+  const trimmed = query.trim().toLowerCase();
+  const filtered: string[] = useMemo(() => {
+    if (!trimmed) return ICON_PICKER_KEYS;
+    return ICON_PICKER_KEYS.filter((k) => k.toLowerCase().includes(trimmed));
+  }, [trimmed]);
+
+  const visibleKeys: string[] = useMemo(() => {
+    if (trimmed) return filtered;
+    if (showAll) return filtered;
+    return filtered.slice(0, 24);
+  }, [filtered, showAll, trimmed]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="search"
+          placeholder="Search icons…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="h-8 max-w-xs text-[12px]"
+        />
+        {!trimmed && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-[11px]"
+            onClick={() => setShowAll((v) => !v)}
+          >
+            {showAll
+              ? "Show fewer"
+              : `Browse all (${ICON_PICKER_KEYS.length})`}
+          </Button>
+        )}
+      </div>
+      <div className="grid max-h-40 grid-cols-10 gap-1 overflow-auto rounded-md border bg-background p-2">
+        {visibleKeys.map((key) => {
+          const Icon = getIconByKey(key);
+          if (!Icon) return null;
+          const selected = selectedKey === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onSelect(selected ? "" : key)}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-muted",
+                selected && "bg-accent text-accent-foreground",
+              )}
+              title={key}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </button>
+          );
+        })}
+        {visibleKeys.length === 0 && (
+          <p className="col-span-full px-1 py-2 text-[11px] text-muted-foreground">
+            No icons match &ldquo;{query}&rdquo;.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function hexFromPalette(i: number): string {
   const text = AGENT_PALETTE[i].text;
   const m = text.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
@@ -1883,47 +2107,11 @@ function ProfileTab() {
 
       <div>
         <h4 className="mb-2 text-[12px] font-semibold">Avatar</h4>
-        <div className="grid max-h-64 grid-cols-8 gap-2 overflow-y-auto pr-1">
-          <button
-            type="button"
-            onClick={() => void removeAvatar()}
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-full border-2 bg-muted text-[10px] text-muted-foreground",
-              !profile.avatar ? "border-foreground" : "border-transparent"
-            )}
-            title="Use icon instead"
-          >
-            None
-          </button>
-          {AVATAR_PRESETS.map((preset) => {
-            const selected = profile.avatar === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() =>
-                  update({
-                    profile: { avatar: preset.id, avatarExt: "" },
-                  })
-                }
-                className={cn(
-                  "h-12 w-12 overflow-hidden rounded-full border-2 transition-all",
-                  selected ? "border-foreground" : "border-transparent"
-                )}
-                title={preset.label}
-              >
-                <Image
-                  src={preset.file}
-                  alt={preset.label}
-                  width={48}
-                  height={48}
-                  className="h-full w-full object-cover"
-                  unoptimized
-                />
-              </button>
-            );
-          })}
-        </div>
+        <AvatarPicker
+          selectedId={profile.avatar}
+          onSelect={(id) => update({ profile: { avatar: id, avatarExt: "" } })}
+          onClear={() => void removeAvatar()}
+        />
         <div className="mt-2 flex items-center gap-2">
           <input
             ref={fileInputRef}
@@ -2001,31 +2189,10 @@ function ProfileTab() {
 
       <div>
         <h4 className="mb-2 text-[12px] font-semibold">Fallback icon</h4>
-        <div className="grid max-h-40 grid-cols-10 gap-1 overflow-auto rounded-md border bg-background p-2">
-          {ICON_PICKER_KEYS.map((key) => {
-            const Icon = getIconByKey(key);
-            if (!Icon) return null;
-            const selected = profile.iconKey === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() =>
-                  update({
-                    profile: { iconKey: selected ? "" : key },
-                  })
-                }
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-muted",
-                  selected && "bg-accent text-accent-foreground"
-                )}
-                title={key}
-              >
-                <Icon className="h-3.5 w-3.5" />
-              </button>
-            );
-          })}
-        </div>
+        <IconPicker
+          selectedKey={profile.iconKey || ""}
+          onSelect={(key) => update({ profile: { iconKey: key } })}
+        />
         <p className="mt-1 text-[11px] text-muted-foreground">
           Used when no avatar image is set. Click again to clear.
         </p>

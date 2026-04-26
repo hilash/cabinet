@@ -22,22 +22,52 @@ const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 const MEMORY_DIR = path.join(AGENTS_DIR, ".memory");
 const MESSAGES_DIR = path.join(AGENTS_DIR, ".messages");
 const HISTORY_DIR = path.join(AGENTS_DIR, ".history");
+// Global agents live alongside cabinet data, not inside any cabinet's
+// .agents dir. One persona, one memory, one heartbeat — shared across cabinets.
+export const GLOBAL_AGENTS_DIR = path.join(DATA_DIR, ".global-agents");
+
+export type PersonaScope = "global" | "cabinet";
 
 function resolveAgentsDir(cabinetPath?: string): string {
   if (cabinetPath) return path.join(DATA_DIR, cabinetPath, ".agents");
   return AGENTS_DIR;
 }
 
-function resolveMemoryDir(cabinetPath?: string): string {
-  return path.join(resolveAgentsDir(cabinetPath), ".memory");
+async function isGlobalPersona(slug: string): Promise<boolean> {
+  return fileExists(path.join(GLOBAL_AGENTS_DIR, slug, "persona.md"));
 }
 
-function resolveMessagesDir(cabinetPath?: string): string {
-  return path.join(resolveAgentsDir(cabinetPath), ".messages");
+// State-path resolver: globals always route to GLOBAL_AGENTS_DIR regardless
+// of which cabinet the call originated from. That's the whole point — one
+// memory dir, one heartbeat counter, shared across cabinets.
+async function resolveAgentsDirForSlug(
+  slug: string,
+  cabinetPath: string | undefined
+): Promise<string> {
+  if (await isGlobalPersona(slug)) return GLOBAL_AGENTS_DIR;
+  const resolved = cabinetPath ?? (await findPersonaCabinetPath(slug));
+  return resolveAgentsDir(resolved);
 }
 
-function resolveHistoryDir(cabinetPath?: string): string {
-  return path.join(resolveAgentsDir(cabinetPath), ".history");
+async function resolveMemoryDirForSlug(
+  slug: string,
+  cabinetPath: string | undefined
+): Promise<string> {
+  return path.join(await resolveAgentsDirForSlug(slug, cabinetPath), ".memory");
+}
+
+async function resolveMessagesDirForSlug(
+  slug: string,
+  cabinetPath: string | undefined
+): Promise<string> {
+  return path.join(await resolveAgentsDirForSlug(slug, cabinetPath), ".messages");
+}
+
+async function resolveHistoryDirForSlug(
+  slug: string,
+  cabinetPath: string | undefined
+): Promise<string> {
+  return path.join(await resolveAgentsDirForSlug(slug, cabinetPath), ".history");
 }
 
 /**
@@ -54,6 +84,10 @@ export function normalizeAgentSlug(slug: string | null | undefined): string {
  * globally unique, so at most one cabinet contains a match. Returns the
  * cabinetPath (or undefined when found at the root / not found at all).
  * Callers fall back to the root dir when undefined.
+ *
+ * Note: this only searches *cabinet-local* personas. Global personas live
+ * outside any cabinet — use `findPersonaSource` if you need to know whether
+ * a slug resolves to a global or a cabinet-local agent.
  */
 export async function findPersonaCabinetPath(slug: string): Promise<string | undefined> {
   const cabinetPaths = await discoverCabinetPaths();
@@ -68,12 +102,44 @@ export async function findPersonaCabinetPath(slug: string): Promise<string | und
   return undefined;
 }
 
-async function resolveCabinetForSlug(
+interface PersonaSource {
+  scope: PersonaScope;
+  agentsDir: string;
+  cabinetPath?: string; // only for scope === "cabinet"; undefined means root
+}
+
+/**
+ * Resolves where a persona's `persona.md` actually lives. Order:
+ * 1. Cabinet-local override (when `preferredCabinetPath` is set and the file exists there)
+ * 2. Global tier (`data/.global-agents/<slug>/persona.md`)
+ * 3. Any cabinet (root or sub) — slug uniqueness means at most one match
+ */
+async function findPersonaSource(
   slug: string,
-  cabinetPath: string | undefined
-): Promise<string | undefined> {
-  if (cabinetPath !== undefined) return cabinetPath;
-  return findPersonaCabinetPath(slug);
+  preferredCabinetPath?: string
+): Promise<PersonaSource | null> {
+  if (preferredCabinetPath !== undefined) {
+    const dir = resolveAgentsDir(preferredCabinetPath);
+    if (await fileExists(path.join(dir, slug, "persona.md"))) {
+      return { scope: "cabinet", agentsDir: dir, cabinetPath: preferredCabinetPath };
+    }
+  }
+  if (await fileExists(path.join(GLOBAL_AGENTS_DIR, slug, "persona.md"))) {
+    return { scope: "global", agentsDir: GLOBAL_AGENTS_DIR };
+  }
+  const cabinetPaths = await discoverCabinetPaths();
+  for (const cp of cabinetPaths) {
+    const dir =
+      cp === ROOT_CABINET_PATH ? AGENTS_DIR : path.join(DATA_DIR, cp, ".agents");
+    if (await fileExists(path.join(dir, slug, "persona.md"))) {
+      return {
+        scope: "cabinet",
+        agentsDir: dir,
+        cabinetPath: cp === ROOT_CABINET_PATH ? undefined : cp,
+      };
+    }
+  }
+  return null;
 }
 
 // Track currently running heartbeats
@@ -134,6 +200,7 @@ export interface AgentPersona {
   canDispatch?: boolean;  // can propose tasks/jobs to other agents (lead-default)
   // Computed
   slug: string;
+  scope?: PersonaScope; // "global" when persona file lives in data/.global-agents/
   body: string; // markdown body (persona instructions)
   heartbeatsUsed?: number;
   lastHeartbeat?: string;
@@ -167,16 +234,18 @@ export async function initAgentsDir(): Promise<void> {
   await ensureDirectory(MEMORY_DIR);
   await ensureDirectory(MESSAGES_DIR);
   await ensureDirectory(HISTORY_DIR);
+  await ensureDirectory(GLOBAL_AGENTS_DIR);
 }
 
-export async function listPersonas(cabinetPath?: string): Promise<AgentPersona[]> {
-  const agentsDir = resolveAgentsDir(cabinetPath);
+async function listPersonasInDir(
+  agentsDir: string,
+  cabinetPath: string | undefined
+): Promise<AgentPersona[]> {
   await ensureDirectory(agentsDir);
   const entries = await listDirectory(agentsDir);
   const candidates = entries.filter(
     (entry) => entry.isDirectory && !entry.name.startsWith(".")
   );
-
   const personas = await Promise.all(
     candidates.map(async (entry) => {
       const personaPath = path.join(agentsDir, entry.name, "persona.md");
@@ -185,8 +254,27 @@ export async function listPersonas(cabinetPath?: string): Promise<AgentPersona[]
       return persona && persona.role ? persona : null;
     })
   );
-
   return personas.filter((p): p is AgentPersona => p !== null);
+}
+
+export async function listGlobalPersonas(): Promise<AgentPersona[]> {
+  // No cabinetPath — readPersona will route through findPersonaSource and
+  // discover the global tier on its own.
+  return listPersonasInDir(GLOBAL_AGENTS_DIR, undefined);
+}
+
+/**
+ * Personas visible to a cabinet: cabinet-local first (they shadow globals
+ * when slugs collide), then globals not already represented locally. The
+ * LLM roster builder, the agent picker, and the personas API all use this.
+ */
+export async function listPersonas(cabinetPath?: string): Promise<AgentPersona[]> {
+  const [locals, globals] = await Promise.all([
+    listPersonasInDir(resolveAgentsDir(cabinetPath), cabinetPath),
+    listGlobalPersonas(),
+  ]);
+  const localSlugs = new Set(locals.map((p) => p.slug));
+  return [...locals, ...globals.filter((g) => !localSlugs.has(g.slug))];
 }
 
 // 5-second TTL. listAllPersonas walks every cabinet's .agents dir and is
@@ -200,11 +288,18 @@ export function invalidatePersonasCache() {
 export async function listAllPersonas(): Promise<AgentPersona[]> {
   return allPersonasCache.get("all", async () => {
     const cabinetPaths = await discoverCabinetPaths();
-    const personaGroups = await Promise.all(
-      cabinetPaths.map((cabinetPath) => listPersonas(cabinetPath))
-    );
+    // Walk only cabinet-local personas per cabinet; globals are appended
+    // once at the end, not per-cabinet, so the gallery doesn't duplicate them.
+    const [cabinetGroups, globals] = await Promise.all([
+      Promise.all(
+        cabinetPaths.map((cp) =>
+          listPersonasInDir(resolveAgentsDir(cp === ROOT_CABINET_PATH ? undefined : cp), cp === ROOT_CABINET_PATH ? undefined : cp)
+        )
+      ),
+      listGlobalPersonas(),
+    ]);
 
-    return personaGroups.flat().sort((left, right) => {
+    return [...cabinetGroups.flat(), ...globals].sort((left, right) => {
       if ((left.workdir || "").localeCompare(right.workdir || "") !== 0) {
         return (left.workdir || "").localeCompare(right.workdir || "");
       }
@@ -214,8 +309,10 @@ export async function listAllPersonas(): Promise<AgentPersona[]> {
 }
 
 export async function readPersona(slug: string, cabinetPath?: string): Promise<AgentPersona | null> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
-  const agentsDir = resolveAgentsDir(resolved);
+  const source = await findPersonaSource(slug, cabinetPath);
+  if (!source) return null;
+  const { agentsDir, scope } = source;
+  const resolved = source.cabinetPath;
   const filePath = path.join(agentsDir, slug, "persona.md");
   if (!(await fileExists(filePath))) return null;
 
@@ -223,6 +320,7 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
   const { data, content } = matter(raw);
 
   const persona: AgentPersona = {
+    scope,
     name: (data.name as string) || slug,
     role: (data.role as string) || "",
     provider: resolveEnabledProviderId(
@@ -284,9 +382,10 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
     body: content.trim(),
   };
 
-  // Load stats — check agent dir first, then legacy shared dir
+  // Load stats — check agent dir first, then legacy shared dir.
+  // Globals route their legacy dir to GLOBAL_AGENTS_DIR/.memory.
   const agentStatsPath = path.join(agentsDir, slug, "memory", "stats.json");
-  const legacyStatsPath = path.join(resolveMemoryDir(resolved), slug, "stats.json");
+  const legacyStatsPath = path.join(agentsDir, ".memory", slug, "stats.json");
   const statsPath = (await fileExists(agentStatsPath)) ? agentStatsPath : legacyStatsPath;
   if (await fileExists(statsPath)) {
     try {
@@ -319,8 +418,12 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
 }
 
 export async function writePersona(slug: string, persona: Partial<AgentPersona> & { body?: string }, cabinetPath?: string): Promise<void> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
-  const agentsDir = resolveAgentsDir(resolved);
+  // If the persona already exists, write back to wherever it lives — that
+  // includes the global tier. Settings dialogs editing a global from any
+  // cabinet view should land in `data/.global-agents/<slug>/persona.md`.
+  const existingSource = await findPersonaSource(slug, cabinetPath);
+  const agentsDir = existingSource?.agentsDir ?? resolveAgentsDir(cabinetPath);
+  const resolved = existingSource?.cabinetPath ?? cabinetPath;
   await ensureDirectory(agentsDir);
   // Use directory-based structure: {slug}/persona.md
   const agentDir = path.join(agentsDir, slug);
@@ -393,9 +496,18 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
 }
 
 export async function deletePersona(slug: string, cabinetPath?: string): Promise<void> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
+  const source = await findPersonaSource(slug, cabinetPath);
+  if (!source) return;
+  // Refuse to delete a global agent from a cabinet view — globals are shared
+  // across cabinets, so a per-cabinet delete is almost certainly a mistake.
+  if (source.scope === "global" && cabinetPath !== undefined) {
+    throw new Error(
+      `Cannot delete global agent "${slug}" from a cabinet view. ` +
+        "Open the agent's settings without a cabinet context to remove it."
+    );
+  }
   const fs = await import("fs/promises");
-  const agentDir = path.join(resolveAgentsDir(resolved), slug);
+  const agentDir = path.join(source.agentsDir, slug);
   await fs.rm(agentDir, { recursive: true, force: true });
   unregisterHeartbeat(slug);
 }
@@ -403,8 +515,7 @@ export async function deletePersona(slug: string, cabinetPath?: string): Promise
 // --- Memory ---
 
 export async function readMemory(slug: string, file: string, cabinetPath?: string): Promise<string> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
-  const memDir = path.join(resolveMemoryDir(resolved), slug);
+  const memDir = path.join(await resolveMemoryDirForSlug(slug, cabinetPath), slug);
   await ensureDirectory(memDir);
   const filePath = path.join(memDir, file);
   if (!(await fileExists(filePath))) return "";
@@ -412,15 +523,13 @@ export async function readMemory(slug: string, file: string, cabinetPath?: strin
 }
 
 export async function writeMemory(slug: string, file: string, content: string, cabinetPath?: string): Promise<void> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
-  const memDir = path.join(resolveMemoryDir(resolved), slug);
+  const memDir = path.join(await resolveMemoryDirForSlug(slug, cabinetPath), slug);
   await ensureDirectory(memDir);
   await writeFileContent(path.join(memDir, file), content);
 }
 
 export async function listMemoryFiles(slug: string, cabinetPath?: string): Promise<string[]> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
-  const memDir = path.join(resolveMemoryDir(resolved), slug);
+  const memDir = path.join(await resolveMemoryDirForSlug(slug, cabinetPath), slug);
   await ensureDirectory(memDir);
   const entries = await listDirectory(memDir);
   return entries.filter((e) => !e.isDirectory).map((e) => e.name);
@@ -434,8 +543,7 @@ export async function sendMessage(
   message: string,
   cabinetPath?: string
 ): Promise<void> {
-  const resolved = await resolveCabinetForSlug(to, cabinetPath);
-  const inboxDir = path.join(resolveMessagesDir(resolved), to);
+  const inboxDir = path.join(await resolveMessagesDirForSlug(to, cabinetPath), to);
   await ensureDirectory(inboxDir);
   const timestamp = new Date().toISOString();
   const filename = `${timestamp.replace(/[:.]/g, "-")}_from_${from}.md`;
@@ -444,8 +552,7 @@ export async function sendMessage(
 }
 
 export async function readInbox(slug: string, cabinetPath?: string): Promise<Array<{ from: string; timestamp: string; message: string; filename: string }>> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
-  const inboxDir = path.join(resolveMessagesDir(resolved), slug);
+  const inboxDir = path.join(await resolveMessagesDirForSlug(slug, cabinetPath), slug);
   await ensureDirectory(inboxDir);
   const entries = await listDirectory(inboxDir);
   const messages: Array<{ from: string; timestamp: string; message: string; filename: string }> = [];
@@ -466,8 +573,7 @@ export async function readInbox(slug: string, cabinetPath?: string): Promise<Arr
 }
 
 export async function clearInbox(slug: string, cabinetPath?: string): Promise<void> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
-  const inboxDir = path.join(resolveMessagesDir(resolved), slug);
+  const inboxDir = path.join(await resolveMessagesDirForSlug(slug, cabinetPath), slug);
   const fs = await import("fs/promises");
   const entries = await listDirectory(inboxDir).catch(() => []);
   for (const entry of entries) {
@@ -481,8 +587,7 @@ export async function clearInbox(slug: string, cabinetPath?: string): Promise<vo
 
 export async function recordHeartbeat(record: HeartbeatRecord & { cabinetPath?: string }): Promise<void> {
   const slug = record.agentSlug;
-  const resolved = await resolveCabinetForSlug(slug, record.cabinetPath);
-  const histDir = resolveHistoryDir(resolved);
+  const histDir = await resolveHistoryDirForSlug(slug, record.cabinetPath);
 
   // Append to history log
   const historyFile = path.join(histDir, `${slug}.jsonl`);
@@ -494,7 +599,7 @@ export async function recordHeartbeat(record: HeartbeatRecord & { cabinetPath?: 
   });
 
   // Update stats
-  const memDir = path.join(resolveMemoryDir(resolved), slug);
+  const memDir = path.join(await resolveMemoryDirForSlug(slug, record.cabinetPath), slug);
   await ensureDirectory(memDir);
   const statsPath = path.join(memDir, "stats.json");
   let stats = { heartbeatsUsed: 0, lastHeartbeat: "" };
@@ -507,8 +612,10 @@ export async function recordHeartbeat(record: HeartbeatRecord & { cabinetPath?: 
 }
 
 export async function getHeartbeatHistory(slug: string, limit = 20, cabinetPath?: string): Promise<HeartbeatRecord[]> {
-  const resolved = await resolveCabinetForSlug(slug, cabinetPath);
-  const historyFile = path.join(resolveHistoryDir(resolved), `${slug}.jsonl`);
+  const historyFile = path.join(
+    await resolveHistoryDirForSlug(slug, cabinetPath),
+    `${slug}.jsonl`
+  );
   if (!(await fileExists(historyFile))) return [];
 
   const raw = await readFileContent(historyFile);

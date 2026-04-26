@@ -21,6 +21,7 @@ import { useEditorStore } from "@/stores/editor-store";
  *   #/page/{pagePath}
  *   #/settings
  *   #/settings/{slug}
+ *   #/help
  *
  * Scope is always a cabinet. Root uses cabinetPath = "." (ROOT_CABINET_PATH);
  * breadth is controlled by CabinetVisibilityMode stored per-cabinet.
@@ -78,6 +79,7 @@ function buildHash(section: SectionState, pagePath: string | null): string {
       ? `#/settings/${encodePathSegment(section.slug)}`
       : "#/settings";
   }
+  if (section.type === "help") return "#/help";
   if (section.type === "home") return "#/home";
   return "#/home";
 }
@@ -173,6 +175,10 @@ function parseHash(hash: string): RouteState {
       },
       pagePath: null,
     };
+  }
+
+  if (parts[0] === "help") {
+    return { section: { type: "help" }, pagePath: null };
   }
 
   // Bare-route aliases scoped to the root cabinet. Lets every shared link of

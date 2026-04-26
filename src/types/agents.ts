@@ -83,6 +83,12 @@ export interface AgentListItem {
   status?: "active" | "running" | "idle";
   cabinetPath?: string;
   cabinetName?: string;
+  /**
+   * "global" when the persona file lives in `data/.global-agents/<slug>/`
+   * — i.e., one shared identity across all cabinets. Surfaces render a
+   * "Global" badge so users know edits apply everywhere.
+   */
+  scope?: "global" | "cabinet";
   // Identity customization (optional; surfaces render from these when set)
   displayName?: string;
   iconKey?: string;

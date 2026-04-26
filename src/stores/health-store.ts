@@ -7,6 +7,14 @@ export type InstallKind = "source-managed" | "source-custom" | "electron-macos";
 interface HealthState {
   appMissCount: number; // -1 = no poll completed yet
   daemonMissCount: number;
+  // Wall-clock timestamps for the most recent poll *attempt* and the most
+  // recent successful response. The popover renders these so users can see
+  // when we last actually heard from each service — not just whether it's
+  // up "right now."
+  lastDaemonPollAt: number | null;
+  lastDaemonOkAt: number | null;
+  lastAppPollAt: number | null;
+  lastAppOkAt: number | null;
   installKind: InstallKind;
   bannerDismissedAt: number | null; // ms; reappears after 60s if still down
   subscribers: number;
@@ -20,7 +28,11 @@ interface HealthState {
 // polls happen all the time during dev (port reuse, fast refresh) and would
 // thrash the banner if we surfaced them eagerly.
 const DOWN_THRESHOLD = 2;
-const POLL_INTERVAL_MS = 10_000;
+// 5s polling: audit #092 asked for a tighter loop than the original 10s so
+// daemon transitions are reflected within ~10s (one full miss-counter cycle).
+// The endpoints are local, the calls are deduped, and the loop pauses while
+// the tab is hidden — load impact is negligible.
+const POLL_INTERVAL_MS = 5_000;
 const BANNER_REAPPEAR_MS = 60_000;
 
 function levelFor(missCount: number): ServiceLevel {
@@ -33,6 +45,10 @@ function levelFor(missCount: number): ServiceLevel {
 export const useHealthStore = create<HealthState>((set, get) => ({
   appMissCount: -1,
   daemonMissCount: -1,
+  lastDaemonPollAt: null,
+  lastDaemonOkAt: null,
+  lastAppPollAt: null,
+  lastAppOkAt: null,
   installKind: "source-custom",
   bannerDismissedAt: null,
   subscribers: 0,
@@ -45,6 +61,7 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     ]);
     const appOk = appRes.status === "fulfilled" && appRes.value.ok;
     const daemonOk = daemonRes.status === "fulfilled" && daemonRes.value.ok;
+    const now = Date.now();
 
     let nextInstallKind: InstallKind | null = null;
     if (appOk && appRes.status === "fulfilled") {
@@ -61,6 +78,10 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     set((s) => ({
       appMissCount: appOk ? 0 : Math.max(s.appMissCount, 0) + 1,
       daemonMissCount: daemonOk ? 0 : Math.max(s.daemonMissCount, 0) + 1,
+      lastAppPollAt: now,
+      lastDaemonPollAt: now,
+      lastAppOkAt: appOk ? now : s.lastAppOkAt,
+      lastDaemonOkAt: daemonOk ? now : s.lastDaemonOkAt,
       installKind: nextInstallKind ?? s.installKind,
     }));
   },

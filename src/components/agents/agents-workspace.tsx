@@ -661,25 +661,26 @@ export function AgentsWorkspace({
           effectiveCabinetPath,
           effectiveVisibilityMode
         );
-        const cabinetAgents = (data.agents || []).map((a: Record<string, unknown>) => ({
-          scopedId: a.scopedId as string | undefined,
-          name: a.name as string,
-          slug: a.slug as string,
-          emoji: a.emoji as string || "🤖",
-          role: a.role as string || "",
-          active: a.active as boolean,
-          type: a.type as string,
-          department: a.department as string,
-          heartbeat: a.heartbeat as string || "",
-          jobCount: a.jobCount as number || 0,
+        const cabinetAgents = (data.agents || []).map((a) => ({
+          scopedId: a.scopedId,
+          name: a.name,
+          slug: a.slug,
+          emoji: a.emoji || "🤖",
+          role: a.role || "",
+          active: a.active,
+          type: a.type,
+          department: a.department,
+          heartbeat: a.heartbeat || "",
+          jobCount: a.jobCount || 0,
           runningCount: 0,
-          cabinetPath: a.cabinetPath as string,
-          cabinetName: a.cabinetName as string,
-          displayName: a.displayName as string | undefined,
-          iconKey: a.iconKey as string | undefined,
-          color: a.color as string | undefined,
-          avatar: a.avatar as string | undefined,
-          avatarExt: a.avatarExt as string | undefined,
+          cabinetPath: a.cabinetPath,
+          cabinetName: a.cabinetName,
+          scope: a.scope,
+          displayName: a.displayName,
+          iconKey: a.iconKey,
+          color: a.color,
+          avatar: a.avatar,
+          avatarExt: a.avatarExt,
         })) as AgentListItem[];
         setAgents(cabinetAgents);
         setCabinetJobs((data.jobs || []) as CabinetJobSummary[]);
@@ -3167,6 +3168,14 @@ export function AgentsWorkspace({
                               />
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                              {agent.scope === "global" ? (
+                                <span
+                                  className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-300"
+                                  title="Shared across all cabinets"
+                                >
+                                  Global
+                                </span>
+                              ) : null}
                               {hbCount > 0 ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-2 py-0.5">
                                   <HeartPulse className="size-2.5 text-pink-400" />

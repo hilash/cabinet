@@ -119,6 +119,23 @@ export function getScheduleEvents(
     agentMap.set(a.slug, a);
   }
 
+  // Audit #070/#116: in multi-cabinet "all" views, the same agent appears
+  // once per cabinet that exposes it. The events loop below previously
+  // generated one heartbeat-event per (agent, occurrence), so a heartbeat
+  // visible across N cabinets produced N copies in the same time slot —
+  // which read as "the same week renders 6× in the calendar". Dedup by a
+  // logical-event key (agentSlug + sourceType + sourceId + ISO time +
+  // cronExpr) so cross-cabinet duplicates collapse into one rendered pill.
+  const seen = new Set<string>();
+  const dedupKey = (
+    agentSlug: string,
+    sourceType: ScheduleEvent["sourceType"],
+    sourceId: string,
+    time: Date,
+    cronExpr: string,
+  ): string =>
+    `${agentSlug}|${sourceType}|${sourceId}|${time.toISOString()}|${cronExpr}`;
+
   const events: ScheduleEvent[] = [];
   const MAX_EVENTS_PER_SOURCE = 500;
 
@@ -136,20 +153,25 @@ export function getScheduleEvents(
       const next = computeNextCronRun(job.schedule, cursor);
       if (!next || next.getTime() >= rangeEnd.getTime()) break;
       if (next.getTime() >= rangeStart.getTime()) {
-        events.push({
-          id: `job:${job.scopedId}:${next.toISOString()}`,
-          sourceType: "job",
-          sourceId: job.scopedId,
-          label: job.name,
-          agentEmoji: owner?.emoji || "🤖",
-          agentName: owner?.name || job.ownerAgent || "Unknown",
-          agentSlug: owner?.slug || job.ownerAgent || "",
-          enabled: job.enabled,
-          cronExpr: job.schedule,
-          time: next,
-          jobRef: job,
-          agentRef: owner,
-        });
+        const slug = owner?.slug || job.ownerAgent || "";
+        const key = dedupKey(slug, "job", job.scopedId, next, job.schedule);
+        if (!seen.has(key)) {
+          seen.add(key);
+          events.push({
+            id: `job:${job.scopedId}:${next.toISOString()}`,
+            sourceType: "job",
+            sourceId: job.scopedId,
+            label: job.name,
+            agentEmoji: owner?.emoji || "🤖",
+            agentName: owner?.name || job.ownerAgent || "Unknown",
+            agentSlug: slug,
+            enabled: job.enabled,
+            cronExpr: job.schedule,
+            time: next,
+            jobRef: job,
+            agentRef: owner,
+          });
+        }
       }
       cursor = next;
       count++;
@@ -166,19 +188,33 @@ export function getScheduleEvents(
       const next = computeNextCronRun(agent.heartbeat, cursor);
       if (!next || next.getTime() >= rangeEnd.getTime()) break;
       if (next.getTime() >= rangeStart.getTime()) {
-        events.push({
-          id: `hb:${agent.scopedId}:${next.toISOString()}`,
-          sourceType: "heartbeat",
-          sourceId: agent.scopedId,
-          label: agent.name,
-          agentEmoji: agent.emoji || "🤖",
-          agentName: agent.name,
-          agentSlug: agent.slug,
-          enabled: agent.active,
-          cronExpr: agent.heartbeat,
-          time: next,
-          agentRef: agent,
-        });
+        // Heartbeat dedup key uses slug (not scopedId): two cabinets each
+        // exposing the same agent with the same heartbeat are the same
+        // logical event; we don't want one pill per cabinet stacked at the
+        // same minute.
+        const key = dedupKey(
+          agent.slug,
+          "heartbeat",
+          agent.slug,
+          next,
+          agent.heartbeat,
+        );
+        if (!seen.has(key)) {
+          seen.add(key);
+          events.push({
+            id: `hb:${agent.scopedId}:${next.toISOString()}`,
+            sourceType: "heartbeat",
+            sourceId: agent.scopedId,
+            label: agent.name,
+            agentEmoji: agent.emoji || "🤖",
+            agentName: agent.name,
+            agentSlug: agent.slug,
+            enabled: agent.active,
+            cronExpr: agent.heartbeat,
+            time: next,
+            agentRef: agent,
+          });
+        }
       }
       cursor = next;
       count++;

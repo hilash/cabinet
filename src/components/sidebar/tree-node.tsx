@@ -135,16 +135,12 @@ export function TreeNode({
 
   const handleClick = () => {
     selectPage(node.path);
-    if (node.type === "cabinet") {
-      loadPage(node.path);
-      setSection({
-        type: "cabinet",
-        cabinetPath: node.path,
-      });
-      return;
-    }
-
-    if (node.type === "file" || node.type === "directory") {
+    // Cabinets used to switch the entire app to the cabinet view on row
+    // click — that trapped users who just wanted to browse files inside.
+    // Now they behave like any folder: load the cabinet's index page and
+    // expand the subtree. The "Open cabinet" pill on hover (rendered below)
+    // is the explicit affordance for switching into the cabinet view.
+    if (node.type === "file" || node.type === "directory" || node.type === "cabinet") {
       loadPage(node.path);
     }
 
@@ -156,6 +152,21 @@ export function TreeNode({
           }
         : { type: "page" }
     );
+  };
+
+  const handleOpenCabinet = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Switch *into* the cabinet (sidebar drawer shows Data/Agents/Tasks tabs
+    // because section.cabinetPath is set) and land on the cabinet's data
+    // page — the index.md — instead of the dashboard. The dashboard is one
+    // click away via the top of the cabinet drawer if the user wants it.
+    selectPage(node.path);
+    void loadPage(node.path);
+    setSection({
+      type: "page",
+      cabinetPath: node.path,
+    });
   };
 
   const handleDelete = () => {
@@ -399,7 +410,7 @@ export function TreeNode({
             onDrop={handleDrop}
             disabled={isMoving}
             className={cn(
-              "flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
+              "group flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
               "hover:bg-foreground/[0.03] hover:text-foreground !cursor-grab active:!cursor-grabbing",
               isSelected && "bg-accent text-accent-foreground font-medium",
               showInto &&
@@ -474,6 +485,40 @@ export function TreeNode({
             <span className={cn("truncate", node.type === "unknown" && "opacity-50")}>{title}</span>
             {isMoving && (
               <Loader2 className="ml-auto h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+            )}
+            {node.type === "cabinet" && !isMoving && (
+              // Hover-revealed "Open cabinet" pill — the row click now acts
+              // like a normal folder (expand + load index), and this pill is
+              // the explicit affordance to switch into the cabinet's scoped
+              // view. Rendered as a span (not a nested <button>) because
+              // <button> inside <button> is invalid HTML; pointer/keyboard
+              // affordances are reproduced via role="button" + tabIndex.
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={`Open cabinet ${title}`}
+                title="Open cabinet view"
+                onClick={handleOpenCabinet}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    handleOpenCabinet(e as unknown as React.MouseEvent);
+                  }
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className={cn(
+                  // Hidden at rest, revealed on row hover or pill focus.
+                  // Faint amber wash with amber text — borderless, blends
+                  // with the row instead of competing with it.
+                  // Row hover: calm theme tokens, almost unnoticeable.
+                  // Pill hover: stronger theme tokens (accent), grounded in
+                  // the app's palette rather than a yellow CTA.
+                  "ml-auto shrink-0 rounded-md bg-foreground/[0.04] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80 transition-[opacity,background-color,color]",
+                  "opacity-0 group-hover:opacity-100 focus:opacity-100",
+                  "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                )}
+              >
+                Open
+              </span>
             )}
           </button>
         </ContextMenuTrigger>

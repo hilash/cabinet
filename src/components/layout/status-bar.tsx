@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight, Sparkles } from "lucide-react";
-import { requestShowTour } from "@/components/onboarding/tour/use-tour";
+import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight, HelpCircle } from "lucide-react";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -52,6 +51,20 @@ function GitHubIcon({ className }: { className?: string }) {
 
 function formatGithubStars(stars: number) {
   return new Intl.NumberFormat("en-US").format(stars);
+}
+
+// Audit #092: surface the last successful health check in the popover so
+// users can see how stale "Running"/"Down" actually is. "5s ago" is fine,
+// "11m ago" should make a green pill suspect.
+function formatRelativeAgo(ts: number | null, now: number): string {
+  if (!ts) return "never";
+  const sec = Math.max(0, Math.round((now - ts) / 1000));
+  if (sec < 5) return "just now";
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  return `${hr}h ago`;
 }
 
 /* ── Star burst explosion particles ── */
@@ -152,6 +165,8 @@ export function StatusBar() {
   const daemonLevel = useHealthStore(selectDaemonLevel);
   const installKind = useHealthStore((s) => s.installKind);
   const startHealthPolling = useHealthStore((s) => s.startPolling);
+  const lastDaemonOkAt = useHealthStore((s) => s.lastDaemonOkAt);
+  const lastAppOkAt = useHealthStore((s) => s.lastAppOkAt);
 
   // Pill is honest about uncertainty: until the first health poll lands we
   // show "Checking…" rather than flashing green. After that, daemon needs
@@ -162,6 +177,17 @@ export function StatusBar() {
   const daemonAlive = daemonLevel !== "down";
 
   const [showServerPopup, setShowServerPopup] = useState(false);
+
+  // Tick a "now" value while the popover is open so the relative-time
+  // strings ("13s ago") stay fresh even when no poll has fired in the
+  // meantime. 1 Hz is plenty — we only render seconds for the first
+  // minute, then minutes after that.
+  const [popupNow, setPopupNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!showServerPopup) return;
+    const id = setInterval(() => setPopupNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [showServerPopup]);
   const [providerStatuses, setProviderStatuses] = useState<
     { id: string; name: string; available: boolean; authenticated: boolean }[]
   >([]);
@@ -420,6 +446,9 @@ export function StatusBar() {
                         ? "Pages, editor, search, and file management are working."
                         : "Pages, editor, search, and saving are unavailable. You can still read cached content."}
                     </p>
+                    <p className="text-[10px] text-muted-foreground/50 pl-3.5">
+                      Last seen: {formatRelativeAgo(lastAppOkAt, popupNow)}
+                    </p>
                   </div>
 
                   {/* Daemon */}
@@ -433,6 +462,9 @@ export function StatusBar() {
                       {daemonAlive
                         ? "AI agents, scheduled jobs, and the web terminal are working."
                         : "AI agents, scheduled jobs, and the web terminal are unavailable. Page editing still works."}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/50 pl-3.5">
+                      Last seen: {formatRelativeAgo(lastDaemonOkAt, popupNow)}
                     </p>
                   </div>
 
@@ -613,14 +645,14 @@ export function StatusBar() {
       <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => requestShowTour()}
-          aria-label="Replay the Meet your Cabinet tour"
-          title="Replay the Cabinet tour"
-          className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/25 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-400/40 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
+          onClick={() => setSection({ type: "help" })}
+          aria-label="Open the Help page"
+          title="Help — demos, videos, and guides"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 text-muted-foreground transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
         >
-          <Sparkles className="h-3.5 w-3.5" />
+          <HelpCircle className="h-3.5 w-3.5" />
           <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            Tour
+            Help
           </span>
         </button>
         <a

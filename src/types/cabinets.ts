@@ -44,6 +44,8 @@ export interface CabinetAgentSummary {
   cabinetName: string;
   cabinetDepth: number;
   inherited: boolean;
+  /** "global" when the persona lives in `data/.global-agents/` (shared across cabinets). */
+  scope?: "global" | "cabinet";
   // Identity customization (optional; sidebar renders from these when set)
   displayName?: string;
   iconKey?: string;
