@@ -131,7 +131,6 @@ Cabinet is built around a few principles that we think matter deeply for the fut
 | **WYSIWYG + Markdown** | Rich text editing with Tiptap. Tables, code blocks, slash commands. |
 | **AI Agents** | Each has goals, skills, scheduled jobs. Watch them work like a real team. |
 | **Skills** | Browse and install from skills.sh or any GitHub repo. Attach per agent, or `@`-mention in the composer to scope to a single task. |
-| **API Keys** | Local `.cabinet.env` editor in Settings, owner-only and gitignored. Keys reach skills and CLIs at spawn time. |
 | **Scheduled Jobs** | Cron-based agent automation. Reddit scout every 6 hours. Weekly reports on Monday. |
 | **Embedded HTML Apps** | Drop an `index.html` in any folder — it renders as an iframe. Full-screen mode. |
 | **Web Terminal** | Interactive local AI CLI terminal in the browser. Kept for direct sessions, debugging, and future terminal-native features such as tmux-style Cabinet workflows. |
