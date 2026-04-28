@@ -1,8 +1,14 @@
 import path from "path";
-import fs from "fs/promises";
 import yaml from "js-yaml";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
+import {
+  copyFile,
+  ensureDirectory,
+  fileExists,
+  listDirectory,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 
 export interface ScaffoldCabinetOptions {
   name: string;
@@ -20,34 +26,25 @@ export interface ScaffoldCabinetOptions {
 
 const GETTING_STARTED_DIRNAME = "getting-started";
 
-async function pathExists(targetPath: string): Promise<boolean> {
-  try {
-    await fs.access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function copyDirectoryMerge(src: string, dest: string): Promise<void> {
-  await fs.mkdir(dest, { recursive: true });
-  const entries = await fs.readdir(src, { withFileTypes: true });
+  await ensureDirectory(dest);
+  const entries = await listDirectory(src);
 
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
 
-    if (entry.isDirectory()) {
+    if (entry.isDirectory) {
       await copyDirectoryMerge(srcPath, destPath);
       continue;
     }
 
-    if (await pathExists(destPath)) {
+    if (await fileExists(destPath)) {
       continue;
     }
 
-    await fs.mkdir(path.dirname(destPath), { recursive: true });
-    await fs.copyFile(srcPath, destPath);
+    await ensureDirectory(path.dirname(destPath));
+    await copyFile(srcPath, destPath);
   }
 }
 
@@ -59,7 +56,7 @@ async function resolveGettingStartedSeedDir(targetDir: string): Promise<string |
   ];
 
   for (const candidate of candidates) {
-    if (!(await pathExists(candidate))) {
+    if (!(await fileExists(candidate))) {
       continue;
     }
 
@@ -100,9 +97,9 @@ export async function scaffoldCabinet(
   const { name, kind, description = "", body = "", tags = [], skipExisting = false } = options;
 
   // Directories — always idempotent
-  await fs.mkdir(path.join(targetDir, ".agents"), { recursive: true });
-  await fs.mkdir(path.join(targetDir, ".jobs"), { recursive: true });
-  await fs.mkdir(path.join(targetDir, ".cabinet-state"), { recursive: true });
+  await ensureDirectory(path.join(targetDir, ".agents"));
+  await ensureDirectory(path.join(targetDir, ".jobs"));
+  await ensureDirectory(path.join(targetDir, ".cabinet-state"));
 
   // .cabinet manifest
   const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -116,17 +113,11 @@ export async function scaffoldCabinet(
     entry: "index.md",
   };
 
-  const writeManifest = () =>
-    fs.writeFile(
-      path.join(targetDir, ".cabinet"),
-      yaml.dump(manifest, { lineWidth: -1 }),
-      "utf-8"
-    );
-
-  if (skipExisting) {
-    await writeManifest().catch(() => {});
+  const manifestPath = path.join(targetDir, ".cabinet");
+  if (skipExisting && (await fileExists(manifestPath))) {
+    // leave existing manifest alone
   } else {
-    await writeManifest();
+    await writeFileContent(manifestPath, yaml.dump(manifest, { lineWidth: -1 }));
   }
 
   // index.md
@@ -148,17 +139,11 @@ export async function scaffoldCabinet(
 
   const indexContent = [...frontmatterLines, ...bodyLines].join("\n");
 
-  const writeIndex = () =>
-    fs.writeFile(
-      path.join(targetDir, "index.md"),
-      indexContent,
-      skipExisting ? { flag: "wx" } : "utf-8"
-    );
-
-  if (skipExisting) {
-    await writeIndex().catch(() => {});
+  const indexPath = path.join(targetDir, "index.md");
+  if (skipExisting && (await fileExists(indexPath))) {
+    // leave existing index alone
   } else {
-    await writeIndex();
+    await writeFileContent(indexPath, indexContent);
   }
 
   await seedGettingStartedDir(targetDir);

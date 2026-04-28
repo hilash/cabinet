@@ -1,8 +1,7 @@
-import fs from "fs/promises";
 import path from "path";
 import { CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
 import { DATA_DIR, resolveContentPath } from "@/lib/storage/path-utils";
-import { fileExists } from "@/lib/storage/fs-operations";
+import { fileExists, stat } from "@/lib/storage/fs-operations";
 import { ROOT_CABINET_PATH, normalizeCabinetPath } from "@/lib/cabinets/paths";
 
 export function resolveCabinetDir(cabinetPath?: string | null): string {
@@ -25,12 +24,8 @@ export async function findOwningCabinetPathForPage(pagePath: string): Promise<st
   const resolvedPagePath = resolveContentPath(pagePath);
   let cursor = resolvedPagePath;
 
-  try {
-    const stat = await fs.stat(resolvedPagePath);
-    if (!stat.isDirectory()) {
-      cursor = path.dirname(resolvedPagePath);
-    }
-  } catch {
+  const info = await stat(resolvedPagePath);
+  if (!info?.isDirectory) {
     cursor = path.dirname(resolvedPagePath);
   }
 

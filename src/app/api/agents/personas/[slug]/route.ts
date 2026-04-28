@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
-import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { readFileContent } from "@/lib/storage/fs-operations";
 import {
   readPersona,
   writePersona,
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
     }
     try {
-      const output = await fs.readFile(sessionFile, "utf-8");
+      const output = await readFileContent(sessionFile);
       return NextResponse.json({ output });
     } catch {
       return NextResponse.json({ output: null });

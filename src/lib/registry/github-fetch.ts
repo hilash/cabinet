@@ -1,5 +1,5 @@
-import fs from "fs/promises";
 import path from "path";
+import { ensureDirectory, writeBinary } from "@/lib/storage/fs-operations";
 
 const REPO_OWNER = "hilash";
 const REPO_NAME = "cabinets";
@@ -52,8 +52,8 @@ export async function downloadRegistryTemplate(
     throw new Error(`Template "${slug}" not found in registry`);
   }
 
-  // 2. For each file, download from raw.githubusercontent.com and write locally
-  await fs.mkdir(targetDir, { recursive: true });
+  // 2. For each file, download from raw.githubusercontent.com and write through the storage adapter
+  await ensureDirectory(targetDir);
 
   for (const entry of files) {
     // Relative path within the template (strip the slug/ prefix)
@@ -61,7 +61,7 @@ export async function downloadRegistryTemplate(
     const localPath = path.join(targetDir, relPath);
 
     // Ensure parent directory exists
-    await fs.mkdir(path.dirname(localPath), { recursive: true });
+    await ensureDirectory(path.dirname(localPath));
 
     const rawUrl = `${RAW_BASE}/${encodeURIComponent(slug)}/${relPath
       .split("/")
@@ -75,6 +75,6 @@ export async function downloadRegistryTemplate(
 
     // Write as buffer to handle binary files (images, etc.)
     const buf = Buffer.from(await fileRes.arrayBuffer());
-    await fs.writeFile(localPath, buf);
+    await writeBinary(localPath, buf);
   }
 }

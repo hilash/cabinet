@@ -1,5 +1,4 @@
 import { createHash } from "crypto";
-import fs from "fs/promises";
 import path from "path";
 import type {
   ConversationArtifact,
@@ -16,6 +15,7 @@ import {
 } from "./conversation-notification-utils";
 import { DATA_DIR, sanitizeFilename, virtualPathFromFs } from "../storage/path-utils";
 import {
+  appendFileContent,
   deleteFileOrDir,
   ensureDirectory,
   fileExists,
@@ -738,7 +738,7 @@ export async function appendConversationTranscript(
   cabinetPath?: string
 ): Promise<void> {
   await ensureDirectory(conversationDir(id, cabinetPath));
-  await fs.appendFile(transcriptPathFs(id, cabinetPath), chunk, "utf-8");
+  await appendFileContent(transcriptPathFs(id, cabinetPath), chunk);
 }
 
 export async function replaceConversationArtifacts(

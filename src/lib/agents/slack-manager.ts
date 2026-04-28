@@ -1,7 +1,7 @@
 import path from "path";
-import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import {
+  appendFileContent,
   readFileContent,
   fileExists,
   ensureDirectory,
@@ -37,7 +37,7 @@ export async function postMessage(
 
   const channelFile = path.join(SLACK_DIR, `${full.channel}.jsonl`);
   const line = JSON.stringify(full) + "\n";
-  await fs.appendFile(channelFile, line, "utf-8");
+  await appendFileContent(channelFile, line);
 
   return full;
 }

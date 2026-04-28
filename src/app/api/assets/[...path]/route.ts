@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { resolveContentPath } from "@/lib/storage/path-utils";
-import { fileExists } from "@/lib/storage/fs-operations";
+import {
+  fileExists,
+  readBinary,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
-import fs from "fs/promises";
 
 const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
@@ -48,11 +51,11 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    const buffer = await fs.readFile(resolved);
+    const buffer = await readBinary(resolved);
     const ext = path.extname(resolved).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=3600",
@@ -70,7 +73,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const virtualPath = segments.join("/");
     const resolved = resolveContentPath(virtualPath);
     const body = await req.text();
-    await fs.writeFile(resolved, body, "utf-8");
+    await writeFileContent(resolved, body);
     autoCommit(virtualPath, "Update");
     return NextResponse.json({ ok: true });
   } catch (error) {

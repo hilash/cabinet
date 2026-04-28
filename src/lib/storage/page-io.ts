@@ -1,4 +1,3 @@
-import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
 import yaml from "js-yaml";
@@ -12,6 +11,8 @@ import {
   fileExists,
   deleteFileOrDir,
   unlinkSymlink,
+  stat,
+  rename,
 } from "./fs-operations";
 
 function defaultFrontmatter(title: string): FrontMatter {
@@ -33,8 +34,8 @@ export async function readPage(virtualPath: string): Promise<PageData> {
     filePath = mdPath;
   } else if (await fileExists(resolved)) {
     // Could be a raw file or a directory — check for linked-folder metadata fallback.
-    const stat = await fs.stat(resolved);
-    if (stat.isFile()) {
+    const info = await stat(resolved);
+    if (info?.isFile) {
       filePath = resolved;
     }
   }
@@ -133,8 +134,8 @@ export async function createPage(
 
 export async function deletePage(virtualPath: string): Promise<void> {
   const resolved = resolveContentPath(virtualPath);
-  const stat = await fs.lstat(resolved).catch(() => null);
-  if (stat?.isSymbolicLink()) {
+  const info = await stat(resolved);
+  if (info?.isSymlink) {
     await unlinkSymlink(resolved);
   } else {
     await deleteFileOrDir(resolved);
@@ -158,8 +159,7 @@ export async function movePage(
   }
 
   await ensureDirectory(toDir);
-  const fs = await import("fs/promises");
-  await fs.rename(fromResolved, toResolved);
+  await rename(fromResolved, toResolved);
 
   return toParentPath ? `${toParentPath}/${name}` : name;
 }
@@ -178,8 +178,7 @@ export async function renamePage(
 
   if (fromResolved === toResolved) return virtualPath;
 
-  const fs = await import("fs/promises");
-  await fs.rename(fromResolved, toResolved);
+  await rename(fromResolved, toResolved);
 
   // Update frontmatter title
   const indexMd = path.join(toResolved, "index.md");

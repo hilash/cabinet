@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { resolveContentPath } from "@/lib/storage/path-utils";
-import { ensureDirectory, fileExists } from "@/lib/storage/fs-operations";
-import fs from "fs/promises";
+import {
+  ensureDirectory,
+  fileExists,
+  writeBinary,
+} from "@/lib/storage/fs-operations";
 
 type RouteParams = { params: Promise<{ path: string[] }> };
 
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(filePath, buffer);
+    await writeBinary(filePath, buffer);
 
     const mimeType = file.type || "";
     let markdown: string;

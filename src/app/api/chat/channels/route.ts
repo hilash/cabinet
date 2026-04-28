@@ -9,10 +9,12 @@ export async function GET() {
   try {
     const channels = await listChannels();
     // Enrich with latest message time
-    const enriched = channels.map((ch) => ({
-      ...ch,
-      lastMessageAt: getLatestMessageTime(ch.slug),
-    }));
+    const enriched = await Promise.all(
+      channels.map(async (ch) => ({
+        ...ch,
+        lastMessageAt: await getLatestMessageTime(ch.slug),
+      }))
+    );
     return NextResponse.json({ channels: enriched });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

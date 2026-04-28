@@ -1,6 +1,10 @@
 import path from "path";
-import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  ensureDirectory,
+  readFileContent,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 import { getDb } from "@/lib/db";
 
 const CHAT_DIR = path.join(DATA_DIR, ".chat");
@@ -27,13 +31,13 @@ export interface ChatMessage {
 // --- Channel File I/O ---
 
 async function ensureChatDir(): Promise<void> {
-  await fs.mkdir(CHAT_DIR, { recursive: true });
+  await ensureDirectory(CHAT_DIR);
 }
 
 export async function listChannels(): Promise<Channel[]> {
   await ensureChatDir();
   try {
-    const raw = await fs.readFile(CHANNELS_FILE, "utf-8");
+    const raw = await readFileContent(CHANNELS_FILE);
     return JSON.parse(raw) as Channel[];
   } catch {
     return [];
@@ -54,7 +58,7 @@ export async function createChannel(channel: Channel): Promise<void> {
   }
 
   channels.push(channel);
-  await fs.writeFile(CHANNELS_FILE, JSON.stringify(channels, null, 2));
+  await writeFileContent(CHANNELS_FILE, JSON.stringify(channels, null, 2));
 }
 
 export async function updateChannel(
@@ -66,17 +70,22 @@ export async function updateChannel(
   if (idx === -1) return null;
 
   channels[idx] = { ...channels[idx], ...updates };
-  await fs.writeFile(CHANNELS_FILE, JSON.stringify(channels, null, 2));
+  await writeFileContent(CHANNELS_FILE, JSON.stringify(channels, null, 2));
   return channels[idx];
 }
 
 // --- Message SQLite Operations ---
+//
+// Functions are async to keep the signature compatible with non-SQLite
+// backends (e.g. Postgres or tenant-scoped GCS files) that the cloud
+// edition swaps in via `overrides/src/lib/chat/chat-io.ts`. SQLite calls
+// here are synchronous under the hood; the `async` is for API parity only.
 
-export function getMessages(
+export async function getMessages(
   channelSlug: string,
   limit = 100,
   before?: string
-): ChatMessage[] {
+): Promise<ChatMessage[]> {
   const db = getDb();
 
   let query = "SELECT * FROM messages WHERE channel_slug = ?";
@@ -115,13 +124,13 @@ export function getMessages(
     .reverse(); // Return in chronological order
 }
 
-export function postMessage(
+export async function postMessage(
   channelSlug: string,
   fromId: string,
   fromType: "agent" | "human" | "system",
   content: string,
   replyTo?: string
-): ChatMessage {
+): Promise<ChatMessage> {
   const db = getDb();
   const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const now = new Date().toISOString();
@@ -143,7 +152,7 @@ export function postMessage(
   };
 }
 
-export function togglePin(messageId: string): boolean {
+export async function togglePin(messageId: string): Promise<boolean> {
   const db = getDb();
   const row = db.prepare("SELECT pinned FROM messages WHERE id = ?").get(messageId) as
     | { pinned: number }
@@ -158,7 +167,7 @@ export function togglePin(messageId: string): boolean {
   return newPinned === 1;
 }
 
-export function getLatestMessageTime(channelSlug: string): string | null {
+export async function getLatestMessageTime(channelSlug: string): Promise<string | null> {
   const db = getDb();
   const row = db
     .prepare(

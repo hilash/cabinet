@@ -1,9 +1,15 @@
-import fs from "fs/promises";
 import path from "path";
 import { discoverCabinetPaths } from "@/lib/cabinets/discovery";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import { resolveCabinetDir } from "@/lib/cabinets/server-paths";
-import { ensureDirectory, fileExists } from "@/lib/storage/fs-operations";
+import {
+  deleteFileOrDir,
+  ensureDirectory,
+  fileExists,
+  listDirectory,
+  readFileContent,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 import type { HumanInboxDraft } from "@/types/agents";
 
 type DraftUpdates = Partial<
@@ -65,10 +71,9 @@ export async function createHumanInboxDraft(
     updatedAt: timestamp,
   };
 
-  await fs.writeFile(
+  await writeFileContent(
     draftFilePath(full.id, cabinetPath),
-    JSON.stringify(full, null, 2),
-    "utf-8"
+    JSON.stringify(full, null, 2)
   );
 
   return full;
@@ -79,14 +84,14 @@ export async function listHumanInboxDrafts(cabinetPath?: string): Promise<HumanI
   const dir = draftsDir(normalizedCabinetPath);
   if (!(await fileExists(dir))) return [];
 
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const entries = await listDirectory(dir);
   const drafts: HumanInboxDraft[] = [];
 
   for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    if (entry.isDirectory || !entry.name.endsWith(".json")) continue;
 
     try {
-      const raw = await fs.readFile(path.join(dir, entry.name), "utf-8");
+      const raw = await readFileContent(path.join(dir, entry.name));
       const draft = JSON.parse(raw) as HumanInboxDraft;
       drafts.push({
         ...draft,
@@ -128,7 +133,7 @@ export async function getHumanInboxDraft(
   if (!(await fileExists(filePath))) return null;
 
   try {
-    const raw = await fs.readFile(filePath, "utf-8");
+    const raw = await readFileContent(filePath);
     const draft = JSON.parse(raw) as HumanInboxDraft;
     return {
       ...draft,
@@ -187,10 +192,9 @@ export async function updateHumanInboxDraft(
     updatedAt: new Date().toISOString(),
   };
 
-  await fs.writeFile(
+  await writeFileContent(
     draftFilePath(draftId, normalizedCabinetPath),
-    JSON.stringify(updated, null, 2),
-    "utf-8"
+    JSON.stringify(updated, null, 2)
   );
 
   return updated;
@@ -204,6 +208,6 @@ export async function deleteHumanInboxDraft(
   const filePath = draftFilePath(draftId, normalizedCabinetPath);
   if (!(await fileExists(filePath))) return false;
 
-  await fs.rm(filePath, { force: true });
+  await deleteFileOrDir(filePath);
   return true;
 }

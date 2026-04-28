@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
-import fs from "fs/promises";
 import yaml from "js-yaml";
 import {
   resolveContentPath,
   sanitizeFilename,
 } from "@/lib/storage/path-utils";
+import {
+  ensureDirectory,
+  fileExists,
+  readFileContent,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 import { seedGettingStartedDir } from "@/lib/storage/cabinet-scaffold";
 import { downloadRegistryTemplate } from "@/lib/registry/github-fetch";
 import { REGISTRY_TEMPLATES } from "@/lib/registry/registry-manifest";
@@ -44,14 +49,11 @@ export async function POST(req: NextRequest) {
     const targetDir = resolveContentPath(virtualPath);
 
     // Check if already exists
-    try {
-      await fs.access(targetDir);
+    if (await fileExists(targetDir)) {
       return NextResponse.json(
         { error: `Directory "${dirName}" already exists` },
         { status: 409 }
       );
-    } catch {
-      // Good
     }
 
     // Download template from GitHub
@@ -61,19 +63,21 @@ export async function POST(req: NextRequest) {
     if (body.name && body.name.trim() !== template.name) {
       const manifestPath = path.join(targetDir, CABINET_MANIFEST_FILE);
       try {
-        const raw = await fs.readFile(manifestPath, "utf-8");
+        const raw = await readFileContent(manifestPath);
         const parsed = yaml.load(raw) as Record<string, unknown>;
         parsed.name = body.name.trim();
-        await fs.writeFile(manifestPath, yaml.dump(parsed), "utf-8");
+        await writeFileContent(manifestPath, yaml.dump(parsed));
       } catch {
         // Non-fatal: manifest may not exist for all templates
       }
     }
 
-    // Ensure .cabinet-state exists
-    await fs
-      .mkdir(path.join(targetDir, ".cabinet-state"), { recursive: true })
-      .catch(() => {});
+    // Ensure .cabinet-state exists (no-op in cloud — virtual prefix)
+    try {
+      await ensureDirectory(path.join(targetDir, ".cabinet-state"));
+    } catch {
+      // ignore
+    }
 
     await seedGettingStartedDir(targetDir);
 

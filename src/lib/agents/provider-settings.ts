@@ -1,7 +1,12 @@
+// eslint-disable-next-line no-restricted-imports -- sync read used by hot helpers; gracefully returns defaults when the file is unreadable, which is the expected case in cloud where settings live in tenant-scoped storage.
 import fs from "fs";
-import fsp from "fs/promises";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  ensureDirectory,
+  readFileContent,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 import { providerRegistry } from "./provider-registry";
 
 const CONFIG_DIR = path.join(DATA_DIR, ".agents", ".config");
@@ -68,7 +73,7 @@ export function readProviderSettingsSync(): ProviderSettings {
 
 export async function readProviderSettings(): Promise<ProviderSettings> {
   try {
-    const raw = await fsp.readFile(PROVIDERS_FILE, "utf8");
+    const raw = await readFileContent(PROVIDERS_FILE);
     return normalizeProviderSettings(JSON.parse(raw));
   } catch {
     return normalizeProviderSettings(null);
@@ -77,8 +82,8 @@ export async function readProviderSettings(): Promise<ProviderSettings> {
 
 export async function writeProviderSettings(input: ProviderSettings): Promise<ProviderSettings> {
   const normalized = normalizeProviderSettings(input);
-  await fsp.mkdir(CONFIG_DIR, { recursive: true });
-  await fsp.writeFile(PROVIDERS_FILE, JSON.stringify(normalized, null, 2), "utf8");
+  await ensureDirectory(CONFIG_DIR);
+  await writeFileContent(PROVIDERS_FILE, JSON.stringify(normalized, null, 2));
   return normalized;
 }
 

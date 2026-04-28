@@ -1,8 +1,13 @@
-import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
 import yaml from "js-yaml";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  fileExists,
+  listDirectory,
+  readFileContent,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 import { providerRegistry } from "./provider-registry";
 import {
   normalizeProviderSettings,
@@ -97,16 +102,34 @@ function recordJobUsage(
   map[providerId] = usage;
 }
 
+async function safeListDirectory(dir: string): Promise<{ name: string; isDirectory: boolean; isSymlink: boolean }[]> {
+  if (!(await fileExists(dir))) return [];
+  try {
+    return await listDirectory(dir);
+  } catch {
+    return [];
+  }
+}
+
+async function safeReadFile(filePath: string): Promise<string | null> {
+  if (!(await fileExists(filePath))) return null;
+  try {
+    return await readFileContent(filePath);
+  } catch {
+    return null;
+  }
+}
+
 export async function getProviderUsage(): Promise<ProviderUsageMap> {
   const usage: ProviderUsageMap = {};
-  const entries = await fs.readdir(AGENTS_DIR, { withFileTypes: true }).catch(() => []);
+  const entries = await safeListDirectory(AGENTS_DIR);
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
 
-    if (!entry.isDirectory() && entry.isFile() && entry.name.endsWith(".md")) {
+    if (!entry.isDirectory && entry.name.endsWith(".md")) {
       const slug = entry.name.replace(/\.md$/, "");
-      const personaRaw = await fs.readFile(path.join(AGENTS_DIR, entry.name), "utf8").catch(() => null);
+      const personaRaw = await safeReadFile(path.join(AGENTS_DIR, entry.name));
       if (personaRaw) {
         const parsed = matter(personaRaw);
         if (typeof parsed.data.provider === "string" && parsed.data.provider.trim()) {
@@ -116,11 +139,11 @@ export async function getProviderUsage(): Promise<ProviderUsageMap> {
       continue;
     }
 
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory) continue;
 
     const slug = entry.name;
     const personaPath = path.join(AGENTS_DIR, slug, "persona.md");
-    const personaRaw = await fs.readFile(personaPath, "utf8").catch(() => null);
+    const personaRaw = await safeReadFile(personaPath);
     if (personaRaw) {
       const parsed = matter(personaRaw);
       if (typeof parsed.data.provider === "string" && parsed.data.provider.trim()) {
@@ -129,11 +152,11 @@ export async function getProviderUsage(): Promise<ProviderUsageMap> {
     }
 
     const jobsDir = path.join(AGENTS_DIR, slug, "jobs");
-    const jobEntries = await fs.readdir(jobsDir, { withFileTypes: true }).catch(() => []);
+    const jobEntries = await safeListDirectory(jobsDir);
     for (const jobEntry of jobEntries) {
-      if (!jobEntry.isFile() || !jobEntry.name.endsWith(".yaml")) continue;
+      if (jobEntry.isDirectory || !jobEntry.name.endsWith(".yaml")) continue;
       const jobPath = path.join(jobsDir, jobEntry.name);
-      const raw = await fs.readFile(jobPath, "utf8").catch(() => null);
+      const raw = await safeReadFile(jobPath);
       if (!raw) continue;
       const parsed = yaml.load(raw) as Record<string, unknown> | null;
       if (!parsed || typeof parsed.provider !== "string" || !parsed.provider.trim()) continue;
@@ -152,47 +175,47 @@ export async function migrateProviderAssignments(
   fromProviderId: string,
   toProviderId: string
 ): Promise<void> {
-  const entries = await fs.readdir(AGENTS_DIR, { withFileTypes: true }).catch(() => []);
+  const entries = await safeListDirectory(AGENTS_DIR);
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
 
-    if (!entry.isDirectory() && entry.isFile() && entry.name.endsWith(".md")) {
+    if (!entry.isDirectory && entry.name.endsWith(".md")) {
       const personaPath = path.join(AGENTS_DIR, entry.name);
-      const personaRaw = await fs.readFile(personaPath, "utf8").catch(() => null);
+      const personaRaw = await safeReadFile(personaPath);
       if (personaRaw) {
         const parsed = matter(personaRaw);
         if (parsed.data.provider === fromProviderId) {
           parsed.data.provider = toProviderId;
-          await fs.writeFile(personaPath, matter.stringify(parsed.content, parsed.data), "utf8");
+          await writeFileContent(personaPath, matter.stringify(parsed.content, parsed.data));
         }
       }
       continue;
     }
 
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory) continue;
 
     const personaPath = path.join(AGENTS_DIR, entry.name, "persona.md");
-    const personaRaw = await fs.readFile(personaPath, "utf8").catch(() => null);
+    const personaRaw = await safeReadFile(personaPath);
     if (personaRaw) {
       const parsed = matter(personaRaw);
       if (parsed.data.provider === fromProviderId) {
         parsed.data.provider = toProviderId;
-        await fs.writeFile(personaPath, matter.stringify(parsed.content, parsed.data), "utf8");
+        await writeFileContent(personaPath, matter.stringify(parsed.content, parsed.data));
       }
     }
 
     const jobsDir = path.join(AGENTS_DIR, entry.name, "jobs");
-    const jobEntries = await fs.readdir(jobsDir, { withFileTypes: true }).catch(() => []);
+    const jobEntries = await safeListDirectory(jobsDir);
     for (const jobEntry of jobEntries) {
-      if (!jobEntry.isFile() || !jobEntry.name.endsWith(".yaml")) continue;
+      if (jobEntry.isDirectory || !jobEntry.name.endsWith(".yaml")) continue;
       const jobPath = path.join(jobsDir, jobEntry.name);
-      const raw = await fs.readFile(jobPath, "utf8").catch(() => null);
+      const raw = await safeReadFile(jobPath);
       if (!raw) continue;
       const parsed = yaml.load(raw) as Record<string, unknown> | null;
       if (!parsed || parsed.provider !== fromProviderId) continue;
       parsed.provider = toProviderId;
-      await fs.writeFile(jobPath, yaml.dump(parsed, { lineWidth: -1, noRefs: true }), "utf8");
+      await writeFileContent(jobPath, yaml.dump(parsed, { lineWidth: -1, noRefs: true }));
     }
   }
 }

@@ -16,7 +16,7 @@ export async function GET(
     const limit = parseInt(url.searchParams.get("limit") || "100");
     const before = url.searchParams.get("before") || undefined;
 
-    const messages = getMessages(slug, limit, before);
+    const messages = await getMessages(slug, limit, before);
     return NextResponse.json({ channel, messages });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -34,7 +34,7 @@ export async function POST(
 
     // Handle pin action
     if (body.action === "pin" && body.messageId) {
-      const pinned = togglePin(body.messageId);
+      const pinned = await togglePin(body.messageId);
       return NextResponse.json({ ok: true, pinned });
     }
 
@@ -48,7 +48,7 @@ export async function POST(
       );
     }
 
-    const msg = postMessage(
+    const msg = await postMessage(
       slug,
       fromId,
       fromType || "human",
