@@ -537,6 +537,7 @@ export function HomeScreen() {
           className="w-full"
           minHeight="44px"
           maxHeight="160px"
+          mentionDropdownPlacement="below"
           topRightOverlay={
             <WhenChip
               mode="now"

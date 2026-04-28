@@ -4,7 +4,10 @@ import path from "path";
 import matter from "gray-matter";
 import { readSkill } from "@/lib/agents/skills/loader";
 import { readSkillsLock } from "@/lib/agents/skills/lock";
-import { fetchAuditsForLockEntry } from "@/lib/agents/skills/upstream";
+import {
+  fetchAuditsForLockEntry,
+  parseLockSource,
+} from "@/lib/agents/skills/upstream";
 
 interface RouteContext {
   params: Promise<{ key: string }>;
@@ -21,7 +24,14 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
   const lock = await readSkillsLock();
   const lockEntry = lock.skills[key];
   const audits = lockEntry ? await fetchAuditsForLockEntry(key, lockEntry) : null;
-  return NextResponse.json({ skill: bundle, audits });
+  // Build the skills.sh path segment (`<owner>/<repo>/<skill>`) so the UI
+  // can deep-link each audit pill to its full report. Null when the skill
+  // wasn't installed from a github source we can resolve.
+  const parsedSource = lockEntry ? parseLockSource(lockEntry) : null;
+  const skillsShPath = parsedSource
+    ? `${parsedSource.owner}/${parsedSource.repo}/${parsedSource.skill ?? key}`
+    : null;
+  return NextResponse.json({ skill: bundle, audits, skillsShPath });
 }
 
 export async function PATCH(request: Request, context: RouteContext): Promise<NextResponse> {

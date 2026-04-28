@@ -108,13 +108,17 @@ export function SkillAddDialog({
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
 
-  const handlePreview = useCallback(async () => {
+  const handlePreview = useCallback(async (override?: string) => {
+    // Accept an optional source override so callers that just set the source
+    // (e.g. catalog pick, initialSource auto-preview) don't race the render
+    // and read a stale `source` value.
+    const raw = (override ?? source).trim();
     setPreview(null);
     setPreviewAudits(null);
     setPreviewSkillMeta(null);
     setPreviewRequestedSkill(null);
     setPreviewError(null);
-    const parsed = parsePreviewSource(source);
+    const parsed = parsePreviewSource(raw);
     if (!parsed) {
       setPreviewError(
         "Unrecognized format. Try `github:owner/repo`, a github.com URL, or a skills.sh URL.",
@@ -188,7 +192,7 @@ export function SkillAddDialog({
     if (open && initialSource) {
       setSource(initialSource);
       setTab("paste");
-      handlePreview();
+      void handlePreview(initialSource);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialSource]);
@@ -199,9 +203,14 @@ export function SkillAddDialog({
       setTab("paste");
       setPreview(null);
       setPreviewAudits(null);
+      setPreviewSkillMeta(null);
+      setPreviewRequestedSkill(null);
       setPreviewError(null);
+      // Auto-trigger the preview so the user doesn't have to click Preview
+      // a second time after picking a result from the Browse tab.
+      void handlePreview(next);
     },
-    [],
+    [handlePreview],
   );
 
   // Trust signals: prefer audit data when available; fall back to repo meta.
@@ -230,7 +239,19 @@ export function SkillAddDialog({
           <div className="flex gap-1 border-b border-border">
             <button
               type="button"
-              onClick={() => setTab("browse")}
+              onClick={() => {
+                // Going back to Browse: drop any preview/source carried over
+                // from a Paste URL roundtrip so the user lands on a clean
+                // search surface.
+                setTab("browse");
+                setSource("");
+                setPreview(null);
+                setPreviewAudits(null);
+                setPreviewSkillMeta(null);
+                setPreviewRequestedSkill(null);
+                setPreviewError(null);
+                setImportError(null);
+              }}
               className={cn(
                 "px-3 py-1.5 text-xs border-b-2 -mb-px",
                 tab === "browse"
@@ -270,7 +291,7 @@ export function SkillAddDialog({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handlePreview}
+                onClick={() => handlePreview()}
                 disabled={!source.trim() || previewing}
               >
                 {previewing ? <Loader2 className="size-3.5 animate-spin" /> : "Preview"}
@@ -278,14 +299,14 @@ export function SkillAddDialog({
             </div>
           )}
 
-          {previewError && (
+          {tab === "paste" && previewError && (
             <div className="text-xs text-destructive flex items-start gap-1.5">
               <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
               {previewError}
             </div>
           )}
 
-          {preview && (
+          {tab === "paste" && preview && (
             <div className="border border-border rounded-md p-3 flex flex-col gap-2 bg-muted/30">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold">
@@ -392,7 +413,10 @@ export function SkillAddDialog({
 
         <DialogFooter>
           <DialogClose render={<Button variant="ghost">Cancel</Button>} />
-          <Button onClick={handleImport} disabled={!source.trim() || importing}>
+          <Button
+            onClick={handleImport}
+            disabled={tab !== "paste" || !source.trim() || importing}
+          >
             {importing ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : null}
             Install
           </Button>

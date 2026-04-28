@@ -75,6 +75,7 @@ export function SkillDetail({ skillKey, cabinetPath, onClose }: SkillDetailProps
   const [allowedTools, setAllowedTools] = useState("");
   const [body, setBody] = useState("");
   const [audits, setAudits] = useState<AuditSummary | null>(null);
+  const [skillsShPath, setSkillsShPath] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -87,6 +88,7 @@ export function SkillDetail({ skillKey, cabinetPath, onClose }: SkillDetailProps
       const data = (await res.json()) as {
         skill: SkillBundle;
         audits?: AuditSummary | null;
+        skillsShPath?: string | null;
       };
       setBundle(data.skill);
       setName(data.skill.name);
@@ -94,6 +96,7 @@ export function SkillDetail({ skillKey, cabinetPath, onClose }: SkillDetailProps
       setAllowedTools(data.skill.allowedTools.join("\n"));
       setBody(data.skill.body);
       setAudits(data.audits ?? null);
+      setSkillsShPath(data.skillsShPath ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "load failed");
     } finally {
@@ -277,7 +280,7 @@ export function SkillDetail({ skillKey, cabinetPath, onClose }: SkillDetailProps
               />
             </section>
 
-            <AuditsSection audits={audits} bundle={bundle} />
+            <AuditsSection audits={audits} bundle={bundle} skillsShPath={skillsShPath} />
 
             {bundle.fileInventory.some((f) => f.path.startsWith("evals/")) && (
               <section className="border-t border-border pt-3">
@@ -337,9 +340,16 @@ const PASSING_RISK = new Set(["safe", "low", "none"]);
 function AuditsSection({
   audits,
   bundle,
+  skillsShPath,
 }: {
   audits: AuditSummary | null;
   bundle: SkillBundle;
+  /**
+   * `<owner>/<repo>/<skill>` segment, used to deep-link each audit pill to
+   * its full report on skills.sh. Null when the skill wasn't installed from
+   * a github source we can resolve to a public skills.sh page.
+   */
+  skillsShPath: string | null;
 }) {
   const scriptCount = bundle.fileInventory.filter((f) => f.kind === "script").length;
   const hasCatchAll = bundle.allowedTools.some((t) => /\(\s*\*\s*\)/.test(t));
@@ -375,32 +385,51 @@ function AuditsSection({
         <div className="mt-2 flex flex-wrap gap-1.5">
           {AUDIT_SOURCES.map(({ key, label }) => {
             const block = audits.raw[key];
+            // Build the deep-link to skills.sh's audit page when we have the
+            // upstream provenance. Falls back to a non-interactive span when
+            // the skill wasn't installed from a resolvable github source.
+            const href = skillsShPath
+              ? `https://skills.sh/${skillsShPath}/security/${key}`
+              : null;
             if (!block?.risk) {
-              return (
-                <span
-                  key={key}
-                  className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground/60"
-                  title={`${label}: no signal`}
-                >
+              const inactiveClass =
+                "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground/60";
+              const inactiveTitle = `${label}: no signal${href ? " (open report on skills.sh)" : ""}`;
+              const inactiveContent = (
+                <>
                   <span className="font-medium">{label}</span>
                   <span>—</span>
+                </>
+              );
+              return href ? (
+                <a
+                  key={key}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(inactiveClass, "hover:bg-muted/80 hover:text-muted-foreground")}
+                  title={inactiveTitle}
+                >
+                  {inactiveContent}
+                </a>
+              ) : (
+                <span key={key} className={inactiveClass} title={inactiveTitle}>
+                  {inactiveContent}
                 </span>
               );
             }
             const passed = PASSING_RISK.has(block.risk.toLowerCase());
-            return (
-              <span
-                key={key}
-                className={cn(
-                  "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full",
-                  passed
-                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                    : "bg-red-500/10 text-red-600 dark:text-red-400",
-                )}
-                title={`${label}: ${block.risk}${
-                  block.alerts != null ? ` · ${block.alerts} alerts` : ""
-                }`}
-              >
+            const activeClass = cn(
+              "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full",
+              passed
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-red-500/10 text-red-600 dark:text-red-400",
+            );
+            const activeTitle = `${label}: ${block.risk}${
+              block.alerts != null ? ` · ${block.alerts} alerts` : ""
+            }${href ? " — open full report on skills.sh" : ""}`;
+            const activeContent = (
+              <>
                 {passed ? (
                   <Check className="size-2.5" />
                 ) : (
@@ -408,6 +437,27 @@ function AuditsSection({
                 )}
                 <span className="font-medium">{label}</span>
                 <span className="opacity-70">{block.risk}</span>
+              </>
+            );
+            return href ? (
+              <a
+                key={key}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  activeClass,
+                  passed
+                    ? "hover:bg-emerald-500/20"
+                    : "hover:bg-red-500/20",
+                )}
+                title={activeTitle}
+              >
+                {activeContent}
+              </a>
+            ) : (
+              <span key={key} className={activeClass} title={activeTitle}>
+                {activeContent}
               </span>
             );
           })}
