@@ -36,6 +36,7 @@ import {
   Cloud,
   ArrowRight,
   CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -641,7 +642,7 @@ export function SettingsPage() {
       </div>
 
       <ScrollArea className="flex-1 min-h-0 overflow-hidden">
-        <div className="p-4 space-y-6 max-w-2xl">
+        <div className={cn("p-4 space-y-6", tab !== "skills" && "max-w-2xl")}>
           {/* Profile Tab */}
           {tab === "profile" && <ProfileTab />}
 
@@ -1646,7 +1647,45 @@ function SkillsSettings() {
   // The full library lives in `src/components/skills/skill-library.tsx`.
   // Settings -> Skills is now the canonical surface (no separate /skills
   // route or sidebar entry; see docs/SKILLS_PLAN.md Wave 11).
-  return <SkillLibrary />;
+  return (
+    <div className="flex gap-6 items-start">
+      <div className="flex-1 min-w-0 max-w-3xl">
+        <SkillLibrary />
+      </div>
+      <aside className="hidden lg:flex w-80 shrink-0 flex-col gap-3 rounded-lg border border-border bg-muted/30 p-5 text-[12px] leading-relaxed text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400" />
+          <h3 className="text-[13px] font-semibold text-foreground">
+            Skills are serious business.
+          </h3>
+        </div>
+        <p>
+          Cabinet&apos;s philosophy is to connect you to the world — safely. A
+          skill runs real code on your computer, so treat each one like you
+          would any app you install: read what it does before you trust it.
+        </p>
+        <p>
+          We&apos;re working on a curated collection of skills and integrations,
+          vetted by a team of ex-Apple engineers and security experts. Until
+          that ships, our advice is simple: don&apos;t install everything you
+          find on the internet. Stick to skills from sources you recognize, and
+          skim the skill&apos;s instructions before running it.
+        </p>
+        <p className="border-t border-border pt-3">
+          Questions? Join us on{" "}
+          <a
+            href="https://discord.gg/hJa5TRTbTH"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground underline underline-offset-2 hover:text-primary"
+          >
+            Discord
+          </a>
+          .
+        </p>
+      </aside>
+    </div>
+  );
 }
 
 // Audit #082: 110+ avatars in a single grid was overwhelming. Defaults
