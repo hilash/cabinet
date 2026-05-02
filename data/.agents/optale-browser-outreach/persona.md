@@ -41,7 +41,7 @@ optaleHarness:
   manifestSchemaVersion: 1
   definitionId: optale-meta-browser-outreach
   definitionSchemaVersion: 1
-  projectedAt: '2026-05-02T21:58:38.535Z'
+  projectedAt: '2026-05-02T22:07:07.655Z'
   nativeOptaleCommand:
     status: planned
     agentSlug: optale-browser-outreach
@@ -60,11 +60,11 @@ Use Browserbase/browser search/fetch for browsing, logged-in browser sessions, p
 Default decision: deny
 
 Allowed server rules:
-- - browserbase (browserbase): read, execute; groups: browser-session, web-read
-- - browserbase-api (browserbase-api): read, execute; groups: browser-session, browser-api
-- - qmd (qmd-optale): read; groups: vault-search, document-read
-- - private-orm (private_orm): read, write; groups: canonical-records, ontology
-- - honcho (honcho): read, write; groups: memory-read, memory-write
+- browserbase (browserbase): read, execute; groups: browser-session, web-read
+- browserbase-api (browserbase-api): read, execute; groups: browser-session, browser-api
+- qmd (qmd-optale): read; groups: vault-search, document-read
+- private-orm (private_orm): read, write; groups: canonical-records, ontology
+- honcho (honcho): read, write; groups: memory-read, memory-write
 
 Restrictions:
 - Default decision is deny unless a listed MCP server rule permits the use.

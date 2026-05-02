@@ -264,17 +264,17 @@ const OPENROUTER_SONNET: AgentDefinitionProviderDefaults = {
   modelParameters: { temperature: 0.2 },
 };
 
-const CODEX_GPT_55: AgentDefinitionProviderDefaults = {
+const CODEX_ENGINEERING: AgentDefinitionProviderDefaults = {
   providerId: "codex-cli",
   providerName: "Codex",
-  model: "gpt-5.5",
+  model: "gpt-5.4",
   modelParameters: { temperature: 0.2, reasoningEffort: "medium" },
 };
 
-const CODEX_MINI: AgentDefinitionProviderDefaults = {
+const CODEX_QA: AgentDefinitionProviderDefaults = {
   providerId: "codex-cli",
   providerName: "Codex",
-  model: "gpt-5.4-mini",
+  model: "gpt-5.4",
   modelParameters: { temperature: 0.1, reasoningEffort: "medium" },
 };
 
@@ -535,7 +535,7 @@ export const OPTALE_META_AGENT_MANIFEST = {
       description:
         "Codex subscription lane and Meta handoff target for codebase inspection, implementation, tests, debugging, and verification.",
       instructions: CODEX_INSTRUCTIONS,
-      provider: CODEX_GPT_55,
+      provider: CODEX_ENGINEERING,
       memoryNamespace: "optale.command.meta.codex-engineering",
       mcpServerNames: FULL_MCP_SERVER_NAMES,
       scheduleDescription:
@@ -571,7 +571,7 @@ export const OPTALE_META_AGENT_MANIFEST = {
       description:
         "Verification specialist for code review, acceptance criteria, smoke tests, and risk analysis.",
       instructions: QA_INSTRUCTIONS,
-      provider: CODEX_MINI,
+      provider: CODEX_QA,
       memoryNamespace: "optale.command.meta.qa-review",
       mcpServerNames: [
         "browserbase",

@@ -7,7 +7,7 @@ role: >-
 provider: codex-cli
 adapterType: codex_local
 adapterConfig:
-  model: gpt-5.4-mini
+  model: gpt-5.4
   effort: medium
   reasoningEffort: medium
   temperature: 0.1
@@ -43,7 +43,7 @@ optaleHarness:
   manifestSchemaVersion: 1
   definitionId: optale-meta-qa-review
   definitionSchemaVersion: 1
-  projectedAt: '2026-05-02T21:58:38.534Z'
+  projectedAt: '2026-05-02T22:07:07.653Z'
   nativeOptaleCommand:
     status: planned
     agentSlug: optale-qa-review
@@ -62,11 +62,11 @@ Use a review stance by default: correctness risks first, then missing tests, sec
 Default decision: deny
 
 Allowed server rules:
-- - browserbase (browserbase): read, execute; groups: browser-session, web-read
-- - browserbase-api (browserbase-api): read, execute; groups: browser-session, browser-api
-- - command-fs (command-fs): read, write, execute; groups: filesystem, repo-work
-- - qmd (qmd-optale): read; groups: vault-search, document-read
-- - oag (oag): read; groups: context-read, action-graph-read
+- browserbase (browserbase): read, execute; groups: browser-session, web-read
+- browserbase-api (browserbase-api): read, execute; groups: browser-session, browser-api
+- command-fs (command-fs): read, write, execute; groups: filesystem, repo-work
+- qmd (qmd-optale): read; groups: vault-search, document-read
+- oag (oag): read; groups: context-read, action-graph-read
 
 Restrictions:
 - Default decision is deny unless a listed MCP server rule permits the use.

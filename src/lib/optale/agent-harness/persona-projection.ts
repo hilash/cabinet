@@ -171,7 +171,7 @@ function renderMcpPolicy(agent: AgentDefinition): string {
       : server.serverId;
     const permissions = server.permissions.join(", ");
     const groups = server.toolGroups.join(", ");
-    return `- ${name}: ${permissions}; groups: ${groups}`;
+    return `${name}: ${permissions}; groups: ${groups}`;
   });
 
   return [

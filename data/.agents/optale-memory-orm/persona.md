@@ -41,7 +41,7 @@ optaleHarness:
   manifestSchemaVersion: 1
   definitionId: optale-meta-memory-orm
   definitionSchemaVersion: 1
-  projectedAt: '2026-05-02T21:58:38.535Z'
+  projectedAt: '2026-05-02T22:07:07.654Z'
   nativeOptaleCommand:
     status: planned
     agentSlug: optale-memory-orm
@@ -60,11 +60,11 @@ Use ORM/private_orm as canonical for people, companies, projects, tasks, and ont
 Default decision: deny
 
 Allowed server rules:
-- - qmd (qmd-optale): read; groups: vault-search, document-read
-- - graphiti (graphiti-optale): read; groups: memory-read, entity-context
-- - oag (oag): read; groups: context-read, action-graph-read
-- - private-orm (private_orm): read, write; groups: canonical-records, ontology
-- - honcho (honcho): read, write; groups: memory-read, memory-write
+- qmd (qmd-optale): read; groups: vault-search, document-read
+- graphiti (graphiti-optale): read; groups: memory-read, entity-context
+- oag (oag): read; groups: context-read, action-graph-read
+- private-orm (private_orm): read, write; groups: canonical-records, ontology
+- honcho (honcho): read, write; groups: memory-read, memory-write
 
 Restrictions:
 - Default decision is deny unless a listed MCP server rule permits the use.

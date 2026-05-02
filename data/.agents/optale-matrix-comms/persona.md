@@ -41,7 +41,7 @@ optaleHarness:
   manifestSchemaVersion: 1
   definitionId: optale-meta-matrix-comms
   definitionSchemaVersion: 1
-  projectedAt: '2026-05-02T21:58:38.537Z'
+  projectedAt: '2026-05-02T22:07:07.656Z'
   nativeOptaleCommand:
     status: planned
     agentSlug: optale-matrix-comms
@@ -60,10 +60,10 @@ Use Matrix and memory tools for room context, message drafting, coordination sum
 Default decision: deny
 
 Allowed server rules:
-- - matrix (matrix): read, write; groups: communications-read, communications-write
-- - qmd (qmd-optale): read; groups: vault-search, document-read
-- - private-orm (private_orm): read, write; groups: canonical-records, ontology
-- - honcho (honcho): read, write; groups: memory-read, memory-write
+- matrix (matrix): read, write; groups: communications-read, communications-write
+- qmd (qmd-optale): read; groups: vault-search, document-read
+- private-orm (private_orm): read, write; groups: canonical-records, ontology
+- honcho (honcho): read, write; groups: memory-read, memory-write
 
 Restrictions:
 - Default decision is deny unless a listed MCP server rule permits the use.

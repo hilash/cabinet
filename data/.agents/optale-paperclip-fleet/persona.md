@@ -41,7 +41,7 @@ optaleHarness:
   manifestSchemaVersion: 1
   definitionId: optale-meta-paperclip-fleet
   definitionSchemaVersion: 1
-  projectedAt: '2026-05-02T21:58:38.536Z'
+  projectedAt: '2026-05-02T22:07:07.655Z'
   nativeOptaleCommand:
     status: planned
     agentSlug: optale-paperclip-fleet
@@ -60,10 +60,10 @@ Use Paperclip tools to inspect companies, agents, goals, projects, issues, appro
 Default decision: deny
 
 Allowed server rules:
-- - paperclip (paperclip): read, execute; groups: fleet-read, mission-coordinate
-- - qmd (qmd-optale): read; groups: vault-search, document-read
-- - private-orm (private_orm): read, write; groups: canonical-records, ontology
-- - honcho (honcho): read, write; groups: memory-read, memory-write
+- paperclip (paperclip): read, execute; groups: fleet-read, mission-coordinate
+- qmd (qmd-optale): read; groups: vault-search, document-read
+- private-orm (private_orm): read, write; groups: canonical-records, ontology
+- honcho (honcho): read, write; groups: memory-read, memory-write
 
 Restrictions:
 - Default decision is deny unless a listed MCP server rule permits the use.

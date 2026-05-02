@@ -50,17 +50,24 @@ test("maps AgentDefinition into a paused native Observatory persona", () => {
   );
   assert.equal(projected.frontmatter.optaleHarness.projectedAt, "2026-05-02T00:00:00.000Z");
   assert.match(projected.body, /## MCP Policy/);
+  assert.match(projected.body, /^- browserbase \(browserbase\): read, execute;/m);
+  assert.doesNotMatch(projected.body, /^- - /m);
   assert.match(projected.body, /## Handoffs/);
   assert.match(projected.body, /Legacy LibreChat bridge agent: agent_optale_meta_boss_api/);
 });
 
 test("maps provider model defaults into adapter config", () => {
   const codex = agentById(OPTALE_META_AGENT_IDS.codex);
+  const qa = agentById(OPTALE_META_AGENT_IDS.qa);
   const claude = agentById(OPTALE_META_AGENT_IDS.claudeOps);
 
   const projectedCodex = mapAgentDefinitionToPersona(
     OPTALE_META_AGENT_MANIFEST,
     codex
+  );
+  const projectedQa = mapAgentDefinitionToPersona(
+    OPTALE_META_AGENT_MANIFEST,
+    qa
   );
   const projectedClaude = mapAgentDefinitionToPersona(
     OPTALE_META_AGENT_MANIFEST,
@@ -68,12 +75,19 @@ test("maps provider model defaults into adapter config", () => {
   );
 
   assert.deepEqual(projectedCodex.frontmatter.adapterConfig, {
-    model: "gpt-5.5",
+    model: "gpt-5.4",
     effort: "medium",
     reasoningEffort: "medium",
     temperature: 0.2,
   });
   assert.equal(projectedCodex.frontmatter.adapterType, "codex_local");
+  assert.deepEqual(projectedQa.frontmatter.adapterConfig, {
+    model: "gpt-5.4",
+    effort: "medium",
+    reasoningEffort: "medium",
+    temperature: 0.1,
+  });
+  assert.equal(projectedQa.frontmatter.adapterType, "codex_local");
   assert.deepEqual(projectedClaude.frontmatter.adapterConfig, {
     model: "opus",
     temperature: 0.2,

@@ -7,7 +7,7 @@ role: >-
 provider: codex-cli
 adapterType: codex_local
 adapterConfig:
-  model: gpt-5.5
+  model: gpt-5.4
   effort: medium
   reasoningEffort: medium
   temperature: 0.2
@@ -43,7 +43,7 @@ optaleHarness:
   manifestSchemaVersion: 1
   definitionId: optale-meta-codex-engineering
   definitionSchemaVersion: 1
-  projectedAt: '2026-05-02T21:58:38.532Z'
+  projectedAt: '2026-05-02T22:07:07.651Z'
   nativeOptaleCommand:
     status: planned
     agentSlug: optale-codex
@@ -62,16 +62,16 @@ Inspect before deciding, keep changes scoped, preserve unrelated user changes, a
 Default decision: deny
 
 Allowed server rules:
-- - browserbase (browserbase): read, execute; groups: browser-session, web-read
-- - browserbase-api (browserbase-api): read, execute; groups: browser-session, browser-api
-- - qmd (qmd-optale): read; groups: vault-search, document-read
-- - paperclip (paperclip): read, execute; groups: fleet-read, mission-coordinate
-- - graphiti (graphiti-optale): read; groups: memory-read, entity-context
-- - oag (oag): read; groups: context-read, action-graph-read
-- - command-fs (command-fs): read, write, execute; groups: filesystem, repo-work
-- - private-orm (private_orm): read, write; groups: canonical-records, ontology
-- - matrix (matrix): read, write; groups: communications-read, communications-write
-- - honcho (honcho): read, write; groups: memory-read, memory-write
+- browserbase (browserbase): read, execute; groups: browser-session, web-read
+- browserbase-api (browserbase-api): read, execute; groups: browser-session, browser-api
+- qmd (qmd-optale): read; groups: vault-search, document-read
+- paperclip (paperclip): read, execute; groups: fleet-read, mission-coordinate
+- graphiti (graphiti-optale): read; groups: memory-read, entity-context
+- oag (oag): read; groups: context-read, action-graph-read
+- command-fs (command-fs): read, write, execute; groups: filesystem, repo-work
+- private-orm (private_orm): read, write; groups: canonical-records, ontology
+- matrix (matrix): read, write; groups: communications-read, communications-write
+- honcho (honcho): read, write; groups: memory-read, memory-write
 
 Restrictions:
 - Default decision is deny unless a listed MCP server rule permits the use.
