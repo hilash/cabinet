@@ -28,3 +28,57 @@ Those scripts are not canonical agent definitions. The manifest records legacy L
 Native Optale Command agents, personas, and routines should be generated or imported from this manifest later. Runtime wiring is intentionally out of scope for this slice; validation only proves the manifest shape, roster coverage, bridge projection metadata, and handoff integrity.
 
 Do not rename the repo, folder, PM2 process, or domain as part of this manifest work.
+
+## Native Persona Projection
+
+The first native projection path maps `AgentDefinition` records into Observatory-compatible `persona.md` documents without changing runtime behavior by default.
+
+Code:
+
+- `src/lib/optale/agent-harness/persona-projection.ts`
+- `scripts/optale-agent-harness-personas.ts`
+
+Default behavior:
+
+- dry-run only
+- targets the root native agents directory: `${CABINET_DATA_DIR}/.agents` or `data/.agents`
+- generates paused personas with `active: false`
+- skips any existing `persona.md`
+- records `optaleHarness` frontmatter with manifest id, schema version, definition id, generator id, projection time, native projection metadata, and legacy LibreChat bridge id
+- does not touch LibreChat
+
+Dry-run the full meta roster:
+
+```bash
+npx tsx scripts/optale-agent-harness-personas.ts
+```
+
+Dry-run as JSON:
+
+```bash
+npx tsx scripts/optale-agent-harness-personas.ts --json
+```
+
+Dry-run one definition:
+
+```bash
+npx tsx scripts/optale-agent-harness-personas.ts --agent=optale-meta-lead
+```
+
+Write only missing personas:
+
+```bash
+npx tsx scripts/optale-agent-harness-personas.ts --write
+```
+
+Write to a temporary agents directory for inspection:
+
+```bash
+npx tsx scripts/optale-agent-harness-personas.ts --write --target-agents-dir=/tmp/optale-harness-agents
+```
+
+Overwrite existing generated or hand-edited personas only when explicitly approved:
+
+```bash
+npx tsx scripts/optale-agent-harness-personas.ts --write --overwrite
+```
