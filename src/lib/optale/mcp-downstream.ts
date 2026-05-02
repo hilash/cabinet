@@ -34,7 +34,7 @@ const GRAPHITI_READ_TOOLS = new Set([
   "get_status",
 ]);
 const QMD_READ_TOOLS = new Set(["query", "get", "multi_get", "status"]);
-const HTTP_TIMEOUT_MS = 4_000;
+const DEFAULT_HTTP_TIMEOUT_MS = 4_000;
 const PROTOCOL_VERSION = "2024-11-05";
 
 function envBool(name: string, fallback: boolean): boolean {
@@ -44,7 +44,9 @@ function envBool(name: string, fallback: boolean): boolean {
   return fallback;
 }
 
-function isDownstreamEnabled(options: { includeDownstream?: boolean }): boolean {
+function isDownstreamEnabled(options: {
+  includeDownstream?: boolean;
+}): boolean {
   if (options.includeDownstream !== true) return false;
   return envBool("OPTALE_MCP_ENABLE_DOWNSTREAM", true);
 }
@@ -53,7 +55,9 @@ function toolName(serverId: string, downstreamName: string): string {
   return `${serverId}__${downstreamName}`;
 }
 
-function parseToolName(name: string): { serverId: string; downstreamName: string } | null {
+function parseToolName(
+  name: string,
+): { serverId: string; downstreamName: string } | null {
   const index = name.indexOf("__");
   if (index <= 0 || index === name.length - 2) return null;
   return {
@@ -68,6 +72,22 @@ function asObject(value: unknown): JsonObject {
     : {};
 }
 
+export function resolveDownstreamHttpTimeoutMs(
+  server: Pick<OptaleMcpServerConfig, "timeoutMs">,
+): number {
+  return typeof server.timeoutMs === "number" &&
+    Number.isFinite(server.timeoutMs) &&
+    server.timeoutMs > 0
+    ? Math.floor(server.timeoutMs)
+    : DEFAULT_HTTP_TIMEOUT_MS;
+}
+
+function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const record = error as Record<string, unknown>;
+  return record.name === "AbortError";
+}
+
 function isReadOnlyTool(serverId: string, tool: JsonObject): boolean {
   const name = typeof tool.name === "string" ? tool.name : "";
   const annotations = asObject(tool.annotations);
@@ -80,7 +100,7 @@ function isReadOnlyTool(serverId: string, tool: JsonObject): boolean {
 
 function toolAllowedByServerRule(
   serverRule: OptaleMcpPolicyServer,
-  downstreamName: string
+  downstreamName: string,
 ): boolean {
   const prefixed = toolName(serverRule.serverId, downstreamName);
   if (
@@ -98,24 +118,35 @@ function toolAllowedByServerRule(
 
 async function allowedDownstreamServers(
   context?: OptaleMcpGatewayContext,
-  allowedServerIds?: string[]
-): Promise<Array<{ server: OptaleMcpServerConfig; rule: OptaleMcpPolicyServer }>> {
+  allowedServerIds?: string[],
+): Promise<
+  Array<{ server: OptaleMcpServerConfig; rule: OptaleMcpPolicyServer }>
+> {
   if (!context?.authorized) return [];
   const serverAllowlist = allowedServerIds ? new Set(allowedServerIds) : null;
   const policy = await readOptaleMcpPolicy(context.defaultCabinetPath);
-  const rules = resolveMcpPolicyServersForScope(policy, context.agentScope || policy.scope)
+  const rules = resolveMcpPolicyServersForScope(
+    policy,
+    context.agentScope || policy.scope,
+  )
     .filter((rule) => DOWNSTREAM_SERVER_IDS.has(rule.serverId))
     .filter((rule) => !serverAllowlist || serverAllowlist.has(rule.serverId))
     .filter((rule) => rule.permissions.includes("read"));
   const rulesById = new Map(rules.map((rule) => [rule.serverId, rule]));
 
   return readOptaleMcpServers()
-    .filter((server) => server.transport === "http" && server.status === "configured")
+    .filter(
+      (server) => server.transport === "http" && server.status === "configured",
+    )
     .filter((server) => DOWNSTREAM_SERVER_IDS.has(server.id))
     .map((server) => ({ server, rule: rulesById.get(server.id) }))
     .filter(
-      (entry): entry is { server: OptaleMcpServerConfig; rule: OptaleMcpPolicyServer } =>
-        Boolean(entry.rule && entry.server.url)
+      (
+        entry,
+      ): entry is {
+        server: OptaleMcpServerConfig;
+        rule: OptaleMcpPolicyServer;
+      } => Boolean(entry.rule && entry.server.url),
     );
 }
 
@@ -141,14 +172,17 @@ export function parseEventStream(text: string): JsonObject | undefined {
   return latest;
 }
 
-async function postJsonRpc(
+export async function postDownstreamJsonRpc(
   server: OptaleMcpServerConfig,
   body: JsonObject,
-  sessionId?: string
+  sessionId?: string,
 ): Promise<DownstreamRpcResult> {
-  if (!server.url) throw new Error(`Downstream MCP server ${server.id} has no URL.`);
+  if (!server.url)
+    throw new Error(`Downstream MCP server ${server.id} has no URL.`);
+  const timeoutMs = resolveDownstreamHttpTimeoutMs(server);
+  const method = typeof body.method === "string" ? body.method : "request";
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(server.url, {
@@ -164,7 +198,7 @@ async function postJsonRpc(
     const text = await response.text();
     if (!response.ok) {
       throw new Error(
-        `Downstream MCP server ${server.id} returned ${response.status}: ${text.slice(0, 300)}`
+        `Downstream MCP server ${server.id} returned ${response.status}: ${text.slice(0, 300)}`,
       );
     }
 
@@ -178,13 +212,22 @@ async function postJsonRpc(
       body: parsed,
       sessionId: response.headers.get("mcp-session-id") || sessionId,
     };
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error(
+        `Downstream MCP server ${server.id} ${method} timed out after ${timeoutMs}ms.`,
+      );
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-async function initializeSession(server: OptaleMcpServerConfig): Promise<string | undefined> {
-  const initialized = await postJsonRpc(server, {
+async function initializeSession(
+  server: OptaleMcpServerConfig,
+): Promise<string | undefined> {
+  const initialized = await postDownstreamJsonRpc(server, {
     jsonrpc: "2.0",
     id: 1,
     method: "initialize",
@@ -199,13 +242,13 @@ async function initializeSession(server: OptaleMcpServerConfig): Promise<string 
   });
   const sessionId = initialized.sessionId;
   if (sessionId) {
-    await postJsonRpc(
+    await postDownstreamJsonRpc(
       server,
       {
         jsonrpc: "2.0",
         method: "notifications/initialized",
       },
-      sessionId
+      sessionId,
     ).catch(() => {});
   }
   return sessionId;
@@ -214,10 +257,10 @@ async function initializeSession(server: OptaleMcpServerConfig): Promise<string 
 async function downstreamRequest(
   server: OptaleMcpServerConfig,
   method: string,
-  params?: unknown
+  params?: unknown,
 ): Promise<JsonObject> {
   const sessionId = await initializeSession(server);
-  const response = await postJsonRpc(
+  const response = await postDownstreamJsonRpc(
     server,
     {
       jsonrpc: "2.0",
@@ -225,7 +268,7 @@ async function downstreamRequest(
       method,
       ...(params === undefined ? {} : { params }),
     },
-    sessionId
+    sessionId,
   );
   const body = response.body || {};
   const error = asObject(body.error);
@@ -235,7 +278,10 @@ async function downstreamRequest(
   return body;
 }
 
-function toDownstreamTool(serverId: string, raw: JsonObject): DownstreamTool | null {
+function toDownstreamTool(
+  serverId: string,
+  raw: JsonObject,
+): DownstreamTool | null {
   const name = typeof raw.name === "string" ? raw.name : "";
   if (!name) return null;
   return {
@@ -272,14 +318,17 @@ async function listServerTools(input: {
       .map((tool) => asObject(tool))
       .filter((tool) => isReadOnlyTool(input.server.id, tool))
       .filter((tool) =>
-        toolAllowedByServerRule(input.rule, typeof tool.name === "string" ? tool.name : "")
+        toolAllowedByServerRule(
+          input.rule,
+          typeof tool.name === "string" ? tool.name : "",
+        ),
       )
       .map((tool) => toDownstreamTool(input.server.id, tool))
       .filter((tool): tool is DownstreamTool => tool !== null);
   } catch (error) {
     console.warn(
       `[optale-mcp] failed to list downstream ${input.server.id} tools`,
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
     return [];
   }
@@ -293,9 +342,11 @@ export async function listDownstreamOptaleMcpTools(options: {
   if (!isDownstreamEnabled(options)) return [];
   const servers = await allowedDownstreamServers(
     options.gatewayContext,
-    options.allowedServerIds
+    options.allowedServerIds,
   );
-  const nested = await Promise.all(servers.map((entry) => listServerTools(entry)));
+  const nested = await Promise.all(
+    servers.map((entry) => listServerTools(entry)),
+  );
   return nested.flat();
 }
 
@@ -306,7 +357,7 @@ export async function callDownstreamOptaleMcpTool(
     includeDownstream?: boolean;
     gatewayContext?: OptaleMcpGatewayContext;
     allowedServerIds?: string[];
-  }
+  },
 ): Promise<OptaleMcpToolCallResult | null> {
   if (!isDownstreamEnabled(options)) return null;
   const parsed = parseToolName(name);
@@ -314,21 +365,23 @@ export async function callDownstreamOptaleMcpTool(
 
   const servers = await allowedDownstreamServers(
     options.gatewayContext,
-    options.allowedServerIds
+    options.allowedServerIds,
   );
   const entry = servers.find(({ server }) => server.id === parsed.serverId);
   if (!entry) {
-    throw new Error(`Downstream MCP server is not enabled for this scope: ${parsed.serverId}`);
+    throw new Error(
+      `Downstream MCP server is not enabled for this scope: ${parsed.serverId}`,
+    );
   }
   if (!toolAllowedByServerRule(entry.rule, parsed.downstreamName)) {
     throw new Error(
-      `Downstream MCP tool ${name} is not allowed by the cabinet MCP policy.`
+      `Downstream MCP tool ${name} is not allowed by the cabinet MCP policy.`,
     );
   }
 
   const tools = await listServerTools(entry);
   const tool = tools.find(
-    (entry) => entry.downstreamToolName === parsed.downstreamName
+    (entry) => entry.downstreamToolName === parsed.downstreamName,
   );
   if (!tool) {
     throw new Error(`Downstream MCP tool is not exposed as read-only: ${name}`);

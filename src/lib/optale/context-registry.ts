@@ -25,6 +25,7 @@ export type OptaleMcpServerConfig = {
   url?: string;
   command?: string;
   args?: string[];
+  timeoutMs?: number;
   scopes: OptaleAgentScope[];
   description: string;
   status: "configured" | "planned";
@@ -69,6 +70,11 @@ function envUrl(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }
 
+function envPositiveInt(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name]?.trim() || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 function maybeEnvUrl(name: string): string | null {
   const value = process.env[name]?.trim();
   return value || null;
@@ -81,6 +87,7 @@ export function readOptaleMcpServers(): OptaleMcpServerConfig[] {
       name: "QMD Vault Search",
       transport: "http",
       url: envUrl("OPTALE_MCP_QMD_URL", "http://[::1]:7333/mcp"),
+      timeoutMs: envPositiveInt("OPTALE_MCP_QMD_TIMEOUT_MS", 120_000),
       scopes: ["company", "personal", "system"],
       description: "Markdown/vault search and retrieval.",
       status: "configured",
@@ -90,6 +97,7 @@ export function readOptaleMcpServers(): OptaleMcpServerConfig[] {
       name: "Graphiti Memory Graph",
       transport: "http",
       url: envUrl("OPTALE_MCP_GRAPHITI_URL", "http://127.0.0.1:8102/mcp"),
+      timeoutMs: envPositiveInt("OPTALE_MCP_GRAPHITI_TIMEOUT_MS", 4_000),
       scopes: ["company", "personal", "system"],
       description: "Temporal/entity memory graph.",
       status: "configured",
@@ -100,14 +108,16 @@ export function readOptaleMcpServers(): OptaleMcpServerConfig[] {
       transport: "http",
       url: envUrl("OPTALE_MCP_OAG_URL", "http://127.0.0.1:3750/mcp"),
       scopes: ["company", "personal", "system"],
-      description: "Context assembly, entity context, and action graph operations.",
+      description:
+        "Context assembly, entity context, and action graph operations.",
       status: "configured",
     },
     {
       id: "gitnexus",
       name: "GitNexus",
       transport: "stdio",
-      command: process.env.OPTALE_MCP_GITNEXUS_COMMAND?.trim() || "/usr/bin/gitnexus",
+      command:
+        process.env.OPTALE_MCP_GITNEXUS_COMMAND?.trim() || "/usr/bin/gitnexus",
       args: ["mcp"],
       scopes: ["company", "system"],
       description: "Repository intelligence and codebase analysis.",
@@ -148,7 +158,8 @@ export function readOptaleMcpServers(): OptaleMcpServerConfig[] {
         process.env.OPTALE_AGENTS_MCP_URL?.trim() ||
         `${getAppOrigin()}/api/optale/mcp`,
       scopes: ["company", "personal", "system"],
-      description: "Optale Observatory space, brain, and Command Center MCP surface.",
+      description:
+        "Optale Observatory space, brain, and Command Center MCP surface.",
       status: "configured",
     },
   ];
@@ -169,7 +180,8 @@ export function readOptaleBrainSources(): OptaleBrainSource[] {
       name: "Memory",
       kind: "memory",
       scopes: ["company", "personal", "system"],
-      description: "Private and scoped agent memory from the configured Honcho workspace.",
+      description:
+        "Private and scoped agent memory from the configured Honcho workspace.",
     },
     {
       id: "memory-graph",
@@ -184,7 +196,8 @@ export function readOptaleBrainSources(): OptaleBrainSource[] {
       name: "Dreams",
       kind: "dreams",
       scopes: ["company", "personal", "system"],
-      description: "Private Honcho Dream proposals, review queue, and memory consolidation controls.",
+      description:
+        "Private Honcho Dream proposals, review queue, and memory consolidation controls.",
     },
     {
       id: "action-graph",
@@ -232,7 +245,8 @@ export function readOptaleBrainSources(): OptaleBrainSource[] {
       kind: "action_graph",
       mcpServerId: "optale-agents",
       scopes: ["company", "personal", "system"],
-      description: "Optale Observatory spaces, tasks, agents, jobs, and brain summaries.",
+      description:
+        "Optale Observatory spaces, tasks, agents, jobs, and brain summaries.",
     },
   ];
 }
@@ -260,17 +274,20 @@ export function readOptaleContextRegistry(): OptaleContextRegistry {
       {
         id: "company",
         label: OPTALE_SCOPE_LABELS.company,
-        description: "Shared client/company context, agents, memory, and workflows.",
+        description:
+          "Shared client/company context, agents, memory, and workflows.",
       },
       {
         id: "personal",
         label: OPTALE_SCOPE_LABELS.personal,
-        description: "Individual user context, agents, memory, and private workflows.",
+        description:
+          "Individual user context, agents, memory, and private workflows.",
       },
       {
         id: "system",
         label: OPTALE_SCOPE_LABELS.system,
-        description: "Optale-controlled governance, eval, bridge, and control agents.",
+        description:
+          "Optale-controlled governance, eval, bridge, and control agents.",
       },
     ],
     mcp: {
