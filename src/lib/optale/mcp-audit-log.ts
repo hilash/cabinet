@@ -250,6 +250,44 @@ export async function readOptaleMcpAuditSummary(input: {
   }
 }
 
+export async function readOptaleMcpAuditEvents(input: {
+  date?: Date;
+  requestId?: string;
+  clientIds?: string[];
+  limit?: number;
+} = {}): Promise<OptaleMcpAuditEvent[]> {
+  const clientIds = input.clientIds?.length ? new Set(input.clientIds) : null;
+  const limit =
+    typeof input.limit === "number" && Number.isFinite(input.limit)
+      ? Math.max(1, Math.min(Math.floor(input.limit), 500))
+      : undefined;
+
+  try {
+    const raw = await fs.readFile(getOptaleMcpAuditLogPath(input.date), "utf8");
+    const events = raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return compactParsedEvent(JSON.parse(line));
+        } catch {
+          return null;
+        }
+      })
+      .filter((event): event is OptaleMcpAuditEvent => {
+        if (!event) return false;
+        if (input.requestId && event.requestId !== input.requestId) return false;
+        if (clientIds && (!event.clientId || !clientIds.has(event.clientId))) {
+          return false;
+        }
+        return true;
+      });
+    return limit ? events.slice(-limit) : events;
+  } catch {
+    return [];
+  }
+}
+
 export async function countOptaleMcpToolCallsToday(input: {
   clientId: string;
   date?: Date;

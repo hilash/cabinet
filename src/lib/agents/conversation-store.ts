@@ -49,6 +49,7 @@ import {
   readFileContent,
   writeFileContent,
 } from "../storage/fs-operations";
+import { readConversationMcpToolArtifacts } from "./conversation-mcp-artifacts";
 
 export const CONVERSATIONS_DIR = path.join(DATA_DIR, ".agents", ".conversations");
 
@@ -1255,12 +1256,11 @@ export async function readConversationDetail(
     artifacts = [];
   }
 
-  const [turns, session] = options.withTurns
-    ? await Promise.all([
-        readConversationTurns(id, cp),
-        readSession(id, cp),
-      ])
-    : [undefined, undefined];
+  const [mcpArtifacts, turns, session] = await Promise.all([
+    readConversationMcpToolArtifacts(meta, transcript),
+    options.withTurns ? readConversationTurns(id, cp) : Promise.resolve(undefined),
+    options.withTurns ? readSession(id, cp) : Promise.resolve(undefined),
+  ]);
 
   return {
     meta,
@@ -1270,6 +1270,7 @@ export async function readConversationDetail(
     transcript: formatConversationTranscriptForDisplay(transcript, prompt),
     mentions,
     artifacts,
+    mcpArtifacts,
     turns,
     session,
   };

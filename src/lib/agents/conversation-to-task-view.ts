@@ -108,7 +108,7 @@ export function conversationToTaskView(
     filesCreated: [] as string[],
     commandsRun: [] as { cmd: string; exit: number; durationMs: number }[],
     pagesTouched: [] as { path: string; title: string }[],
-    toolCalls: 0,
+    toolCalls: detail.mcpArtifacts?.length ?? 0,
     generatedAt: meta.lastActivityAt ?? meta.startedAt,
   };
 
@@ -118,6 +118,7 @@ export function conversationToTaskView(
     turns,
     session: detail.session ?? null,
     artifactsIndex,
+    mcpArtifacts: detail.mcpArtifacts ?? [],
   };
 }
 

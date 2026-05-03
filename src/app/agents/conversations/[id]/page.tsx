@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { readConversationDetail } from "@/lib/agents/conversation-store";
+import { ConversationMcpArtifactsPanel } from "@/components/agents/conversation-mcp-artifacts-panel";
 import { buildTaskHref } from "@/lib/navigation/task-route";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { CopyButton } from "./copy-button";
@@ -154,6 +155,11 @@ export default async function ConversationTranscriptPage({
                 <Field label="Prompt File" value={detail.meta.promptPath} />
               </div>
             </div>
+
+            <ConversationMcpArtifactsPanel
+              artifacts={detail.mcpArtifacts}
+              className="rounded-3xl bg-card/80 p-6 shadow-sm"
+            />
 
             <div className="rounded-3xl border border-border bg-card/80 p-6 shadow-sm">
               <div className="mb-4 space-y-1">

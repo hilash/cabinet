@@ -31,6 +31,7 @@ import { WebTerminal } from "@/components/terminal/web-terminal";
 import { TerminalExitedView } from "@/components/terminal/terminal-exited-view";
 import { ClaudeTranscriptView } from "@/components/tasks/conversation/claude-transcript-view";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
+import { ConversationMcpArtifactsPanel } from "@/components/agents/conversation-mcp-artifacts-panel";
 import { confirmDialog } from "@/lib/ui/confirm";
 import {
   closeConversation,
@@ -1508,6 +1509,12 @@ export function TaskConversationPage({
                 {task.turns.flatMap((t) => t.artifacts ?? []).length}
               </span>
             </TabsTrigger>
+            <TabsTrigger value="sources">
+              Sources
+              <span className="ml-1.5 rounded-full bg-muted px-1.5 py-px text-[10px] tabular-nums text-muted-foreground">
+                {task.mcpArtifacts?.length ?? 0}
+              </span>
+            </TabsTrigger>
             <TabsTrigger value="diff">Diff</TabsTrigger>
             <TabsTrigger value="logs">Logs</TabsTrigger>
           </TabsList>
@@ -1682,6 +1689,20 @@ export function TaskConversationPage({
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="mx-auto max-w-3xl">
               <ArtifactsList turns={task.turns} returnContext={returnContext} />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="sources"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
+            <div className="mx-auto max-w-3xl">
+              <ConversationMcpArtifactsPanel
+                artifacts={task.mcpArtifacts}
+                emptyState
+              />
             </div>
           </div>
         </TabsContent>

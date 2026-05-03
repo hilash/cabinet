@@ -45,6 +45,27 @@ export interface ConversationArtifact {
   label?: string;
 }
 
+export type ConversationMcpOutcome = "ok" | "error" | "denied" | "notification";
+
+export interface ConversationMcpToolArtifact {
+  id: string;
+  timestamp?: string;
+  method: "tools/call";
+  toolName: string;
+  serverId: string;
+  source: string;
+  outcome: ConversationMcpOutcome;
+  durationMs?: number;
+  clientId?: string;
+  authType?: string;
+  cabinetPath?: string;
+  agentScope?: string;
+  argumentKeys?: string[];
+  error?: string;
+  preview?: string;
+  sourcePaths: string[];
+}
+
 export interface TurnTokens {
   input: number;
   output: number;
@@ -180,6 +201,7 @@ export interface ConversationDetail {
   rawTranscript: string;
   mentions: string[];
   artifacts: ConversationArtifact[];
+  mcpArtifacts: ConversationMcpToolArtifact[];
   turns?: ConversationTurn[];
   session?: SessionHandle | null;
 }

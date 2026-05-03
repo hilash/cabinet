@@ -16,6 +16,7 @@ import {
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { cn } from "@/lib/utils";
 import { ConversationApprovalPanel } from "./conversation-approval-panel";
+import { ConversationMcpArtifactsPanel } from "./conversation-mcp-artifacts-panel";
 
 function StatusBadge({ status }: { status: string }) {
   const isCompleted = status === "completed";
@@ -156,6 +157,7 @@ export function ConversationResultView({
         {/* Proposed agent actions — sibling view: task-conversation-page.tsx */}
         <ConversationApprovalPanel meta={detail.meta} onApproved={onRefresh} />
 
+        <ConversationMcpArtifactsPanel artifacts={detail.mcpArtifacts} />
 
         {/* Artifacts */}
         <section className="rounded-2xl border border-border bg-background p-5">

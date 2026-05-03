@@ -172,6 +172,7 @@ export interface Task {
   turns: Turn[];
   session: SessionHandle | null;
   artifactsIndex: ArtifactsIndex;
+  mcpArtifacts?: import("./conversations").ConversationMcpToolArtifact[];
 }
 
 export interface CreateTaskInput {
