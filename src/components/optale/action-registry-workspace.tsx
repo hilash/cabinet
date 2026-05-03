@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { OptaleCommandActionsView } from "@/components/optale/command-actions-view";
 import { OptaleCommandAuditView } from "@/components/optale/command-audit-view";
@@ -11,6 +10,7 @@ import { OptaleCommandPolicyView } from "@/components/optale/command-policy-view
 import { OptaleCommandRunsView } from "@/components/optale/command-runs-view";
 import { OptaleCommandSpineSummary } from "@/components/optale/command-spine-summary";
 import { OptaleCommandToolbar } from "@/components/optale/command-toolbar";
+import { OptaleCommandViewTabs } from "@/components/optale/command-view-tabs";
 import type {
   OptaleCommandActionFilter,
   OptaleCommandView,
@@ -36,14 +36,6 @@ import type {
   OptaleAuditEventLog,
   OptaleAuditEventRecord,
 } from "@/lib/optale/audit-event-log";
-
-const COMMAND_VIEW_LABELS: Record<OptaleCommandView, string> = {
-  actions: "Actions",
-  runs: "Runs",
-  policy: "Policy",
-  lineage: "Lineage",
-  audit: "Audit",
-};
 
 function commandViewFromSlug(slug?: string): OptaleCommandView {
   if (
@@ -438,35 +430,11 @@ export function OptaleActionRegistryWorkspace({
         registry={registry}
       />
 
-      <section className="border-b border-border/70 px-6 py-3">
-        <div className="flex flex-wrap gap-2">
-          {commandViews.map((view) => (
-            <button
-              key={view.id}
-              type="button"
-              onClick={() => setCommandView(view.id)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
-                activeView === view.id
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <span>{COMMAND_VIEW_LABELS[view.id]}</span>
-              <span
-                className={cn(
-                  "rounded-md px-1.5 py-0.5 text-[10px]",
-                  activeView === view.id
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {view.count}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
+      <OptaleCommandViewTabs
+        activeView={activeView}
+        views={commandViews}
+        onSelectView={setCommandView}
+      />
 
       {activeView === "actions" && (
         <OptaleCommandActionsView
