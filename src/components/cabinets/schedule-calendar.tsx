@@ -32,10 +32,6 @@ const MAX_PILLS_MONTH = 3;
 const DEFAULT_VISIBLE_START_HOUR = 5; // 5 AM
 const DEFAULT_VISIBLE_END_HOUR = 23; // 11 PM
 const DAY_NAMES_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
 
 /* ─── Helpers ─── */
 
@@ -219,7 +215,6 @@ function EventDot({
 function TimeGridView({
   events,
   days,
-  fullscreen,
   density = 0,
   visibleStartHour,
   visibleEndHour,
@@ -229,7 +224,6 @@ function TimeGridView({
 }: {
   events: ScheduleEvent[];
   days: Date[];
-  fullscreen?: boolean;
   density?: number;
   visibleStartHour: number;
   visibleEndHour: number;
@@ -283,13 +277,14 @@ function TimeGridView({
   // adds 1px per hour row, so the grid grows past the container and scrolls.
   const fitHourHeight = containerHeight > 0 ? containerHeight / TOTAL_HOURS : DEFAULT_HOUR_HEIGHT;
   const HOUR_HEIGHT = Math.max(MIN_HOUR_HEIGHT, fitHourHeight + density);
+  const firstDayTime = days[0]?.getTime();
 
   // Auto-scroll to current hour
   useEffect(() => {
     const hour = new Date().getHours();
     const target = Math.max(0, (hour - visibleStartHour - 1) * HOUR_HEIGHT);
     scrollRef.current?.scrollTo({ top: target, behavior: "smooth" });
-  }, [days[0]?.getTime(), HOUR_HEIGHT, visibleStartHour]);
+  }, [firstDayTime, HOUR_HEIGHT, visibleStartHour]);
 
   // Group events by day column → per 15-min slot
   // Week (multi-day): slots with too many events collapse into dots.
@@ -749,7 +744,6 @@ export function ScheduleCalendar({
   agents,
   jobs,
   manualConversations,
-  fullscreen,
   density,
   visibleStartHour = DEFAULT_VISIBLE_START_HOUR,
   visibleEndHour = DEFAULT_VISIBLE_END_HOUR,
@@ -800,7 +794,6 @@ export function ScheduleCalendar({
       <TimeGridView
         events={events}
         days={days}
-        fullscreen={fullscreen}
         density={density}
         visibleStartHour={visibleStartHour}
         visibleEndHour={visibleEndHour}

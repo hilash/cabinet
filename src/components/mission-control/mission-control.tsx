@@ -311,7 +311,7 @@ export function MissionControl() {
     }
   };
 
-  const handleAgentToggle = async (slug: string, currentlyActive: boolean) => {
+  const handleAgentToggle = async (slug: string) => {
     try {
       await fetch(`/api/agents/personas/${slug}`, {
         method: "PUT",
@@ -519,7 +519,6 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
           window.dispatchEvent(new CustomEvent("cabinet:switch-slack-channel", { detail: "alerts" }));
         }}
         onGoalClick={() => setShowGoalSummary(!showGoalSummary)}
-        onPlaybookClick={() => setSection({ type: "agents" })}
         onAgentClick={handleAgentClick}
       />
 
@@ -610,7 +609,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                   onAgentClick={handleAgentClick}
                   onAgentToggle={handleAgentToggle}
                   onAgentRun={handleAgentRun}
-                  onViewWorkspace={(deptName) => {
+                  onViewWorkspace={() => {
                     // Find the lead agent for this department and navigate to its workspace
                     const lead = dept.agents.find((a) => a.type === "lead");
                     const slug = lead?.slug || dept.agents[0]?.slug;
@@ -628,7 +627,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                   <AgentCard
                     {...agent}
                     onClick={() => handleAgentClick(agent.slug)}
-                    onToggle={() => handleAgentToggle(agent.slug, agent.active)}
+                    onToggle={() => handleAgentToggle(agent.slug)}
                     onRun={() => handleAgentRun(agent.slug)}
                   />
                 </div>

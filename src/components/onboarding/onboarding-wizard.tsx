@@ -12,10 +12,7 @@ import {
   Rocket,
   ChevronDown,
   RefreshCw,
-  Sparkles,
   Terminal,
-  Users,
-  XCircle,
   Zap,
 } from "lucide-react";
 import { HomeBlueprintBackground } from "@/components/onboarding/home-blueprint-background";
@@ -119,18 +116,6 @@ const WEB = {
   borderLight: "#E6EEF1",
   borderDark: "#9FB6BE",
 } as const;
-
-// Agent pre-check + mandatory-lock logic is now room-aware — see getKeywordChecks
-// and getAlwaysChecked below. The old KEYWORD_CHECKS / ALWAYS_CHECKED constants
-// were per-room-type "office" defaults.
-
-function getKeywordChecksForRoom(roomType: RoomType): [RegExp, string[]][] {
-  return ROOMS[roomType].keywordMap;
-}
-
-function getAlwaysCheckedForRoom(roomType: RoomType): Set<string> {
-  return new Set(ROOMS[roomType].mandatoryAgents);
-}
 
 // Starter teams are now defined in src/lib/onboarding/rooms.ts (STARTER_TEAMS)
 // with a `rooms` field so the carousel can filter per room type.
@@ -400,53 +385,6 @@ function IntroStep({ onNext }: { onNext: () => void }) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ─── Welcome Back — shown when an existing local space is detected ─── */
-
-function WelcomeBackStep({
-  cabinetName,
-  onNext,
-}: {
-  cabinetName?: string;
-  onNext: () => void;
-}) {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setShow(true), 200);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-8 animate-in fade-in duration-500">
-      <div
-        className="text-center space-y-3 transition-all duration-700"
-        style={{ opacity: show ? 1 : 0, transform: show ? "translateY(0)" : "translateY(12px)" }}
-      >
-        <CheckCircle2 className="size-10 mx-auto" style={{ color: WEB.accent }} />
-        <h1 className="font-sans font-semibold text-2xl tracking-normal" style={{ color: WEB.text }}>
-          Welcome back{cabinetName ? ` to ${cabinetName}` : ""}
-        </h1>
-        <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
-          We found an existing space here. Let&apos;s finish setting it up.
-        </p>
-      </div>
-
-      <button
-        onClick={onNext}
-        className="inline-flex items-center gap-2 rounded-full px-8 py-3 text-sm font-medium text-white transition-all hover:-translate-y-0.5 duration-300"
-        style={{
-          background: WEB.accent,
-          opacity: show ? 1 : 0,
-          transform: show ? "translateY(0)" : "translateY(8px)",
-        }}
-      >
-        Continue
-        <ArrowRight className="w-3.5 h-3.5" />
-      </button>
     </div>
   );
 }
@@ -1188,8 +1126,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedEffort, setSelectedEffort] = useState<string | null>(null);
-  const [cabinetManifest, setCabinetManifest] = useState<{ name?: string; description?: string } | null>(null);
-  const [isExistingCabinet, setIsExistingCabinet] = useState(false);
   const readyProviders = providers.filter((p) => p.available && p.authenticated);
   const anyProviderReady = readyProviders.length > 0;
   const sortedProviders = useMemo(() => {
@@ -1207,8 +1143,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       .then((r) => r.json())
       .then((data) => {
         if (data.exists && data.manifest) {
-          setIsExistingCabinet(true);
-          setCabinetManifest(data.manifest);
           if (data.manifest.name) {
             setAnswers((prev) => ({
               ...prev,
@@ -1392,7 +1326,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           <HomeBlueprintBackground
             accent={WEB.accent}
             accentSoft={WEB.accentBg}
-            paper={WEB.bgWarm}
           />
         </div>
       )}

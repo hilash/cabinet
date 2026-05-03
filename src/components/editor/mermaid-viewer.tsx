@@ -63,7 +63,6 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
   }, []);
 
   const assetUrl = `/api/assets/${path}`;
-  const filename = path.split("/").pop() || path;
 
   const fetchAndRender = useCallback(async () => {
     setLoading(true);

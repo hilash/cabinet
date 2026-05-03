@@ -17,10 +17,22 @@ export interface AgentSession {
 // In-memory session store
 const sessions = new Map<string, AgentSession>();
 
+function withoutProcess(session: AgentSession): AgentSession {
+  return {
+    id: session.id,
+    ...(session.taskId === undefined ? {} : { taskId: session.taskId }),
+    taskTitle: session.taskTitle,
+    status: session.status,
+    startedAt: session.startedAt,
+    ...(session.completedAt === undefined ? {} : { completedAt: session.completedAt }),
+    output: session.output,
+  };
+}
+
 export function getActiveSessions(): AgentSession[] {
   return Array.from(sessions.values())
     .filter((s) => s.status === "running")
-    .map(({ process: _p, ...rest }) => rest);
+    .map(withoutProcess);
 }
 
 export function getRecentSessions(limit = 10): AgentSession[] {
@@ -32,14 +44,13 @@ export function getRecentSessions(limit = 10): AgentSession[] {
         new Date(a.completedAt || a.startedAt).getTime()
     )
     .slice(0, limit)
-    .map(({ process: _p, ...rest }) => rest);
+    .map(withoutProcess);
 }
 
 export function getSession(id: string): AgentSession | undefined {
   const session = sessions.get(id);
   if (!session) return undefined;
-  const { process: _p, ...rest } = session;
-  return rest;
+  return withoutProcess(session);
 }
 
 export function getAgentStats(): {

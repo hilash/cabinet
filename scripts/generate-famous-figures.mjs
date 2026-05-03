@@ -530,11 +530,6 @@ const mark = {
   <g fill="#f4e6a8"><circle cx="96" cy="93" r="0.8"/><circle cx="100" cy="93" r="0.8"/><circle cx="104" cy="93" r="0.8"/><circle cx="98" cy="96" r="0.8"/><circle cx="102" cy="96" r="0.8"/><circle cx="100" cy="99" r="0.8"/></g>`,
 };
 
-// ─── Assemble ────────────────────────────────────────────────────────
-function svg(parts) {
-  return parts.filter(Boolean).join("\n  ") + "\n</svg>\n";
-}
-
 // Each entry: { id, label, bg, shirt, skin, layers: [...] }
 // Layers render in order; later layers overlay earlier.
 const FIGURES = [

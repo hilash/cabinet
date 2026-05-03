@@ -66,7 +66,7 @@ export const piProvider: AgentProvider = {
     "pi",
   ],
 
-  buildArgs(prompt: string, _workdir: string): string[] {
+  buildArgs(prompt: string): string[] {
     return ["-p", prompt];
   },
 

@@ -65,7 +65,7 @@ export const cursorCliProvider: AgentProvider = {
     "cursor-agent",
   ],
 
-  buildArgs(prompt: string, _workdir: string): string[] {
+  buildArgs(prompt: string): string[] {
     return ["-p", prompt, "--output-format", "text", "--yolo"];
   },
 

@@ -5,7 +5,6 @@ import { useId } from "react";
 interface HomeBlueprintBackgroundProps {
   accent: string;
   accentSoft: string;
-  paper: string;
 }
 
 interface Wall {
@@ -230,7 +229,6 @@ const PATIO = {
 export function HomeBlueprintBackground({
   accent,
   accentSoft,
-  paper,
 }: HomeBlueprintBackgroundProps) {
   const rawGridId = useId();
   const gridId = `bp-grid-${rawGridId.replace(/[^a-zA-Z0-9_-]/g, "")}`;

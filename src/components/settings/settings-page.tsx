@@ -13,8 +13,6 @@ import {
   Plug,
   Cpu,
   Stethoscope,
-  Eye,
-  EyeOff,
   Save,
   Loader2,
   CloudDownload,
@@ -84,31 +82,8 @@ import Image from "next/image";
 import { sendTelemetry } from "@/lib/telemetry/browser";
 import { OPTALE_PRODUCT } from "@/lib/optale/product";
 
-interface McpServer {
-  name: string;
-  command: string;
-  enabled: boolean;
-  env: Record<string, string>;
-  description?: string;
-}
-
-interface IntegrationConfig {
-  mcp_servers: Record<string, McpServer>;
-  notifications: {
-    browser_push: boolean;
-    telegram: { enabled: boolean; bot_token: string; chat_id: string };
-    slack_webhook: { enabled: boolean; url: string };
-    email: { enabled: boolean; frequency: "hourly" | "daily"; to: string };
-  };
-  scheduling: {
-    max_concurrent_agents: number;
-    default_heartbeat_interval: string;
-    active_hours: string;
-    pause_on_error: boolean;
-  };
-}
-
 type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
+const VALID_TABS: Tab[] = ["profile", "providers", "skills", "storage", "integrations", "notifications", "appearance", "updates", "about"];
 
 function TerminalCommand({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
@@ -254,7 +229,6 @@ export function SettingsPage() {
   const [dataDirBrowsing, setDataDirBrowsing] = useState(false);
   const [dataDirSaving, setDataDirSaving] = useState(false);
   const [dataDirRestartNeeded, setDataDirRestartNeeded] = useState(false);
-  const VALID_TABS: Tab[] = ["profile", "providers", "skills", "storage", "integrations", "notifications", "appearance", "updates", "about"];
   const initialTab = (() => {
     const slug = useAppStore.getState().section.slug as Tab | undefined;
     return slug && VALID_TABS.includes(slug) ? slug : "profile";
@@ -286,12 +260,7 @@ export function SettingsPage() {
       }
     });
     return unsub;
-  }, []);
-  const [config, setConfig] = useState<IntegrationConfig | null>(null);
-  const [configLoading, setConfigLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
+  }, [tab]);
   const [activeThemeName, setActiveThemeName] = useState<string | null>(null);
   const [telemetryEnabled, setTelemetryEnabled] = useState<boolean | null>(null);
   const [telemetryEnvDisabled, setTelemetryEnvDisabled] = useState(false);
@@ -440,36 +409,12 @@ export function SettingsPage() {
   };
 
   const loadConfig = useCallback(async () => {
-    setConfigLoading(true);
     try {
-      const res = await fetch("/api/agents/config/integrations");
-      if (res.ok) {
-        setConfig(await res.json());
-      }
+      await fetch("/api/agents/config/integrations");
     } catch {
       // ignore
-    } finally {
-      setConfigLoading(false);
     }
   }, []);
-
-  const saveConfig = async () => {
-    if (!config) return;
-    setSaving(true);
-    try {
-      await fetch("/api/agents/config/integrations", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      // ignore
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const loadDataDir = useCallback(async () => {
     try {
@@ -488,35 +433,6 @@ export function SettingsPage() {
     loadConfig();
     loadDataDir();
   }, [refresh, loadConfig, loadDataDir]);
-
-  const toggleReveal = (key: string) => {
-    setRevealedKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const updateNotif = (path: string, value: unknown) => {
-    if (!config) return;
-    const parts = path.split(".");
-    const notif = { ...config.notifications } as Record<string, unknown>;
-    if (parts.length === 1) {
-      notif[parts[0]] = value;
-    } else {
-      notif[parts[0]] = { ...(notif[parts[0]] as Record<string, unknown>), [parts[1]]: value };
-    }
-    setConfig({ ...config, notifications: notif as IntegrationConfig["notifications"] });
-  };
-
-  const updateScheduling = (field: string, value: unknown) => {
-    if (!config) return;
-    setConfig({
-      ...config,
-      scheduling: { ...config.scheduling, [field]: value },
-    });
-  };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "profile", label: "Profile", icon: <CircleUser className="h-3.5 w-3.5" /> },

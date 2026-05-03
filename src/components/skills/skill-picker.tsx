@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { SkillEntry } from "@/lib/agents/skills/types";

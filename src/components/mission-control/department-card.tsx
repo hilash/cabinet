@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { FolderOpen, Pause, Play, MoreHorizontal, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
+import { FolderOpen, Pause, Play, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
 import { AgentCard } from "./agent-card";
 import type { GoalMetric } from "@/types/agents";
 
@@ -150,10 +150,6 @@ export function DepartmentCard({ department, agents, onAgentClick, onAgentToggle
       {collapsed && (
         <div className="px-2 py-1.5 space-y-0.5">
           {agents.map((a) => {
-            const topGoal = a.goals.length > 0
-              ? a.goals.reduce((best, g) => (g.target > 0 ? (best.target > 0 ? (g.current / g.target > best.current / best.target ? g : best) : g) : best), a.goals[0])
-              : null;
-            const pct = topGoal && topGoal.target > 0 ? Math.min(100, Math.round((topGoal.current / topGoal.target) * 100)) : 0;
             const totalPct = a.goals.length > 0
               ? Math.round(a.goals.reduce((sum, g) => sum + (g.target > 0 ? Math.min(1, g.current / g.target) : 0), 0) / a.goals.filter(g => g.target > 0).length * 100) || 0
               : 0;

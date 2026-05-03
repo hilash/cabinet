@@ -308,11 +308,13 @@ export function redactOptaleMcpAuditEventForClient(
   event: OptaleMcpAuditEvent,
 ): OptalePublicMcpAuditEvent {
   const {
-    toolName: _toolName,
-    internalToolName: _internalToolName,
+    toolName,
+    internalToolName,
     error,
     ...rest
   } = event;
+  void toolName;
+  void internalToolName;
   const productToolName =
     event.productToolName ||
     (event.toolName ? productMcpClientToolName(event.toolName) : undefined);

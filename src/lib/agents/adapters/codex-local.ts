@@ -34,8 +34,7 @@ import {
  * chain falls through to the unknown fallback.
  */
 function classifyCodexModelUnavailable(
-  stderr: string,
-  _exitCode: number | null
+  stderr: string
 ): ConversationErrorClassification | null {
   const text = (stderr || "").toLowerCase();
   if (!text.trim()) return null;

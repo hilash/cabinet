@@ -31,6 +31,9 @@ export function ConversationSessionView({
   const [failedLoad, setFailedLoad] = useState(false);
   const previousKeyRef = useRef<string | null>(null);
   const refetchRef = useRef<(() => Promise<void>) | null>(null);
+  const conversationId = conversation?.id ?? null;
+  const conversationCabinetPath = conversation?.cabinetPath ?? "";
+  const conversationStatus = conversation?.status ?? null;
 
   const refreshDetail = useCallback(async () => {
     const doRefetch = refetchRef.current;
@@ -38,7 +41,7 @@ export function ConversationSessionView({
   }, []);
 
   useEffect(() => {
-    if (!conversation) {
+    if (!conversationId || !conversationStatus) {
       previousKeyRef.current = null;
       setDetail(null);
       setLoading(false);
@@ -47,8 +50,7 @@ export function ConversationSessionView({
       return;
     }
 
-    const selectedConversation = conversation;
-    const selectionKey = `${selectedConversation.id}::${selectedConversation.cabinetPath || ""}`;
+    const selectionKey = `${conversationId}::${conversationCabinetPath}`;
     const isNewSelection = previousKeyRef.current !== selectionKey;
     previousKeyRef.current = selectionKey;
 
@@ -67,13 +69,13 @@ export function ConversationSessionView({
       }
 
       const params = new URLSearchParams();
-      if (selectedConversation.cabinetPath) {
-        params.set("cabinetPath", selectedConversation.cabinetPath);
+      if (conversationCabinetPath) {
+        params.set("cabinetPath", conversationCabinetPath);
       }
 
       try {
         const response = await fetch(
-          `/api/agents/conversations/${selectedConversation.id}?${params.toString()}`
+          `/api/agents/conversations/${conversationId}?${params.toString()}`
         );
         const data = response.ok ? ((await response.json()) as ConversationDetail) : null;
         if (!cancelled && data) {
@@ -109,7 +111,7 @@ export function ConversationSessionView({
     void (async () => {
       const nextDetail = await loadConversationDetail();
       const shouldPoll =
-        (nextDetail?.meta.status || selectedConversation.status) === "running";
+        (nextDetail?.meta.status || conversationStatus) === "running";
       if (!cancelled && shouldPoll && pollHandle === null) {
         pollHandle = window.setInterval(() => {
           void loadConversationDetail(true);
@@ -124,7 +126,7 @@ export function ConversationSessionView({
         window.clearInterval(pollHandle);
       }
     };
-  }, [conversation?.cabinetPath, conversation?.id, conversation?.status, onDetailChange]);
+  }, [conversationCabinetPath, conversationId, conversationStatus, onDetailChange]);
 
   if (loading && !detail) {
     return (

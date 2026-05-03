@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   ChevronDown,
@@ -259,10 +259,6 @@ function ActivityBeacon({
   );
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
 function formatTimestamp(iso?: string): string {
   if (!iso) return "Not available";
   const date = new Date(iso);
@@ -399,7 +395,7 @@ export function AgentsWorkspace({
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("claude-code");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [jobDraft, setJobDraft] = useState<JobConfig | null>(null);
+  const [, setJobDraft] = useState<JobConfig | null>(null);
   const [creatingAgent, setCreatingAgent] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState(false);
   const [newAgentDraft, setNewAgentDraft] = useState<NewAgentDraft>(DEFAULT_NEW_AGENT);
@@ -414,14 +410,13 @@ export function AgentsWorkspace({
   const [, setLibraryDialogOpen] = useState(false);
   const [conversationDetailsOpen, setConversationDetailsOpen] = useState(false);
   const [detailsCopied, setDetailsCopied] = useState(false);
-  const [libraryTemplates, setLibraryTemplates] = useState<JobLibraryTemplate[]>([]);
+  const [, setLibraryTemplates] = useState<JobLibraryTemplate[]>([]);
   const [addAgentDialogOpen, setAddAgentDialogOpen] = useState(false);
   const [agentTemplates, setAgentTemplates] = useState<AgentTemplate[]>([]);
   const [agentFlowError, setAgentFlowError] = useState<string | null>(null);
   const [loadingAgentTemplates, setLoadingAgentTemplates] = useState(false);
   const [addingAgentSlug, setAddingAgentSlug] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
-  const [savingJob, setSavingJob] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [quickSendAgent, setQuickSendAgent] = useState<string | null>(null);
   const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
@@ -430,30 +425,25 @@ export function AgentsWorkspace({
   const [handoffAgentSlug, setHandoffAgentSlug] = useState<string | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const [agentJobsMap, setAgentJobsMap] = useState<Record<string, JobConfig[]>>({});
-  const [orgChartJobDialog, setOrgChartJobDialog] = useState<{
+  const [, setOrgChartJobDialog] = useState<{
     agentSlug: string;
     agentName: string;
     cabinetPath?: string;
     draft: JobConfig;
   } | null>(null);
-  const [orgChartHeartbeatDialog, setOrgChartHeartbeatDialog] = useState<{
+  const [, setOrgChartHeartbeatDialog] = useState<{
     agentSlug: string;
     agentName: string;
     cabinetPath?: string;
     heartbeat: string;
     active: boolean;
   } | null>(null);
-  const [orgChartJobRunning, setOrgChartJobRunning] = useState(false);
-  const [orgChartJobSaving, setOrgChartJobSaving] = useState(false);
-  const [orgChartHeartbeatRunning, setOrgChartHeartbeatRunning] = useState(false);
-  const [orgChartHeartbeatSaving, setOrgChartHeartbeatSaving] = useState(false);
   const lastSavedSettingsRef = useRef<string | null>(null);
   const treeNodes = useTreeStore((state) => state.nodes);
   const section = useAppStore((state) => state.section);
   const setSection = useAppStore((state) => state.setSection);
   const [orgChartOpen, setOrgChartOpen] = useState(false);
   const [scheduleFullscreen, setScheduleFullscreen] = useState(false);
-  const [newRoutineIsNew, setNewRoutineIsNew] = useState(false);
   const [routineDialog, setRoutineDialog] = useState<{
     agent: NewRoutineDialogAgent;
     existingJob?: JobConfig;
@@ -564,13 +554,8 @@ export function AgentsWorkspace({
     settingsEditorDraft?.provider || defaultProvider,
     defaultProvider
   );
-  const jobDraftAdapterOptions = getAdapterOptionsForProvider(
-    providers,
-    jobDraft?.provider || settingsPersona?.provider || defaultProvider,
-    defaultProvider
-  );
 
-  async function refreshProviders() {
+  const refreshProviders = useCallback(async () => {
     try {
       const response = await fetch("/api/agents/providers");
       if (!response.ok) return;
@@ -611,9 +596,9 @@ export function AgentsWorkspace({
     } catch {
       // Ignore transient startup/network failures.
     }
-  }
+  }, []);
 
-  async function refreshAgents() {
+  const refreshAgents = useCallback(async () => {
     try {
       if (effectiveCabinetPath) {
         const data = await fetchCabinetOverviewClient(
@@ -670,9 +655,9 @@ export function AgentsWorkspace({
     } catch {
       // Ignore transient startup/network failures.
     }
-  }
+  }, [effectiveCabinetPath, effectiveVisibilityMode]);
 
-  async function refreshConversations() {
+  const refreshConversations = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (activeAgentSlug) params.set("agent", activeAgentSlug);
@@ -696,7 +681,7 @@ export function AgentsWorkspace({
     } catch {
       // Ignore transient startup/network failures.
     }
-  }
+  }, [activeAgentSlug, effectiveCabinetPath, effectiveVisibilityMode]);
 
   async function deleteConversation(id: string, cabinetPath?: string) {
     try {
@@ -736,18 +721,18 @@ export function AgentsWorkspace({
     }
   }
 
-  async function refreshLibrary() {
+  const refreshLibrary = useCallback(async () => {
     const response = await fetch("/api/jobs/library");
     if (!response.ok) return;
     const data = await response.json();
     setLibraryTemplates((data.templates || []) as JobLibraryTemplate[]);
-  }
+  }, []);
 
-  async function refreshSettings(
+  const refreshSettings = useCallback(async (
     agentSlug: string,
     options?: { resetJobEditor?: boolean },
     cabinetPathOverride?: string
-  ) {
+  ) => {
     const resetJobEditor = options?.resetJobEditor ?? true;
 
     const resolvedCabinetPath = cabinetPathOverride ?? effectiveCabinetPath;
@@ -777,7 +762,8 @@ export function AgentsWorkspace({
       });
       // Auto-open edit dialog for agents that haven't completed initial setup
       if (!data.persona.setupComplete) {
-        handleSettingsEditorOpenChange(true);
+        setSettingsEditorOpen(true);
+        setAgentFlowError(null);
       }
     }
 
@@ -793,20 +779,20 @@ export function AgentsWorkspace({
       setNewJobDialogOpen(false);
       setLibraryDialogOpen(false);
     }
-  }
+  }, [effectiveCabinetPath]);
 
   useEffect(() => {
     void refreshConversations();
-  }, [activeAgentSlug]);
+  }, [refreshConversations]);
 
   useEffect(() => {
     void refreshLibrary();
     void refreshProviders();
-  }, []);
+  }, [refreshLibrary, refreshProviders]);
 
   useEffect(() => {
     void refreshAgents();
-  }, [conversations]);
+  }, [conversations, refreshAgents]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -814,13 +800,7 @@ export function AgentsWorkspace({
       void refreshAgents();
     }, 3000);
     return () => clearInterval(interval);
-  }, [activeAgentSlug]);
-
-  // Re-fetch when cabinet visibility mode changes (separate effect to keep dep array sizes stable)
-  useEffect(() => {
-    void refreshConversations();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveVisibilityMode]);
+  }, [refreshAgents, refreshConversations]);
 
   // Fetch jobs for all agents in parallel for the org chart display
   useEffect(() => {
@@ -840,7 +820,7 @@ export function AgentsWorkspace({
     ).then((entries) => {
       setAgentJobsMap(Object.fromEntries(entries));
     });
-  }, [agents]);
+  }, [agents, effectiveCabinetPath]);
 
   useEffect(() => {
     const pendingConvId = section.conversationId || null;
@@ -918,13 +898,13 @@ export function AgentsWorkspace({
     }
     window.addEventListener("cabinet:open-conversation", handler);
     return () => window.removeEventListener("cabinet:open-conversation", handler);
-  }, [setSection]);
+  }, [refreshConversations, setSection]);
 
   useEffect(() => {
     if (mode === "settings" && settingsAgentSlug) {
       void refreshSettings(settingsAgentSlug, { resetJobEditor: true }, settingsAgentCabinetPath);
     }
-  }, [mode, settingsAgentSlug, settingsAgentCabinetPath]);
+  }, [mode, settingsAgentSlug, settingsAgentCabinetPath, refreshSettings]);
 
   useEffect(() => {
     if (!settingsAgentSlug) {
@@ -1013,12 +993,6 @@ export function AgentsWorkspace({
     }
   }, [selectedConversationCabinetPath, selectedConversationId, conversations]);
 
-  useEffect(() => {
-    const handler = () => { openAddAgentDialog(); };
-    window.addEventListener("cabinet:open-add-agent", handler);
-    return () => window.removeEventListener("cabinet:open-add-agent", handler);
-  }, []);
-
   function openAgentSettings(agentSlug: string) {
     // Editing now lives on the detail page (`AgentDetailV2`). Route there.
     const targetAgent = agents.find((a) => a.slug === agentSlug);
@@ -1079,7 +1053,7 @@ export function AgentsWorkspace({
     setCustomAgentDialogOpen(true);
   }
 
-  async function openAddAgentDialog() {
+  const openAddAgentDialog = useCallback(async () => {
     setAgentFlowError(null);
     if (mode !== "settings") {
       setMode("settings");
@@ -1106,7 +1080,15 @@ export function AgentsWorkspace({
         setLoadingAgentTemplates(false);
       }
     }
-  }
+  }, [agentTemplates.length, mode, settingsTarget]);
+
+  useEffect(() => {
+    const handler = () => {
+      void openAddAgentDialog();
+    };
+    window.addEventListener("cabinet:open-add-agent", handler);
+    return () => window.removeEventListener("cabinet:open-add-agent", handler);
+  }, [openAddAgentDialog]);
 
   async function addAgentFromTemplate(template: AgentTemplate) {
     setAgentFlowError(null);
@@ -1256,36 +1238,6 @@ export function AgentsWorkspace({
     setNewJobDialogOpen(true);
   }
 
-  function applyLibraryTemplate(template: JobLibraryTemplate) {
-    if (!settingsAgentSlug) return;
-    setSelectedJobId("__new__");
-    setJobDraft({
-      ...blankJobDraft(
-        settingsAgentSlug,
-        settingsPersona?.provider || defaultProvider || "claude-code",
-        resolveAdapterTypeForProvider(
-          providers,
-          settingsPersona?.provider || defaultProvider || "claude-code",
-          settingsPersona?.adapterType,
-          defaultProvider
-        )
-      ),
-      id: template.id,
-      name: template.name,
-      schedule: template.schedule,
-      prompt: template.prompt,
-      timeout: template.timeout || 600,
-    });
-    setLibraryDialogOpen(false);
-    setNewJobDialogOpen(true);
-  }
-
-  function closeNewJobDialog() {
-    setNewJobDialogOpen(false);
-    setSelectedJobId(null);
-    setJobDraft(null);
-  }
-
   // Open the shared NewRoutineDialog for a specific agent. Create vs edit
   // is controlled by whether `existingJob` is passed. rAF defers past the
   // DropdownMenu close so base-ui focus-lock doesn't cancel the dialog open.
@@ -1307,37 +1259,6 @@ export function AgentsWorkspace({
   // Back-compat alias used by the Add-routine / Add-scheduled-job buttons.
   function openNewRoutineFor(agent: AgentListItem) {
     openRoutineDialog(agent);
-  }
-
-  async function saveJob() {
-    if (!settingsAgentSlug || !jobDraft) return;
-    const isNew = selectedJobId === "__new__" || !selectedJobId;
-    const endpoint = isNew
-      ? `/api/agents/${settingsAgentSlug}/jobs`
-      : `/api/agents/${settingsAgentSlug}/jobs/${selectedJobId}`;
-    const method = isNew ? "POST" : "PUT";
-    setSavingJob(true);
-    try {
-      const response = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...jobDraft,
-          id: jobDraft.id || undefined,
-          cabinetPath: effectiveCabinetPath,
-        }),
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      const nextJob = (data.job || jobDraft) as JobConfig;
-      await refreshSettings(settingsAgentSlug, { resetJobEditor: false });
-      setSelectedJobId(nextJob.id);
-      if (isNew) {
-        setNewJobDialogOpen(false);
-      }
-    } finally {
-      setSavingJob(false);
-    }
   }
 
   async function deleteJob(jobId: string) {
@@ -1464,116 +1385,6 @@ export function AgentsWorkspace({
       }
     } finally {
       setRunningJobId(null);
-    }
-  }
-
-  async function runOrgChartJob() {
-    if (!orgChartJobDialog) return;
-    const { agentSlug, cabinetPath, draft } = orgChartJobDialog;
-    setOrgChartJobRunning(true);
-    try {
-      const response = await fetch(`/api/agents/${agentSlug}/jobs/${draft.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run", cabinetPath }),
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (data.run?.id) {
-        setOrgChartJobDialog(null);
-        setActiveAgentSlug(agentSlug);
-        setSection(buildAgentSection(agentSlug, cabinetPath));
-        setSelectedConversationId(data.run.id as string);
-        setSelectedConversationCabinetPath(cabinetPath);
-        setMode("conversation");
-        await refreshConversations();
-      }
-    } finally {
-      setOrgChartJobRunning(false);
-    }
-  }
-
-  async function saveOrgChartJob() {
-    if (!orgChartJobDialog) return;
-    const { agentSlug, cabinetPath, draft } = orgChartJobDialog;
-    const isCreating = newRoutineIsNew || !draft.id;
-    setOrgChartJobSaving(true);
-    try {
-      const query = cabinetPath ? `?cabinetPath=${encodeURIComponent(cabinetPath)}` : "";
-      const url = isCreating
-        ? `/api/agents/${agentSlug}/jobs${query}`
-        : `/api/agents/${agentSlug}/jobs/${draft.id}${query}`;
-      const response = await fetch(url, {
-        method: isCreating ? "POST" : "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
-      });
-      if (!response.ok) return;
-      let savedDraft = draft;
-      if (isCreating) {
-        try {
-          const data = await response.json();
-          if (data?.job) savedDraft = data.job;
-        } catch {
-          // fall back to draft
-        }
-      }
-      setOrgChartJobDialog(null);
-      setNewRoutineIsNew(false);
-      setAgentJobsMap((prev) => ({
-        ...prev,
-        [agentSlug]: isCreating
-          ? [...(prev[agentSlug] || []), savedDraft]
-          : (prev[agentSlug] || []).map((j) =>
-              j.id === draft.id ? savedDraft : j
-            ),
-      }));
-    } finally {
-      setOrgChartJobSaving(false);
-    }
-  }
-
-  async function runOrgChartHeartbeat() {
-    if (!orgChartHeartbeatDialog) return;
-    const { agentSlug, cabinetPath } = orgChartHeartbeatDialog;
-    setOrgChartHeartbeatRunning(true);
-    try {
-      const response = await fetch(`/api/agents/personas/${agentSlug}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run", cabinetPath }),
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (data.sessionId) {
-        setOrgChartHeartbeatDialog(null);
-        setActiveAgentSlug(agentSlug);
-        setSection(buildAgentSection(agentSlug, cabinetPath));
-        setSelectedConversationId(data.sessionId as string);
-        setSelectedConversationCabinetPath(cabinetPath);
-        setMode("conversation");
-        await refreshConversations();
-      }
-    } finally {
-      setOrgChartHeartbeatRunning(false);
-    }
-  }
-
-  async function saveOrgChartHeartbeat() {
-    if (!orgChartHeartbeatDialog) return;
-    const { agentSlug, cabinetPath, heartbeat, active } = orgChartHeartbeatDialog;
-    setOrgChartHeartbeatSaving(true);
-    try {
-      const response = await fetch(`/api/agents/personas/${agentSlug}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ heartbeat, active, cabinetPath }),
-      });
-      if (!response.ok) return;
-      setOrgChartHeartbeatDialog(null);
-      await refreshAgents();
-    } finally {
-      setOrgChartHeartbeatSaving(false);
     }
   }
 

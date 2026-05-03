@@ -63,7 +63,7 @@ export const claudeCodeProvider: AgentProvider = {
     "claude",
   ],
 
-  buildArgs(prompt: string, _workdir: string): string[] {
+  buildArgs(prompt: string): string[] {
     return ["--dangerously-skip-permissions", "-p", prompt, "--output-format", "text"];
   },
 
@@ -79,7 +79,8 @@ export const claudeCodeProvider: AgentProvider = {
     };
   },
 
-  buildSessionInvocation(prompt: string | undefined, _workdir: string, opts) {
+  buildSessionInvocation(prompt: string | undefined, workdir: string, opts) {
+    void workdir;
     const args = ["--dangerously-skip-permissions"];
     if (opts?.resumeId) {
       // `claude --resume <sessionId>` rehydrates the prior conversation so

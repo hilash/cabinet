@@ -121,12 +121,10 @@ function StatusIndicator({ active, running, lastHeartbeat, nextHeartbeat, now, o
 export function AgentCard({
   name,
   emoji,
-  role,
   active,
   running,
   type,
   goals,
-  slug,
   lastHeartbeat,
   nextHeartbeat,
   lastAction,

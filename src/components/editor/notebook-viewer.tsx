@@ -121,10 +121,14 @@ function CellOutput({ output }: { output: NotebookOutput }) {
   const data = output.data || {};
   if (data["image/png"]) {
     const src = `data:image/png;base64,${joinSource(data["image/png"]).replace(/\s/g, "")}`;
+    // Notebook outputs are embedded data URLs with unknown dimensions.
+    // eslint-disable-next-line @next/next/no-img-element
     return <img src={src} alt="output" className="max-w-full rounded-md bg-white p-2" />;
   }
   if (data["image/jpeg"]) {
     const src = `data:image/jpeg;base64,${joinSource(data["image/jpeg"]).replace(/\s/g, "")}`;
+    // Notebook outputs are embedded data URLs with unknown dimensions.
+    // eslint-disable-next-line @next/next/no-img-element
     return <img src={src} alt="output" className="max-w-full rounded-md bg-white p-2" />;
   }
   if (data["image/svg+xml"]) {

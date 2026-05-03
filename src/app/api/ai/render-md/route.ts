@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     if (!markdown) return NextResponse.json({ html: "" });
     const html = await markdownToHtml(markdown);
     return NextResponse.json({ html });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ html: "" }, { status: 500 });
   }
 }

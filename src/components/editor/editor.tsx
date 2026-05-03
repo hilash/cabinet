@@ -143,21 +143,6 @@ export function KBEditor() {
     []
   );
 
-  const handlePasteOrDrop = useCallback(
-    async (files: FileList) => {
-      const pagePath = useEditorStore.getState().currentPath;
-      if (!pagePath) return;
-
-      for (const file of Array.from(files)) {
-        const url = await uploadFile(pagePath, file);
-        if (!url) continue;
-        // For now insert via the editor reference stored separately
-        // This is handled by the editorProps below
-      }
-    },
-    []
-  );
-
   const editor = useEditor({
     extensions: editorExtensions,
     content: "",
@@ -528,7 +513,7 @@ export function KBEditor() {
             <EditorBubbleMenu editor={editor} />
             <TableMenu editor={editor} />
             <SlashCommands editor={editor} />
-            <EditorMentionPicker editor={editor} />
+            <EditorMentionPicker />
 
             {/* AI Edit Prompt + slash hint */}
             <div className="max-w-3xl mx-auto px-8 pb-8 flex items-center gap-4">

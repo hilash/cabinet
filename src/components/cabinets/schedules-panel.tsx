@@ -9,13 +9,11 @@ import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
 export function SchedulesPanel({
   agents,
   jobs,
-  onAgentClick,
   onJobClick,
   onHeartbeatClick,
 }: {
   agents: CabinetAgentSummary[];
   jobs: CabinetJobSummary[];
-  onAgentClick?: (agent: CabinetAgentSummary) => void;
   onJobClick?: (job: CabinetJobSummary, agent: CabinetAgentSummary) => void;
   onHeartbeatClick?: (agent: CabinetAgentSummary) => void;
 }) {

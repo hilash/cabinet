@@ -48,7 +48,6 @@ interface PulseStripProps {
   metrics: PulseMetrics;
   onAlertClick?: () => void;
   onGoalClick?: () => void;
-  onPlaybookClick?: () => void;
   onAgentClick?: (slug: string) => void;
 }
 
@@ -154,7 +153,7 @@ function PulsePopover({
   );
 }
 
-export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick, onAgentClick }: PulseStripProps) {
+export function PulseStrip({ metrics, onAlertClick, onGoalClick, onAgentClick }: PulseStripProps) {
   const goalStatus = metrics.totalGoals === 0 ? "ok" :
     metrics.goalsOnTrack / metrics.totalGoals >= 0.7 ? "ok" :
     metrics.goalsOnTrack / metrics.totalGoals >= 0.4 ? "warning" : "critical";

@@ -6,7 +6,6 @@ import {
   Pause,
   Play,
   Target,
-  Zap,
   FolderOpen,
   Brain,
   Clock,

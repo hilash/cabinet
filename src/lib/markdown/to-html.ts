@@ -55,7 +55,7 @@ function fixTaskListHtml(html: string): string {
 function upgradeProviderVideos(html: string): string {
   return html.replace(
     /<video\b([^>]*)\bsrc="([^"]+)"([^>]*)><\/video>/gi,
-    (match, before: string, src: string, after: string) => {
+    (match, before: string, src: string) => {
       const detected = detectEmbed(src);
       if (!detected || detected.provider === "video") return match;
 

@@ -127,7 +127,7 @@ export const codexCliProvider: AgentProvider = {
     "codex",
   ],
 
-  buildArgs(prompt: string, _workdir: string): string[] {
+  buildArgs(prompt: string): string[] {
     return [
       "exec",
       "--ephemeral",

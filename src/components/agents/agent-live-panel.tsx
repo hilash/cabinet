@@ -14,13 +14,9 @@ import {
   Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { WebTerminal } from "@/components/terminal/web-terminal";
-import {
-  useAIPanelStore,
-  type AgentLiveSession,
-} from "@/stores/ai-panel-store";
+import { useAIPanelStore } from "@/stores/ai-panel-store";
 import type { AgentPersona, HeartbeatRecord } from "@/lib/agents/persona-manager";
 
 interface AgentLivePanelProps {
@@ -130,7 +126,11 @@ export function AgentLivePanel({ persona, onBack }: AgentLivePanelProps) {
   const toggleExpanded = (id: string) => {
     setExpandedPast((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };

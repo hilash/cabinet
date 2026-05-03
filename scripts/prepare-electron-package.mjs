@@ -1,5 +1,4 @@
 import { build as bundle } from "esbuild";
-import { execFileSync } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 
@@ -17,7 +16,6 @@ const stagedNodePtyDir = path.join(stagedNativeDir, "node-pty");
 const stagedSeedDir = path.join(standaloneDir, ".seed");
 const bundledNodeBinaryPath = path.join(standaloneBinDir, "node");
 const rootNodePtyDir = path.join(projectRoot, "node_modules", "node-pty");
-const dataDir = path.join(projectRoot, "data");
 const resourcesDir = path.join(projectRoot, "resources");
 const agentLibraryDir = path.join(projectRoot, "src", "lib", "agents", "library");
 

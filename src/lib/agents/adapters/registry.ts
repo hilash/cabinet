@@ -6,12 +6,8 @@ import { cursorCliProvider } from "../providers/cursor-cli";
 import { geminiCliProvider } from "../providers/gemini-cli";
 import { grokCliProvider } from "../providers/grok-cli";
 import { openCodeProvider } from "../providers/opencode";
-import { openRouterProvider } from "../providers/openrouter";
 import { piProvider } from "../providers/pi";
-import type {
-  AdapterEnvironmentTestContext,
-  AgentExecutionAdapter,
-} from "./types";
+import type { AgentExecutionAdapter } from "./types";
 import { claudeLocalAdapter } from "./claude-local";
 import { codexLocalAdapter } from "./codex-local";
 import { copilotLocalAdapter } from "./copilot-local";
@@ -75,7 +71,7 @@ function buildLegacyCliAdapter(input: {
     supportsDetachedRuns: true,
     models: provider.models,
     effortLevels: provider.effortLevels,
-    async testEnvironment(_ctx?: AdapterEnvironmentTestContext) {
+    async testEnvironment() {
       return providerStatusToEnvironmentTest(
         input.type,
         await provider.healthCheck(),

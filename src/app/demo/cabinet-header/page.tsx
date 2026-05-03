@@ -8,7 +8,6 @@ import {
   SquareKanban,
   ListChecks,
   ClipboardList,
-  Plus,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

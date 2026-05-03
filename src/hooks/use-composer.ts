@@ -309,7 +309,7 @@ export function useComposer({
         return;
       }
     },
-    [showDropdown, filteredItems, mentionIndex, insertMention, submit]
+    [showDropdown, filteredItems, mentionIndex, insertMention, submit, input]
   );
 
   return {

@@ -10,7 +10,7 @@ function withMockFetch<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   const original: FetchFn = globalThis.fetch;
-  globalThis.fetch = (async (input, _init) => mock(input as Request | string | URL)) as FetchFn;
+  globalThis.fetch = (async (input) => mock(input as Request | string | URL)) as FetchFn;
   __clearAuditCache();
   return Promise.resolve(fn()).finally(() => {
     globalThis.fetch = original;

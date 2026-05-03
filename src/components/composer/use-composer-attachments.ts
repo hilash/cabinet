@@ -56,14 +56,15 @@ interface UploadResponse {
 export function useComposerAttachments(
   options: UseComposerAttachmentsOptions
 ): UseComposerAttachmentsReturn {
+  const { cabinetPath, conversationId, clientAttachmentId } = options;
   const enabled = options.enabled !== false;
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const controllersRef = useRef<Map<string, InternalController>>(new Map());
 
-  const targetDir = useMemo(() => computeTargetDir(options), [
-    options.cabinetPath,
-    options.conversationId,
-    options.clientAttachmentId,
+  const targetDir = useMemo(() => computeTargetDir({ cabinetPath, conversationId, clientAttachmentId }), [
+    cabinetPath,
+    conversationId,
+    clientAttachmentId,
   ]);
 
   const updateAttachment = useCallback(

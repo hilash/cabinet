@@ -68,7 +68,7 @@ export const grokCliProvider: AgentProvider = {
     "grok",
   ],
 
-  buildArgs(prompt: string, _workdir: string): string[] {
+  buildArgs(prompt: string): string[] {
     return ["-p", prompt];
   },
 

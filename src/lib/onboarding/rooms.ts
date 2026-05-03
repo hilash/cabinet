@@ -83,7 +83,7 @@ export const ROOMS: Record<RoomType, RoomConfig> = {
       [/plugin|script|dnd|tool|automat|tinker/, ["tinkerer"]],
       [/note|wiki|link|synthes|second brain|pkm/, ["note-synthesizer"]],
     ],
-    greetingTemplate: (home, workspace) =>
+    greetingTemplate: (home) =>
       `Morning. Your second brain is online${home ? ` — welcome back to ${home}` : ""}.`,
   },
 
@@ -109,8 +109,10 @@ export const ROOMS: Record<RoomType, RoomConfig> = {
       [/citation|bibtex|reference|bibliography/, ["citation-keeper"]],
       [/research|topic|question|hypothesis/, ["researcher"]],
     ],
-    greetingTemplate: (_home, workspace) =>
-      `Research desk ready${workspace ? ` — "${workspace}"` : ""}. What are we digging into today?`,
+    greetingTemplate: (home, workspace) => {
+      void home;
+      return `Research desk ready${workspace ? ` — "${workspace}"` : ""}. What are we digging into today?`;
+    },
   },
 
   "family-room": {
@@ -136,7 +138,7 @@ export const ROOMS: Record<RoomType, RoomConfig> = {
       [/budget|bill|expense|money|finance/, ["budget-keeper"]],
       [/plugin|script|tool|automat|dashboard|tinker/, ["tinkerer"]],
     ],
-    greetingTemplate: (home, _workspace) =>
+    greetingTemplate: (home) =>
       `Home HQ booting up${home ? ` — ${home}` : ""}. Let's get everyone where they need to be.`,
   },
 

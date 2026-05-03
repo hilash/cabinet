@@ -69,7 +69,7 @@ export const openCodeProvider: AgentProvider = {
     "opencode",
   ],
 
-  buildArgs(prompt: string, _workdir: string): string[] {
+  buildArgs(prompt: string): string[] {
     return ["run", prompt];
   },
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -111,7 +111,7 @@ export function TasksBoard({
       return next;
     });
   };
-  const clearSelection = () => setSelection(new Set());
+  const clearSelection = useCallback(() => setSelection(new Set()), []);
 
   const [view, setView] = usePersistentState<BoardViewMode>(
     "cabinet.tasks.v2.view",
@@ -179,8 +179,7 @@ export function TasksBoard({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, selection.size]);
+  }, [clearSelection, selectedId, selection.size]);
 
   // Client-side agent + trigger filters. Null/"all" = no narrowing. Non-null
   // narrows tasks + conversations; byLane is rebuilt from the filtered set so

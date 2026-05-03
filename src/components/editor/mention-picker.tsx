@@ -2,16 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Bot, FileText } from "lucide-react";
-import type { Editor } from "@tiptap/react";
 import { cn } from "@/lib/utils";
 import { getMentionPickerState, setMentionPickerState } from "./mention-extension";
 import type { MentionItem } from "./mention-extension";
 
-interface EditorMentionPickerProps {
-  editor: Editor | null;
-}
-
-export function EditorMentionPicker({ editor: _editor }: EditorMentionPickerProps) {
+export function EditorMentionPicker() {
   // Re-render whenever the singleton state changes via window event.
   const [tick, setTick] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);

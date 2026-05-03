@@ -79,7 +79,7 @@ export const copilotCliProvider: AgentProvider = {
     "copilot",
   ],
 
-  buildArgs(prompt: string, _workdir: string): string[] {
+  buildArgs(prompt: string): string[] {
     return ["-p", prompt, "--allow-all-tools"];
   },
 
