@@ -1,4 +1,5 @@
 import type {
+  ConversationMcpSourceRow,
   ConversationMcpToolArtifact,
   ConversationMeta,
 } from "@/types/conversations";
@@ -9,6 +10,7 @@ import {
 
 const TOOL_MARKER_PREFIX = "[tool]";
 const MAX_PREVIEW_LENGTH = 420;
+const MAX_SNIPPET_LENGTH = 300;
 
 function isoDateKey(value?: string): string | null {
   if (!value) return null;
@@ -26,6 +28,12 @@ function truncatePreview(value: string): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (normalized.length <= MAX_PREVIEW_LENGTH) return normalized;
   return `${normalized.slice(0, MAX_PREVIEW_LENGTH - 1).trimEnd()}...`;
+}
+
+function truncateSnippet(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= MAX_SNIPPET_LENGTH) return normalized;
+  return `${normalized.slice(0, MAX_SNIPPET_LENGTH - 1).trimEnd()}...`;
 }
 
 function extractToolBlocks(transcript: string, toolName: string): string[] {
@@ -111,6 +119,109 @@ export function extractMcpSourcePaths(text: string): string[] {
   return paths;
 }
 
+function humanizePathSegment(value: string): string {
+  return value
+    .replace(/\.[^.]+$/, "")
+    .replace(/[-_]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function titleFromPath(sourcePath: string): string {
+  const parts = sourcePath.split("/").filter(Boolean);
+  const file = parts[parts.length - 1] || sourcePath;
+  const base = file.replace(/\.[^.]+$/, "").toLowerCase();
+  const titleSegment =
+    base === "readme" || base === "index" ? parts[parts.length - 2] || file : file;
+  return humanizePathSegment(titleSegment) || sourcePath;
+}
+
+function sourceTypeForTool(toolName: string, serverId: string): string {
+  if (toolName === "qmd__query" || serverId === "qmd") return "Docs / QMD";
+  return serverId.toUpperCase();
+}
+
+function sentenceForPath(text: string, sourcePath: string): string | undefined {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return undefined;
+
+  const pathIndex = normalized.indexOf(sourcePath);
+  if (pathIndex === -1) return undefined;
+
+  let start = 0;
+  for (const match of normalized.slice(0, pathIndex).matchAll(/[.!?]\s+/g)) {
+    start = (match.index || 0) + match[0].length;
+  }
+
+  const afterPath = normalized.slice(pathIndex + sourcePath.length);
+  const nextBoundary = afterPath.match(/[.!?](?:\s|$)/);
+  const end =
+    nextBoundary && typeof nextBoundary.index === "number"
+      ? pathIndex + sourcePath.length + nextBoundary.index + 1
+      : normalized.length;
+
+  return normalized.slice(start, end).trim();
+}
+
+function titleFromSnippet(snippet: string | undefined, sourcePath: string): string | null {
+  if (!snippet) return null;
+  const beforePath = snippet.replace(/`/g, "").split(sourcePath)[0] || "";
+  const match =
+    beforePath.match(/\bin the ([A-Za-z][A-Za-z0-9&' -]{2,80})\s+at\s*$/i) ||
+    beforePath.match(/\bthe ([A-Za-z][A-Za-z0-9&' -]{2,80})\s+at\s*$/i);
+  const title = match?.[1]?.trim();
+  return title && title.length <= 80 ? title : null;
+}
+
+export function deriveMcpSourceRows(input: {
+  toolName: string;
+  serverId: string;
+  sourcePaths: string[];
+  text: string;
+  fallbackPreview?: string;
+  outcome: ConversationMcpSourceRow["outcome"];
+  durationMs?: number;
+}): ConversationMcpSourceRow[] {
+  const sourceType = sourceTypeForTool(input.toolName, input.serverId);
+  const rows = input.sourcePaths.map((sourcePath, index) => {
+    const sentence =
+      sentenceForPath(input.text, sourcePath) ||
+      sentenceForPath(input.fallbackPreview || "", sourcePath);
+    const snippet = truncateSnippet(sentence || input.fallbackPreview || "");
+    const title = titleFromSnippet(sentence, sourcePath) || titleFromPath(sourcePath);
+
+    return {
+      id: `${input.toolName}:${sourcePath}:${index + 1}`,
+      title,
+      path: sourcePath,
+      sourceType,
+      snippet: snippet || undefined,
+      outcome: input.outcome,
+      durationMs: input.durationMs,
+    };
+  });
+
+  if (
+    rows.length === 0 &&
+    input.toolName === "qmd__query" &&
+    input.outcome === "ok" &&
+    input.fallbackPreview
+  ) {
+    return [
+      {
+        id: `${input.toolName}:qmd-result:1`,
+        title: "QMD result",
+        sourceType,
+        snippet: truncateSnippet(input.fallbackPreview),
+        outcome: input.outcome,
+        durationMs: input.durationMs,
+      },
+    ];
+  }
+
+  return rows;
+}
+
 export function buildConversationMcpToolArtifacts(input: {
   meta: ConversationMeta;
   transcript: string;
@@ -128,11 +239,21 @@ export function buildConversationMcpToolArtifacts(input: {
         toolBlocksByName.set(toolName, toolBlocks);
       }
       const block = toolBlocks.shift() || "";
+      const strippedBlock = stripCabinetBlock(block);
       const preview = previewFromToolBlock(block, event.error);
       const sourcePaths = extractMcpSourcePaths(
-        [stripCabinetBlock(block), preview || ""].join("\n")
+        [strippedBlock, preview || ""].join("\n")
       );
       const serverId = serverIdFromToolName(toolName);
+      const sources = deriveMcpSourceRows({
+        toolName,
+        serverId,
+        sourcePaths,
+        text: strippedBlock,
+        fallbackPreview: preview,
+        outcome: event.outcome,
+        durationMs: event.durationMs,
+      });
 
       return {
         id: [
@@ -156,6 +277,7 @@ export function buildConversationMcpToolArtifacts(input: {
         error: event.error,
         preview,
         sourcePaths,
+        sources,
       };
     });
 }

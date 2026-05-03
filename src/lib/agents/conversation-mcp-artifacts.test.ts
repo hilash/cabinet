@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildConversationMcpToolArtifacts,
+  deriveMcpSourceRows,
   extractMcpSourcePaths,
 } from "./conversation-mcp-artifacts";
 import type { ConversationMeta } from "@/types/conversations";
@@ -70,6 +71,18 @@ test("buildConversationMcpToolArtifacts extracts qmd source preview from transcr
   assert.deepEqual(artifact.sourcePaths, [
     "business/business/products-services/optale-bridge/workbench/readme.md",
   ]);
+  assert.deepEqual(artifact.sources, [
+    {
+      id: "qmd__query:business/business/products-services/optale-bridge/workbench/readme.md:1",
+      title: "Optale Bridge Workbench",
+      path: "business/business/products-services/optale-bridge/workbench/readme.md",
+      sourceType: "Docs / QMD",
+      snippet:
+        "Based on the search results, the Optale Agent Harness manifest canonical source for LibreChat bridge is documented in the Optale Bridge Workbench at `business/business/products-services/optale-bridge/workbench/readme.md`, which appears to be the primary reference.",
+      outcome: "ok",
+      durationMs: 3061,
+    },
+  ]);
 });
 
 test("buildConversationMcpToolArtifacts renders failed tool calls with explicit error preview", () => {
@@ -95,6 +108,7 @@ test("buildConversationMcpToolArtifacts renders failed tool calls with explicit 
   assert.equal(artifact.error, "Downstream MCP call timed out after 4000ms");
   assert.equal(artifact.preview, "Downstream MCP call timed out after 4000ms");
   assert.deepEqual(artifact.sourcePaths, []);
+  assert.deepEqual(artifact.sources, []);
 });
 
 test("extractMcpSourcePaths deduplicates backticked and bare path references", () => {
@@ -107,5 +121,29 @@ test("extractMcpSourcePaths deduplicates backticked and bare path references", (
       ].join("\n")
     ),
     ["business/docs/source.md", "notes/research/context.yaml"]
+  );
+});
+
+test("deriveMcpSourceRows falls back to path title when prose title is unavailable", () => {
+  assert.deepEqual(
+    deriveMcpSourceRows({
+      toolName: "qmd__query",
+      serverId: "qmd",
+      sourcePaths: ["business/ops/runbooks/qmd-search.md"],
+      text: "See `business/ops/runbooks/qmd-search.md` for the runbook.",
+      outcome: "ok",
+      durationMs: 1200,
+    }),
+    [
+      {
+        id: "qmd__query:business/ops/runbooks/qmd-search.md:1",
+        title: "Qmd Search",
+        path: "business/ops/runbooks/qmd-search.md",
+        sourceType: "Docs / QMD",
+        snippet: "See `business/ops/runbooks/qmd-search.md` for the runbook.",
+        outcome: "ok",
+        durationMs: 1200,
+      },
+    ]
   );
 });

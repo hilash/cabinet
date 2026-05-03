@@ -47,6 +47,16 @@ export interface ConversationArtifact {
 
 export type ConversationMcpOutcome = "ok" | "error" | "denied" | "notification";
 
+export interface ConversationMcpSourceRow {
+  id: string;
+  title: string;
+  path?: string;
+  sourceType: string;
+  snippet?: string;
+  outcome: ConversationMcpOutcome;
+  durationMs?: number;
+}
+
 export interface ConversationMcpToolArtifact {
   id: string;
   timestamp?: string;
@@ -64,6 +74,7 @@ export interface ConversationMcpToolArtifact {
   error?: string;
   preview?: string;
   sourcePaths: string[];
+  sources: ConversationMcpSourceRow[];
 }
 
 export interface TurnTokens {
