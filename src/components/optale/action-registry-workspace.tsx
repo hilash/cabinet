@@ -41,6 +41,12 @@ import type {
   OptaleLineageEdgeRecord,
   OptaleLineageEdgeTable,
 } from "@/lib/optale/lineage-edge-table";
+import type {
+  OptaleAuditEventLog,
+  OptaleAuditEventRecord,
+  OptaleAuditEventSeverity,
+  OptaleAuditEventSource,
+} from "@/lib/optale/audit-event-log";
 
 const KIND_LABELS: Record<OptaleActionKind, string> = {
   command: "Command",
@@ -74,6 +80,12 @@ const LINEAGE_EDGE_KIND_LABELS: Record<OptaleLineageEdgeKind, string> = {
   targets_agent: "Targets Agent",
   created_child_run: "Child Run",
   created_job: "Created Job",
+};
+
+const AUDIT_SOURCE_LABELS: Record<OptaleAuditEventSource, string> = {
+  action_run_ledger: "Run Ledger",
+  policy_decision_log: "Policy Decisions",
+  lineage_edge_table: "Lineage Edges",
 };
 
 function ActionIcon({
@@ -136,6 +148,16 @@ function policyOutcomeTone(outcome: OptalePolicyDecisionOutcome): string {
     return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
   }
   return "border-border bg-muted text-muted-foreground";
+}
+
+function auditSeverityTone(severity: OptaleAuditEventSeverity): string {
+  if (severity === "error") {
+    return "border-destructive/25 bg-destructive/10 text-destructive";
+  }
+  if (severity === "warning") {
+    return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  }
+  return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
 }
 
 function matchesAction(
@@ -246,6 +268,31 @@ function matchesLineageEdge(
   return haystack.includes(search.toLowerCase());
 }
 
+function matchesAuditEvent(
+  event: OptaleAuditEventRecord,
+  search: string,
+): boolean {
+  if (!search) return true;
+  const haystack = [
+    event.id,
+    event.kind,
+    event.source,
+    event.severity,
+    event.subjectType,
+    event.subjectId,
+    event.action,
+    event.actor,
+    event.cabinetPath,
+    event.conversationId,
+    event.summary,
+    ...event.evidence.flatMap((item) => [item.label, String(item.value)]),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(search.toLowerCase());
+}
+
 function formatGeneratedAt(value?: string): string {
   if (!value) return "";
   const date = new Date(value);
@@ -268,6 +315,7 @@ export function OptaleActionRegistryWorkspace({
   const [policyLog, setPolicyLog] =
     useState<OptalePolicyDecisionLog | null>(null);
   const [lineage, setLineage] = useState<OptaleLineageEdgeTable | null>(null);
+  const [auditLog, setAuditLog] = useState<OptaleAuditEventLog | null>(null);
   const [activeFilter, setActiveFilter] = useState<
     "all" | OptaleActionKind | OptaleActionCategory
   >("all");
@@ -288,12 +336,14 @@ export function OptaleActionRegistryWorkspace({
         ledgerResponse,
         policyResponse,
         lineageResponse,
+        auditResponse,
       ] =
         await Promise.all([
           fetch(`/api/optale/actions?${params.toString()}`),
           fetch(`/api/optale/action-runs?${params.toString()}`),
           fetch(`/api/optale/policy-decisions?${params.toString()}`),
           fetch(`/api/optale/lineage-edges?${params.toString()}`),
+          fetch(`/api/optale/audit-events?${params.toString()}`),
         ]);
       if (!registryResponse.ok) {
         throw new Error(
@@ -315,10 +365,14 @@ export function OptaleActionRegistryWorkspace({
           `Lineage edge table fetch failed: ${lineageResponse.status}`,
         );
       }
+      if (!auditResponse.ok) {
+        throw new Error(`Audit event log fetch failed: ${auditResponse.status}`);
+      }
       setRegistry((await registryResponse.json()) as OptaleActionRegistry);
       setLedger((await ledgerResponse.json()) as OptaleActionRunLedger);
       setPolicyLog((await policyResponse.json()) as OptalePolicyDecisionLog);
       setLineage((await lineageResponse.json()) as OptaleLineageEdgeTable);
+      setAuditLog((await auditResponse.json()) as OptaleAuditEventLog);
       setError(null);
     } catch (err) {
       setError(
@@ -370,6 +424,13 @@ export function OptaleActionRegistryWorkspace({
       matchesLineageEdge(edge, trimmedSearch),
     );
   }, [lineage?.edges, search]);
+
+  const filteredAuditEvents = useMemo(() => {
+    const trimmedSearch = search.trim();
+    return (auditLog?.events || []).filter((event) =>
+      matchesAuditEvent(event, trimmedSearch),
+    );
+  }, [auditLog?.events, search]);
 
   return (
     <main className="flex min-h-full flex-col bg-background">
@@ -930,6 +991,113 @@ export function OptaleActionRegistryWorkspace({
                   </div>
                   <div className="text-muted-foreground">
                     {formatGeneratedAt(edge.createdAt)}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="border-t border-border/70 px-6 py-5">
+        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold tracking-normal text-foreground">
+              Audit Events
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Normalized audit trail derived from runs, decisions, and lineage
+              projections.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+            {[
+              ["Events", auditLog?.counts.events ?? 0],
+              ["Info", auditLog?.counts.info ?? 0],
+              ["Warnings", auditLog?.counts.warning ?? 0],
+              ["Errors", auditLog?.counts.error ?? 0],
+              ["Runs", auditLog?.counts.bySource.action_run_ledger ?? 0],
+              ["Decisions", auditLog?.counts.bySource.policy_decision_log ?? 0],
+              ["Lineage", auditLog?.counts.bySource.lineage_edge_table ?? 0],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-md border border-border bg-card px-2.5 py-1.5"
+              >
+                <div className="text-[10px] text-muted-foreground">
+                  {label}
+                </div>
+                <div className="text-sm font-semibold text-foreground">
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {loading && !auditLog ? (
+          <div className="flex min-h-[120px] items-center justify-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 size-4 animate-spin" />
+            Loading audit events
+          </div>
+        ) : filteredAuditEvents.length === 0 ? (
+          <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
+            No audit events match the current search.
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border bg-card">
+            <div className="grid min-w-[920px] grid-cols-[110px_140px_minmax(190px,1fr)_minmax(220px,1.3fr)_minmax(180px,1fr)_120px] border-b border-border bg-muted/40 px-3 py-2 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+              <div>Severity</div>
+              <div>Source</div>
+              <div>Subject</div>
+              <div>Summary</div>
+              <div>Evidence</div>
+              <div>Occurred</div>
+            </div>
+            <div className="divide-y divide-border">
+              {filteredAuditEvents.slice(0, 25).map((event) => (
+                <a
+                  key={event.id}
+                  href={event.href || "#"}
+                  className="grid min-w-[920px] grid-cols-[110px_140px_minmax(190px,1fr)_minmax(220px,1.3fr)_minmax(180px,1fr)_120px] gap-3 px-3 py-3 text-xs transition-colors hover:bg-muted/30"
+                >
+                  <div>
+                    <span
+                      className={cn(
+                        "inline-flex rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+                        auditSeverityTone(event.severity),
+                      )}
+                    >
+                      {event.severity}
+                    </span>
+                  </div>
+                  <div className="text-muted-foreground">
+                    {AUDIT_SOURCE_LABELS[event.source]}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-foreground">
+                      {event.subjectType.replaceAll("_", " ")}
+                    </div>
+                    <div className="mt-0.5 truncate text-muted-foreground">
+                      {event.subjectId}
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-foreground">
+                      {event.summary}
+                    </div>
+                    <div className="mt-0.5 truncate text-muted-foreground">
+                      {event.actor} · {event.cabinetPath}
+                    </div>
+                  </div>
+                  <div className="min-w-0 truncate text-muted-foreground">
+                    {event.evidence
+                      .slice(0, 2)
+                      .map((item) => `${item.label}: ${item.value}`)
+                      .join(" · ")}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {formatGeneratedAt(event.occurredAt)}
                   </div>
                 </a>
               ))}

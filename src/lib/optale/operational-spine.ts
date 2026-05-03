@@ -4,7 +4,8 @@ export type OptaleOperationalSpineSubjectType =
   | "action_queue"
   | "action_run"
   | "policy_decision"
-  | "lineage_edge";
+  | "lineage_edge"
+  | "audit_event";
 
 export type OptaleOperationalSpineCapability =
   | "audit_event"
