@@ -1,18 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Command,
-  Loader2,
-  RefreshCw,
-  Search,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { OptaleCommandActionsView } from "@/components/optale/command-actions-view";
 import { OptaleCommandAuditView } from "@/components/optale/command-audit-view";
+import { OptaleCommandHeader } from "@/components/optale/command-header";
 import { OptaleCommandLineageView } from "@/components/optale/command-lineage-view";
 import { OptaleCommandPolicyView } from "@/components/optale/command-policy-view";
 import { OptaleCommandRunsView } from "@/components/optale/command-runs-view";
@@ -213,18 +208,6 @@ function matchesAuditEvent(
     .join(" ")
     .toLowerCase();
   return haystack.includes(search.toLowerCase());
-}
-
-function formatGeneratedAt(value?: string): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export function OptaleActionRegistryWorkspace({
@@ -456,43 +439,11 @@ export function OptaleActionRegistryWorkspace({
 
   return (
     <main className="flex min-h-full flex-col bg-background">
-      <section className="border-b border-border/70 px-6 py-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-normal text-muted-foreground">
-              <Command className="size-3.5" />
-              Optale Command
-            </div>
-            <h1 className="text-2xl font-semibold tracking-normal text-foreground">
-              Action Registry
-            </h1>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Command actions, agent proposal types, and pending review queues.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {registry?.generatedAt && (
-              <span className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
-                {formatGeneratedAt(registry.generatedAt)}
-              </span>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => void refresh()}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-1.5 size-3.5" />
-              )}
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </section>
+      <OptaleCommandHeader
+        generatedAt={registry?.generatedAt}
+        loading={loading}
+        onRefresh={() => void refresh()}
+      />
 
       <section className="border-b border-border/70 px-6 py-4">
         <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
