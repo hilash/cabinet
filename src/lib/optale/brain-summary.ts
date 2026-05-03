@@ -24,7 +24,10 @@ import { resolveOptaleBrainDreamsConfig } from "@/lib/optale/brain-dreams-config
 
 export type OptaleBrainSourceStatus = "enabled" | "blocked" | "unconfigured";
 
-export interface OptaleBrainSourceSummary extends Omit<OptaleBrainSource, "mcpServerId"> {
+export interface OptaleBrainSourceSummary extends Omit<
+  OptaleBrainSource,
+  "mcpServerId"
+> {
   serverName: string;
   status: OptaleBrainSourceStatus;
   permissions: string[];
@@ -144,10 +147,14 @@ async function countMemoryFilesRecursive(dirPath: string): Promise<number> {
 
 function summarizeBrainSources(
   policy: Awaited<ReturnType<typeof readOptaleMcpPolicy>>,
-  context: OptaleBrainContext
+  context: OptaleBrainContext,
 ): OptaleBrainSourceSummary[] {
-  const policyServers = new Map(policy.servers.map((server) => [server.serverId, server]));
-  const registryServers = new Map(readOptaleMcpServers().map((server) => [server.id, server]));
+  const policyServers = new Map(
+    policy.servers.map((server) => [server.serverId, server]),
+  );
+  const registryServers = new Map(
+    readOptaleMcpServers().map((server) => [server.id, server]),
+  );
   const memoryConfig = resolveOptaleBrainMemoryConfig(context);
   const dreamsConfig = resolveOptaleBrainDreamsConfig(context);
 
@@ -177,13 +184,13 @@ function summarizeBrainSources(
         serverName,
         status: enabled ? "enabled" : "unconfigured",
         permissions:
-          enabled && source.kind === "dreams"
+          enabled && source.kind === "dreams" && dreamsConfig.actionsEnabled
             ? ["read", "write"]
             : enabled
               ? ["read"]
               : [],
         toolGroups:
-          enabled && source.kind === "dreams"
+          enabled && source.kind === "dreams" && dreamsConfig.actionsEnabled
             ? ["dream-review"]
             : enabled
               ? ["memory-read"]
@@ -208,34 +215,46 @@ function summarizeBrainSources(
       status: enabled ? "enabled" : configured ? "blocked" : "unconfigured",
       permissions: policyServer?.permissions || [],
       toolGroups: policyServer?.toolGroups || [],
-      allowedTools: (policyServer?.allowedTools || []).map(productBrainDownstreamName),
-      deniedTools: (policyServer?.deniedTools || []).map(productBrainDownstreamName),
+      allowedTools: (policyServer?.allowedTools || []).map(
+        productBrainDownstreamName,
+      ),
+      deniedTools: (policyServer?.deniedTools || []).map(
+        productBrainDownstreamName,
+      ),
     };
   });
 }
 
 export async function readOptaleBrainSummary(
-  cabinetPath?: string
+  cabinetPath?: string,
 ): Promise<OptaleBrainSummary> {
-  const normalized = normalizeCabinetPath(cabinetPath, true) || ROOT_CABINET_PATH;
+  const normalized =
+    normalizeCabinetPath(cabinetPath, true) || ROOT_CABINET_PATH;
   const cabinetDir = resolveCabinetDir(normalized);
-  const [overview, scope, policy, visibleFiles, memoryFiles, tasks, conversations] =
-    await Promise.all([
-      readCabinetOverview(normalized, { visibilityMode: "own" }),
-      readCabinetOptaleScope(normalized),
-      readOptaleMcpPolicy(normalized),
-      walkVisibleFiles(cabinetDir),
-      countAgentMemoryFiles(cabinetDir),
-      getAllTasks(undefined, normalized),
-      listConversationMetas({ cabinetPath: normalized, limit: 1000 }),
-    ]);
+  const [
+    overview,
+    scope,
+    policy,
+    visibleFiles,
+    memoryFiles,
+    tasks,
+    conversations,
+  ] = await Promise.all([
+    readCabinetOverview(normalized, { visibilityMode: "own" }),
+    readCabinetOptaleScope(normalized),
+    readOptaleMcpPolicy(normalized),
+    walkVisibleFiles(cabinetDir),
+    countAgentMemoryFiles(cabinetDir),
+    getAllTasks(undefined, normalized),
+    listConversationMetas({ cabinetPath: normalized, limit: 1000 }),
+  ]);
 
   const pendingActions = conversations.reduce(
     (total, conversation) => total + (conversation.pendingActions?.length || 0),
-    0
+    0,
   );
   const enabledServers = policy.servers.filter(
-    (server) => server.enabled && server.scopes.includes(policy.scope)
+    (server) => server.enabled && server.scopes.includes(policy.scope),
   ).length;
   const context = await resolveOptaleBrainContext(normalized, scope);
 
@@ -255,7 +274,9 @@ export async function readOptaleBrainSummary(
       jobs: overview.jobs.length,
       tasks: tasks.length,
       conversations: conversations.length,
-      runningConversations: conversations.filter((conversation) => conversation.status === "running").length,
+      runningConversations: conversations.filter(
+        (conversation) => conversation.status === "running",
+      ).length,
       pendingTasks: tasks.filter((task) => task.status === "pending").length,
       pendingActions,
     },

@@ -163,13 +163,20 @@ function numberRecord(value: unknown): Record<string, number> {
   return Object.fromEntries(
     Object.entries(record)
       .map(([key, entry]) => [key, numberValue(entry, NaN)] as const)
-      .filter((entry): entry is readonly [string, number] => Number.isFinite(entry[1]))
+      .filter((entry): entry is readonly [string, number] =>
+        Number.isFinite(entry[1]),
+      ),
   );
 }
 
-function nestedNumberRecord(value: unknown): Record<string, Record<string, number>> {
+function nestedNumberRecord(
+  value: unknown,
+): Record<string, Record<string, number>> {
   return Object.fromEntries(
-    Object.entries(asRecord(value)).map(([key, entry]) => [key, numberRecord(entry)])
+    Object.entries(asRecord(value)).map(([key, entry]) => [
+      key,
+      numberRecord(entry),
+    ]),
   );
 }
 
@@ -189,7 +196,10 @@ function compactDreamValueForClient(value: unknown, depth = 0): unknown {
   return Object.fromEntries(
     Object.entries(record)
       .slice(0, MAX_CLIENT_OBJECT_KEYS)
-      .map(([key, entry]) => [key, compactDreamValueForClient(entry, depth + 1)])
+      .map(([key, entry]) => [
+        key,
+        compactDreamValueForClient(entry, depth + 1),
+      ]),
   );
 }
 
@@ -198,7 +208,7 @@ function renderDownstreamText(text: string, parsed: unknown): string {
     try {
       return JSON.stringify(compactDreamValueForClient(parsed)).slice(
         0,
-        MAX_DOWNSTREAM_TEXT
+        MAX_DOWNSTREAM_TEXT,
       );
     } catch {
       return redactBrainTextForClient(text).slice(0, MAX_DOWNSTREAM_TEXT);
@@ -208,7 +218,7 @@ function renderDownstreamText(text: string, parsed: unknown): string {
 }
 
 function sanitizeDreamDownstreamCall(
-  call: DreamDownstreamCall
+  call: DreamDownstreamCall,
 ): OptaleBrainDownstreamCall {
   return {
     name: productBrainDownstreamName(call.name),
@@ -222,7 +232,7 @@ function sanitizeDreamDownstreamCall(
 
 function findDreamCall(
   calls: DreamDownstreamCall[],
-  name: string
+  name: string,
 ): DreamDownstreamCall | undefined {
   const productName = productBrainDownstreamName(name);
   return calls.find((call) => call.name === name || call.name === productName);
@@ -266,7 +276,7 @@ async function callDreamsJson(input: {
         json: compactJson,
         data: parsed,
         error: normalizeBrainDownstreamError(
-          `${response.status} ${renderedText || response.statusText}`
+          `${response.status} ${renderedText || response.statusText}`,
         ),
       };
     }
@@ -279,7 +289,8 @@ async function callDreamsJson(input: {
       data: parsed,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Dreams request failed";
+    const message =
+      err instanceof Error ? err.message : "Dreams request failed";
     return {
       name: input.name,
       ok: false,
@@ -323,7 +334,9 @@ function stringArray(value: unknown): string[] {
     : [];
 }
 
-export function normalizeDreamProposals(value: unknown): OptaleBrainDreamProposal[] {
+export function normalizeDreamProposals(
+  value: unknown,
+): OptaleBrainDreamProposal[] {
   const proposals = Array.isArray(asRecord(value).proposals)
     ? (asRecord(value).proposals as unknown[])
     : [];
@@ -347,14 +360,21 @@ export function normalizeDreamProposals(value: unknown): OptaleBrainDreamProposa
         levels: stringArray(record.levels),
         sourceIds: stringArray(record.source_ids),
         created: stringValue(record.created),
-        mtime: Number.isFinite(Number(record.mtime)) ? Number(record.mtime) : undefined,
-        body: redactBrainTextForClient(stringValue(record.body) || "").slice(0, 12_000),
+        mtime: Number.isFinite(Number(record.mtime))
+          ? Number(record.mtime)
+          : undefined,
+        body: redactBrainTextForClient(stringValue(record.body) || "").slice(
+          0,
+          12_000,
+        ),
       };
     })
     .filter((proposal) => proposal.path && proposal.summary);
 }
 
-export function normalizeDreamRejections(value: unknown): OptaleBrainDreamRejection[] {
+export function normalizeDreamRejections(
+  value: unknown,
+): OptaleBrainDreamRejection[] {
   const rejections = Array.isArray(asRecord(value).rejections)
     ? (asRecord(value).rejections as unknown[])
     : [];
@@ -370,7 +390,9 @@ export function normalizeDreamRejections(value: unknown): OptaleBrainDreamReject
   });
 }
 
-export function normalizeDreamRules(value: unknown): OptaleBrainDreamRuleSection[] {
+export function normalizeDreamRules(
+  value: unknown,
+): OptaleBrainDreamRuleSection[] {
   const rules = asRecord(asRecord(value).rules);
   return Object.entries(rules).map(([id, section]) => {
     const record = asRecord(section);
@@ -380,7 +402,7 @@ export function normalizeDreamRules(value: unknown): OptaleBrainDreamRuleSection
         .map(([key, entry]) => [
           key,
           redactBrainTextForClient(String(entry ?? "")).slice(0, 500),
-        ])
+        ]),
     );
     return {
       id,
@@ -394,7 +416,7 @@ export function normalizeDreamRules(value: unknown): OptaleBrainDreamRuleSection
 
 function proposalMatchesQuery(
   proposal: OptaleBrainDreamProposal,
-  query: string
+  query: string,
 ): boolean {
   if (!query) return true;
   const haystack = [
@@ -417,8 +439,14 @@ function safeProposalPath(value: string): string | undefined {
   return path;
 }
 
-function normalizeDreamAction(value: string): OptaleBrainDreamProposalAction | undefined {
-  if (value === "approve" || value === "reject-soft" || value === "reject-hard") {
+function normalizeDreamAction(
+  value: string,
+): OptaleBrainDreamProposalAction | undefined {
+  if (
+    value === "approve" ||
+    value === "reject-soft" ||
+    value === "reject-hard"
+  ) {
     return value;
   }
   return undefined;
@@ -441,7 +469,7 @@ async function resolveDreamsSource(input: {
 }
 
 export async function readOptaleBrainDreams(
-  options: OptaleBrainDreamsReadOptions = {}
+  options: OptaleBrainDreamsReadOptions = {},
 ): Promise<OptaleBrainDreamsResponse> {
   const query = trimBrainAdapterString(options.query);
   const limit = clampDreamProposalLimit(options.limit);
@@ -451,7 +479,8 @@ export async function readOptaleBrainDreams(
     cabinetPath: options.cabinetPath,
     apiBaseUrl: options.apiBaseUrl,
   });
-  const dreamsEnabled = source.status === "healthy" && source.permissions.includes("read");
+  const dreamsEnabled =
+    source.status === "healthy" && source.permissions.includes("read");
   const apiConfigured = config.enabled && Boolean(config.baseUrl);
   const downstreamCalls =
     includeDownstream && dreamsEnabled && apiConfigured
@@ -511,7 +540,7 @@ export async function readOptaleBrainDreams(
     ? normalizeDreamProposals(proposalsCall.data)
     : [];
   const filteredProposals = proposals.filter((proposal) =>
-    proposalMatchesQuery(proposal, query)
+    proposalMatchesQuery(proposal, query),
   );
   const rejections = rejectionsCall?.ok
     ? normalizeDreamRejections(rejectionsCall.data)
@@ -528,7 +557,9 @@ export async function readOptaleBrainDreams(
     namespace: context.memoryNamespace,
     profile: config.profile,
     dashboard: {
-      stats: statsCall?.ok ? normalizeDreamStats(statsCall.data) : emptyDreamStats(),
+      stats: statsCall?.ok
+        ? normalizeDreamStats(statsCall.data)
+        : emptyDreamStats(),
       proposals: filteredProposals.slice(0, limit),
       proposalTotal: proposals.length,
       proposalFilteredTotal: filteredProposals.length,
@@ -549,7 +580,7 @@ export async function readOptaleBrainDreams(
 }
 
 export async function submitOptaleBrainDreamProposalAction(
-  options: OptaleBrainDreamActionOptions
+  options: OptaleBrainDreamActionOptions,
 ): Promise<OptaleBrainDreamMutationResponse> {
   const fetchImpl = options.fetchImpl || fetch;
   const { publicCore, source, config } = await resolveDreamsSource({
@@ -557,7 +588,9 @@ export async function submitOptaleBrainDreamProposalAction(
     apiBaseUrl: options.apiBaseUrl,
   });
   const action = normalizeDreamAction(trimBrainAdapterString(options.action));
-  const proposalPath = safeProposalPath(trimBrainAdapterString(options.proposalPath));
+  const proposalPath = safeProposalPath(
+    trimBrainAdapterString(options.proposalPath),
+  );
   if (!action || !proposalPath) {
     return {
       version: 1,
@@ -586,6 +619,20 @@ export async function submitOptaleBrainDreamProposalAction(
       error: source.statusReason || "Dreams API is not configured.",
     };
   }
+  if (!config.actionsEnabled) {
+    return {
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      request: publicCore.request,
+      source,
+      ok: false,
+      status: 403,
+      action,
+      result: null,
+      downstream: [],
+      error: "Dream proposal actions are disabled in server configuration.",
+    };
+  }
 
   const call = await callDreamsJson({
     baseUrl: config.baseUrl,
@@ -612,7 +659,7 @@ export async function submitOptaleBrainDreamProposalAction(
 }
 
 export async function askOptaleBrainDreams(
-  options: OptaleBrainDreamAskOptions
+  options: OptaleBrainDreamAskOptions,
 ): Promise<OptaleBrainDreamMutationResponse> {
   const question = trimBrainAdapterString(options.question).slice(0, 2000);
   const fetchImpl = options.fetchImpl || fetch;

@@ -6,8 +6,17 @@ import { normalizeCabinetPath, ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { resolveCabinetDir } from "@/lib/cabinets/server-paths";
 import { isHiddenEntry } from "@/lib/storage/path-utils";
 import { buildInternalOptaleMcpGatewayContext } from "@/lib/optale/mcp-gateway";
-import { callOptaleMcpTool, type OptaleMcpToolCallResult } from "@/lib/optale/mcp-server";
-import { productBrainDownstreamName } from "@/lib/optale/brain-adapters";
+import {
+  callOptaleMcpTool,
+  type OptaleMcpToolCallResult,
+} from "@/lib/optale/mcp-server";
+import {
+  parseBrainAdapterJson,
+  productBrainDownstreamName,
+  redactBrainTextForClient,
+  redactBrainValueForClient,
+  textFromBrainMcpToolResult,
+} from "@/lib/optale/brain-adapters";
 import { readOptaleCommandCenterSnapshot } from "@/lib/optale/command-center-control";
 import {
   resolveOptaleBrainContext,
@@ -69,6 +78,7 @@ interface ExploreResponse {
 
 const MAX_LOCAL_FILES = 500;
 const MAX_FILE_BYTES = 256 * 1024;
+const MAX_DOWNSTREAM_TEXT = 8_000;
 
 function trimString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -110,7 +120,7 @@ function makeSnippet(content: string, query: string): string {
 
   const lowerQuery = query.toLowerCase();
   const hitIndex = lines.findIndex((line) =>
-    line.toLowerCase().includes(lowerQuery)
+    line.toLowerCase().includes(lowerQuery),
   );
   if (hitIndex >= 0) {
     return lines.slice(Math.max(0, hitIndex - 1), hitIndex + 2).join(" ");
@@ -211,17 +221,44 @@ async function readLocalVault(input: {
     .slice(0, input.limit);
 }
 
-function textFromToolResult(result: OptaleMcpToolCallResult): string {
-  return result.content.map((entry) => entry.text).join("\n").trim();
+export function redactExploreContextForClient(
+  context: OptaleBrainContext,
+): OptaleBrainContext {
+  return {
+    ...context,
+    dataRoot: "[server-side]",
+    secretsRef: context.secretsRef ? "[configured]" : "",
+  };
 }
 
-function tryJson(text: string): unknown | undefined {
-  if (!text) return undefined;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return undefined;
+function renderDownstreamText(
+  rawText: string,
+  json: unknown | undefined,
+): string {
+  if (json !== undefined) {
+    try {
+      return JSON.stringify(json).slice(0, MAX_DOWNSTREAM_TEXT);
+    } catch {
+      return redactBrainTextForClient(rawText).slice(0, MAX_DOWNSTREAM_TEXT);
+    }
   }
+  return redactBrainTextForClient(rawText).slice(0, MAX_DOWNSTREAM_TEXT);
+}
+
+export function toolCallViewFromResult(
+  name: string,
+  result: OptaleMcpToolCallResult,
+): ToolCallView {
+  const rawText = textFromBrainMcpToolResult(result);
+  const parsed = parseBrainAdapterJson(rawText);
+  const json =
+    parsed === undefined ? undefined : redactBrainValueForClient(parsed);
+  return {
+    name: productBrainDownstreamName(name),
+    ok: result.isError !== true,
+    text: renderDownstreamText(rawText, json),
+    json,
+  };
 }
 
 async function callDownstreamTool(input: {
@@ -241,13 +278,7 @@ async function callDownstreamTool(input: {
     includeDownstream: true,
     includeActions: false,
   });
-  const text = textFromToolResult(result);
-  return {
-    name: productBrainDownstreamName(input.name),
-    ok: result.isError !== true,
-    text,
-    json: tryJson(text),
-  };
+  return toolCallViewFromResult(input.name, result);
 }
 
 async function readDownstream(input: {
@@ -277,7 +308,7 @@ async function readDownstream(input: {
             rerank: false,
           },
           cabinetPath: input.cabinetPath,
-        })
+        }),
       );
     }
     return Promise.all(calls);
@@ -307,7 +338,7 @@ async function readDownstream(input: {
           max_facts: input.limit,
         },
         cabinetPath: input.cabinetPath,
-      })
+      }),
     );
   } else {
     calls.push(
@@ -317,7 +348,7 @@ async function readDownstream(input: {
           max_episodes: input.limit,
         },
         cabinetPath: input.cabinetPath,
-      })
+      }),
     );
   }
   return Promise.all(calls);
@@ -337,7 +368,12 @@ function addNode(nodes: Map<string, GraphNode>, node: GraphNode): string {
   return node.id;
 }
 
-function addEdge(edges: GraphEdge[], source: string, target: string, label: string) {
+function addEdge(
+  edges: GraphEdge[],
+  source: string,
+  target: string,
+  label: string,
+) {
   const id = `${source}->${label}->${target}`;
   if (edges.some((edge) => edge.id === id)) return;
   edges.push({ id, source, target, label });
@@ -438,9 +474,19 @@ async function readDerivedGraph(input: {
       meta: { priority: task.priority, to: task.toAgent, from: task.fromAgent },
     });
     addEdge(edges, `space:${cabinetPath}`, taskId, "has task");
-    addEdge(edges, ensureAgentNode(cabinetPath, task.toAgent), taskId, "assigned");
+    addEdge(
+      edges,
+      ensureAgentNode(cabinetPath, task.toAgent),
+      taskId,
+      "assigned",
+    );
     if (task.fromAgent) {
-      addEdge(edges, ensureAgentNode(cabinetPath, task.fromAgent), taskId, "created");
+      addEdge(
+        edges,
+        ensureAgentNode(cabinetPath, task.fromAgent),
+        taskId,
+        "created",
+      );
     }
     for (const ref of task.kbRefs.slice(0, 3)) {
       const docId = addNode(nodes, {
@@ -466,7 +512,12 @@ async function readDerivedGraph(input: {
       },
     });
     addEdge(edges, `space:${cabinetPath}`, conversationId, "has conversation");
-    addEdge(edges, ensureAgentNode(cabinetPath, conversation.agentSlug), conversationId, "runs");
+    addEdge(
+      edges,
+      ensureAgentNode(cabinetPath, conversation.agentSlug),
+      conversationId,
+      "runs",
+    );
     for (const ref of conversation.mentionedPaths.slice(0, 3)) {
       const docId = addNode(nodes, {
         id: `document:${ref}`,
@@ -516,7 +567,7 @@ export async function GET(request: NextRequest) {
     normalizeCabinetPath(
       request.nextUrl.searchParams.get("cabinetPath") ||
         request.nextUrl.searchParams.get("path"),
-      true
+      true,
     ) || ROOT_CABINET_PATH;
 
   const [context, items, graph, downstream] = await Promise.all([
@@ -533,7 +584,7 @@ export async function GET(request: NextRequest) {
   const response: ExploreResponse = {
     generatedAt: new Date().toISOString(),
     cabinetPath,
-    context,
+    context: redactExploreContextForClient(context),
     source,
     query,
     items,

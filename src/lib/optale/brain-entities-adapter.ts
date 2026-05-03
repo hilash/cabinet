@@ -127,9 +127,23 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function clientStringValue(value: unknown): string | undefined {
+  const text = stringValue(value);
+  return text ? redactBrainTextForClient(text) : undefined;
+}
+
 function numberValue(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clientRecordKeys(value: unknown): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(asRecord(value)).map(([key, entry]) => [
+      redactBrainTextForClient(key),
+      numberValue(entry),
+    ]),
+  );
 }
 
 function booleanValue(value: unknown): boolean | undefined {
@@ -158,7 +172,10 @@ function compactEntityValueForClient(value: unknown, depth = 0): unknown {
   return Object.fromEntries(
     Object.entries(record)
       .slice(0, MAX_CLIENT_OBJECT_KEYS)
-      .map(([key, entry]) => [key, compactEntityValueForClient(entry, depth + 1)])
+      .map(([key, entry]) => [
+        key,
+        compactEntityValueForClient(entry, depth + 1),
+      ]),
   );
 }
 
@@ -178,7 +195,10 @@ function envFirst(names: string[]): string | undefined {
   return undefined;
 }
 
-function resolveEntitiesApiBaseUrl(profile: string, override?: string | null): string {
+function resolveEntitiesApiBaseUrl(
+  profile: string,
+  override?: string | null,
+): string {
   const explicit = override?.trim();
   if (explicit) return explicit.replace(/\/$/, "");
   const configured = envFirst([
@@ -254,7 +274,7 @@ async function callEntitiesJson(input: {
         text: renderedText || response.statusText,
         json: compactJson,
         error: normalizeBrainDownstreamError(
-          `${response.status} ${renderedText || response.statusText}`
+          `${response.status} ${renderedText || response.statusText}`,
         ),
       };
     }
@@ -267,7 +287,8 @@ async function callEntitiesJson(input: {
       json: compactJson,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Entity API request failed";
+    const message =
+      err instanceof Error ? err.message : "Entity API request failed";
     return {
       name,
       ok: false,
@@ -280,7 +301,7 @@ async function callEntitiesJson(input: {
 
 function findEntityCall(
   calls: OptaleBrainDownstreamCall[],
-  name: string
+  name: string,
 ): OptaleBrainDownstreamCall | undefined {
   const productName = productBrainDownstreamName(name);
   return calls.find((call) => call.name === name || call.name === productName);
@@ -294,11 +315,13 @@ function normalizeHealth(value: unknown): OptaleBrainEntityNode["health"] {
   return {
     key: key || label || "unknown",
     label: label || key || "Unknown",
-    severity: stringValue(record.severity),
+    severity: clientStringValue(record.severity),
   };
 }
 
-export function normalizeOagEntityNodes(payload: unknown): OptaleBrainEntityNode[] {
+export function normalizeOagEntityNodes(
+  payload: unknown,
+): OptaleBrainEntityNode[] {
   const graph = asRecord(asRecord(payload).graph);
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
   return nodes
@@ -312,17 +335,17 @@ export function normalizeOagEntityNodes(payload: unknown): OptaleBrainEntityNode
         stringValue(record.id) ||
         `Entity ${index + 1}`;
       return {
-        id: stringValue(record.id) || `entity:${index + 1}`,
+        id: clientStringValue(record.id) || `entity:${index + 1}`,
         title: redactBrainTextForClient(title),
         type: redactBrainTextForClient(
-          stringValue(record.type) || stringValue(record.kind) || "entity"
+          stringValue(record.type) || stringValue(record.kind) || "entity",
         ),
-        category: stringValue(record.category),
-        status: stringValue(record.status),
-        owner: stringValue(record.owner),
-        vaultPath: stringValue(record.vault_path),
-        summary: stringValue(record.summary),
-        snippet: stringValue(sourcePreview.snippet),
+        category: clientStringValue(record.category),
+        status: clientStringValue(record.status),
+        owner: clientStringValue(record.owner),
+        vaultPath: clientStringValue(record.vault_path),
+        summary: clientStringValue(record.summary),
+        snippet: clientStringValue(sourcePreview.snippet),
         health: normalizeHealth(asRecord(lens.health)),
         raw: compactRecord(record),
       };
@@ -330,19 +353,23 @@ export function normalizeOagEntityNodes(payload: unknown): OptaleBrainEntityNode
     .filter((node) => node.id && node.title);
 }
 
-export function normalizeOagEntityEdges(payload: unknown): OptaleBrainEntityEdge[] {
+export function normalizeOagEntityEdges(
+  payload: unknown,
+): OptaleBrainEntityEdge[] {
   const graph = asRecord(asRecord(payload).graph);
   const edges = Array.isArray(graph.edges) ? graph.edges : [];
   return edges
     .map((entry, index) => {
       const record = asRecord(entry);
       return {
-        id: stringValue(record.id) || `edge:${index + 1}`,
-        source: stringValue(record.source) || "",
-        target: stringValue(record.target) || "",
+        id: clientStringValue(record.id) || `edge:${index + 1}`,
+        source: clientStringValue(record.source) || "",
+        target: clientStringValue(record.target) || "",
         type: redactBrainTextForClient(stringValue(record.type) || "related"),
-        fact: stringValue(record.fact),
-        validAt: stringValue(record.valid_at) || stringValue(record.validAt),
+        fact: clientStringValue(record.fact),
+        validAt:
+          clientStringValue(record.valid_at) ||
+          clientStringValue(record.validAt),
         active: booleanValue(record.active),
         raw: compactRecord(record),
       };
@@ -350,30 +377,40 @@ export function normalizeOagEntityEdges(payload: unknown): OptaleBrainEntityEdge
     .filter((edge) => edge.id && edge.source && edge.target);
 }
 
-export function normalizeOagEntityClusters(payload: unknown): OptaleBrainEntityCluster[] {
+export function normalizeOagEntityClusters(
+  payload: unknown,
+): OptaleBrainEntityCluster[] {
   const graph = asRecord(asRecord(payload).graph);
   const clusters = Array.isArray(graph.clusters) ? graph.clusters : [];
   return clusters
     .map((entry, index) => {
       const record = asRecord(entry);
       return {
-        id: stringValue(record.id) || `cluster:${index + 1}`,
+        id: clientStringValue(record.id) || `cluster:${index + 1}`,
         label: redactBrainTextForClient(
-          stringValue(record.label) || stringValue(record.id) || `Cluster ${index + 1}`
+          stringValue(record.label) ||
+            stringValue(record.id) ||
+            `Cluster ${index + 1}`,
         ),
         nodeCount: numberValue(record.node_count),
         edgeCount: numberValue(record.edge_count),
-        relationshipTypes: asRecord(record.relationship_types) as Record<string, number>,
+        relationshipTypes: clientRecordKeys(record.relationship_types),
       };
     })
     .filter((cluster) => cluster.id && cluster.label);
 }
 
-function normalizeMeta(payload: unknown, limit: number, offset: number): OptaleBrainEntityGraph["meta"] {
+function normalizeMeta(
+  payload: unknown,
+  limit: number,
+  offset: number,
+): OptaleBrainEntityGraph["meta"] {
   const meta = asRecord(asRecord(payload).meta);
-  const lenses = Array.isArray(meta.available_lenses) ? meta.available_lenses : [];
+  const lenses = Array.isArray(meta.available_lenses)
+    ? meta.available_lenses
+    : [];
   return {
-    graphName: stringValue(meta.graph_name),
+    graphName: clientStringValue(meta.graph_name),
     edgeCount: numberValue(meta.edge_count),
     nodeCount: numberValue(meta.node_count),
     clusterCount: numberValue(meta.cluster_count),
@@ -382,21 +419,24 @@ function normalizeMeta(payload: unknown, limit: number, offset: number): OptaleB
     totalEdgeCount: numberValue(meta.total_edge_count),
     hasPrevious: Boolean(meta.has_previous),
     hasNext: Boolean(meta.has_next),
-    relationship: stringValue(meta.relationship) || "all",
-    asOf: stringValue(meta.as_of) || null,
-    temporalMode: stringValue(meta.temporal_mode),
-    timeRange: asRecord(meta.time_range),
+    relationship: clientStringValue(meta.relationship) || "all",
+    asOf: clientStringValue(meta.as_of) || null,
+    temporalMode: clientStringValue(meta.temporal_mode),
+    timeRange: asRecord(redactBrainValueForClient(meta.time_range)),
     availableLenses: lenses
       .map((entry) => asRecord(entry))
       .map((entry) => ({
-        key: stringValue(entry.key) || "",
-        label: stringValue(entry.label) || "",
+        key: clientStringValue(entry.key) || "",
+        label: clientStringValue(entry.label) || "",
       }))
       .filter((entry) => entry.key && entry.label),
   };
 }
 
-function emptyEntityGraph(limit: number, offset: number): OptaleBrainEntityGraph {
+function emptyEntityGraph(
+  limit: number,
+  offset: number,
+): OptaleBrainEntityGraph {
   return {
     nodes: [],
     edges: [],
@@ -419,7 +459,7 @@ function emptyEntityGraph(limit: number, offset: number): OptaleBrainEntityGraph
 export function normalizeOagEntityGraph(
   payload: unknown,
   limit: number,
-  offset: number
+  offset: number,
 ): OptaleBrainEntityGraph {
   return {
     nodes: normalizeOagEntityNodes(payload),
@@ -430,7 +470,7 @@ export function normalizeOagEntityGraph(
 }
 
 export async function readOptaleBrainEntities(
-  options: OptaleBrainEntitiesReadOptions = {}
+  options: OptaleBrainEntitiesReadOptions = {},
 ): Promise<OptaleBrainEntitiesResponse> {
   const cabinetPath =
     normalizeCabinetPath(options.cabinetPath, true) || ROOT_CABINET_PATH;
@@ -448,7 +488,10 @@ export async function readOptaleBrainEntities(
     publicCore.sources.find((entry) => entry.id === "action-graph") ||
     fallbackEntitiesSource();
   const entitiesEnabled = isBrainAdapterReadEnabled(source);
-  const baseUrl = resolveEntitiesApiBaseUrl(context.entityProfile, options.apiBaseUrl);
+  const baseUrl = resolveEntitiesApiBaseUrl(
+    context.entityProfile,
+    options.apiBaseUrl,
+  );
   const apiConfigured = Boolean(baseUrl);
   const downstream =
     includeDownstream && entitiesEnabled && apiConfigured
@@ -481,7 +524,9 @@ export async function readOptaleBrainEntities(
           ...source,
           status: "error" as const,
           statusReason:
-            statusCall.error?.message || statusCall.text || "OAG status check failed.",
+            statusCall.error?.message ||
+            statusCall.text ||
+            "OAG status check failed.",
         }
       : source;
   const graph =

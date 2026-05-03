@@ -24,7 +24,9 @@ let originalEnv: Map<string, string | undefined>;
 
 before(async () => {
   originalEnv = new Map(envKeys.map((key) => [key, process.env[key]]));
-  tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "optale-brain-entities-test-"));
+  tempRoot = await fs.mkdtemp(
+    path.join(os.tmpdir(), "optale-brain-entities-test-"),
+  );
   process.env.CABINET_DATA_DIR = tempRoot;
   for (const key of envKeys) {
     if (key !== "CABINET_DATA_DIR") delete process.env[key];
@@ -51,12 +53,21 @@ test("normalizeOagEntityGraph supports OAG graph payloads and redacts raw fields
             title: "Optale",
             type: "company",
             category: "entity",
-            vault_path: "Business/Clients/Optale.md",
+            status: "tracked in /tmp/private-status",
+            owner: "owner at /mnt/private-owner",
+            vault_path: "/home/thor/AI-OS/Business/Clients/Optale.md",
+            summary: "Private summary at /var/private-summary.md",
             source_preview: {
-              snippet: "Private source at /home/thor/AI-OS/Business/Clients/Optale.md",
+              snippet:
+                "Private source at /home/thor/AI-OS/Business/Clients/Optale.md",
             },
+            "/home/thor/raw-node-key.md": "raw node key",
             lens: {
-              health: { key: "healthy", label: "Healthy", severity: "ok" },
+              health: {
+                key: "healthy",
+                label: "Healthy",
+                severity: "ok from /srv/private-health",
+              },
             },
           },
         ],
@@ -66,21 +77,22 @@ test("normalizeOagEntityGraph supports OAG graph payloads and redacts raw fields
             source: "node-1",
             target: "node-2",
             type: "relates_to",
-            fact: "Optale relates to Observatory",
+            fact: "Optale relates to Observatory via /opt/private-fact.md",
+            "/mnt/raw-edge-key.md": "raw edge key",
           },
         ],
         clusters: [
           {
-            id: "company",
-            label: "Company",
+            id: "/tmp/company-cluster",
+            label: "Company from /mnt/company-cluster",
             node_count: 1,
             edge_count: 1,
-            relationship_types: { relates_to: 1 },
+            relationship_types: { "relates_to_/home/thor/private": 1 },
           },
         ],
       },
       meta: {
-        graph_name: "optale_vault",
+        graph_name: "/home/thor/optale_vault",
         edge_count: 1,
         node_count: 1,
         cluster_count: 1,
@@ -88,19 +100,38 @@ test("normalizeOagEntityGraph supports OAG graph payloads and redacts raw fields
         offset: 0,
         total_edge_count: 100,
         has_next: true,
-        available_lenses: [{ key: "type", label: "Type" }],
+        relationship: "linked from /srv/private-relationship",
+        as_of: "/tmp/private-asof",
+        temporal_mode: "/opt/private-temporal",
+        time_range: {
+          min: "/var/private-min",
+          max: "/mnt/private-max",
+          "/srv/private-time-key.md": "path key",
+        },
+        available_lenses: [
+          {
+            key: "type_/home/thor/private-lens",
+            label: "Type from /srv/private-lens",
+          },
+        ],
       },
     },
     10,
-    0
+    0,
   );
 
   assert.equal(graph.nodes.length, 1);
   assert.equal(graph.nodes[0]?.title, "Optale");
   assert.equal(graph.edges.length, 1);
-  assert.equal(graph.clusters[0]?.label, "Company");
+  assert.equal(graph.clusters[0]?.label, "Company from [server-path]");
   assert.equal(graph.meta.hasNext, true);
-  assert.equal(JSON.stringify(graph.nodes[0]?.raw).includes("/home/thor"), false);
+  const rendered = JSON.stringify(graph);
+  assert.equal(rendered.includes("/home/thor"), false);
+  assert.equal(rendered.includes("/mnt/"), false);
+  assert.equal(rendered.includes("/opt/"), false);
+  assert.equal(rendered.includes("/srv/"), false);
+  assert.equal(rendered.includes("/tmp/"), false);
+  assert.equal(rendered.includes("/var/"), false);
 });
 
 test("readOptaleBrainEntities reads OAG through scoped server adapter", async () => {
@@ -137,7 +168,9 @@ test("readOptaleBrainEntities reads OAG through scoped server adapter", async ()
             fact: "Observatory belongs to Optale",
           },
         ],
-        clusters: [{ id: "product", label: "Product", node_count: 1, edge_count: 1 }],
+        clusters: [
+          { id: "product", label: "Product", node_count: 1, edge_count: 1 },
+        ],
       },
       meta: {
         graph_name: "optale_vault",
@@ -169,8 +202,9 @@ test("readOptaleBrainEntities reads OAG through scoped server adapter", async ()
   assert.equal(response.stats.edgesLoaded, 1);
   assert.equal(calls.length, 2);
   assert.ok(
-    calls.some((call) =>
-      call === "http://entity.local/api/oag/graph?limit=5&q=Observatory"
-    )
+    calls.some(
+      (call) =>
+        call === "http://entity.local/api/oag/graph?limit=5&q=Observatory",
+    ),
   );
 });

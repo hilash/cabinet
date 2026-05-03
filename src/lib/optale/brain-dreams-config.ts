@@ -3,6 +3,7 @@ import type { OptaleBrainAdapterBinding } from "@/lib/optale/brain-contracts";
 
 export interface OptaleBrainDreamsConfig {
   enabled: boolean;
+  actionsEnabled: boolean;
   baseUrl: string;
   profile: string;
   actorId: string;
@@ -32,7 +33,7 @@ function normalizeBaseUrl(value: string): string {
 
 export function resolveOptaleBrainDreamsConfig(
   context: OptaleBrainContext,
-  overrideBaseUrl?: string | null
+  overrideBaseUrl?: string | null,
 ): OptaleBrainDreamsConfig {
   const profile = context.qmdProfile || context.mcpClientProfile;
   const explicit = overrideBaseUrl?.trim();
@@ -52,9 +53,15 @@ export function resolveOptaleBrainDreamsConfig(
     ]) ||
     "http://127.0.0.1:3601";
   const timeoutMs = Number(process.env.OPTALE_DREAMS_TIMEOUT_MS || 15_000);
+  const actionsEnabled =
+    booleanEnv(envName("OPTALE_DREAMS_ACTIONS_ENABLED", profile)) ||
+    booleanEnv(envName("OPTALE_DREAMS_REVIEW_ACTIONS_ENABLED", profile)) ||
+    booleanEnv("OPTALE_DREAMS_ACTIONS_ENABLED") ||
+    booleanEnv("OPTALE_DREAMS_REVIEW_ACTIONS_ENABLED");
 
   return {
     enabled: !booleanEnv("OPTALE_DREAMS_DISABLED") && Boolean(configured),
+    actionsEnabled,
     baseUrl: normalizeBaseUrl(configured),
     profile,
     actorId:
@@ -68,7 +75,7 @@ export function resolveOptaleBrainDreamsConfig(
 }
 
 export function buildOptaleBrainDreamsSourceBinding(
-  context: OptaleBrainContext
+  context: OptaleBrainContext,
 ): OptaleBrainAdapterBinding {
   const config = resolveOptaleBrainDreamsConfig(context);
   return {
@@ -80,11 +87,23 @@ export function buildOptaleBrainDreamsSourceBinding(
     statusReason: config.enabled
       ? undefined
       : "Dreams/vault app API is not configured for this Brain context.",
-    readOnly: false,
+    readOnly: !config.enabled || !config.actionsEnabled,
     scopes: ["company", "personal", "system"],
-    permissions: config.enabled ? ["read", "write"] : [],
-    rawPolicyPermissions: config.enabled ? ["read", "write"] : [],
-    capabilities: config.enabled ? ["read", "search", "review-dream"] : [],
+    permissions: config.enabled
+      ? config.actionsEnabled
+        ? ["read", "write"]
+        : ["read"]
+      : [],
+    rawPolicyPermissions: config.enabled
+      ? config.actionsEnabled
+        ? ["read", "write"]
+        : ["read"]
+      : [],
+    capabilities: config.enabled
+      ? config.actionsEnabled
+        ? ["read", "search", "review-dream"]
+        : ["read", "search"]
+      : [],
     namespace: context.memoryNamespace,
     profile: config.profile,
     description:

@@ -709,7 +709,7 @@ Adapter behavior:
   - `GET /api/honcho/proposals`
   - `GET /api/honcho/dashboard/rejections`
   - `GET /api/honcho/dashboard/rules`
-- Review actions are explicit server-side calls to `POST /api/honcho/proposals/action`.
+- Review actions are explicit server-side calls to `POST /api/honcho/proposals/action` and require a server-side Dreams action opt-in.
 - Ask Dream is an explicit server-side call to `POST /api/honcho/dashboard/ask`.
 - Proposal action paths are constrained to `_proposals/{file}.md`.
 - Browser-direct vault/Honcho writes remain disabled; the browser only talks to Observatory.

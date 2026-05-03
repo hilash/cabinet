@@ -18,6 +18,8 @@ const envKeys = [
   "DOCS_API_BASE",
   "BRAIN_DOCS_API_BASE",
   "VAULT_API_BASE",
+  "OPTALE_DREAMS_ACTIONS_ENABLED",
+  "OPTALE_DREAMS_REVIEW_ACTIONS_ENABLED",
   "OPTALE_COMMAND_BRAIN_ORIGIN",
   "OPTALE_COMMAND_BRAIN_AUTH_MODE",
 ] as const;
@@ -25,7 +27,9 @@ let originalEnv: Map<string, string | undefined>;
 
 before(async () => {
   originalEnv = new Map(envKeys.map((key) => [key, process.env[key]]));
-  tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "optale-brain-dreams-test-"));
+  tempRoot = await fs.mkdtemp(
+    path.join(os.tmpdir(), "optale-brain-dreams-test-"),
+  );
   process.env.CABINET_DATA_DIR = tempRoot;
   for (const key of envKeys) {
     if (key !== "CABINET_DATA_DIR") delete process.env[key];
@@ -148,7 +152,11 @@ test("readOptaleBrainDreams counts beyond compact downstream preview", async () 
   const fakeFetch: typeof fetch = async (url) => {
     const rendered = String(url);
     if (rendered.endsWith("/api/honcho/dashboard/stats")) {
-      return Response.json({ messages: 1, sessions: 1, observations_by_level: {} });
+      return Response.json({
+        messages: 1,
+        sessions: 1,
+        observations_by_level: {},
+      });
     }
     if (rendered.endsWith("/api/honcho/proposals")) {
       return Response.json({ proposals });
@@ -169,16 +177,21 @@ test("readOptaleBrainDreams counts beyond compact downstream preview", async () 
   assert.equal(response.dashboard.proposalTotal, 35);
   assert.equal(response.dashboard.proposals.length, 35);
   const proposalsPreview = response.downstream.find(
-    (call) => call.name === "sense_dream_proposals"
+    (call) => call.name === "sense_dream_proposals",
   )?.json as { proposals?: unknown[] } | undefined;
   assert.equal(proposalsPreview?.proposals?.length, 25);
-  assert.equal(JSON.stringify(response.downstream).includes("Belief 34"), false);
+  assert.equal(
+    JSON.stringify(response.downstream).includes("Belief 34"),
+    false,
+  );
 });
 
 test("submitOptaleBrainDreamProposalAction validates path and forwards actor", async () => {
   let capturedUser = "";
   let capturedBody = "";
+  let callCount = 0;
   const fakeFetch: typeof fetch = async (_url, init) => {
+    callCount += 1;
     capturedUser = new Headers(init?.headers).get("Remote-User") || "";
     capturedBody = String(init?.body || "");
     return Response.json({ ok: true, action: "reject-soft" });
@@ -193,6 +206,17 @@ test("submitOptaleBrainDreamProposalAction validates path and forwards actor", a
   });
   assert.equal(rejected.status, 400);
 
+  const denied = await dreams.submitOptaleBrainDreamProposalAction({
+    cabinetPath: ".",
+    proposalPath: "_proposals/optale.md",
+    action: "reject-soft",
+    apiBaseUrl: "http://dreams.local",
+    fetchImpl: fakeFetch,
+  });
+  assert.equal(denied.status, 403);
+  assert.equal(callCount, 0);
+
+  process.env.OPTALE_DREAMS_ACTIONS_ENABLED = "true";
   const response = await dreams.submitOptaleBrainDreamProposalAction({
     cabinetPath: ".",
     proposalPath: "_proposals/optale.md",
@@ -202,6 +226,7 @@ test("submitOptaleBrainDreamProposalAction validates path and forwards actor", a
   });
 
   assert.equal(response.ok, true);
+  assert.equal(callCount, 1);
   assert.equal(capturedUser, "thor");
   assert.equal(JSON.parse(capturedBody).proposalPath, "_proposals/optale.md");
 });

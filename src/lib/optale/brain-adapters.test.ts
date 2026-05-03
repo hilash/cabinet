@@ -20,7 +20,7 @@ test("brain adapter helpers normalize query strings and limits", () => {
 
 test("redactBrainTextForClient removes absolute server paths", () => {
   const redacted = redactBrainTextForClient(
-    "Found /home/thor/private/a.md and /mnt/data/private/b.md"
+    "Found /home/thor/private/a.md and /mnt/data/private/b.md",
   );
 
   assert.equal(redacted.includes("/home/thor"), false);
@@ -32,11 +32,19 @@ test("redactBrainValueForClient redacts nested strings without flattening object
   const redacted = redactBrainValueForClient({
     path: "/home/thor/private/a.md",
     nested: [{ value: "/tmp/private/b.md" }],
+    "/var/private/key.md": "path key",
     count: 2,
-  }) as { path: string; nested: Array<{ value: string }>; count: number };
+  }) as {
+    path: string;
+    nested: Array<{ value: string }>;
+    "[server-path]": string;
+    count: number;
+  };
 
   assert.equal(redacted.path, "[server-path]");
   assert.equal(redacted.nested[0].value, "[server-path]");
+  assert.equal(redacted["[server-path]"], "path key");
+  assert.equal(JSON.stringify(redacted).includes("/var/"), false);
   assert.equal(redacted.count, 2);
 });
 
@@ -51,23 +59,41 @@ test("normalizeBrainDownstreamError classifies aborts as retryable", () => {
 test("isBrainAdapterReadEnabled requires healthy source and read permission", () => {
   assert.equal(
     isBrainAdapterReadEnabled({ status: "healthy", permissions: ["read"] }),
-    true
+    true,
   );
   assert.equal(
     isBrainAdapterReadEnabled({ status: "blocked", permissions: ["read"] }),
-    false
+    false,
   );
   assert.equal(
     isBrainAdapterReadEnabled({ status: "healthy", permissions: [] }),
-    false
+    false,
   );
 });
 
 test("productBrainDownstreamName hides internal MCP and legacy memory names", () => {
-  assert.equal(productBrainDownstreamName("qmd__query"), "sense_search_knowledge");
-  assert.equal(productBrainDownstreamName("graphiti__search_nodes"), "sense_search_graph_nodes");
-  assert.equal(productBrainDownstreamName("honcho__peer_card"), "sense_memory_profile");
-  assert.equal(productBrainDownstreamName("oag__graph"), "ontology_entity_graph");
-  assert.equal(productBrainDownstreamName("dreams__stats"), "sense_dream_stats");
-  assert.equal(productBrainDownstreamName("unknown__private_tool"), "sense_downstream_call");
+  assert.equal(
+    productBrainDownstreamName("qmd__query"),
+    "sense_search_knowledge",
+  );
+  assert.equal(
+    productBrainDownstreamName("graphiti__search_nodes"),
+    "sense_search_graph_nodes",
+  );
+  assert.equal(
+    productBrainDownstreamName("honcho__peer_card"),
+    "sense_memory_profile",
+  );
+  assert.equal(
+    productBrainDownstreamName("oag__graph"),
+    "ontology_entity_graph",
+  );
+  assert.equal(
+    productBrainDownstreamName("dreams__stats"),
+    "sense_dream_stats",
+  );
+  assert.equal(
+    productBrainDownstreamName("unknown__private_tool"),
+    "sense_downstream_call",
+  );
 });

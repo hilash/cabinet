@@ -96,7 +96,7 @@ export function redactBrainTextForClient(text: string): string {
     : text;
   return withHomeRedacted.replace(
     /\/(?:home|mnt|tmp|var|srv|opt)\/[^\s"')\]}]*/g,
-    "[server-path]"
+    "[server-path]",
   );
 }
 
@@ -109,9 +109,9 @@ export function redactBrainValueForClient(value: unknown, depth = 0): unknown {
   }
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
-      key,
+      redactBrainTextForClient(key),
       redactBrainValueForClient(entry, depth + 1),
-    ])
+    ]),
   );
 }
 
@@ -124,12 +124,17 @@ export function parseBrainAdapterJson(text: string): unknown | undefined {
   }
 }
 
-export function textFromBrainMcpToolResult(result: OptaleMcpToolCallResult): string {
-  return result.content.map((entry) => entry.text).join("\n").trim();
+export function textFromBrainMcpToolResult(
+  result: OptaleMcpToolCallResult,
+): string {
+  return result.content
+    .map((entry) => entry.text)
+    .join("\n")
+    .trim();
 }
 
 export function normalizeBrainDownstreamError(
-  text: string
+  text: string,
 ): OptaleBrainDownstreamError {
   const normalized = text.trim() || "Downstream request failed.";
   if (/aborted|aborterror|timeout|timed out/i.test(normalized)) {
@@ -154,13 +159,13 @@ export function normalizeBrainDownstreamError(
 }
 
 export function isBrainAdapterReadEnabled(
-  source: Pick<OptaleBrainAdapterBinding, "status" | "permissions">
+  source: Pick<OptaleBrainAdapterBinding, "status" | "permissions">,
 ): boolean {
   return source.status === "healthy" && source.permissions.includes("read");
 }
 
 export async function callBrainAdapterMcpTool(
-  input: OptaleBrainAdapterMcpCallInput
+  input: OptaleBrainAdapterMcpCallInput,
 ): Promise<OptaleBrainDownstreamCall> {
   const gatewayContext = buildInternalOptaleMcpGatewayContext({
     clientId: `optale-observatory-brain-${input.adapterId}`,
@@ -175,7 +180,9 @@ export async function callBrainAdapterMcpTool(
     includeActions: false,
   });
   const text = redactBrainTextForClient(textFromBrainMcpToolResult(result));
-  const error = result.isError ? normalizeBrainDownstreamError(text) : undefined;
+  const error = result.isError
+    ? normalizeBrainDownstreamError(text)
+    : undefined;
 
   return {
     name: productBrainDownstreamName(input.toolName),
