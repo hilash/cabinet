@@ -7,6 +7,12 @@ import {
   readPublicOptaleContextRegistry,
   type OptalePublicContextRegistry,
 } from "@/lib/optale/context-registry";
+import {
+  buildOptaleOperationalSpineBinding,
+  buildOptaleOperationalSpineSummary,
+  type OptaleOperationalSpineBinding,
+  type OptaleOperationalSpineSummary,
+} from "@/lib/optale/operational-spine";
 
 export type OptaleResourceKind =
   | "space"
@@ -43,6 +49,7 @@ export interface OptaleResourceRecord {
   updatedAt?: string;
   href?: string;
   facts: OptaleResourceFact[];
+  operationalSpine?: OptaleOperationalSpineBinding;
 }
 
 export interface OptaleResourceRegistry {
@@ -51,6 +58,7 @@ export interface OptaleResourceRegistry {
   visibilityMode: CabinetVisibilityMode;
   resources: OptaleResourceRecord[];
   counts: Record<OptaleResourceKind, number>;
+  operationalSpine: OptaleOperationalSpineSummary;
 }
 
 type CommandCenterSnapshot = Awaited<
@@ -85,10 +93,6 @@ function compactFacts(
   facts: Array<OptaleResourceFact | false | null | undefined>,
 ): OptaleResourceFact[] {
   return facts.filter((fact): fact is OptaleResourceFact => Boolean(fact));
-}
-
-function normalizeStatus(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function resourceKindCounts(
@@ -329,13 +333,26 @@ export function buildOptaleResourceRegistry(input: {
     });
   }
 
-  const sorted = sortOptaleResources(resources);
+  const generatedAt = new Date().toISOString();
+  const sorted = sortOptaleResources(resources).map((resource) => ({
+    ...resource,
+    operationalSpine: buildOptaleOperationalSpineBinding({
+      subjectType: "resource",
+      subjectId: resource.id,
+      cabinetPath: resource.cabinetPath || commandCenter.cabinet.path,
+    }),
+  }));
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     cabinetPath: commandCenter.cabinet.path,
     visibilityMode: commandCenter.visibilityMode,
     resources: sorted,
     counts: resourceKindCounts(sorted),
+    operationalSpine: buildOptaleOperationalSpineSummary({
+      generatedAt,
+      cabinetPath: commandCenter.cabinet.path,
+      bindings: sorted.map((resource) => resource.operationalSpine),
+    }),
   };
 }
 

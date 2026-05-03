@@ -178,12 +178,22 @@ test("buildOptaleResourceRegistry projects command center and context records", 
   assert.equal(registry.counts.brain_source, 1);
   assert.equal(registry.counts.mcp_client, 1);
   assert.equal(registry.counts.action_type, 1);
+  assert.equal(registry.operationalSpine.bindingCount, registry.resources.length);
+  assert.equal(
+    registry.operationalSpine.capabilities.audit_event.reserved,
+    registry.resources.length,
+  );
+  assert.equal(
+    registry.operationalSpine.capabilities.policy_decision.reserved,
+    registry.resources.length,
+  );
   assert.ok(registry.resources.some((resource) => resource.id === "space:."));
   assert.ok(
     registry.resources.some(
       (resource) =>
         resource.id === "action-type:launch_conversation" &&
-        resource.label === "Launch Conversation",
+        resource.label === "Launch Conversation" &&
+        resource.operationalSpine?.subjectType === "resource",
     ),
   );
 });

@@ -3,6 +3,12 @@ import {
   readOptaleCommandCenterSnapshot,
   type OptaleCommandCenterAction,
 } from "@/lib/optale/command-center-control";
+import {
+  buildOptaleOperationalSpineBinding,
+  buildOptaleOperationalSpineSummary,
+  type OptaleOperationalSpineBinding,
+  type OptaleOperationalSpineSummary,
+} from "@/lib/optale/operational-spine";
 import { HARD_WARNINGS, type AgentActionType } from "@/types/actions";
 
 export type OptaleActionKind = "command" | "agent_proposal";
@@ -35,6 +41,7 @@ export interface OptaleActionDefinition {
   executionPath: string;
   inputs: OptaleActionInput[];
   facts: Array<{ label: string; value: string | number | boolean }>;
+  operationalSpine?: OptaleOperationalSpineBinding;
 }
 
 export interface OptaleActionQueueRecord {
@@ -49,6 +56,7 @@ export interface OptaleActionQueueRecord {
   softWarningCount: number;
   updatedAt?: string;
   href: string;
+  operationalSpine?: OptaleOperationalSpineBinding;
 }
 
 export interface OptaleActionRegistry {
@@ -65,6 +73,7 @@ export interface OptaleActionRegistry {
     pendingActions: number;
     hardBlockedActions: number;
   };
+  operationalSpine: OptaleOperationalSpineSummary;
 }
 
 type CommandCenterSnapshot = Awaited<
@@ -333,7 +342,24 @@ export function buildOptaleActionRegistry(input: {
       };
     });
 
-  const actions = [...commandActions, ...agentProposalActions];
+  const actions = [...commandActions, ...agentProposalActions].map(
+    (action) => ({
+      ...action,
+      operationalSpine: buildOptaleOperationalSpineBinding({
+        subjectType: "action_type",
+        subjectId: action.id,
+        cabinetPath: commandCenter.cabinet.path,
+      }),
+    }),
+  );
+  const queuesWithSpine = queues.map((queue) => ({
+    ...queue,
+    operationalSpine: buildOptaleOperationalSpineBinding({
+      subjectType: "action_queue",
+      subjectId: queue.id,
+      cabinetPath: queue.cabinetPath,
+    }),
+  }));
   const pendingActions = queues.reduce(
     (total, queue) => total + queue.pendingCount,
     0,
@@ -343,12 +369,18 @@ export function buildOptaleActionRegistry(input: {
     0,
   );
 
+  const generatedAt = new Date().toISOString();
+  const spineBindings = [
+    ...actions.map((action) => action.operationalSpine),
+    ...queuesWithSpine.map((queue) => queue.operationalSpine),
+  ];
+
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     cabinetPath: commandCenter.cabinet.path,
     visibilityMode: commandCenter.visibilityMode,
     actions,
-    queues,
+    queues: queuesWithSpine,
     counts: {
       actions: actions.length,
       commandActions: commandActions.length,
@@ -357,6 +389,11 @@ export function buildOptaleActionRegistry(input: {
       pendingActions,
       hardBlockedActions,
     },
+    operationalSpine: buildOptaleOperationalSpineSummary({
+      generatedAt,
+      cabinetPath: commandCenter.cabinet.path,
+      bindings: spineBindings,
+    }),
   };
 }
 

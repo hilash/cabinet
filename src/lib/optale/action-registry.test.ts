@@ -62,11 +62,20 @@ test("buildOptaleActionRegistry exposes command and agent proposal actions", () 
   assert.equal(registry.counts.pendingQueues, 1);
   assert.equal(registry.counts.pendingActions, 2);
   assert.equal(registry.counts.hardBlockedActions, 1);
+  assert.equal(
+    registry.operationalSpine.bindingCount,
+    registry.actions.length + registry.queues.length,
+  );
+  assert.equal(
+    registry.operationalSpine.capabilities.lineage_edge.reserved,
+    registry.actions.length + registry.queues.length,
+  );
   assert.ok(
     registry.actions.some(
       (action) =>
         action.id === "command:launch_conversation" &&
-        action.status === "available",
+        action.status === "available" &&
+        action.operationalSpine?.subjectType === "action_type",
     ),
   );
   assert.ok(
@@ -83,4 +92,8 @@ test("buildOptaleActionRegistry exposes command and agent proposal actions", () 
     ),
   );
   assert.equal(registry.queues[0]?.href, "#/tasks/run-1");
+  assert.equal(
+    registry.queues[0]?.operationalSpine?.subjectType,
+    "action_queue",
+  );
 });
