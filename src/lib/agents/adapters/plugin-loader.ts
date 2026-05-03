@@ -66,9 +66,9 @@ async function importPluginModule(entry: AdapterPluginEntry): Promise<unknown | 
   }
 }
 
-function extractAdapter(module: unknown): AgentExecutionAdapter | null {
-  if (!module || typeof module !== "object") return null;
-  const mod = module as Record<string, unknown>;
+function extractAdapter(pluginModule: unknown): AgentExecutionAdapter | null {
+  if (!pluginModule || typeof pluginModule !== "object") return null;
+  const mod = pluginModule as Record<string, unknown>;
 
   const factory = mod.createAgentAdapter || mod.createServerAdapter;
   if (typeof factory === "function") {
@@ -103,8 +103,8 @@ export async function loadExternalAdapters(): Promise<LoadedPlugin[]> {
     for (const entry of entries) {
       if (!entry || entry.enabled === false) continue;
 
-      const module = await importPluginModule(entry);
-      const adapter = extractAdapter(module);
+      const pluginModule = await importPluginModule(entry);
+      const adapter = extractAdapter(pluginModule);
       if (!adapter) {
         console.warn(
           `[cabinet] Adapter plugin "${entry.package || entry.path}" did not export a valid adapter.`
