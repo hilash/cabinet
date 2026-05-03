@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { selectDaemonLevel, useHealthStore } from "@/stores/health-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
-import { Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { flattenTree } from "@/lib/tree-utils";
 import { createConversation } from "@/lib/agents/conversation-client";
@@ -28,16 +27,9 @@ import { useComposer, type MentionableItem } from "@/hooks/use-composer";
 import { useSkillMentionItems } from "@/hooks/use-skill-mention-items";
 import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
 import type { CabinetAgentSummary } from "@/types/cabinets";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
-import { TiltCard } from "@/components/ui/tilt-card";
+import { OptaleBrainPanel } from "@/components/optale/brain-panel";
+import { OptaleMcpOversightPanel } from "@/components/optale/mcp-oversight-panel";
+import { OptaleMcpClientsPanel } from "@/components/optale/mcp-clients-panel";
 
 type QuickAction = {
   label: string;
@@ -72,7 +64,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     label: "Weekly review next Monday",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
-      "Schedule a SCHEDULE_TASK on the assistant for next Monday 09:00 — review what I worked on this past week by inspecting recently-modified files in this cabinet, then write @Weekly Review and a @Tasks for Next Week list.",
+      "Schedule a SCHEDULE_TASK on the assistant for next Monday 09:00 — review what I worked on this past week by inspecting recently-modified files in this space, then write @Weekly Review and a @Tasks for Next Week list.",
   },
   {
     label: "Plan my Thailand trip",
@@ -83,12 +75,12 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     label: "Build me a physics study app",
     prompt:
-      "Create an interactive webapp inside this cabinet so I can study physics for beginners. Include clear explanations, simple animations where useful, and quick checks for understanding.",
+      "Create an interactive webapp inside this space so I can study physics for beginners. Include clear explanations, simple animations where useful, and quick checks for understanding.",
   },
   {
     label: "Summarise my recent work",
     prompt:
-      "Read the most recently modified pages in this cabinet and write a concise summary of what I've been working on. Group by theme, note any open threads, and save the result as @Recent Work Summary.",
+      "Read the most recently modified pages in this space and write a concise summary of what I've been working on. Group by theme, note any open threads, and save the result as @Recent Work Summary.",
   },
   {
     label: "Draft a recruiter reply",
@@ -99,7 +91,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     label: "Map article connections",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
-      "Pipeline of two LAUNCH_TASKs: first dispatch the librarian to identify the articles in this cabinet and map connections between their ideas, people, and concepts. Then dispatch the editor to build an interactive webapp that visualises that graph.",
+      "Pipeline of two LAUNCH_TASKs: first dispatch the librarian to identify the articles in this space and map connections between their ideas, people, and concepts. Then dispatch the editor to build an interactive webapp that visualises that graph.",
   },
   {
     label: "Spin up a 6-module physics course",
@@ -116,239 +108,6 @@ function getGreeting(): string {
   return "Good evening";
 }
 
-function CabinetCard({
-  template,
-  onClick,
-}: {
-  template: RegistryTemplate;
-  onClick: () => void;
-}) {
-  return (
-    <TiltCard className="flex-shrink-0 w-48">
-      <button
-        onClick={onClick}
-        className="fancy-card w-full border border-border bg-card flex flex-col text-left"
-      >
-        <div
-          className="relative h-20 w-full bg-muted"
-          style={
-            template.coverUrl
-              ? {
-                  backgroundImage: `url(${template.coverUrl})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }
-              : undefined
-          }
-          aria-hidden
-        >
-          {!template.coverUrl && (
-            <div className="absolute inset-0 flex items-center justify-center text-xl opacity-40">
-              📦
-            </div>
-          )}
-        </div>
-        <div className="p-2.5 flex flex-col gap-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[11px] font-medium leading-tight line-clamp-1 flex-1 min-w-0 text-foreground">
-              {template.name}
-            </p>
-            <span className="text-[9px] shrink-0 text-muted-foreground">
-              {template.agentCount} agents
-            </span>
-          </div>
-          <p className="text-[9px] leading-snug line-clamp-2 text-muted-foreground">
-            {template.description}
-          </p>
-        </div>
-      </button>
-    </TiltCard>
-  );
-}
-
-function RegistryCarousel({
-  templates,
-  onSelect,
-}: {
-  templates: RegistryTemplate[];
-  onSelect: (template: RegistryTemplate) => void;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [isPaused, setIsPaused] = useState(false);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || templates.length === 0) return;
-
-    let animationId: number;
-    let position = 0;
-    const speed = 1.2;
-
-    const animate = () => {
-      if (!isPaused) {
-        position += speed;
-        const halfWidth = el.scrollWidth / 2;
-        if (position >= halfWidth) {
-          position = 0;
-        }
-        el.style.transform = `translateX(-${position}px)`;
-      }
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
-  }, [isPaused, templates]);
-
-  const doubled = [...templates, ...templates];
-
-  return (
-    <div
-      className="tilt-carousel relative w-full py-6"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-    >
-      <div ref={scrollRef} className="flex gap-3 will-change-transform">
-        {doubled.map((template, i) => {
-          const isClone = i >= templates.length;
-          return (
-            <div
-              key={`${template.slug}-${i}`}
-              aria-hidden={isClone || undefined}
-              inert={isClone || undefined}
-            >
-              <CabinetCard
-                template={template}
-                onClick={() => onSelect(template)}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-background to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-background to-transparent" />
-    </div>
-  );
-}
-
-function ImportDialog({
-  template,
-  open,
-  onOpenChange,
-  onImportStart,
-  onImportEnd,
-}: {
-  template: RegistryTemplate | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onImportStart: () => void;
-  onImportEnd: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const loadTree = useTreeStore((s) => s.loadTree);
-  const selectPage = useTreeStore((s) => s.selectPage);
-  const setSection = useAppStore((s) => s.setSection);
-
-  useEffect(() => {
-    if (template) setName(template.name);
-  }, [template]);
-
-  const handleImport = async () => {
-    if (!template) return;
-    setImporting(true);
-    setError(null);
-    onImportStart();
-    onOpenChange(false);
-
-    try {
-      const res = await fetch("/api/registry/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug: template.slug,
-          name: name.trim() !== template.name ? name.trim() : undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Import failed");
-        setImporting(false);
-        onImportEnd();
-        onOpenChange(true);
-        return;
-      }
-
-      await res.json();
-      onImportEnd();
-      window.location.reload();
-    } catch {
-      setError("Import failed. Check your internet connection.");
-      setImporting(false);
-      onImportEnd();
-      onOpenChange(true);
-    }
-  };
-
-  if (!template) return null;
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!importing) onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Import {template.name}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {template.description}
-          </p>
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            <span>{template.agentCount} agents</span>
-            <span>{template.jobCount} jobs</span>
-            {template.childCount > 0 && (
-              <span>{template.childCount} sub-cabinets</span>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Cabinet name
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Cabinet name..."
-            />
-            <p className="text-[11px] text-muted-foreground/70">
-              Cabinet names can&apos;t be renamed later (for now). Choose wisely.
-            </p>
-          </div>
-          {error && (
-            <p className="text-xs text-destructive">{error}</p>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={importing}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleImport}
-              disabled={importing || !name.trim()}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Import
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function HomeScreen() {
   const setSection = useAppStore((s) => s.setSection);
   const treeNodes = useTreeStore((s) => s.nodes);
@@ -356,13 +115,6 @@ export function HomeScreen() {
   const [agents, setAgents] = useState<CabinetAgentSummary[]>([]);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [handoffMode, setHandoffMode] = useState<StartWorkMode>("recurring");
-  const [registryTemplates, setRegistryTemplates] = useState<
-    RegistryTemplate[]
-  >([]);
-  const [importTemplate, setImportTemplate] =
-    useState<RegistryTemplate | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
   const [quickRunning, setQuickRunning] = useState(false);
   // Hold the chip row until the agents fetch has settled — only then do we
@@ -393,13 +145,6 @@ export function HomeScreen() {
       })
       .catch(() => {})
       .finally(() => setChipsReady(true));
-
-    fetch("/api/registry")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.templates) setRegistryTemplates(data.templates);
-      })
-      .catch(() => {});
 
     const safetyTimer = setTimeout(() => setChipsReady(true), 2500);
     return () => clearTimeout(safetyTimer);
@@ -547,9 +292,9 @@ export function HomeScreen() {
     : "I want to create...";
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-xl space-y-8">
-        <h1 className="text-3xl md:text-4xl font-semibold text-center text-foreground tracking-tight">
+    <div className="flex-1 flex flex-col items-center overflow-y-auto px-4 py-8">
+      <div className="flex min-h-[46vh] w-full max-w-xl flex-col items-center justify-center space-y-8">
+        <h1 className="text-3xl md:text-4xl font-semibold text-center text-foreground tracking-normal">
           {headline}
         </h1>
 
@@ -628,37 +373,49 @@ export function HomeScreen() {
         </div>
       </div>
 
-      <div className="w-screen pb-8 pt-4 space-y-3">
-        <div className="flex items-center justify-center gap-3">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            Import a pre-made zero-human team
-          </h2>
-          <button
-            onClick={() => setSection({ type: "registry" })}
-            className="text-xs font-medium text-primary hover:text-primary/80 underline underline-offset-2 cursor-pointer transition-colors"
-          >
-            Browse all &rarr;
-          </button>
+      <section className="w-full max-w-6xl pb-10">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold tracking-normal text-foreground">
+              Observatory
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Brain, MCP oversight, and client access for the root Optale space.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "Brain", type: "brain" as const },
+              { label: "Vault", type: "vault" as const },
+              { label: "Graph", type: "graph" as const },
+              { label: "Entities", type: "entities" as const },
+              { label: "Dreams", type: "dreams" as const },
+            ].map((item) => (
+              <button
+                key={item.type}
+                type="button"
+                onClick={() =>
+                  setSection({
+                    type: item.type,
+                    cabinetPath: ROOT_CABINET_PATH,
+                  })
+                }
+                className="rounded-md border border-border/70 bg-card px-3 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-accent"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <RegistryCarousel
-          templates={registryTemplates}
-          onSelect={(template) => {
-            setImportTemplate(template);
-            setImportOpen(true);
-          }}
-        />
-      </div>
-
-      <ImportDialog
-        template={importTemplate}
-        open={importOpen}
-        onOpenChange={(open) => {
-          setImportOpen(open);
-          if (!open && !importing) setImportTemplate(null);
-        }}
-        onImportStart={() => setImporting(true)}
-        onImportEnd={() => setImporting(false)}
-      />
+        <div className="grid gap-4 xl:grid-cols-3">
+          <OptaleBrainPanel cabinetPath={ROOT_CABINET_PATH} />
+          <OptaleMcpOversightPanel
+            cabinetPath={ROOT_CABINET_PATH}
+            visibilityMode="all"
+          />
+          <OptaleMcpClientsPanel cabinetPath={ROOT_CABINET_PATH} />
+        </div>
+      </section>
 
       <StartWorkDialog
         open={handoffOpen}
@@ -676,21 +433,6 @@ export function HomeScreen() {
           });
         }}
       />
-
-      {importing && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="mt-4 text-sm font-medium text-foreground">
-            Importing {importTemplate?.name || "cabinet"}...
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Downloading agents, jobs, and content from the registry
-          </p>
-          <p className="mt-3 text-[11px] text-muted-foreground/60">
-            Please do not refresh the page while importing
-          </p>
-        </div>
-      )}
     </div>
   );
 }
