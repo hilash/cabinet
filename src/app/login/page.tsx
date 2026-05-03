@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,26 +47,30 @@ export default function LoginPage() {
             Enter password to continue
           </p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            autoFocus
-            className="w-full px-3 py-2 rounded-md border border-border bg-background text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          {error && (
-            <p className="text-[12px] text-red-400">{error}</p>
-          )}
-          <button
-            type="submit"
-            disabled={loading || !password}
-            className="w-full px-3 py-2 rounded-md bg-primary text-primary-foreground text-[14px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {loading ? "..." : "Sign in"}
-          </button>
-        </form>
+        {hydrated ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              autoFocus
+              className="w-full px-3 py-2 rounded-md border border-border bg-background text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            {error && (
+              <p className="text-[12px] text-red-400">{error}</p>
+            )}
+            <button
+              type="submit"
+              disabled={loading || !password}
+              className="w-full px-3 py-2 rounded-md bg-primary text-primary-foreground text-[14px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {loading ? "..." : "Sign in"}
+            </button>
+          </form>
+        ) : (
+          <div className="h-[88px]" />
+        )}
       </div>
     </div>
   );
