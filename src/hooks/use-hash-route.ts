@@ -15,6 +15,7 @@ import { useEditorStore } from "@/stores/editor-store";
  * Root cabinet (implicit):
  *   #/home
  *   #/resources             ← Optale Resource Registry
+ *   #/actions               ← Optale Action Registry
  *   #/p/{pagePath}           ← page in root cabinet
  *   #/agents                 ← agents list (root cabinet)
  *   #/a/{slug}               ← agent detail (root cabinet)
@@ -34,6 +35,7 @@ import { useEditorStore } from "@/stores/editor-store";
  * Named sub-cabinets (cabinet path explicit):
  *   #/cabinet/{cabinetPath}
  *   #/cabinet/{cabinetPath}/resources
+ *   #/cabinet/{cabinetPath}/actions
  *   #/cabinet/{cabinetPath}/data/{pagePath}
  *   #/cabinet/{cabinetPath}/agents
  *   #/cabinet/{cabinetPath}/agents/{slug}
@@ -92,6 +94,10 @@ function buildHash(section: SectionState, pagePath: string | null): string {
   if (section.type === "resources") {
     if (isRoot) return "#/resources";
     return `#/cabinet/${encodePathSegment(cabinetPath)}/resources`;
+  }
+  if (section.type === "actions") {
+    if (isRoot) return "#/actions";
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/actions`;
   }
   if (section.type === "agent" && section.slug) {
     if (isRoot) {
@@ -242,6 +248,7 @@ function parseHash(hash: string): RouteState {
 
     if (
       leaf === "resources" ||
+      leaf === "actions" ||
       leaf === "brain" ||
       leaf === "vault" ||
       leaf === "memory" ||
@@ -330,6 +337,7 @@ function parseHash(hash: string): RouteState {
 
   if (
     parts[0] === "resources" ||
+    parts[0] === "actions" ||
     parts[0] === "brain" ||
     parts[0] === "vault" ||
     parts[0] === "memory" ||

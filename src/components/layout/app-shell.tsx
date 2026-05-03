@@ -98,6 +98,13 @@ const OptaleResourceRegistryWorkspace = dynamic(
     ),
   { ssr: false }
 );
+const OptaleActionRegistryWorkspace = dynamic(
+  () =>
+    import("@/components/optale/action-registry-workspace").then(
+      (m) => m.OptaleActionRegistryWorkspace
+    ),
+  { ssr: false }
+);
 const OnboardingWizard = dynamic(
   () =>
     import("@/components/onboarding/onboarding-wizard").then(
@@ -195,6 +202,9 @@ export function AppShell() {
         break;
       case "resources":
         title = `Resources — ${base}`;
+        break;
+      case "actions":
+        title = `Actions — ${base}`;
         break;
       case "cabinet":
         title = selectedPath
@@ -515,6 +525,13 @@ export function AppShell() {
     if (section.type === "resources") {
       return (
         <OptaleResourceRegistryWorkspace
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
+    if (section.type === "actions") {
+      return (
+        <OptaleActionRegistryWorkspace
           cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
         />
       );

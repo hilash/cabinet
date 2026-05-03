@@ -15,6 +15,7 @@ import {
   CircleDot,
   Database,
   Home,
+  ListChecks,
   Network,
   PanelLeftClose,
   PanelLeft,
@@ -201,6 +202,17 @@ export function Sidebar() {
             onClick={() =>
               setSection({
                 type: "resources",
+                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
+              })
+            }
+          />
+          <SidebarNavButton
+            active={section.type === "actions"}
+            icon={<ListChecks className="size-3.5 shrink-0" />}
+            label="Actions"
+            onClick={() =>
+              setSection({
+                type: "actions",
                 cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
               })
             }
