@@ -61,7 +61,10 @@ export function RunLineagePanel({ meta }: { meta: TaskMeta }) {
               label="Spawned by"
               title={meta.triggeringAgent || "parent agent"}
               detail={meta.parentTaskId}
-              href={buildTaskHash(meta.parentTaskId, meta.cabinetPath)}
+              href={buildTaskHash(
+                meta.parentTaskId,
+                meta.parentCabinetPath ?? meta.cabinetPath
+              )}
             />
           ) : null}
           {children.map((item) => (
@@ -73,7 +76,10 @@ export function RunLineagePanel({ meta }: { meta: TaskMeta }) {
               detail={actionAgent(item.action)}
               href={
                 item.conversationId
-                  ? buildTaskHash(item.conversationId, meta.cabinetPath)
+                  ? buildTaskHash(
+                      item.conversationId,
+                      item.conversationCabinetPath ?? meta.cabinetPath
+                    )
                   : undefined
               }
               suffix={item.jobId ? `job ${item.jobId}` : undefined}

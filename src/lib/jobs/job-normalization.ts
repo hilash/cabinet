@@ -120,5 +120,8 @@ export function normalizeJobConfig(
     ...(typeof input.ownerTaskId === "string" && input.ownerTaskId.trim()
       ? { ownerTaskId: input.ownerTaskId.trim() }
       : {}),
+    ...(typeof input.ownerTaskCabinetPath === "string" && input.ownerTaskCabinetPath.trim()
+      ? { ownerTaskCabinetPath: input.ownerTaskCabinetPath.trim() }
+      : {}),
   };
 }

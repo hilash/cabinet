@@ -60,6 +60,7 @@ export function conversationMetaToTaskMeta(meta: ConversationMeta): TaskMeta {
     boardOrder: meta.boardOrder,
     muted: meta.muted,
     parentTaskId: meta.parentTaskId,
+    parentCabinetPath: meta.parentCabinetPath,
     triggeringAgent: meta.triggeringAgent,
     spawnDepth: meta.spawnDepth,
     pendingActions: meta.pendingActions,

@@ -48,6 +48,7 @@ import { emit as emitTelemetry } from "@/lib/telemetry";
 import { buildOptaleMcpPolicyInstructions } from "@/lib/optale/mcp-policy";
 import { prepareGovernedMcpRuntime } from "@/lib/optale/mcp-runtime";
 import type { OptaleAgentScope } from "@/lib/optale/product";
+import { tagConversationLineage } from "./run-lineage";
 
 export interface ConversationCompletion {
   meta: ConversationMeta;
@@ -1015,6 +1016,20 @@ export async function startJobConversation(
       }
     },
   });
+
+  if (job.ownerTaskId) {
+    const parent = await readConversationMeta(
+      job.ownerTaskId,
+      job.ownerTaskCabinetPath ?? job.cabinetPath
+    ).catch(() => null);
+    if (parent) {
+      await tagConversationLineage({
+        spawnedId: meta.id,
+        spawnedCabinetPath: meta.cabinetPath ?? job.cabinetPath,
+        parent,
+      });
+    }
+  }
 
   return {
     id: meta.id,

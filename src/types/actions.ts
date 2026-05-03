@@ -76,7 +76,9 @@ export interface DispatchedAction {
   action: AgentAction;
   status: DispatchedActionStatus;
   conversationId?: string;
+  conversationCabinetPath?: string;
   jobId?: string;
+  jobCabinetPath?: string;
   reason?: string;
   dispatchedAt: string;
 }

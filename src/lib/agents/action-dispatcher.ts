@@ -14,11 +14,8 @@ import {
 } from "./conversation-runner";
 import { saveAgentJob } from "@/lib/jobs/job-manager";
 import { reloadDaemonSchedules } from "./daemon-client";
-import {
-  appendEventLog,
-  readConversationMeta,
-  writeConversationMeta,
-} from "./conversation-store";
+import { appendEventLog } from "./conversation-store";
+import { tagConversationLineage } from "./run-lineage";
 import { normalizeRuntimeOverride } from "./runtime-overrides";
 import { providerSupportsEffort } from "./provider-registry";
 
@@ -121,34 +118,12 @@ export function resolveDispatchRuntime(
   };
 }
 
-async function tagLineage(spawnedId: string, parent: ConversationMeta): Promise<void> {
-  try {
-    const fresh = await readConversationMeta(spawnedId, parent.cabinetPath);
-    if (!fresh) return;
-    fresh.parentTaskId = parent.id;
-    fresh.triggeringAgent = parent.agentSlug;
-    fresh.spawnDepth = (parent.spawnDepth ?? 0) + 1;
-    await writeConversationMeta(fresh);
-    await appendEventLog(
-      fresh.id,
-      {
-        type: "agent.action.spawned",
-        parentTaskId: parent.id,
-        triggeringAgent: parent.agentSlug,
-        spawnDepth: fresh.spawnDepth,
-      },
-      fresh.cabinetPath ?? parent.cabinetPath
-    );
-  } catch {
-    // lineage is best-effort; never fail a dispatch over metadata.
-  }
-}
-
 async function logActionDispatched(
   parent: ConversationMeta,
   item: DispatchInput,
   targetAgent: string,
-  conversationId?: string
+  conversationId?: string,
+  conversationCabinetPath?: string
 ): Promise<void> {
   try {
     await appendEventLog(
@@ -159,6 +134,7 @@ async function logActionDispatched(
         actionType: item.action.type,
         targetAgent,
         conversationId,
+        conversationCabinetPath,
         spawnDepth: parent.spawnDepth ?? 0,
       },
       parent.cabinetPath
@@ -288,14 +264,25 @@ async function dispatchLaunchTask(
     })
   );
 
-  await tagLineage(spawned.id, meta);
-  await logActionDispatched(meta, item, target.slug, spawned.id);
+  await tagConversationLineage({
+    spawnedId: spawned.id,
+    spawnedCabinetPath: spawned.cabinetPath ?? target.cabinetPath,
+    parent: meta,
+  });
+  await logActionDispatched(
+    meta,
+    item,
+    target.slug,
+    spawned.id,
+    spawned.cabinetPath ?? target.cabinetPath
+  );
 
   return makeDispatched({
     id: item.id,
     action,
     status: "dispatched",
     conversationId: spawned.id,
+    conversationCabinetPath: spawned.cabinetPath ?? target.cabinetPath,
   });
 }
 
@@ -330,6 +317,7 @@ async function dispatchScheduleJob(
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ownerTaskId: meta.id,
+    ownerTaskCabinetPath: meta.cabinetPath ?? ".",
   };
 
   const saved = await saveAgentJob(target.slug, job, target.cabinetPath);
@@ -338,6 +326,7 @@ async function dispatchScheduleJob(
     action,
     status: "dispatched",
     jobId: saved.id,
+    jobCabinetPath: saved.cabinetPath,
   });
 }
 
@@ -381,13 +370,24 @@ async function dispatchScheduleTask(
         runtime,
       })
     );
-    await tagLineage(spawned.id, meta);
-    await logActionDispatched(meta, item, target.slug, spawned.id);
+    await tagConversationLineage({
+      spawnedId: spawned.id,
+      spawnedCabinetPath: spawned.cabinetPath ?? target.cabinetPath,
+      parent: meta,
+    });
+    await logActionDispatched(
+      meta,
+      item,
+      target.slug,
+      spawned.id,
+      spawned.cabinetPath ?? target.cabinetPath
+    );
     return makeDispatched({
       id: item.id,
       action,
       status: "dispatched",
       conversationId: spawned.id,
+      conversationCabinetPath: spawned.cabinetPath ?? target.cabinetPath,
     });
   }
 
@@ -410,6 +410,7 @@ async function dispatchScheduleTask(
     oneShot: true,
     runAfter: when.toISOString(),
     ownerTaskId: meta.id,
+    ownerTaskCabinetPath: meta.cabinetPath ?? ".",
   };
 
   const saved = await saveAgentJob(target.slug, job, target.cabinetPath);
@@ -418,6 +419,7 @@ async function dispatchScheduleTask(
     action,
     status: "dispatched",
     jobId: saved.id,
+    jobCabinetPath: saved.cabinetPath,
   });
 }
 

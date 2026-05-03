@@ -199,6 +199,8 @@ export interface ConversationMeta {
 
   /** Conversation that dispatched this one via an agent action. */
   parentTaskId?: string;
+  /** Cabinet path for parentTaskId; required when parent and child scopes differ. */
+  parentCabinetPath?: string;
   /** Agent slug of the dispatcher that spawned this conversation. */
   triggeringAgent?: string;
   /** Depth of the dispatch chain; 0 for user-triggered. */

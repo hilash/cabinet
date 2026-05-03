@@ -44,6 +44,13 @@ function actionHeadline(action: AgentAction): string {
   return `${action.agent} · ${action.title}`;
 }
 
+function conversationTranscriptHref(entry: DispatchedAction): string {
+  const base = `/agents/conversations/${encodeURIComponent(entry.conversationId || "")}`;
+  return entry.conversationCabinetPath
+    ? `${base}?cabinetPath=${encodeURIComponent(entry.conversationCabinetPath)}`
+    : base;
+}
+
 function hasHard(warnings: ActionWarning[]): boolean {
   return warnings.some((w) => HARD_WARNINGS.has(w.code));
 }
@@ -584,7 +591,7 @@ export function PendingActionsPanel({
                 </span>
                 {entry.conversationId && (
                   <a
-                    href={`/agents/conversations/${encodeURIComponent(entry.conversationId)}`}
+                    href={conversationTranscriptHref(entry)}
                     className="text-[10.5px] text-primary hover:underline"
                   >
                     open

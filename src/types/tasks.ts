@@ -153,6 +153,8 @@ export interface TaskMeta {
   muted?: boolean;
   /** Conversation that dispatched this task via an agent action. */
   parentTaskId?: string;
+  /** Cabinet path for parentTaskId; required when parent and child scopes differ. */
+  parentCabinetPath?: string;
   /** Agent slug of the dispatcher that spawned this task. */
   triggeringAgent?: string;
   /** Depth of the dispatch chain; 0 for user-triggered tasks. */

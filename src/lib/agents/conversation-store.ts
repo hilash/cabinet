@@ -2175,9 +2175,10 @@ async function proposePendingActions(
   for (let i = 0; i < 3 && cursor; i++) {
     if (cursor.agentSlug) ancestors.push(cursor.agentSlug);
     if (!cursor.parentTaskId) break;
-    cursor = await readConversationMeta(cursor.parentTaskId, cursor.cabinetPath).catch(
-      () => null
-    );
+    cursor = await readConversationMeta(
+      cursor.parentTaskId,
+      cursor.parentCabinetPath ?? cursor.cabinetPath
+    ).catch(() => null);
   }
 
   const now = new Date().toISOString();

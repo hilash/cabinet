@@ -24,12 +24,14 @@ test("conversationMetaToTaskMeta mirrors agent action lineage fields", () => {
   const task = conversationMetaToTaskMeta(
     makeMeta({
       parentTaskId: "parent-convo",
+      parentCabinetPath: "client-parent",
       triggeringAgent: "ceo",
       spawnDepth: 2,
     }),
   );
 
   assert.equal(task.parentTaskId, "parent-convo");
+  assert.equal(task.parentCabinetPath, "client-parent");
   assert.equal(task.triggeringAgent, "ceo");
   assert.equal(task.spawnDepth, 2);
 });

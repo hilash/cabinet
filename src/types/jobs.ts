@@ -30,6 +30,8 @@ export interface JobConfig {
   runAfter?: string;
   /** Conversation id that dispatched this job via an agent action. */
   ownerTaskId?: string;
+  /** Cabinet path for ownerTaskId; required when owner and job scopes differ. */
+  ownerTaskCabinetPath?: string;
 }
 
 export interface JobRun {
