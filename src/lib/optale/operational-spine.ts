@@ -2,7 +2,8 @@ export type OptaleOperationalSpineSubjectType =
   | "resource"
   | "action_type"
   | "action_queue"
-  | "action_run";
+  | "action_run"
+  | "policy_decision";
 
 export type OptaleOperationalSpineCapability =
   | "audit_event"

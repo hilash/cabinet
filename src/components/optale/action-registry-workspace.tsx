@@ -31,6 +31,11 @@ import type {
   OptaleActionRunRecord,
   OptaleActionRunStatus,
 } from "@/lib/optale/action-run-ledger";
+import type {
+  OptalePolicyDecisionLog,
+  OptalePolicyDecisionOutcome,
+  OptalePolicyDecisionRecord,
+} from "@/lib/optale/policy-decision-log";
 
 const KIND_LABELS: Record<OptaleActionKind, string> = {
   command: "Command",
@@ -106,6 +111,19 @@ function runStatusTone(status: OptaleActionRunStatus): string {
   return "border-border bg-muted text-muted-foreground";
 }
 
+function policyOutcomeTone(outcome: OptalePolicyDecisionOutcome): string {
+  if (outcome === "deny") {
+    return "border-destructive/25 bg-destructive/10 text-destructive";
+  }
+  if (outcome === "needs_review") {
+    return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  }
+  if (outcome === "allow") {
+    return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  }
+  return "border-border bg-muted text-muted-foreground";
+}
+
 function matchesAction(
   action: OptaleActionDefinition,
   search: string,
@@ -165,6 +183,30 @@ function matchesRun(run: OptaleActionRunRecord, search: string): boolean {
   return haystack.includes(search.toLowerCase());
 }
 
+function matchesPolicyDecision(
+  decision: OptalePolicyDecisionRecord,
+  search: string,
+): boolean {
+  if (!search) return true;
+  const haystack = [
+    decision.id,
+    decision.subjectId,
+    decision.action,
+    decision.actionId,
+    decision.outcome,
+    decision.reasonCode,
+    decision.explanation,
+    decision.actor,
+    decision.cabinetPath,
+    decision.conversationId,
+    ...decision.evidence.flatMap((item) => [item.label, String(item.value)]),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(search.toLowerCase());
+}
+
 function formatGeneratedAt(value?: string): string {
   if (!value) return "";
   const date = new Date(value);
@@ -184,6 +226,8 @@ export function OptaleActionRegistryWorkspace({
 }) {
   const [registry, setRegistry] = useState<OptaleActionRegistry | null>(null);
   const [ledger, setLedger] = useState<OptaleActionRunLedger | null>(null);
+  const [policyLog, setPolicyLog] =
+    useState<OptalePolicyDecisionLog | null>(null);
   const [activeFilter, setActiveFilter] = useState<
     "all" | OptaleActionKind | OptaleActionCategory
   >("all");
@@ -199,10 +243,12 @@ export function OptaleActionRegistryWorkspace({
         visibilityMode: "all",
         limit: "300",
       });
-      const [registryResponse, ledgerResponse] = await Promise.all([
-        fetch(`/api/optale/actions?${params.toString()}`),
-        fetch(`/api/optale/action-runs?${params.toString()}`),
-      ]);
+      const [registryResponse, ledgerResponse, policyResponse] =
+        await Promise.all([
+          fetch(`/api/optale/actions?${params.toString()}`),
+          fetch(`/api/optale/action-runs?${params.toString()}`),
+          fetch(`/api/optale/policy-decisions?${params.toString()}`),
+        ]);
       if (!registryResponse.ok) {
         throw new Error(
           `Action registry fetch failed: ${registryResponse.status}`,
@@ -213,8 +259,14 @@ export function OptaleActionRegistryWorkspace({
           `Action run ledger fetch failed: ${ledgerResponse.status}`,
         );
       }
+      if (!policyResponse.ok) {
+        throw new Error(
+          `Policy decision log fetch failed: ${policyResponse.status}`,
+        );
+      }
       setRegistry((await registryResponse.json()) as OptaleActionRegistry);
       setLedger((await ledgerResponse.json()) as OptaleActionRunLedger);
+      setPolicyLog((await policyResponse.json()) as OptalePolicyDecisionLog);
       setError(null);
     } catch (err) {
       setError(
@@ -252,6 +304,13 @@ export function OptaleActionRegistryWorkspace({
     const trimmedSearch = search.trim();
     return (ledger?.runs || []).filter((run) => matchesRun(run, trimmedSearch));
   }, [ledger?.runs, search]);
+
+  const filteredPolicyDecisions = useMemo(() => {
+    const trimmedSearch = search.trim();
+    return (policyLog?.decisions || []).filter((decision) =>
+      matchesPolicyDecision(decision, trimmedSearch),
+    );
+  }, [policyLog?.decisions, search]);
 
   return (
     <main className="flex min-h-full flex-col bg-background">
@@ -618,6 +677,98 @@ export function OptaleActionRegistryWorkspace({
                   </div>
                   <div className="text-muted-foreground">
                     {formatGeneratedAt(run.updatedAt || run.createdAt)}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="border-t border-border/70 px-6 py-5">
+        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold tracking-normal text-foreground">
+              Policy Decisions
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Reason-coded allow, deny, and review outcomes for the current
+              action runs.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ["Allow", policyLog?.counts.allow ?? 0],
+              ["Review", policyLog?.counts.needsReview ?? 0],
+              ["Deny", policyLog?.counts.deny ?? 0],
+              ["Unevaluated", policyLog?.counts.notEvaluated ?? 0],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-md border border-border bg-card px-2.5 py-1.5"
+              >
+                <div className="text-[10px] text-muted-foreground">
+                  {label}
+                </div>
+                <div className="text-sm font-semibold text-foreground">
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {loading && !policyLog ? (
+          <div className="flex min-h-[120px] items-center justify-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 size-4 animate-spin" />
+            Loading policy decisions
+          </div>
+        ) : filteredPolicyDecisions.length === 0 ? (
+          <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
+            No policy decisions match the current search.
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border bg-card">
+            <div className="grid min-w-[760px] grid-cols-[120px_minmax(180px,1fr)_180px_minmax(220px,1.2fr)_120px] border-b border-border bg-muted/40 px-3 py-2 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+              <div>Outcome</div>
+              <div>Action</div>
+              <div>Reason</div>
+              <div>Explanation</div>
+              <div>Evaluated</div>
+            </div>
+            <div className="divide-y divide-border">
+              {filteredPolicyDecisions.slice(0, 25).map((decision) => (
+                <a
+                  key={decision.id}
+                  href={decision.href || "#"}
+                  className="grid min-w-[760px] grid-cols-[120px_minmax(180px,1fr)_180px_minmax(220px,1.2fr)_120px] gap-3 px-3 py-3 text-xs transition-colors hover:bg-muted/30"
+                >
+                  <div>
+                    <span
+                      className={cn(
+                        "inline-flex rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+                        policyOutcomeTone(decision.outcome),
+                      )}
+                    >
+                      {decision.outcome.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-foreground">
+                      {decision.action}
+                    </div>
+                    <div className="mt-0.5 truncate text-muted-foreground">
+                      {decision.actor} · {decision.cabinetPath}
+                    </div>
+                  </div>
+                  <div className="truncate text-muted-foreground">
+                    {decision.reasonCode.replaceAll("_", " ")}
+                  </div>
+                  <div className="line-clamp-2 text-muted-foreground">
+                    {decision.explanation}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {formatGeneratedAt(decision.evaluatedAt)}
                   </div>
                 </a>
               ))}
