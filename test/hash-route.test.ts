@@ -14,6 +14,58 @@ test("parseHash handles canonical tasks route under root cabinet", () => {
   assert.equal(route.section.cabinetPath, ".");
 });
 
+test("parseHash handles Brain, Vault, and Graph as native Brain routes", () => {
+  for (const type of ["brain", "vault", "graph"] as const) {
+    const root = parseHash(`#/${type}`);
+    assert.equal(root.section.type, type);
+    assert.equal(root.section.cabinetPath, ".");
+
+    const cabinet = parseHash(`#/cabinet/clients%2Facme/${type}`);
+    assert.equal(cabinet.section.type, type);
+    assert.equal(cabinet.section.cabinetPath, "clients/acme");
+  }
+});
+
+test("parseHash handles Memory as a native Brain sub-route", () => {
+  const root = parseHash("#/memory");
+  assert.equal(root.section.type, "memory");
+  assert.equal(root.section.cabinetPath, ".");
+
+  const cabinet = parseHash("#/cabinet/clients%2Facme/memory");
+  assert.equal(cabinet.section.type, "memory");
+  assert.equal(cabinet.section.cabinetPath, "clients/acme");
+});
+
+test("parseHash handles Entities as a native Brain sub-route", () => {
+  const root = parseHash("#/entities");
+  assert.equal(root.section.type, "entities");
+  assert.equal(root.section.cabinetPath, ".");
+
+  const cabinet = parseHash("#/cabinet/clients%2Facme/entities");
+  assert.equal(cabinet.section.type, "entities");
+  assert.equal(cabinet.section.cabinetPath, "clients/acme");
+});
+
+test("parseHash handles Dreams as a native Brain sub-route", () => {
+  const root = parseHash("#/dreams");
+  assert.equal(root.section.type, "dreams");
+  assert.equal(root.section.cabinetPath, ".");
+
+  const cabinet = parseHash("#/cabinet/clients%2Facme/dreams");
+  assert.equal(cabinet.section.type, "dreams");
+  assert.equal(cabinet.section.cabinetPath, "clients/acme");
+});
+
+test("parseHash handles Company Brain as a gated Brain add-on route", () => {
+  const root = parseHash("#/company-brain");
+  assert.equal(root.section.type, "company-brain");
+  assert.equal(root.section.cabinetPath, ".");
+
+  const cabinet = parseHash("#/cabinet/clients%2Facme/company-brain");
+  assert.equal(cabinet.section.type, "company-brain");
+  assert.equal(cabinet.section.cabinetPath, "clients/acme");
+});
+
 test("parseHash handles canonical page-with-cabinet form", () => {
   const route = parseHash("#/cabinet/./data/getting-started");
   assert.equal(route.section.type, "page");

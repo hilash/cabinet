@@ -25,13 +25,27 @@ export function ReturnToChip() {
       case "agents":
         return "Agents";
       case "cabinet":
-        return "Cabinet";
+        return "Space";
       case "home":
         return "Home";
+      case "brain":
+        return "Brain";
+      case "vault":
+        return "Vault";
+      case "memory":
+        return "Memory";
+      case "graph":
+        return "Graph";
+      case "entities":
+        return "Entities";
+      case "dreams":
+        return "Dreams";
+      case "company-brain":
+        return "Company Brain";
       case "settings":
         return "Settings";
       case "registry":
-        return "Registry";
+        return "Home";
       default:
         return "Back";
     }

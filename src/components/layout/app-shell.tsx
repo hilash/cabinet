@@ -84,9 +84,11 @@ const CabinetView = dynamic(
   () => import("@/components/cabinets/cabinet-view").then((m) => m.CabinetView),
   { ssr: false }
 );
-const RegistryBrowser = dynamic(
+const OptaleBrainWorkspace = dynamic(
   () =>
-    import("@/components/registry/registry-browser").then((m) => m.RegistryBrowser),
+    import("@/components/optale/brain-workspace").then(
+      (m) => m.OptaleBrainWorkspace
+    ),
   { ssr: false }
 );
 const OnboardingWizard = dynamic(
@@ -101,6 +103,7 @@ import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useHashRoute } from "@/hooks/use-hash-route";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { OPTALE_PRODUCT } from "@/lib/optale/product";
 
 const DISMISSED_UPDATE_STORAGE_KEY = "cabinet.dismissed-update-version";
 const WIZARD_DONE_STORAGE_KEY = "cabinet.wizard-done";
@@ -177,7 +180,7 @@ export function AppShell() {
 
   // Dynamic document.title — reflects the current section and page.
   useEffect(() => {
-    const base = "Cabinet";
+    const base = OPTALE_PRODUCT.name;
     let title: string;
     switch (section.type) {
       case "home":
@@ -202,6 +205,27 @@ export function AppShell() {
       case "task":
         title = `Task — ${base}`;
         break;
+      case "brain":
+        title = `Brain — ${base}`;
+        break;
+      case "vault":
+        title = `Vault — ${base}`;
+        break;
+      case "memory":
+        title = `Memory — ${base}`;
+        break;
+      case "graph":
+        title = `Graph — ${base}`;
+        break;
+      case "entities":
+        title = `Entities — ${base}`;
+        break;
+      case "dreams":
+        title = `Dreams — ${base}`;
+        break;
+      case "company-brain":
+        title = `Company Brain — ${base}`;
+        break;
       case "settings":
         title = `Settings — ${base}`;
         break;
@@ -209,7 +233,7 @@ export function AppShell() {
         title = `Help — ${base}`;
         break;
       case "registry":
-        title = `Registry — ${base}`;
+        title = base;
         break;
       default:
         title = base;
@@ -477,9 +501,65 @@ export function AppShell() {
   const renderContent = () => {
     // System sections (non-page views)
     if (section.type === "home") return <HomeScreen />;
-    if (section.type === "registry") return <RegistryBrowser />;
+    if (section.type === "registry") return <HomeScreen />;
     if (section.type === "settings") return <SettingsPage />;
     if (section.type === "help") return <HelpPage />;
+    if (section.type === "brain") {
+      return (
+        <OptaleBrainWorkspace
+          initialView="overview"
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
+    if (section.type === "vault") {
+      return (
+        <OptaleBrainWorkspace
+          initialView="vault"
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
+    if (section.type === "memory") {
+      return (
+        <OptaleBrainWorkspace
+          initialView="memory"
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
+    if (section.type === "graph") {
+      return (
+        <OptaleBrainWorkspace
+          initialView="graph"
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
+    if (section.type === "entities") {
+      return (
+        <OptaleBrainWorkspace
+          initialView="entities"
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
+    if (section.type === "dreams") {
+      return (
+        <OptaleBrainWorkspace
+          initialView="dreams"
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
+    if (section.type === "company-brain") {
+      return (
+        <OptaleBrainWorkspace
+          initialView="company-brain"
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
     if (section.type === "cabinet" && section.cabinetPath) {
       return <CabinetView cabinetPath={section.cabinetPath} />;
     }
@@ -765,4 +845,3 @@ export function AppShell() {
     </div>
   );
 }
-

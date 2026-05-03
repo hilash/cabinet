@@ -19,6 +19,13 @@ import { useEditorStore } from "@/stores/editor-store";
  *   #/a/{slug}               ← agent detail (root cabinet)
  *   #/tasks                  ← tasks list (root cabinet)
  *   #/tasks/{taskId}         ← task detail (root cabinet)
+ *   #/brain                  ← Optale brain overview
+ *   #/vault                  ← Optale Vault
+ *   #/memory                 ← Optale Memory
+ *   #/graph                  ← Optale Graph
+ *   #/entities               ← Optale Entities
+ *   #/dreams                 ← Optale Dreams
+ *   #/company-brain          ← Company Brain reviewer add-on
  *   #/settings
  *   #/settings/{tab}
  *   #/help
@@ -30,6 +37,13 @@ import { useEditorStore } from "@/stores/editor-store";
  *   #/cabinet/{cabinetPath}/agents/{slug}
  *   #/cabinet/{cabinetPath}/tasks
  *   #/cabinet/{cabinetPath}/tasks/{taskId}
+ *   #/cabinet/{cabinetPath}/brain
+ *   #/cabinet/{cabinetPath}/vault
+ *   #/cabinet/{cabinetPath}/memory
+ *   #/cabinet/{cabinetPath}/graph
+ *   #/cabinet/{cabinetPath}/entities
+ *   #/cabinet/{cabinetPath}/dreams
+ *   #/cabinet/{cabinetPath}/company-brain
  *
  * Legacy back-compat: `#/page/...`, `#/cabinet/./...` are still parsed
  * and rewritten to the canonical form on the next navigation.
@@ -89,6 +103,34 @@ function buildHash(section: SectionState, pagePath: string | null): string {
   }
   if (section.type === "tasks") {
     return buildTasksHash(cabinetPath);
+  }
+  if (section.type === "brain") {
+    if (isRoot) return "#/brain";
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/brain`;
+  }
+  if (section.type === "vault") {
+    if (isRoot) return "#/vault";
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/vault`;
+  }
+  if (section.type === "memory") {
+    if (isRoot) return "#/memory";
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/memory`;
+  }
+  if (section.type === "graph") {
+    if (isRoot) return "#/graph";
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/graph`;
+  }
+  if (section.type === "entities") {
+    if (isRoot) return "#/entities";
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/entities`;
+  }
+  if (section.type === "dreams") {
+    if (isRoot) return "#/dreams";
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/dreams`;
+  }
+  if (section.type === "company-brain") {
+    if (isRoot) return "#/company-brain";
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/company-brain`;
   }
   if (section.type === "settings") {
     return section.slug
@@ -192,6 +234,21 @@ function parseHash(hash: string): RouteState {
       };
     }
 
+    if (
+      leaf === "brain" ||
+      leaf === "vault" ||
+      leaf === "memory" ||
+      leaf === "graph" ||
+      leaf === "entities" ||
+      leaf === "dreams" ||
+      leaf === "company-brain"
+    ) {
+      return {
+        section: { type: leaf, cabinetPath },
+        pagePath: null,
+      };
+    }
+
     if (leaf === "data" && parts[3]) {
       const pagePath = decodePathSegment(parts.slice(3).join("/"));
       return {
@@ -260,6 +317,21 @@ function parseHash(hash: string): RouteState {
     }
     return {
       section: { type: "tasks", cabinetPath: ROOT_CABINET_PATH },
+      pagePath: null,
+    };
+  }
+
+  if (
+    parts[0] === "brain" ||
+    parts[0] === "vault" ||
+    parts[0] === "memory" ||
+    parts[0] === "graph" ||
+    parts[0] === "entities" ||
+    parts[0] === "dreams" ||
+    parts[0] === "company-brain"
+  ) {
+    return {
+      section: { type: parts[0], cabinetPath: ROOT_CABINET_PATH },
       pagePath: null,
     };
   }
