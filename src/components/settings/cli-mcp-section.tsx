@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * Settings → Integrations → "MCP Servers".
  *
  * Read-only surface that lists MCP servers the user has already configured
- * in their Claude Code, Codex CLI, and Gemini CLI configs. Cabinet does
+ * in their Claude Code, Codex CLI, and Gemini CLI configs. Optale Observatory does
  * NOT modify these files — editing happens via each CLI's own commands.
  * The "Editing coming soon" pill makes the read-only nature explicit.
  */
@@ -91,7 +91,7 @@ export function CliMcpSection() {
         </span>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        MCP servers configured in your CLIs. Cabinet auto-discovers them from
+        MCP servers configured in your CLIs. Optale Observatory auto-discovers them from
         Claude Code, Codex, and Gemini — edit via the CLI for now.
       </p>
 

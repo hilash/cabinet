@@ -503,7 +503,7 @@ function MissedRunBanner({ scheduledAt }: { scheduledAt: string }) {
       <div className="space-y-0.5">
         <p className="font-medium">This run did not execute at {label}.</p>
         <p className="text-[11px] opacity-80">
-          Possible causes: the Cabinet daemon was not running, the schedule
+          Possible causes: the Optale Observatory daemon was not running, the schedule
           was disabled at that time, or the run failed to start before it was
           recorded.
         </p>

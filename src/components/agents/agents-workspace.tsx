@@ -362,7 +362,7 @@ function ToggleAllHeartbeatsButton({
       onClick={() => void toggleAll()}
       disabled={toggling}
       className="inline-flex h-9 items-center gap-2 rounded-lg border border-border/70 bg-background px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
-      title={anyActive ? "Pause all heartbeats in this cabinet" : "Resume all heartbeats in this cabinet"}
+      title={anyActive ? "Pause all heartbeats in this space" : "Resume all heartbeats in this space"}
     >
       {anyActive ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
       {anyActive ? "Pause all" : "Resume all"}
@@ -2855,7 +2855,7 @@ export function AgentsWorkspace({
                     <span className="font-semibold text-foreground">set up routines</span>{" "}
                     you want them to run every day or every hour, and{" "}
                     <span className="font-semibold text-foreground">check in</span>{" "}
-                    on what they've been doing. The sidebar on the right shows
+                    on what they&apos;ve been doing. The sidebar on the right shows
                     everything live.
                   </p>
                 </div>
@@ -2941,7 +2941,7 @@ export function AgentsWorkspace({
                               {agent.scope === "global" ? (
                                 <span
                                   className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-300"
-                                  title="Shared across all cabinets"
+                                  title="Shared across all spaces"
                                 >
                                   Global
                                 </span>
@@ -2981,8 +2981,8 @@ export function AgentsWorkspace({
                       <span className="font-semibold text-foreground">Routines</span>{" "}
                       are scheduled jobs — things you want an agent to do every
                       day or every hour. Write the prompt once, pick a schedule,
-                      and the agent runs it on its own. Think: "every weekday at
-                      9am, summarize yesterday's activity."
+                      and the agent runs it on its own. Think: &quot;every weekday at
+                      9am, summarize yesterday&apos;s activity.&quot;
                     </p>
                     <p className="max-w-3xl text-[14px] leading-6 text-muted-foreground">
                       A{" "}
@@ -3058,7 +3058,7 @@ export function AgentsWorkspace({
                       </Button>
                     </div>
                     <p className="max-w-3xl text-[12px] text-muted-foreground">
-                      What's coming up across every agent — flip between
+                      What&apos;s coming up across every agent — flip between
                       calendar and list, or expand to full screen.
                     </p>
                     <div className="flex h-[460px] min-h-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-card">
@@ -3209,7 +3209,7 @@ export function AgentsWorkspace({
                         <span className="font-semibold text-foreground">
                           Configure heartbeat
                         </span>{" "}
-                        above to set one on an agent's page.
+                        above to set one on an agent&apos;s page.
                       </p>
                     ) : (
                       <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
@@ -3251,7 +3251,7 @@ export function AgentsWorkspace({
       <OrgChartModal
         open={orgChartOpen}
         onOpenChange={setOrgChartOpen}
-        cabinetName={effectiveCabinetPath || "Cabinet"}
+        cabinetName={effectiveCabinetPath || "Space"}
         agents={cabinetAgentsView}
         jobs={cabinetJobs}
         childCabinets={cabinetChildren}
@@ -3665,7 +3665,7 @@ export function AgentsWorkspace({
                     setNewAgentDraft({ ...newAgentDraft, body: event.target.value })
                   }
                   className="min-h-[240px] w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                  placeholder="Define how this agent should work inside Cabinet and the KB."
+                  placeholder="Define how this agent should work inside this space and the knowledge base."
                 />
               </label>
             </div>
@@ -3823,4 +3823,3 @@ export function AgentsWorkspace({
     </div>
   );
 }
-

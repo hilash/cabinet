@@ -22,8 +22,8 @@ import type {
 import type { AuditSummary } from "@/lib/agents/skills/audits";
 
 const ORIGIN_LABEL: Record<SkillOrigin, string> = {
-  "cabinet-scoped": "Cabinet (scoped)",
-  "cabinet-root": "Cabinet (root)",
+  "cabinet-scoped": "Space (scoped)",
+  "cabinet-root": "Space (root)",
   "linked-repo": "Linked repo",
   system: "System",
   "legacy-home": "Legacy ~/.cabinet",

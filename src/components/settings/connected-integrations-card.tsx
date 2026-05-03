@@ -7,7 +7,7 @@ import { Plug } from "lucide-react";
  *
  * Restored from `a27fd58` (Matan, "skills-initial") — points users at where
  * to configure things today (API keys above, MCP servers via CLI) while
- * Cabinet's own OAuth flows are still on the roadmap.
+ * Optale's own OAuth flows are still on the roadmap.
  */
 export function ConnectedIntegrationsCard() {
   return (
@@ -18,7 +18,7 @@ export function ConnectedIntegrationsCard() {
       </h3>
       <p className="text-xs text-muted-foreground mb-4">
         Prebuilt OAuth flows for services like Gmail, Slack, and Google
-        Calendar. Connect once and Cabinet handles tokens, scopes, and
+        Calendar. Connect once and Optale Observatory handles tokens, scopes, and
         refresh.
       </p>
       <div className="bg-card border border-dashed border-border rounded-lg px-4 py-6 text-center">

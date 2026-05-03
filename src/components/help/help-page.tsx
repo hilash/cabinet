@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ArrowUpRight, HelpCircle, MessageCircle } from "lucide-react";
+import { ArrowUpRight, HelpCircle, Mail } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { requestShowTour } from "@/components/onboarding/tour/use-tour";
 import { TOUR_PALETTE as P } from "@/components/onboarding/tour/palette";
@@ -47,8 +47,6 @@ type DemoId =
   | "skills"
   | "api-keys";
 
-const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
-
 type HelpAction =
   | { kind: "tour" }
   | { kind: "demo"; demoId: DemoId }
@@ -69,7 +67,7 @@ const HELP_ITEMS: HelpItem[] = [
     id: "tour",
     title: (
       <>
-        Meet your <span style={{ color: P.accent }}>Cabinet</span>.
+        Meet <span style={{ color: P.accent }}>Optale Observatory</span>.
       </>
     ),
     description: "Your AI team. Your knowledge base. One place.",
@@ -124,7 +122,7 @@ const HELP_ITEMS: HelpItem[] = [
       </>
     ),
     description:
-      "Cabinets nest inside cabinets. Each one is its own AI team with its own data, agents, and visibility scope — and they can collaborate up and down the tree.",
+      "Spaces nest inside spaces. Each one is its own AI team with its own data, agents, and visibility scope — and they can collaborate up and down the tree.",
     cta: "Watch the demo",
     visual: <CabinetsVisual />,
     action: { kind: "demo", demoId: "cabinets" },
@@ -215,7 +213,7 @@ const HELP_ITEMS: HelpItem[] = [
       </>
     ),
     description:
-      "Plug in your OpenAI, Anthropic, or GitHub account once — every agent and skill in Cabinet will use it. You pay your own bills, use your own quota, no middleman.",
+      "Plug in your OpenAI, Anthropic, or GitHub account once — every agent and skill in Optale Observatory will use it. You pay your own bills, use your own quota, no middleman.",
     cta: "Watch the demo",
     visual: <IntegrationsVisual />,
     action: { kind: "demo", demoId: "api-keys" },
@@ -228,7 +226,7 @@ const HELP_ITEMS: HelpItem[] = [
       </>
     ),
     description:
-      "MCP servers, Slack, Telegram, Gmail, and Calendar OAuth — connect once and Cabinet handles the tokens. Coming soon.",
+      "MCP servers, Slack, Telegram, Gmail, and Calendar OAuth — connect once and Optale Observatory handles the tokens. Coming soon.",
     cta: "Coming soon",
     visual: <IntegrationsVisual />,
     action: { kind: "soon" },
@@ -399,10 +397,10 @@ export function HelpPage() {
               How To
             </p>
             <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.02em] text-foreground">
-              Learn how Cabinet works
+              Learn how Optale Observatory works
             </h1>
             <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-              Short demos, walkthroughs, and previews for getting the most out of Cabinet.
+              Short demos, walkthroughs, and previews for getting the most out of Optale Observatory.
             </p>
           </div>
 
@@ -424,17 +422,15 @@ export function HelpPage() {
                   Didn&apos;t find what you&apos;re looking for?
                 </h3>
                 <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-                  We&apos;re in the Discord — come say hi, ask questions, share what you&apos;re building.
+                  Contact Optale for questions, feedback, or help wiring your workspace.
                 </p>
               </div>
               <a
-                href={DISCORD_SUPPORT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex flex-shrink-0 items-center gap-2 rounded-full border border-[#5865F2]/25 bg-[#5865F2]/10 px-4 py-2 text-[12.5px] font-semibold text-[#5865F2] transition-all hover:-translate-y-px hover:border-[#5865F2]/40 hover:bg-[#5865F2]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2"
+                href="mailto:hello@optale.com"
+                className="inline-flex flex-shrink-0 items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-[12.5px] font-semibold text-primary transition-all hover:-translate-y-px hover:border-primary/40 hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2"
               >
-                <MessageCircle className="h-4 w-4" />
-                Join the Discord
+                <Mail className="h-4 w-4" />
+                hello@optale.com
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
             </div>

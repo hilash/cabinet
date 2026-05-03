@@ -53,7 +53,7 @@ function SlideSetOnce() {
       }
       description={
         <>
-          Pick a provider, paste your key, save. Cabinet remembers it so every
+          Pick a provider, paste your key, save. Optale Observatory remembers it so every
           task you run uses <em>your</em> account — you pay your own bills, use
           your own quota, no middleman.
           <DevFootnote>
@@ -160,7 +160,7 @@ function SlideUsedEverywhere() {
       }
       description={
         <>
-          Once a key is saved, every agent and skill in Cabinet picks it up on
+          Once a key is saved, every agent and skill in Optale Observatory picks it up on
           its own. No copy-pasting into each task, no hunting for it later — it
           just works.
           <DevFootnote>

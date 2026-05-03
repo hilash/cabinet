@@ -96,8 +96,8 @@ export function CabinetSchedulerControls({
           onClick={() => void schedulerAction(anyActive ? "stop-all" : "start-all")}
           title={
             anyActive
-              ? `Stop all ${activeOwn.length} active agent(s) — pauses their heartbeats and cron jobs. Only this cabinet, not sub-cabinets.`
-              : `Activate all ${ownAgents.length} agent(s) — starts their heartbeats and cron jobs on schedule. Only this cabinet, not sub-cabinets.`
+              ? `Stop all ${activeOwn.length} active agent(s) — pauses their heartbeats and cron jobs. Only this space, not nested spaces.`
+              : `Activate all ${ownAgents.length} agent(s) — starts their heartbeats and cron jobs on schedule. Only this space, not nested spaces.`
           }
           className={cn(splitBase, "gap-2 rounded-l-md border-r-0 px-3 py-1.5 text-sm font-medium")}
         >
@@ -170,7 +170,7 @@ export function CabinetSchedulerControls({
           <div className="border-t border-border/60 px-3 py-2.5">
             <p className="text-[10px] leading-relaxed text-muted-foreground">
               {activeOwn.length}/{ownAgents.length} own agents active.
-              Only this cabinet — sub-cabinet agents are not affected.
+              Only this space — nested-space agents are not affected.
             </p>
           </div>
         </div>

@@ -51,7 +51,7 @@ const PRESETS: Preset[] = [
     id: "github",
     label: "GitHub (personal access token)",
     envVar: "GITHUB_TOKEN",
-    hint: "Lifts skill-search rate limits; used by Cabinet's GitHub fetches",
+    hint: "Lifts skill-search rate limits; used by Optale Observatory's GitHub fetches",
   },
   {
     id: "google-ai",

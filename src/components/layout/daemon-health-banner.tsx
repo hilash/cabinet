@@ -15,7 +15,7 @@ export function DaemonHealthBanner() {
 
   const fixHint =
     installKind === "electron-macos"
-      ? "Quit and relaunch Cabinet to restart the agent daemon."
+      ? "Quit and relaunch Optale Observatory to restart the agent daemon."
       : "Run `npm run dev:daemon` (or restart `npm run dev:all`) to bring the agent daemon back up.";
 
   return (

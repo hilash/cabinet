@@ -678,7 +678,7 @@ function DetailPane({
         <div className="border-b border-border px-4 py-3">
           <div className="flex items-center gap-2 text-[12px] font-medium">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Cabinet AI answer
+            Optale AI answer
           </div>
         </div>
         <div className="flex-1 overflow-y-auto whitespace-pre-wrap px-4 py-3 text-[13px] leading-relaxed">

@@ -36,7 +36,7 @@ function SlidePickVibe() {
       }
       description={
         <>
-          Cabinet ships with curated themes — a quiet Paper, a moody Claude,
+          Optale Observatory ships with curated themes — a quiet Paper, a moody Claude,
           a bright Aurora, a focused Forest. Same product, your aesthetic.
         </>
       }
@@ -67,7 +67,7 @@ function SlidePickVibe() {
                 style={{ background: t.accent }}
               />
               <span className="text-[8.5px]" style={{ color: t.fg, opacity: 0.7 }}>
-                Cabinet
+                Optale
               </span>
             </div>
             {/* Body lines */}
@@ -241,7 +241,7 @@ function ThemedSidebar({ theme, delay, selected }: { theme: ThemePreview; delay:
       >
         <Archive className="h-3.5 w-3.5" style={{ color: theme.accent }} />
         <span className="text-[10.5px] font-semibold" style={{ color: theme.fg }}>
-          Cabinet
+          Optale
         </span>
         {selected && (
           <span

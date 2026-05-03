@@ -63,7 +63,7 @@ function SlideAnything() {
       description={
         <>
           Markdown, spreadsheets, PDFs, notebooks, source code, images, video,
-          audio, mermaid diagrams — drop any file in your cabinet and Cabinet
+          audio, mermaid diagrams — drop any file in your space and Optale Observatory
           knows how to render it.
         </>
       }
@@ -332,7 +332,7 @@ function SlideMentions() {
         <>
           <span className="font-mono">@</span> an agent to hand off the page.
           <span className="font-mono"> [[wiki link]]</span> another page to
-          weave a knowledge graph. Cabinet wires it all up for you.
+          weave a knowledge graph. Optale Observatory wires it all up for you.
         </>
       }
     >
@@ -455,9 +455,9 @@ function SlideYours() {
       }
       description={
         <>
-          Every cabinet is just a folder on your machine. Plain markdown,
+          Every space is just a folder on your machine. Plain markdown,
           plain spreadsheets, plain images. Open it in Finder. Back it up.
-          Sync it your way. Cabinet never holds your data hostage.
+          Sync it your way. Optale Observatory never holds your data hostage.
         </>
       }
     >

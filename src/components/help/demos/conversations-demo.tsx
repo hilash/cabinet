@@ -44,7 +44,7 @@ function SlideTalkBack() {
       description={
         <>
           Every agent has a real conversation with you. Ask a question, get a
-          plan. Agree, push back, refine. Cabinet doesn&apos;t run anything
+          plan. Agree, push back, refine. Optale Observatory doesn&apos;t run anything
           you didn&apos;t agree to.
         </>
       }

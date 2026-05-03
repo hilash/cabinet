@@ -196,7 +196,7 @@ export function StorageBackendSection() {
   };
 
   const handleDisconnect = async () => {
-    if (!confirm("Disconnect GitHub? Your data stays in the repo, but cabinet will show an empty workspace until you reconnect or start fresh.")) {
+    if (!confirm("Disconnect GitHub? Your data stays in the repo, but Optale Observatory will show an empty space until you reconnect or start fresh.")) {
       return;
     }
     setBusy(true);
@@ -229,7 +229,7 @@ export function StorageBackendSection() {
     <div className="border-t border-border pt-6">
       <h3 className="text-[14px] font-semibold mb-1">Storage backend</h3>
       <p className="text-[12px] text-muted-foreground mb-4">
-        By default cabinet stores your data in our managed cloud. You can switch to your own GitHub repo for full version history and portability.
+        By default Optale Observatory stores your data in our managed cloud. You can switch to your own GitHub repo for full version history and portability.
       </p>
 
       {actionError && (
@@ -300,7 +300,7 @@ export function StorageBackendSection() {
       {!onGitHub && !isMigrating && status.installed && !status.repo && (
         <div className="space-y-3">
           <p className="text-[12px] text-muted-foreground">
-            GitHub App installed. Pick a repo for cabinet to use.
+            GitHub App installed. Pick a repo for Optale Observatory to use.
           </p>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={loadRepos} disabled={loadingRepos || busy}>
@@ -310,7 +310,7 @@ export function StorageBackendSection() {
           </div>
           {repos && repos.length === 0 && (
             <p className="text-[12px] text-muted-foreground">
-              No repos accessible to this installation. Either add some to the App's repo selection on GitHub, or configure cabinet to create a new one (coming soon).
+              No repos accessible to this installation. Either add some to the App&apos;s repo selection on GitHub, or configure Optale Observatory to create a new one (coming soon).
             </p>
           )}
           {repos && repos.length > 0 && (

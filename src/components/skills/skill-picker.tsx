@@ -57,7 +57,7 @@ export function SkillPicker({ cabinetPath, selected, onChange, compact }: SkillP
   if (entries.length === 0) {
     return (
       <p className="text-xs text-muted-foreground italic">
-        No skills available in this cabinet. Add one from the Skills library.
+        No skills available in this space. Add one from the Skills library.
       </p>
     );
   }

@@ -102,7 +102,7 @@ function SlideThreeWays() {
               every Friday at 6pm
             </div>
             <div className="mt-1 text-[10px] italic" style={{ color: P.textTertiary }}>
-              Cabinet figures out the cron
+              Optale Observatory figures out the cron
             </div>
           </div>
         </CardChrome>

@@ -69,7 +69,7 @@ export function CompactOrgChart({
   return (
     <div className="overflow-x-auto pb-2">
       {allAgents.length === 0 ? (
-        <p className="py-8 text-sm text-muted-foreground">No agents configured for this cabinet yet.</p>
+        <p className="py-8 text-sm text-muted-foreground">No agents configured for this space yet.</p>
       ) : (
         <div className="min-w-[720px] px-2">
           <div className="flex justify-center">

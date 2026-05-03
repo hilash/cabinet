@@ -321,10 +321,46 @@ export const THEMES: ThemeDefinition[] = [
 
   // ─── LIGHT THEMES ───
   {
-    // Warm parchment palette derived from runcabinet.com
+    name: "optale",
+    label: "Optale",
+    type: "light",
+    font: "'Inter', var(--font-sans)",
+    headingFont: "'Inter', var(--font-sans)",
+    accent: "#0E9F9A",
+    vars: {
+      "--background": "oklch(0.985 0.006 195)",
+      "--foreground": "oklch(0.18 0.025 230)",
+      "--card": "oklch(1 0 0)",
+      "--card-foreground": "oklch(0.18 0.025 230)",
+      "--popover": "oklch(1 0 0)",
+      "--popover-foreground": "oklch(0.18 0.025 230)",
+      "--primary": "oklch(0.53 0.115 190)",
+      "--primary-foreground": "oklch(0.99 0 0)",
+      "--secondary": "oklch(0.94 0.022 205)",
+      "--secondary-foreground": "oklch(0.22 0.035 230)",
+      "--muted": "oklch(0.955 0.012 210)",
+      "--muted-foreground": "oklch(0.48 0.025 230)",
+      "--accent": "oklch(0.93 0.028 185)",
+      "--accent-foreground": "oklch(0.2 0.03 225)",
+      "--destructive": "oklch(0.55 0.22 25)",
+      "--border": "oklch(0.88 0.014 215)",
+      "--input": "oklch(0.88 0.014 215)",
+      "--ring": "oklch(0.53 0.115 190)",
+      "--sidebar": "oklch(0.966 0.012 200)",
+      "--sidebar-foreground": "oklch(0.2 0.03 225)",
+      "--sidebar-primary": "oklch(0.53 0.115 190)",
+      "--sidebar-primary-foreground": "oklch(0.99 0 0)",
+      "--sidebar-accent": "oklch(0.925 0.026 205)",
+      "--sidebar-accent-foreground": "oklch(0.18 0.025 230)",
+      "--sidebar-border": "oklch(0.865 0.016 215)",
+      "--sidebar-ring": "oklch(0.53 0.115 190)",
+    },
+  },
+  {
+    // Warm parchment legacy palette
     // #FAF6F1 bg · #F3EDE4 bg-warm · #3B2F2F text · #8B5E3C accent · #E8DDD0 border
     name: "paper",
-    label: "Cabinet",
+    label: "Paper",
     type: "light",
     font: "'Inter', var(--font-sans)",
     headingFont: "'Source Serif 4', 'Instrument Serif', Georgia, serif",

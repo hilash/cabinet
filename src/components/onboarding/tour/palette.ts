@@ -1,28 +1,21 @@
 /**
- * Tour color palette — matches the onboarding wizard's WEB palette so the
- * tour reads as a continuation of the same cream-paper, mocha-brown
- * aesthetic instead of Tailwind's golden amber. Hardcoded (not theme
- * tokens) because the tour, like the wizard, forces its own look
- * regardless of the app's light/dark setting.
+ * Tour color palette — matches the Optale Observatory onboarding palette.
+ * Hardcoded because the tour, like the wizard, forces its own look regardless
+ * of the app's light/dark setting.
  */
 export const TOUR_PALETTE = {
-  paper: "#FAF6F1",
-  paperWarm: "#F3EDE4",
+  paper: "#F8FAFC",
+  paperWarm: "#EEF6F7",
   bgCard: "#FFFFFF",
-  text: "#3B2F2F",
-  textSecondary: "#6B5B4F",
-  textTertiary: "#A89888",
-  accent: "#8B5E3C",
-  accentWarm: "#7A4F30",
-  accentBg: "#F5E6D3",
-  border: "#E8DDD0",
-  borderLight: "#F0E8DD",
-  borderDark: "#D4C4B0",
-  /**
-   * Warm yellow amber for the Archive glyph and the active drawer
-   * pull-handle — matches the real sidebar's `text-amber-400` accent
-   * rather than the mocha brown used for copy / borders.
-   */
-  iconAmber: "#FBBF24",
-  iconAmberSoft: "rgba(251, 191, 36, 0.6)",
+  text: "#101820",
+  textSecondary: "#475569",
+  textTertiary: "#64748B",
+  accent: "#0F766E",
+  accentWarm: "#115E59",
+  accentBg: "#DDF7F3",
+  border: "#D7E3E7",
+  borderLight: "#E6EEF1",
+  borderDark: "#9FB6BE",
+  iconAmber: "#0F766E",
+  iconAmberSoft: "rgba(15, 118, 110, 0.32)",
 } as const;

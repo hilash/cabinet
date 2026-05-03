@@ -62,8 +62,8 @@ function formatRelative(iso: string): string {
 }
 
 const ORIGIN_LABEL: Record<SkillOrigin, string> = {
-  "cabinet-scoped": "Cabinet (scoped)",
-  "cabinet-root": "Cabinet (root)",
+  "cabinet-scoped": "Space (scoped)",
+  "cabinet-root": "Space (root)",
   "linked-repo": "Linked repo",
   system: "System",
   "legacy-home": "Legacy ~/.cabinet",
@@ -128,7 +128,7 @@ function SkillCard({
             {!skill.editable && (
               <Lock
                 className="size-3 text-muted-foreground"
-                aria-label="Read-only — cannot edit from Cabinet"
+                aria-label="Read-only — cannot edit from Optale Observatory"
               />
             )}
           </div>
@@ -162,7 +162,7 @@ function SkillCard({
         {!skill.upstream && (
           <span
             className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
-            title="Authored directly in this cabinet — no upstream git source recorded"
+            title="Authored directly in this space — no upstream git source recorded"
           >
             Custom
           </span>
@@ -487,8 +487,8 @@ export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
                   ))}
                   <p className="text-[10px] text-muted-foreground/80 px-1 py-2 flex items-start gap-1">
                     <AlertTriangle className="size-3 shrink-0 mt-0.5" />
-                    These skills are loaded by your local Claude/Codex install. Cabinet doesn&apos;t
-                    manage them and they won&apos;t be bundled when this cabinet is exported.
+                    These skills are loaded by your local Claude/Codex install. Optale Observatory doesn&apos;t
+                    manage them and they won&apos;t be bundled when this space is exported.
                   </p>
                 </div>
               )}

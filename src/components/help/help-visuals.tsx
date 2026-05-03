@@ -49,12 +49,12 @@ function CardChrome({ children, width = 280 }: { children: React.ReactNode; widt
   );
 }
 
-/** Cabinet sidebar mockup — reused for the intro / Meet-your-Cabinet card. */
+/** Observatory sidebar mockup — reused for the intro / Meet-the-Observatory card. */
 export function CabinetVisual() {
   return (
     <Stage>
       <div style={{ width: 280 }}>
-        <MockupSidebar activeTab={null} title="Cabinet" headerBadge="" hideBody />
+        <MockupSidebar activeTab={null} title="Optale" headerBadge="" hideBody />
       </div>
     </Stage>
   );
@@ -207,12 +207,12 @@ export function KnowledgeVisual() {
   );
 }
 
-/** Cabinets — nested hierarchy. */
+/** Spaces — nested hierarchy. */
 export function CabinetsVisual() {
   return (
     <Stage>
       <div className="flex flex-col gap-2" style={{ width: 280 }}>
-        <CabinetRow label="Cabinet" emphasis />
+        <CabinetRow label="Root space" emphasis />
         <div className="ml-5 space-y-1.5">
           <CabinetRow label="Marketing" sub />
           <CabinetRow label="Product" sub />

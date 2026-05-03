@@ -46,13 +46,13 @@ export function UpdateDialog({
         <DialogHeader className="gap-2">
           <DialogTitle>
             {update.updateStatus.state === "restart-required"
-              ? "Restart Cabinet to finish updating"
+              ? "Restart Optale Observatory to finish updating"
               : latestVersion && update.updateAvailable
-                ? `Cabinet ${latestVersion} is available`
-                : "Cabinet updates"}
+                ? `Optale Observatory ${latestVersion} is available`
+                : "Optale Observatory updates"}
           </DialogTitle>
           <DialogDescription>
-            Cabinet checks for releases automatically. While the product is still experimental, keep a copy of your data before installing updates.
+            Optale Observatory checks for releases automatically. While the product is still experimental, keep a copy of your data before installing updates.
           </DialogDescription>
         </DialogHeader>
 

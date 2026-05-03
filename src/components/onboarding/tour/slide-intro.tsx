@@ -49,14 +49,14 @@ export function SlideIntro() {
     <div className="flex h-full flex-col items-center justify-center gap-10">
       <div className="flex flex-col items-center gap-3 text-center max-w-2xl">
         <h2
-          className="font-logo text-5xl tracking-tight italic opacity-0 lg:text-6xl"
+          className="font-sans font-semibold text-5xl tracking-normal opacity-0 lg:text-6xl"
           style={{
             color: P.text,
             animation: "cabinet-tour-fade-up 0.55s ease-out forwards",
             animationDelay: `${COPY_H1_DELAY}ms`,
           }}
         >
-          Meet your <span style={{ color: P.accent }}>Cabinet</span>.
+          Meet <span style={{ color: P.accent }}>Optale Observatory</span>.
         </h2>
         <p
           className="font-body-serif text-lg leading-relaxed opacity-0 lg:text-xl"
@@ -106,7 +106,7 @@ export function SlideIntro() {
         >
           <MockupSidebar
             activeTab={null}
-            title="Cabinet"
+            title="Optale"
             titleDelay={TITLE_REVEAL_DELAY}
             headerBadge=""
             hideBody

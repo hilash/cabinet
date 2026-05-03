@@ -129,7 +129,7 @@ function TourBody({
       className="fixed inset-0 z-[200] flex items-center justify-center backdrop-blur-md"
       role="dialog"
       aria-modal="true"
-      aria-label="Meet your Cabinet tour"
+      aria-label="Meet Optale Observatory tour"
       style={{ background: `${P.paper}F0`, color: P.text }}
     >
       {/* Soft decorative background wash — warm cream with subtle mocha glow */}

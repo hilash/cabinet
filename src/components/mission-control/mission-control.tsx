@@ -207,7 +207,7 @@ export function MissionControl() {
         Notification.permission === "granted"
       ) {
         if (data.channel === "alerts" && data.preview) {
-          new Notification("Cabinet Alert", {
+          new Notification("Optale Observatory Alert", {
             body: `${data.agentEmoji || "⚠️"} ${data.agentName || "Agent"}: ${data.preview}`,
             icon: "/favicon.ico",
             tag: `cabinet-alert-${Date.now()}`,
@@ -356,7 +356,7 @@ export function MissionControl() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          instruction: `You are a Cabinet Agent creator. Based on the following description, generate a JSON object for creating a new agent. Return ONLY valid JSON, no other text.
+          instruction: `You are an Optale Observatory agent creator. Based on the following description, generate a JSON object for creating a new agent. Return ONLY valid JSON, no other text.
 
 Description: "${nlInput.trim()}"
 
@@ -439,7 +439,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
           <Gauge className="h-5 w-5 text-primary shrink-0 hidden sm:block" />
           <div className="min-w-0">
             <h1 className="text-[14px] sm:text-[15px] font-semibold tracking-[-0.02em] truncate">
-              {companyName ? `${companyName}` : "Cabinet"}
+              {companyName ? `${companyName}` : "Optale Observatory"}
             </h1>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground/60 hidden sm:block">
               {companyName ? "Company OS" : "Your Company OS"}
@@ -578,7 +578,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                   No agents configured
                 </p>
                 <p className="text-[12px] text-muted-foreground/60">
-                  Create your first agent to get started with Cabinet Agents.
+                  Create your first agent to get started with Optale Observatory.
                 </p>
               </div>
               <Button variant="default" size="sm" className="text-[12px] gap-1.5" onClick={() => setCreateOpen(true)}>

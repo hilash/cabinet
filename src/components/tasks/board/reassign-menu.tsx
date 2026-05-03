@@ -46,7 +46,7 @@ export function ReassignMenu({
         <DropdownMenuSeparator />
         {agents.length === 0 ? (
           <div className="px-2 py-1.5 text-[12px] text-muted-foreground">
-            No agents in this cabinet.
+            No agents in this space.
           </div>
         ) : (
           agents.map((agent) => {

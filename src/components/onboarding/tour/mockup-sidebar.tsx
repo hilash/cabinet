@@ -30,8 +30,8 @@ interface MockupSidebarProps {
    */
   tabsPopInDelay?: number;
   /**
-   * Cabinet header title. Defaults to "Hila's Cabinet" to match the
-   * sidebar; the intro slide overrides to the generic "Cabinet".
+   * Space header title. Defaults to "Thor's Workspace" to match the
+   * sidebar; the intro slide overrides to the generic Optale label.
    */
   title?: string;
   /**
@@ -65,7 +65,7 @@ export function MockupSidebar({
   hideBody = false,
   tabsPopIn = false,
   tabsPopInDelay = 900,
-  title = "Hila's Cabinet",
+  title = "Thor's Workspace",
   titleDelay = 0,
   headerBadge = "+1",
   viewTransitionName,
@@ -122,7 +122,7 @@ export function MockupSidebar({
       {!hideTabs && (
         <div
           role="tablist"
-          aria-label="Cabinet drawers"
+          aria-label="Space drawers"
           className="mx-[9px] grid grid-cols-3 gap-1 rounded-b-lg p-1 pt-2"
           style={{
             background: "rgba(243, 237, 228, 0.7)",

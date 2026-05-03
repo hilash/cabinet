@@ -65,7 +65,7 @@ function SlideWhatIsSkill() {
         <>
           A skill is a drop-in playbook your agent can pull in for a task —
           image generation, SEO research, code review, ops integrations.
-          Cabinet ships a few; the rest you install from{" "}
+          Optale Observatory ships a few; the rest you install from{" "}
           <code style={{ background: P.paperWarm, padding: "1px 6px", borderRadius: 4 }}>
             skills.sh
           </code>
@@ -205,7 +205,7 @@ function SlideInstall() {
           <code style={{ background: P.paperWarm, padding: "1px 6px", borderRadius: 4 }}>
             npx skills add
           </code>
-          . Cabinet clones the bundle into{" "}
+          . Optale Observatory clones the bundle into{" "}
           <code style={{ background: P.paperWarm, padding: "1px 6px", borderRadius: 4 }}>
             .agents/skills/
           </code>{" "}

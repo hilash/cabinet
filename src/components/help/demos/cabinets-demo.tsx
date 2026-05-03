@@ -36,7 +36,7 @@ function CardChrome({ width = 320, children }: { width?: number; children: React
 function SlideNested() {
   type Node = { label: string; depth: number; emphasis?: boolean; sub?: boolean; muted?: boolean };
   const tree: Node[] = [
-    { label: "My Cabinet", depth: 0, emphasis: true },
+    { label: "My Space", depth: 0, emphasis: true },
     { label: "Marketing", depth: 1 },
     { label: "Brand", depth: 2, muted: true },
     { label: "Growth", depth: 2, muted: true },
@@ -142,7 +142,7 @@ function SlideEachATeam() {
             className="ml-auto text-[10px]"
             style={{ color: P.textTertiary }}
           >
-            child of My Cabinet
+            child of My Space
           </span>
         </div>
 
@@ -256,7 +256,7 @@ function SlideVisibility() {
         <>
           Just like in a real org — the CEO can peek at the C-suite&apos;s
           work, then zoom all the way down to the people on the ground. You
-          decide: just this cabinet&apos;s tasks and agents, the close teams,
+          decide: just this space&apos;s tasks and agents, the close teams,
           or everyone, all the way down.
         </>
       }
@@ -362,7 +362,7 @@ function SlideContextFlows() {
           >
             <Archive className="h-3.5 w-3.5" style={{ color: P.iconAmber }} />
             <span className="text-[11.5px] font-semibold" style={{ color: P.text }}>
-              My Cabinet
+              My Space
             </span>
             <span
               className="ml-auto rounded-full px-1.5 py-0.5 text-[8.5px] font-semibold"

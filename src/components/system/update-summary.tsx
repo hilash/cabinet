@@ -59,7 +59,7 @@ export function UpdateSummary({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <CloudDownload className="h-4 w-4" />
-            <h3 className="text-sm font-semibold">Cabinet Updates</h3>
+            <h3 className="text-sm font-semibold">Optale Observatory Updates</h3>
           </div>
           <p className="text-xs text-muted-foreground">
             Current {update.current.version}
@@ -88,7 +88,7 @@ export function UpdateSummary({
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <p>
-              Cabinet is experimental and evolving fast. Keep a copy of your data before updating.
+              Optale Observatory is experimental and evolving fast. Keep a copy of your data before updating.
             </p>
           </div>
         </div>

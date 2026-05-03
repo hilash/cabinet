@@ -35,7 +35,7 @@ export function FileFallbackViewer({ path }: FileFallbackViewerProps) {
           <div className="space-y-1">
             <p className="text-sm font-medium">{filename}</p>
             <p className="text-xs text-muted-foreground">
-              This file type can&apos;t be previewed in Cabinet.
+              This file type can&apos;t be previewed in Optale Observatory.
             </p>
           </div>
           <div className="flex items-center gap-2">

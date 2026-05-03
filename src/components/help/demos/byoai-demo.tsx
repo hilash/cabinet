@@ -55,7 +55,7 @@ function SlideBring() {
       }
       description={
         <>
-          Cabinet doesn&apos;t add another subscription. Plug in the providers
+          Optale Observatory doesn&apos;t add another subscription. Plug in the providers
           you already use — Claude, GPT, Gemini, Grok, Codex, Cursor — and
           your tokens stay yours.
         </>
@@ -217,7 +217,7 @@ function SlideKeys() {
       description={
         <>
           API keys live on your machine. Tokens go straight from your
-          provider to your wallet — Cabinet never proxies, never marks up,
+          provider to your wallet — Optale Observatory never proxies, never marks up,
           never sees the conversation. Works with Claude Code subscriptions
           too, no API key required.
         </>

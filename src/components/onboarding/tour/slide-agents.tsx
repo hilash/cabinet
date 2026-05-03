@@ -152,7 +152,7 @@ export function SlideAgents() {
           02 &middot; AGENTS
         </span>
         <h2
-          className="font-logo text-4xl italic tracking-tight opacity-0 lg:text-5xl"
+          className="font-sans font-semibold text-4xl tracking-normal opacity-0 lg:text-5xl"
           style={{
             color: P.text,
             animation: "cabinet-tour-fade-up 0.5s ease-out forwards",
