@@ -66,7 +66,7 @@ test("readConversationTurns synthesizes turn 1 from prompt + transcript on a sin
   assert.match(turns[1].content, /I created the poem/);
 });
 
-test("readConversationTurns returns only user turn 1 when the conversation is still running", async () => {
+test("readConversationTurns synthesizes a pending agent placeholder while turn 1 is still running", async () => {
   const meta = await store.createConversation({
     agentSlug: "general",
     title: "In flight",
@@ -74,8 +74,15 @@ test("readConversationTurns returns only user turn 1 when the conversation is st
     prompt: "User request:\ndo something",
   });
   const turns = await store.readConversationTurns(meta.id);
-  assert.equal(turns.length, 1);
+  assert.equal(turns.length, 2, "turn 1 user + pending turn 1 agent");
   assert.equal(turns[0].role, "user");
+  assert.equal(turns[0].turn, 1);
+  assert.match(turns[0].content, /do something/);
+  assert.equal(turns[1].role, "agent");
+  assert.equal(turns[1].turn, 1);
+  assert.equal(turns[1].content, "Working on it…");
+  assert.equal(turns[1].pending, true);
+  assert.equal(turns[1].ts, meta.startedAt);
 });
 
 test("appendUserTurn + appendAgentTurn build up multi-turn state and aggregate tokens", async () => {
