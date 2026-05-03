@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Command,
+  Copy,
   GitBranch,
   Loader2,
   Play,
@@ -209,6 +210,41 @@ function inspectorValue(value: InspectorValue): string {
   return String(value);
 }
 
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyValue = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setCopied(false);
+    }
+  }, [value]);
+
+  return (
+    <button
+      type="button"
+      onClick={copyValue}
+      title={copied ? "Copied" : `Copy ${label}`}
+      aria-label={copied ? "Copied" : `Copy ${label}`}
+      className={cn(
+        "inline-flex size-6 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:text-foreground",
+        copied
+          ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          : "border-border bg-background",
+      )}
+    >
+      {copied ? (
+        <CheckCircle2 className="size-3.5" />
+      ) : (
+        <Copy className="size-3.5" />
+      )}
+    </button>
+  );
+}
+
 function InspectorPanel({
   title,
   subtitle,
@@ -255,12 +291,15 @@ function InspectorPanel({
       </div>
 
       {href && href !== "#" ? (
-        <a
-          href={href}
-          className="mt-3 inline-flex rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Open source
-        </a>
+        <div className="mt-3 flex items-center gap-1.5">
+          <a
+            href={href}
+            className="inline-flex rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Open source
+          </a>
+          <CopyButton value={href} label="source link" />
+        </div>
       ) : null}
 
       {visibleFields.length > 0 ? (
@@ -270,8 +309,14 @@ function InspectorPanel({
               key={field.label}
               className="rounded-md border border-border/70 bg-background px-2 py-1.5"
             >
-              <div className="text-[10px] font-medium text-muted-foreground">
-                {field.label}
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[10px] font-medium text-muted-foreground">
+                  {field.label}
+                </div>
+                <CopyButton
+                  value={inspectorValue(field.value)}
+                  label={field.label}
+                />
               </div>
               <div className="mt-0.5 break-words text-xs text-foreground">
                 {inspectorValue(field.value)}
@@ -296,8 +341,14 @@ function InspectorPanel({
                 key={`${item.label}:${index}`}
                 className="rounded-md border border-border/70 bg-background px-2 py-1.5"
               >
-                <div className="text-[10px] font-medium text-muted-foreground">
-                  {item.label}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[10px] font-medium text-muted-foreground">
+                    {item.label}
+                  </div>
+                  <CopyButton
+                    value={inspectorValue(item.value)}
+                    label={item.label}
+                  />
                 </div>
                 <div className="mt-0.5 break-words text-xs text-foreground">
                   {inspectorValue(item.value)}
@@ -327,8 +378,11 @@ function InspectorPanel({
                     {ref.status}
                   </span>
                 </div>
-                <div className="mt-0.5 break-all text-[11px] text-foreground">
-                  {ref.ref}
+                <div className="mt-1 flex items-start gap-2">
+                  <div className="min-w-0 flex-1 break-all text-[11px] text-foreground">
+                    {ref.ref}
+                  </div>
+                  <CopyButton value={ref.ref} label={`${ref.capability} ref`} />
                 </div>
               </div>
             ))}
