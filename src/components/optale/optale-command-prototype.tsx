@@ -9,14 +9,12 @@ import {
   Brain,
   CheckCircle2,
   ChevronDown,
-  CircleDot,
   ClipboardList,
   Clock3,
   Database,
   Eye,
   FileText,
   GitBranch,
-  Home,
   KeyRound,
   ListChecks,
   MessageSquare,
@@ -27,10 +25,8 @@ import {
   Send,
   Settings,
   ShieldCheck,
-  Sparkles,
   SquareKanban,
   TerminalSquare,
-  UserPlus,
   Users,
   Waypoints,
   Workflow,
@@ -39,61 +35,68 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-export type PrototypeSurface = "workbench" | "brain" | "agents";
-type Drawer = "data" | "agents" | "tasks";
-type InspectorTab = "summary" | "evidence" | "trace" | "policy";
+export type PrototypeSurface = "chat" | "data" | "brain" | "agents" | "tasks";
+type PanelTab = "context" | "sources" | "inspect";
 type BrainMode = "overview" | "objects" | "actions" | "sources";
 
-type NavItem = {
+type PrimaryTab = {
   id: PrototypeSurface;
   label: string;
   icon: LucideIcon;
 };
 
-type DrawerItem = {
+type SidebarItem = {
   label: string;
   meta: string;
   icon: LucideIcon;
   active?: boolean;
 };
 
-const NAV_ITEMS: NavItem[] = [
-  { id: "workbench", label: "Workbench", icon: Home },
+const PRIMARY_TABS: PrimaryTab[] = [
+  { id: "chat", label: "Chat", icon: MessageSquare },
+  { id: "data", label: "Data", icon: FileText },
   { id: "brain", label: "Brain", icon: Brain },
   { id: "agents", label: "Agents", icon: Users },
+  { id: "tasks", label: "Tasks", icon: SquareKanban },
 ];
 
-const DATA_ITEMS: DrawerItem[] = [
-  { label: "Company Brain", meta: "space", icon: Archive, active: true },
-  { label: "Vault", meta: "files and notes", icon: FileText },
-  { label: "CRM Objects", meta: "object set", icon: Boxes },
-  { label: "Source Inbox", meta: "12 pending", icon: Database },
-];
-
-const AGENT_ITEMS: DrawerItem[] = [
-  { label: "Operator", meta: "ready", icon: Bot, active: true },
-  { label: "Research", meta: "ready", icon: Search },
-  { label: "Builder", meta: "idle", icon: Workflow },
-  { label: "Reviewer", meta: "approval", icon: ShieldCheck },
-];
-
-const TASK_ITEMS: DrawerItem[] = [
-  { label: "Approve CRM merge", meta: "needs review", icon: ListChecks, active: true },
-  { label: "Map sales source", meta: "running", icon: GitBranch },
-  { label: "Clean stale contacts", meta: "queued", icon: Clock3 },
-];
+const SIDEBAR_ITEMS: Record<PrototypeSurface, SidebarItem[]> = {
+  chat: [
+    { label: "Operator chat", meta: "current", icon: MessageSquare, active: true },
+    { label: "Sales brief", meta: "saved", icon: Archive },
+    { label: "Source mapping", meta: "running", icon: Workflow },
+    { label: "Friday follow-up", meta: "draft", icon: Clock3 },
+  ],
+  data: [
+    { label: "Company Brain", meta: "space", icon: Archive, active: true },
+    { label: "Vault", meta: "files", icon: FileText },
+    { label: "CRM Objects", meta: "object set", icon: Boxes },
+    { label: "Source Inbox", meta: "12 pending", icon: Database },
+  ],
+  brain: [
+    { label: "Operating map", meta: "overview", icon: Network, active: true },
+    { label: "Object types", meta: "4", icon: Boxes },
+    { label: "Action types", meta: "32", icon: Workflow },
+    { label: "Policies", meta: "gated", icon: ShieldCheck },
+  ],
+  agents: [
+    { label: "Operator", meta: "ready", icon: Bot, active: true },
+    { label: "Research", meta: "ready", icon: Search },
+    { label: "Builder", meta: "idle", icon: Workflow },
+    { label: "Reviewer", meta: "watching", icon: ShieldCheck },
+  ],
+  tasks: [
+    { label: "Approve CRM merge", meta: "review", icon: ListChecks, active: true },
+    { label: "Map sales source", meta: "running", icon: GitBranch },
+    { label: "Clean stale contacts", meta: "queued", icon: Clock3 },
+  ],
+};
 
 const OBJECT_TYPES = [
   { name: "Account", count: "126", state: "healthy" },
   { name: "Person", count: "842", state: "healthy" },
   { name: "Opportunity", count: "48", state: "mapping" },
   { name: "Conversation", count: "1.9k", state: "indexed" },
-];
-
-const OBJECT_SETS = [
-  { name: "Warm enterprise opportunities", count: "18 objects", owner: "Operator" },
-  { name: "Contacts without next action", count: "71 objects", owner: "Reviewer" },
-  { name: "Open source mapping gaps", count: "9 objects", owner: "Builder" },
 ];
 
 const SOURCES = [
@@ -111,19 +114,14 @@ const AGENTS = [
 ];
 
 export function OptaleCommandPrototype({
-  initialSurface = "workbench",
+  initialSurface = "chat",
 }: {
   initialSurface?: PrototypeSurface;
 }) {
   const [surface, setSurface] = useState<PrototypeSurface>(initialSurface);
-  const [drawer, setDrawer] = useState<Drawer>("data");
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("summary");
+  const [panelTab, setPanelTab] = useState<PanelTab>("context");
   const [brainMode, setBrainMode] = useState<BrainMode>("overview");
-  const drawerItems = useMemo(() => {
-    if (drawer === "agents") return AGENT_ITEMS;
-    if (drawer === "tasks") return TASK_ITEMS;
-    return DATA_ITEMS;
-  }, [drawer]);
+  const sidebarItems = useMemo(() => SIDEBAR_ITEMS[surface], [surface]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -131,34 +129,22 @@ export function OptaleCommandPrototype({
         <PrototypeSidebar
           surface={surface}
           onSurfaceChange={setSurface}
-          drawer={drawer}
-          onDrawerChange={setDrawer}
-          drawerItems={drawerItems}
+          sidebarItems={sidebarItems}
         />
 
         <section className="flex min-w-0 flex-1 flex-col border-t border-border/70 lg:border-l lg:border-t-0">
           <PrototypeHeader surface={surface} />
           <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {surface === "workbench" ? (
-                <WorkbenchSurface onInspect={setInspectorTab} />
-              ) : null}
+              {surface === "chat" ? <ChatSurface /> : null}
+              {surface === "data" ? <DataSurface /> : null}
               {surface === "brain" ? (
-                <BrainSurface
-                  mode={brainMode}
-                  onModeChange={setBrainMode}
-                  onInspect={setInspectorTab}
-                />
+                <BrainSurface mode={brainMode} onModeChange={setBrainMode} />
               ) : null}
-              {surface === "agents" ? (
-                <AgentsSurface onInspect={setInspectorTab} />
-              ) : null}
+              {surface === "agents" ? <AgentsSurface /> : null}
+              {surface === "tasks" ? <TasksSurface /> : null}
             </div>
-            <InspectorPanel
-              tab={inspectorTab}
-              onTabChange={setInspectorTab}
-              surface={surface}
-            />
+            <ContextPanel tab={panelTab} onTabChange={setPanelTab} surface={surface} />
           </div>
         </section>
       </div>
@@ -169,18 +155,14 @@ export function OptaleCommandPrototype({
 function PrototypeSidebar({
   surface,
   onSurfaceChange,
-  drawer,
-  onDrawerChange,
-  drawerItems,
+  sidebarItems,
 }: {
   surface: PrototypeSurface;
   onSurfaceChange: (surface: PrototypeSurface) => void;
-  drawer: Drawer;
-  onDrawerChange: (drawer: Drawer) => void;
-  drawerItems: DrawerItem[];
+  sidebarItems: SidebarItem[];
 }) {
   return (
-    <aside className="flex w-full shrink-0 flex-col bg-sidebar lg:h-screen lg:w-[292px]">
+    <aside className="flex w-full shrink-0 flex-col bg-sidebar lg:h-screen lg:w-[300px]">
       <div className="flex items-center justify-between px-4 py-3">
         <button
           type="button"
@@ -198,28 +180,36 @@ function PrototypeSidebar({
         </Button>
       </div>
 
-      <nav className="space-y-1 border-b border-sidebar-border/70 px-2 pb-2">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const active = surface === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onSurfaceChange(item.id)}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium transition-colors",
-                active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-              )}
-            >
-              <Icon className="size-3.5 shrink-0" />
-              <span className="min-w-0 truncate">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <div className="border-y border-sidebar-border/70 px-2 py-2">
+        <div
+          role="tablist"
+          aria-label="Optale Command sections"
+          className="grid grid-cols-5 gap-1 rounded-lg bg-muted/45 p-1"
+        >
+          {PRIMARY_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const active = surface === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => onSurfaceChange(tab.id)}
+                className={cn(
+                  "relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-md px-1 text-[8px] font-semibold uppercase tracking-[0.08em] transition-colors",
+                  active
+                    ? "bg-background text-foreground shadow-sm ring-1 ring-border/70"
+                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                )}
+              >
+                <Icon className="size-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
         <div className="rounded-lg bg-muted/60 px-2.5 py-1.5 ring-1 ring-border/60">
@@ -235,43 +225,15 @@ function PrototypeSidebar({
           </button>
         </div>
 
-        <div
-          role="tablist"
-          aria-label="Space drawers"
-          className="mx-[9px] grid grid-cols-3 gap-1 rounded-b-lg border border-border/60 bg-muted/40 p-1 pt-2"
-        >
-          <DrawerTab
-            active={drawer === "data"}
-            label="Data"
-            icon={FileText}
-            addIcon={Plus}
-            onClick={() => onDrawerChange("data")}
-          />
-          <DrawerTab
-            active={drawer === "agents"}
-            label="Agents"
-            icon={Users}
-            addIcon={UserPlus}
-            onClick={() => onDrawerChange("agents")}
-          />
-          <DrawerTab
-            active={drawer === "tasks"}
-            label="Tasks"
-            icon={SquareKanban}
-            addIcon={Plus}
-            onClick={() => onDrawerChange("tasks")}
-          />
-        </div>
-
-        <div className="mt-2 space-y-1">
-          {drawerItems.map((item) => {
+        <div className="mt-3 space-y-1">
+          {sidebarItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
-                key={`${drawer}-${item.label}`}
+                key={`${surface}-${item.label}`}
                 type="button"
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12px] transition-colors",
+                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors",
                   item.active
                     ? "bg-accent text-accent-foreground"
                     : "text-foreground/75 hover:bg-foreground/[0.03] hover:text-foreground"
@@ -301,71 +263,21 @@ function PrototypeSidebar({
   );
 }
 
-function DrawerTab({
-  active,
-  label,
-  icon: Icon,
-  addIcon: AddIcon,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  icon: LucideIcon;
-  addIcon: LucideIcon;
-  onClick: () => void;
-}) {
-  return (
-    <div className="group relative">
-      <button
-        type="button"
-        role="tab"
-        aria-selected={active}
-        onClick={onClick}
-        className={cn(
-          "relative flex w-full flex-col items-center gap-0.5 rounded-md px-1.5 pb-2 pt-3 transition-all",
-          active
-            ? "-translate-y-px bg-background text-foreground shadow-sm ring-1 ring-border/70"
-            : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
-        )}
-      >
-        <span
-          aria-hidden
-          className={cn(
-            "absolute left-1/2 top-1 h-[2px] w-4 -translate-x-1/2 rounded-full",
-            active ? "bg-amber-400/50" : "bg-muted-foreground/30"
-          )}
-        />
-        <Icon className="size-[18px]" />
-        <span className="text-[8px] font-semibold uppercase tracking-[0.1em]">
-          {label}
-        </span>
-      </button>
-      {active ? (
-        <button
-          type="button"
-          aria-label={`Add ${label}`}
-          className="absolute right-1 top-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground/70 opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
-        >
-          <AddIcon className="size-3" />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
 function PrototypeHeader({ surface }: { surface: PrototypeSurface }) {
-  const title =
-    surface === "brain"
-      ? "Brain"
-      : surface === "agents"
-        ? "Agents"
-        : "Workbench";
-  const eyebrow =
-    surface === "brain"
-      ? "Operating map"
-      : surface === "agents"
-        ? "Roster and conversations"
-        : "Command cockpit";
+  const title = {
+    chat: "Operator Chat",
+    data: "Knowledge Base",
+    brain: "Brain",
+    agents: "Agents",
+    tasks: "Tasks",
+  }[surface];
+  const eyebrow = {
+    chat: "conversation workspace",
+    data: "files, pages, views",
+    brain: "operating map",
+    agents: "roster and routines",
+    tasks: "explicit work",
+  }[surface];
 
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/95 px-4 py-2.5 sm:px-6">
@@ -379,15 +291,15 @@ function PrototypeHeader({ surface }: { surface: PrototypeSurface }) {
       </div>
       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <CountPill label="objects" value="1.4k" />
-        <CountPill label="actions" value="32" />
         <CountPill label="sources" value="8" />
+        <CountPill label="agents" value="4" />
       </div>
       <div className="ml-auto flex items-center gap-2">
         <Button variant="outline" size="sm">
           <Search className="size-3.5" />
           Search
         </Button>
-        <Button variant="ghost" size="icon-sm" aria-label="Open inspector">
+        <Button variant="ghost" size="icon-sm" aria-label="Context panel">
           <PanelRight className="size-3.5" />
         </Button>
       </div>
@@ -395,103 +307,100 @@ function PrototypeHeader({ surface }: { surface: PrototypeSurface }) {
   );
 }
 
-function WorkbenchSurface({
-  onInspect,
-}: {
-  onInspect: (tab: InspectorTab) => void;
-}) {
+function ChatSurface() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
-      <section className="mb-7">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            <ContextChip icon={Archive} label="Thor / Optale" />
-            <ContextChip icon={Boxes} label="Warm enterprise opportunities" />
-            <ContextChip icon={ShieldCheck} label="approval required" />
-          </div>
-          <CommandComposer />
-          <div className="flex flex-wrap justify-center gap-1.5">
-            <QuietAction icon={Sparkles} label="Summarize state" />
-            <QuietAction icon={Waypoints} label="Find next actions" />
-            <QuietAction icon={ListChecks} label="Prepare approval" />
-          </div>
+    <div className="mx-auto flex min-h-[calc(100vh-58px)] w-full max-w-4xl flex-col px-4 py-5 sm:px-6">
+      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+        <ContextChip icon={Archive} label="Thor / Optale" />
+        <ContextChip icon={Boxes} label="Warm opportunities" />
+        <ContextChip icon={FileText} label="q2-sales-brief.md" />
+        <ContextChip icon={ShieldCheck} label="approval gated" />
+      </div>
+
+      <div className="flex-1 space-y-4">
+        <ChatMessage by="assistant">
+          I have the sales brief, CRM object set, and recent source notes in
+          context. What should we work through?
+        </ChatMessage>
+        <ChatMessage by="user">
+          Which accounts need a next step before Friday?
+        </ChatMessage>
+        <ChatMessage by="assistant">
+          I found 18 warm accounts. Five do not have a next action, and two have
+          stale owner assignments. I can open the object set, draft follow-ups,
+          or prepare a governed CRM update for review.
+        </ChatMessage>
+        <div className="ml-11 flex flex-wrap gap-1.5">
+          <QuietAction icon={Boxes} label="Open object set" />
+          <QuietAction icon={FileText} label="Draft brief" />
+          <QuietAction icon={Workflow} label="Propose action" />
+        </div>
+      </div>
+
+      <div className="sticky bottom-0 mt-6 bg-background pb-3 pt-2">
+        <CommandComposer />
+      </div>
+    </div>
+  );
+}
+
+function DataSurface() {
+  return (
+    <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <section className="rounded-md border border-border bg-card">
+        <div className="border-b border-border/70 px-3 py-2">
+          <h2 className="text-[13px] font-semibold">Company Brain</h2>
+          <p className="text-[11px] text-muted-foreground">Files and generated views</p>
+        </div>
+        <div className="space-y-1 p-2">
+          <TreeRow depth={0} label="strategy" active />
+          <TreeRow depth={1} label="q2-sales-brief" />
+          <TreeRow depth={1} label="market-map" />
+          <TreeRow depth={0} label="crm" />
+          <TreeRow depth={1} label="warm-opportunities.csv" />
+          <TreeRow depth={1} label="account-object-set" />
+          <TreeRow depth={0} label="sources" />
+          <TreeRow depth={1} label="call-notes" />
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
-        <div className="space-y-5">
-          <SectionHeader title="Active work" meta="3 threads" />
-          <div className="grid gap-3 md:grid-cols-3">
-            <WorkCard
-              icon={MessageSquare}
-              title="Conversation"
-              label="Manual chat"
-              body="Review warm opportunities and draft the next operator brief."
-              active
-            />
-            <WorkCard
-              icon={ClipboardList}
-              title="Task"
-              label="Board item"
-              body="Approve CRM merge after Reviewer validates mapped fields."
-            />
-            <WorkCard
-              icon={Workflow}
-              title="Action run"
-              label="Governed action"
-              body="Map 12 source records into Account and Person objects."
-            />
+      <section className="min-w-0 rounded-md border border-border bg-card">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[15px] font-semibold tracking-normal">
+              Q2 Sales Brief
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Updated by Operator · 6 minutes ago · linked to CRM object set
+            </p>
           </div>
-
-          <SectionHeader title="Current object set" meta="18 objects" />
-          <div className="rounded-md border border-border bg-card">
-            <div className="grid gap-px bg-border/70 md:grid-cols-3">
-              {OBJECT_SETS.map((set) => (
-                <button
-                  key={set.name}
-                  type="button"
-                  onClick={() => onInspect("evidence")}
-                  className="bg-card p-3 text-left transition-colors hover:bg-muted/30"
-                >
-                  <div className="flex items-center gap-2">
-                    <Boxes className="size-3.5 text-muted-foreground" />
-                    <span className="min-w-0 truncate text-[13px] font-medium">
-                      {set.name}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                    <span>{set.count}</span>
-                    <span>{set.owner}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+          <ViewToggle active icon={FileText} label="Page" />
+          <ViewToggle icon={Database} label="Table" />
+          <ViewToggle icon={Network} label="Graph" />
         </div>
-
-        <div className="space-y-5">
-          <SectionHeader title="Next decisions" meta="approval queue" />
-          <div className="space-y-2">
-            <DecisionRow
-              title="CRM merge"
-              detail="12 records, 2 conflicts"
-              tone="amber"
-              onInspect={() => onInspect("policy")}
-            />
-            <DecisionRow
-              title="Source promotion"
-              detail="Vault to company brain"
-              tone="green"
-              onInspect={() => onInspect("trace")}
-            />
-            <DecisionRow
-              title="Graphiti memory"
-              detail="connected, no episodes"
-              tone="neutral"
-              onInspect={() => onInspect("summary")}
-            />
+        <article className="mx-auto max-w-3xl px-5 py-7">
+          <h3 className="mb-3 text-2xl font-semibold tracking-normal">
+            Accounts needing next action
+          </h3>
+          <p className="mb-5 text-[14px] leading-7 text-muted-foreground">
+            Five warm enterprise opportunities have no next action before
+            Friday. The highest-confidence next move is to prepare short,
+            owner-specific follow-ups and hold CRM writes for approval.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <DocStat label="Warm accounts" value="18" />
+            <DocStat label="Missing next action" value="5" />
+            <DocStat label="Owner conflicts" value="2" />
           </div>
-        </div>
+          <div className="mt-6 rounded-md border border-border bg-muted/25 p-4">
+            <h4 className="mb-2 text-[13px] font-semibold">Generated object view</h4>
+            <p className="text-[13px] leading-6 text-muted-foreground">
+              This page is editable like Cabinet, but it can also expose object
+              sets, citations, tables, and graph pivots without leaving the
+              knowledge base.
+            </p>
+          </div>
+        </article>
       </section>
     </div>
   );
@@ -500,14 +409,12 @@ function WorkbenchSurface({
 function BrainSurface({
   mode,
   onModeChange,
-  onInspect,
 }: {
   mode: BrainMode;
   onModeChange: (mode: BrainMode) => void;
-  onInspect: (tab: InspectorTab) => void;
 }) {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <SegmentedButton
           active={mode === "overview"}
@@ -535,237 +442,328 @@ function BrainSurface({
         />
       </div>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <div className="space-y-5">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="rounded-md border border-border bg-card p-4">
           <SectionHeader title="Operating map" meta="Action Graph source" />
-          <ObjectMap onInspect={() => onInspect("evidence")} />
-          <div className="grid gap-3 md:grid-cols-2">
-            {OBJECT_TYPES.map((type) => (
-              <button
-                key={type.name}
-                type="button"
-                onClick={() => onInspect("summary")}
-                className="rounded-md border border-border bg-card p-3 text-left transition-colors hover:bg-muted/30"
-              >
-                <div className="flex items-center gap-2">
-                  <Boxes className="size-3.5 text-muted-foreground" />
-                  <span className="text-[13px] font-medium">{type.name}</span>
-                  <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                    {type.state}
-                  </span>
-                </div>
-                <div className="mt-3 text-2xl font-semibold tracking-normal">
-                  {type.count}
-                </div>
-              </button>
-            ))}
-          </div>
+          <ObjectMap />
         </div>
-
-        <div className="space-y-5">
-          <SectionHeader title="Sources" meta="progressive detail" />
-          <div className="rounded-md border border-border bg-card">
-            {SOURCES.map((source, index) => (
-              <button
-                key={source.name}
-                type="button"
-                onClick={() =>
-                  onInspect(source.state === "Empty" ? "trace" : "summary")
-                }
-                className={cn(
-                  "flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/30",
-                  index > 0 && "border-t border-border/70"
-                )}
-              >
-                <StatusDot state={source.state} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">
-                    {source.name}
-                  </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    {source.detail}
-                  </span>
-                </span>
-                <ArrowRight className="size-3.5 text-muted-foreground" />
-              </button>
-            ))}
-          </div>
-
-          <SectionHeader title="Management" meta="later layer" />
-          <div className="grid gap-2">
-            <ManagementRow icon={Boxes} title="Object types" detail="schema, properties, links" />
-            <ManagementRow icon={Workflow} title="Action types" detail="verbs, criteria, approvals" />
-            <ManagementRow icon={KeyRound} title="Policies" detail="access, write gates, denials" />
-          </div>
+        <div className="space-y-3">
+          {OBJECT_TYPES.map((type) => (
+            <button
+              key={type.name}
+              type="button"
+              className="flex w-full items-center gap-3 rounded-md border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted/30"
+            >
+              <Boxes className="size-4 text-muted-foreground" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium">{type.name}</span>
+                <span className="block text-[11px] text-muted-foreground">{type.count} objects</span>
+              </span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                {type.state}
+              </span>
+            </button>
+          ))}
         </div>
       </section>
     </div>
   );
 }
 
-function AgentsSurface({
-  onInspect,
-}: {
-  onInspect: (tab: InspectorTab) => void;
-}) {
+function AgentsSurface() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
-      <section className="grid gap-5 xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1.15fr)]">
-        <div className="space-y-5">
-          <SectionHeader title="AI team" meta="4 agents" />
-          <div className="rounded-md border border-border bg-card">
-            {AGENTS.map((agent, index) => (
-              <button
-                key={agent.name}
-                type="button"
-                onClick={() => onInspect("summary")}
-                className={cn(
-                  "flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/30",
-                  index > 0 && "border-t border-border/70"
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex size-8 shrink-0 items-center justify-center rounded-md text-white",
-                    agent.accent
-                  )}
-                >
-                  <Bot className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">
-                    {agent.name}
-                  </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    {agent.role}
-                  </span>
-                </span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                  {agent.status}
-                </span>
-              </button>
-            ))}
-          </div>
+    <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <section className="rounded-md border border-border bg-card">
+        <div className="border-b border-border/70 px-3 py-2">
+          <h2 className="text-[13px] font-semibold">AI team</h2>
+          <p className="text-[11px] text-muted-foreground">Roster first, harness later</p>
+        </div>
+        {AGENTS.map((agent, index) => (
+          <button
+            key={agent.name}
+            type="button"
+            className={cn(
+              "flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/30",
+              index > 0 && "border-t border-border/70"
+            )}
+          >
+            <span className={cn("flex size-8 items-center justify-center rounded-md text-white", agent.accent)}>
+              <Bot className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-medium">{agent.name}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">{agent.role}</span>
+            </span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+              {agent.status}
+            </span>
+          </button>
+        ))}
+      </section>
 
-          <details className="rounded-md border border-border bg-card p-3">
+      <section className="rounded-md border border-border bg-card">
+        <div className="border-b border-border/70 px-4 py-3">
+          <h2 className="text-[15px] font-semibold tracking-normal">Operator</h2>
+          <p className="text-[11px] text-muted-foreground">
+            Daily command agent · can read Brain and propose actions
+          </p>
+        </div>
+        <div className="space-y-4 p-4">
+          <ChatMessage by="assistant">
+            I can answer against the current space, open pages, or prepare tracked
+            work only when you choose to turn the conversation into a task.
+          </ChatMessage>
+          <CommandComposer compact />
+          <details className="rounded-md border border-border bg-muted/20 p-3">
             <summary className="cursor-pointer text-[13px] font-medium">
-              Agent harness
+              Harness and provider details
             </summary>
             <div className="mt-3 grid gap-2 text-[11px] text-muted-foreground">
-              <HarnessRow label="Provider" value="Claude Code" />
-              <HarnessRow label="Model route" value="Sonnet, fallback OpenRouter" />
-              <HarnessRow label="MCP policy" value="read default, write by approval" />
-              <HarnessRow label="Artifacts" value="logs, diffs, traces" />
+              <KeyValue label="Provider" value="Claude Code" />
+              <KeyValue label="MCP policy" value="read default, write gated" />
+              <KeyValue label="Artifacts" value="logs, diffs, traces" />
             </div>
           </details>
         </div>
-
-        <div className="space-y-5">
-          <SectionHeader title="Conversation" meta="manual chat" />
-          <div className="rounded-md border border-border bg-card">
-            <div className="border-b border-border/70 px-3 py-2">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <ContextChip icon={MessageSquare} label="Conversation" />
-                <ContextChip icon={Boxes} label="CRM object set" />
-                <ContextChip icon={Eye} label="citations on" />
-              </div>
-            </div>
-            <div className="space-y-3 p-3">
-              <ChatBubble by="user">
-                Which accounts need a next step before Friday?
-              </ChatBubble>
-              <ChatBubble by="agent">
-                I found 18 warm accounts. 5 have no next action and 2 have stale
-                owner assignments.
-              </ChatBubble>
-              <div className="flex flex-wrap gap-1.5">
-                <QuietAction icon={Boxes} label="Open object set" />
-                <QuietAction icon={ListChecks} label="Create task" />
-                <QuietAction icon={Workflow} label="Propose action" />
-              </div>
-            </div>
-            <div className="border-t border-border/70 p-3">
-              <CommandComposer compact />
-            </div>
-          </div>
-
-          <SectionHeader title="Tasks are explicit" meta="not every chat" />
-          <div className="grid gap-3 md:grid-cols-2">
-            <WorkCard
-              icon={MessageSquare}
-              title="Manual conversation"
-              label="chat route"
-              body="Ask, inspect, and decide without creating a board task."
-              active
-            />
-            <WorkCard
-              icon={SquareKanban}
-              title="Tracked task"
-              label="task route"
-              body="Create when ownership, due date, or delivery state matters."
-            />
-          </div>
-        </div>
       </section>
     </div>
   );
 }
 
-function InspectorPanel({
+function TasksSurface() {
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6">
+      <SectionHeader title="Explicit tasks" meta="created only when work needs tracking" />
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <TaskColumn title="Review" items={["Approve CRM merge", "Check owner conflicts"]} />
+        <TaskColumn title="Running" items={["Map sales source"]} />
+        <TaskColumn title="Queued" items={["Clean stale contacts"]} />
+      </div>
+    </div>
+  );
+}
+
+function ContextPanel({
   tab,
   onTabChange,
   surface,
 }: {
-  tab: InspectorTab;
-  onTabChange: (tab: InspectorTab) => void;
+  tab: PanelTab;
+  onTabChange: (tab: PanelTab) => void;
   surface: PrototypeSurface;
 }) {
   return (
-    <aside className="border-t border-border/70 bg-card/50 xl:min-h-0 xl:w-[340px] xl:border-l xl:border-t-0">
+    <aside className="border-t border-border/70 bg-card/50 xl:min-h-0 xl:w-[360px] xl:border-l xl:border-t-0">
       <div className="sticky top-0 flex max-h-screen flex-col overflow-hidden">
         <div className="border-b border-border/70 px-3 py-2">
           <div className="flex items-center gap-2">
             <PanelRight className="size-3.5 text-muted-foreground" />
-            <h2 className="text-[13px] font-semibold">Inspector</h2>
+            <h2 className="text-[13px] font-semibold">Working Context</h2>
             <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
               {surface}
             </span>
           </div>
-          <div className="mt-2 grid grid-cols-4 gap-1">
-            <InspectorButton
-              active={tab === "summary"}
-              label="Summary"
-              onClick={() => onTabChange("summary")}
-            />
-            <InspectorButton
-              active={tab === "evidence"}
-              label="Evidence"
-              onClick={() => onTabChange("evidence")}
-            />
-            <InspectorButton
-              active={tab === "trace"}
-              label="Trace"
-              onClick={() => onTabChange("trace")}
-            />
-            <InspectorButton
-              active={tab === "policy"}
-              label="Policy"
-              onClick={() => onTabChange("policy")}
-            />
+          <div className="mt-2 grid grid-cols-3 gap-1">
+            <PanelButton active={tab === "context"} label="Context" onClick={() => onTabChange("context")} />
+            <PanelButton active={tab === "sources"} label="Sources" onClick={() => onTabChange("sources")} />
+            <PanelButton active={tab === "inspect"} label="Inspect" onClick={() => onTabChange("inspect")} />
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          {tab === "summary" ? <InspectorSummary /> : null}
-          {tab === "evidence" ? <InspectorEvidence /> : null}
-          {tab === "trace" ? <InspectorTrace /> : null}
-          {tab === "policy" ? <InspectorPolicy /> : null}
+          {tab === "context" ? <ContextTab /> : null}
+          {tab === "sources" ? <SourcesTab /> : null}
+          {tab === "inspect" ? <InspectTab /> : null}
         </div>
       </div>
     </aside>
   );
 }
 
-function InspectorButton({
+function ContextTab() {
+  return (
+    <div className="space-y-3">
+      <PanelBlock icon={Boxes} title="Active object set">
+        <KeyValue label="Name" value="Warm opportunities" />
+        <KeyValue label="Mode" value="dynamic query" />
+        <KeyValue label="Count" value="18 objects" />
+      </PanelBlock>
+      <PanelBlock icon={FileText} title="Knowledge base">
+        <EvidenceRow title="q2-sales-brief.md" detail="current editable brief" />
+        <EvidenceRow title="warm-opportunities.csv" detail="table view available" />
+        <EvidenceRow title="call-notes/" detail="source folder" />
+      </PanelBlock>
+      <PanelBlock icon={ListChecks} title="Approvals">
+        <ApprovalRow title="CRM merge" detail="12 record updates need review" />
+      </PanelBlock>
+    </div>
+  );
+}
+
+function SourcesTab() {
+  return (
+    <div className="space-y-2">
+      {SOURCES.map((source) => (
+        <button
+          key={source.name}
+          type="button"
+          className="flex w-full items-center gap-3 rounded-md border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted/30"
+        >
+          <StatusDot state={source.state} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-medium">{source.name}</span>
+            <span className="block truncate text-[11px] text-muted-foreground">{source.detail}</span>
+          </span>
+          <ArrowRight className="size-3.5 text-muted-foreground" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function InspectTab() {
+  return (
+    <div className="space-y-3">
+      <PanelBlock icon={Waypoints} title="Trace">
+        <MiniTimeline items={["retrieval.context", "oag.object_set.query", "policy.check", "assistant.response"]} />
+      </PanelBlock>
+      <PanelBlock icon={ShieldCheck} title="Policy">
+        <KeyValue label="Write mode" value="approval required" />
+        <KeyValue label="Denied fields" value="private notes" />
+      </PanelBlock>
+      <PanelBlock icon={KeyRound} title="Memory Graph">
+        <KeyValue label="Status" value="connected" />
+        <KeyValue label="Episodes" value="0" />
+      </PanelBlock>
+    </div>
+  );
+}
+
+function CommandComposer({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className="rounded-md border border-border bg-card shadow-sm">
+      <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2">
+        <ModePill active icon={MessageSquare} label="Chat" />
+        <ModePill icon={SquareKanban} label="Task" />
+        <ModePill icon={Workflow} label="Action" />
+      </div>
+      <div className="p-3">
+        <label className="sr-only" htmlFor={compact ? "command-compact" : "command-main"}>
+          Compose
+        </label>
+        <textarea
+          id={compact ? "command-compact" : "command-main"}
+          className={cn(
+            "w-full resize-none bg-transparent text-[14px] leading-6 outline-none placeholder:text-muted-foreground/70",
+            compact ? "min-h-12" : "min-h-24"
+          )}
+          placeholder="Message Operator..."
+          defaultValue=""
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm">
+            <Plus className="size-3.5" />
+            Context
+          </Button>
+          <Button variant="outline" size="sm">
+            <Eye className="size-3.5" />
+            Cite
+          </Button>
+          <Button size="sm" className="ml-auto">
+            <Send className="size-3.5" />
+            Send
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatMessage({ by, children }: { by: "user" | "assistant"; children: ReactNode }) {
+  const assistant = by === "assistant";
+  return (
+    <div className={cn("flex gap-3", !assistant && "justify-end")}>
+      {assistant ? (
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-emerald-500 text-white">
+          <Bot className="size-4" />
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          "max-w-[78%] rounded-md border px-3 py-2 text-[13px] leading-6",
+          assistant
+            ? "border-border bg-card"
+            : "border-primary/20 bg-primary text-primary-foreground"
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ObjectMap() {
+  return (
+    <div className="mt-3 grid gap-3 md:grid-cols-3">
+      <MapNode icon={Database} title="Sources" detail="Vault, CRM, calls" />
+      <MapNode active icon={Boxes} title="Objects" detail="Account, Person, Opportunity" />
+      <MapNode icon={Workflow} title="Actions" detail="approve, merge, assign" />
+      <MapNode icon={FileText} title="Evidence" detail="citations and pages" />
+      <MapNode icon={Bot} title="Agents" detail="Operator, Builder" />
+      <MapNode icon={ShieldCheck} title="Policy" detail="permissions and audit" />
+    </div>
+  );
+}
+
+function MapNode({
+  icon: Icon,
+  title,
+  detail,
+  active,
+}: {
+  icon: LucideIcon;
+  title: string;
+  detail: string;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "min-h-[112px] rounded-md border bg-card p-3 text-left transition-colors hover:bg-muted/30",
+        active ? "border-amber-400/60" : "border-border"
+      )}
+    >
+      <div className="mb-7 flex items-center gap-2">
+        <Icon className="size-4 text-muted-foreground" />
+        <span className="text-[13px] font-medium">{title}</span>
+      </div>
+      <p className="text-[11px] leading-5 text-muted-foreground">{detail}</p>
+    </button>
+  );
+}
+
+function TaskColumn({ title, items }: { title: string; items: string[] }) {
+  return (
+    <section className="rounded-md border border-border bg-card">
+      <div className="border-b border-border/70 px-3 py-2 text-[13px] font-semibold">
+        {title}
+      </div>
+      <div className="space-y-2 p-2">
+        {items.map((item) => (
+          <button
+            key={item}
+            type="button"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-left text-[12px] transition-colors hover:bg-muted/30"
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PanelButton({
   active,
   label,
   onClick,
@@ -791,314 +789,7 @@ function InspectorButton({
   );
 }
 
-function InspectorSummary() {
-  return (
-    <div className="space-y-3">
-      <InspectorBlock icon={Boxes} title="Selected object set">
-        <KeyValue label="Name" value="Warm enterprise opportunities" />
-        <KeyValue label="Mode" value="dynamic query" />
-        <KeyValue label="Freshness" value="6 minutes ago" />
-        <KeyValue label="Available actions" value="4" />
-      </InspectorBlock>
-      <InspectorBlock icon={CircleDot} title="State">
-        <MiniTimeline
-          items={[
-            "Source records indexed",
-            "Object set materialized",
-            "Agent cited object set",
-            "Approval waiting",
-          ]}
-        />
-      </InspectorBlock>
-    </div>
-  );
-}
-
-function InspectorEvidence() {
-  return (
-    <div className="space-y-3">
-      <InspectorBlock icon={FileText} title="Citations">
-        <EvidenceRow title="sales-notes.md" detail="mentions procurement timing" />
-        <EvidenceRow title="crm-export.csv" detail="owner and stage fields" />
-        <EvidenceRow title="call-summary.md" detail="follow-up requested" />
-      </InspectorBlock>
-      <InspectorBlock icon={Network} title="Links">
-        <KeyValue label="Accounts" value="18" />
-        <KeyValue label="People" value="43" />
-        <KeyValue label="Open opportunities" value="7" />
-      </InspectorBlock>
-    </div>
-  );
-}
-
-function InspectorTrace() {
-  return (
-    <div className="space-y-3">
-      <InspectorBlock icon={Waypoints} title="Trace">
-        <MiniTimeline
-          items={[
-            "retrieval.context",
-            "oag.object_set.query",
-            "policy.check",
-            "agent.response",
-          ]}
-        />
-      </InspectorBlock>
-      <InspectorBlock icon={Database} title="Graphiti Memory">
-        <KeyValue label="Status" value="connected" />
-        <KeyValue label="Episodes" value="0" />
-        <KeyValue label="Display" value="empty source, not product graph" />
-      </InspectorBlock>
-    </div>
-  );
-}
-
-function InspectorPolicy() {
-  return (
-    <div className="space-y-3">
-      <InspectorBlock icon={ShieldCheck} title="Approval">
-        <KeyValue label="Write mode" value="approval required" />
-        <KeyValue label="Criteria" value="2 passed, 1 needs review" />
-        <KeyValue label="Denied fields" value="private notes" />
-      </InspectorBlock>
-      <InspectorBlock icon={KeyRound} title="Scope">
-        <MiniTimeline items={["personal read", "company write gated", "audit logged"]} />
-      </InspectorBlock>
-    </div>
-  );
-}
-
-function CommandComposer({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className="rounded-md border border-border bg-card">
-      <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2">
-        <SegmentedMini active icon={MessageSquare} label="Chat" />
-        <SegmentedMini icon={SquareKanban} label="Task" />
-        <SegmentedMini icon={Workflow} label="Action" />
-      </div>
-      <div className="p-3">
-        <label className="sr-only" htmlFor={compact ? "command-compact" : "command-main"}>
-          Compose
-        </label>
-        <textarea
-          id={compact ? "command-compact" : "command-main"}
-          className={cn(
-            "min-h-16 w-full resize-none bg-transparent text-[14px] leading-6 outline-none placeholder:text-muted-foreground/70",
-            compact ? "min-h-10" : "sm:min-h-20"
-          )}
-          placeholder="Ask Operator to inspect the current object set..."
-          defaultValue=""
-        />
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Plus className="size-3.5" />
-            Context
-          </Button>
-          <Button variant="outline" size="sm">
-            <Eye className="size-3.5" />
-            Cite
-          </Button>
-          <Button size="sm" className="ml-auto">
-            <Send className="size-3.5" />
-            Send
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ObjectMap({ onInspect }: { onInspect: () => void }) {
-  return (
-    <div className="relative min-h-[300px] overflow-hidden rounded-md border border-border bg-card p-4">
-      <div className="absolute inset-x-8 top-[104px] h-px bg-border" />
-      <div className="absolute left-[30%] top-[104px] h-[112px] w-px bg-border" />
-      <div className="absolute right-[28%] top-[104px] h-[112px] w-px bg-border" />
-      <div className="grid min-h-[260px] grid-cols-1 gap-4 md:grid-cols-3">
-        <MapNode
-          icon={Database}
-          title="Sources"
-          detail="Vault, CRM, calls"
-          onClick={onInspect}
-        />
-        <MapNode
-          icon={Boxes}
-          title="Objects"
-          detail="Account, Person, Opportunity"
-          active
-          onClick={onInspect}
-        />
-        <MapNode
-          icon={Workflow}
-          title="Actions"
-          detail="approve, merge, assign"
-          onClick={onInspect}
-        />
-        <MapNode
-          icon={FileText}
-          title="Evidence"
-          detail="citations and media"
-          onClick={onInspect}
-        />
-        <MapNode
-          icon={Bot}
-          title="Agents"
-          detail="Operator, Builder"
-          onClick={onInspect}
-        />
-        <MapNode
-          icon={ShieldCheck}
-          title="Policy"
-          detail="permissions and audit"
-          onClick={onInspect}
-        />
-      </div>
-    </div>
-  );
-}
-
-function MapNode({
-  icon: Icon,
-  title,
-  detail,
-  active,
-  onClick,
-}: {
-  icon: LucideIcon;
-  title: string;
-  detail: string;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "relative z-10 flex min-h-[96px] flex-col justify-between rounded-md border bg-card p-3 text-left transition-colors hover:bg-muted/30",
-        active ? "border-amber-400/60 shadow-sm" : "border-border"
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <Icon className="size-4 text-muted-foreground" />
-        <span className="text-[13px] font-medium">{title}</span>
-      </div>
-      <p className="text-[11px] leading-5 text-muted-foreground">{detail}</p>
-    </button>
-  );
-}
-
-function WorkCard({
-  icon: Icon,
-  title,
-  label,
-  body,
-  active,
-}: {
-  icon: LucideIcon;
-  title: string;
-  label: string;
-  body: string;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "rounded-md border bg-card p-3 text-left transition-colors hover:bg-muted/30",
-        active ? "border-amber-400/60" : "border-border"
-      )}
-    >
-      <div className="mb-3 flex items-center gap-2">
-        <Icon className="size-4 text-muted-foreground" />
-        <span className="text-[13px] font-medium">{title}</span>
-      </div>
-      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        {label}
-      </div>
-      <p className="text-[12px] leading-5 text-muted-foreground">{body}</p>
-    </button>
-  );
-}
-
-function DecisionRow({
-  title,
-  detail,
-  tone,
-  onInspect,
-}: {
-  title: string;
-  detail: string;
-  tone: "amber" | "green" | "neutral";
-  onInspect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onInspect}
-      className="flex w-full items-center gap-3 rounded-md border border-border bg-card px-3 py-2.5 text-left transition-colors hover:bg-muted/30"
-    >
-      <span
-        className={cn(
-          "size-2 rounded-full",
-          tone === "amber" && "bg-amber-500",
-          tone === "green" && "bg-emerald-500",
-          tone === "neutral" && "bg-muted-foreground/40"
-        )}
-      />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium">{title}</span>
-        <span className="block truncate text-[11px] text-muted-foreground">
-          {detail}
-        </span>
-      </span>
-      <Eye className="size-3.5 text-muted-foreground" />
-    </button>
-  );
-}
-
-function ManagementRow({
-  icon: Icon,
-  title,
-  detail,
-}: {
-  icon: LucideIcon;
-  title: string;
-  detail: string;
-}) {
-  return (
-    <button
-      type="button"
-      className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2.5 text-left transition-colors hover:bg-muted/30"
-    >
-      <Icon className="size-4 text-muted-foreground" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium">{title}</span>
-        <span className="block truncate text-[11px] text-muted-foreground">
-          {detail}
-        </span>
-      </span>
-      <ArrowRight className="size-3.5 text-muted-foreground" />
-    </button>
-  );
-}
-
-function ChatBubble({ by, children }: { by: "user" | "agent"; children: ReactNode }) {
-  return (
-    <div
-      className={cn(
-        "max-w-[88%] rounded-md border px-3 py-2 text-[13px] leading-5",
-        by === "user"
-          ? "ml-auto border-primary/20 bg-primary text-primary-foreground"
-          : "border-border bg-muted/40"
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-function InspectorBlock({
+function PanelBlock({
   icon: Icon,
   title,
   children,
@@ -1127,9 +818,22 @@ function EvidenceRow({ title, detail }: { title: string; detail: string }) {
       <FileText className="size-3.5 text-muted-foreground" />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[12px] font-medium">{title}</span>
-        <span className="block truncate text-[10px] text-muted-foreground">
-          {detail}
-        </span>
+        <span className="block truncate text-[10px] text-muted-foreground">{detail}</span>
+      </span>
+    </button>
+  );
+}
+
+function ApprovalRow({ title, detail }: { title: string; detail: string }) {
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2 rounded-md bg-amber-500/10 px-2 py-2 text-left text-amber-700 dark:text-amber-300"
+    >
+      <ClipboardList className="size-3.5" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[12px] font-medium">{title}</span>
+        <span className="block truncate text-[10px]">{detail}</span>
       </span>
     </button>
   );
@@ -1157,15 +861,6 @@ function KeyValue({ label, value }: { label: string; value: string }) {
   );
 }
 
-function HarnessRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md bg-muted/35 px-2 py-1.5">
-      <span>{label}</span>
-      <span className="min-w-0 truncate text-right text-foreground">{value}</span>
-    </div>
-  );
-}
-
 function StatusDot({ state }: { state: string }) {
   return (
     <span
@@ -1176,6 +871,39 @@ function StatusDot({ state }: { state: string }) {
         state === "Empty" && "bg-muted-foreground/40"
       )}
     />
+  );
+}
+
+function TreeRow({
+  depth,
+  label,
+  active,
+}: {
+  depth: number;
+  label: string;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors hover:bg-muted/50",
+        active && "bg-accent text-accent-foreground"
+      )}
+      style={{ paddingLeft: `${depth * 14 + 8}px` }}
+    >
+      <FileText className="size-3.5 text-muted-foreground" />
+      <span className="min-w-0 truncate">{label}</span>
+    </button>
+  );
+}
+
+function DocStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <div className="text-2xl font-semibold tracking-normal">{value}</div>
+      <div className="mt-1 text-[11px] text-muted-foreground">{label}</div>
+    </div>
   );
 }
 
@@ -1218,6 +946,31 @@ function QuietAction({ icon: Icon, label }: { icon: LucideIcon; label: string })
   );
 }
 
+function ViewToggle({
+  active,
+  icon: Icon,
+  label,
+}: {
+  active?: boolean;
+  icon: LucideIcon;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium transition-colors",
+        active
+          ? "bg-foreground text-background"
+          : "border border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+      )}
+    >
+      <Icon className="size-3.5" />
+      {label}
+    </button>
+  );
+}
+
 function SegmentedButton({
   active,
   icon: Icon,
@@ -1247,7 +1000,7 @@ function SegmentedButton({
   );
 }
 
-function SegmentedMini({
+function ModePill({
   active,
   icon: Icon,
   label,

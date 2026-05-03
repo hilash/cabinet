@@ -14,10 +14,15 @@ export default async function OptaleCommandV2PrototypePage({
   searchParams: Promise<{ surface?: string }>;
 }) {
   const params = await searchParams;
+  const surface = params.surface === "workbench" ? "chat" : params.surface;
   const initialSurface: PrototypeSurface =
-    params.surface === "brain" || params.surface === "agents"
-      ? params.surface
-      : "workbench";
+    surface === "chat" ||
+    surface === "data" ||
+    surface === "brain" ||
+    surface === "agents" ||
+    surface === "tasks"
+      ? surface
+      : "chat";
 
   return <OptaleCommandPrototype initialSurface={initialSurface} />;
 }

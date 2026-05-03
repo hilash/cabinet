@@ -48,10 +48,21 @@ The prototype route is intentionally isolated at:
 
 It mocks:
 
-- Cabinet-style sidebar and drawers.
-- Workbench as the default first screen.
+- Cabinet-style sidebar and a single horizontal primary nav.
+- Chat as the default first screen.
 - Brain as the operating map.
 - Agents as a roster plus chat/task split.
-- Inspector as the third layer for evidence, trace, and policy.
+- Working Context as the right-side layer for KB context, sources, evidence, trace, and policy.
 
 It does not change routing, data contracts, backend calls, or current production behavior.
+
+## Iteration 2 Direction
+
+The first prototype still read too much like a dashboard. The second prototype makes the default surface an LLM-standard chat workspace:
+
+- Left: one coherent primary nav row for Chat, Data, Brain, Agents, and Tasks.
+- Beneath the primary nav: vertical items relevant to the selected section only.
+- Center: normal chat thread and composer for most work.
+- Right: working context, sources, and inspect tabs.
+- Data: Cabinet-like file/page view with alternate knowledge views.
+- Tasks: only explicit tracked work, not every conversation.
