@@ -18,6 +18,10 @@ import {
   isHiddenEntry,
 } from "@/lib/storage/path-utils";
 import { GLOBAL_AGENTS_DIR } from "@/lib/agents/persona-manager";
+import {
+  readCabinetOptaleScope,
+  resolveAgentOptaleScope,
+} from "@/lib/optale/scope-registry";
 import type {
   CabinetAgentSummary,
   CabinetJobSummary,
@@ -124,6 +128,7 @@ async function readCabinetReferenceByPath(
     description: manifest.description,
     path: virtualPath,
     cabinetDepth,
+    optaleScope: await readCabinetOptaleScope(virtualPath),
   };
 }
 
@@ -272,9 +277,15 @@ async function readAgentPersona(
     const { data, content } = matter(raw);
 
     const name = trimString(data.name) || slug;
-    const role = trimString(data.role) || content.trim().split("\n")[0] || "Cabinet agent";
+    const role =
+      trimString(data.role) || content.trim().split("\n")[0] || "Cabinet agent";
+    const optaleScope = await resolveAgentOptaleScope({
+      agentSlug: slug,
+      cabinetPath,
+      frontmatter: data,
+    });
 
-      return {
+    return {
       scopedId: buildCabinetScopedId(cabinetPath, "agent", slug),
       name,
       slug,
@@ -297,6 +308,7 @@ async function readAgentPersona(
       color: trimString(data.color) || undefined,
       avatar: trimString(data.avatar) || undefined,
       avatarExt: trimString(data.avatarExt) || undefined,
+      optaleScope,
     };
   } catch {
     return null;
@@ -405,7 +417,9 @@ async function readScopedCabinetData(
   return { agents, jobs };
 }
 
-function toCabinetReference(entry: CabinetDiscoveryEntry): CabinetReference {
+async function toCabinetReference(
+  entry: CabinetDiscoveryEntry
+): Promise<CabinetReference> {
   return {
     id: entry.manifest.id,
     name: entry.manifest.name,
@@ -413,6 +427,7 @@ function toCabinetReference(entry: CabinetDiscoveryEntry): CabinetReference {
     description: entry.manifest.description,
     path: entry.path,
     cabinetDepth: entry.cabinetDepth,
+    optaleScope: await readCabinetOptaleScope(entry.path),
   };
 }
 
@@ -506,12 +521,17 @@ async function readCabinetOverviewUncached(
     cabinet: {
       ...manifest,
       path: cabinetPath,
+      optaleScope: await readCabinetOptaleScope(cabinetPath),
     },
     parent: await findParentCabinetReference(cabinetPath),
-    children: allDescendants
-      .filter((entry) => entry.cabinetDepth === 1)
-      .map(toCabinetReference),
-    visibleCabinets: [currentCabinet, ...visibleDescendants].map(toCabinetReference),
+    children: await Promise.all(
+      allDescendants
+        .filter((entry) => entry.cabinetDepth === 1)
+        .map(toCabinetReference)
+    ),
+    visibleCabinets: await Promise.all(
+      [currentCabinet, ...visibleDescendants].map(toCabinetReference)
+    ),
     visibilityMode,
     agents,
     jobs,

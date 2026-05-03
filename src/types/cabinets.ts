@@ -1,4 +1,8 @@
 import type { AgentType } from "@/types/agents";
+import type {
+  OptaleAgentScopeMetadata,
+  OptaleCabinetScopeMetadata,
+} from "@/lib/optale/scope-registry";
 
 export type CabinetVisibilityMode = "own" | "children-1" | "children-2" | "all";
 
@@ -25,6 +29,7 @@ export interface CabinetReference {
   description?: string;
   path: string;
   cabinetDepth?: number;
+  optaleScope?: OptaleCabinetScopeMetadata;
 }
 
 export interface CabinetAgentSummary {
@@ -52,6 +57,7 @@ export interface CabinetAgentSummary {
   color?: string;
   avatar?: string;
   avatarExt?: string;
+  optaleScope?: OptaleAgentScopeMetadata;
 }
 
 export interface CabinetJobSummary {
@@ -73,6 +79,7 @@ export interface CabinetJobSummary {
 export interface CabinetOverview {
   cabinet: CabinetManifest & {
     path: string;
+    optaleScope?: OptaleCabinetScopeMetadata;
   };
   parent: CabinetReference | null;
   children: CabinetReference[];
