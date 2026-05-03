@@ -21,6 +21,9 @@ export interface AgentHarnessMcpServerSummary {
   name?: string;
   permissions: string[];
   toolGroups: string[];
+  allowedTools: string[];
+  deniedTools: string[];
+  notes?: string;
 }
 
 export interface AgentHarnessPersonaSummary {
@@ -43,6 +46,11 @@ export interface AgentHarnessFrameworkSummary {
     subjectType: AgentDefinition["scope"];
     privacyBoundary: "private" | "company" | "system";
     memoryNamespace: string;
+    vaultNamespace: string;
+    graphNamespace: string;
+    entityNamespace: string;
+    mcpPolicyId: string;
+    mcpClientProfile: string;
     promotionBoundary: "private-to-company gated";
   };
   senseMemory: {
@@ -55,6 +63,22 @@ export interface AgentHarnessFrameworkSummary {
   bridgeOnly: boolean;
   runtimeStatus: AgentDefinition["runtimeProjections"]["nativeOptaleCommand"]["status"];
   projectionStatus: AgentDefinition["runtimeProjections"]["nativeOptaleCommand"]["projectionStrategy"];
+}
+
+export interface AgentHarnessManifestSummary {
+  kind: "agent-definition-v1";
+  manifestId: string;
+  manifestSchemaVersion: AgentDefinitionManifest["schemaVersion"];
+  definitionId: string;
+  definitionSchemaVersion: AgentDefinition["schemaVersion"];
+}
+
+export interface AgentHarnessActionPolicySummary {
+  mode: AgentDefinition["approvalPolicy"]["mode"];
+  requiredFor: string[];
+  notes?: string;
+  mutationRequiresApproval: boolean;
+  companyWritesRequirePromotion: true;
 }
 
 export interface AgentHarnessAdminRow {
@@ -79,11 +103,18 @@ export interface AgentHarnessAdminRow {
   legacyLibreChatBridge?: {
     status: AgentDefinition["runtimeProjections"]["legacyLibreChatBridge"]["status"];
     agentId: string;
+    sourceScript: string;
+    providerName: string;
+    model: string;
   };
   mcp: {
+    defaultDecision: AgentDefinition["mcp"]["defaultDecision"];
     allowedServerCount: number;
     allowedServers: AgentHarnessMcpServerSummary[];
+    restrictions: string[];
   };
+  manifest: AgentHarnessManifestSummary;
+  actionPolicy: AgentHarnessActionPolicySummary;
   persona: AgentHarnessPersonaSummary;
   framework: AgentHarnessFrameworkSummary;
   status: AgentHarnessPersonaStatus;
@@ -141,6 +172,9 @@ function summarizeMcpServers(agent: AgentDefinition): AgentHarnessMcpServerSumma
     name: server.legacyServerName,
     permissions: [...server.permissions],
     toolGroups: [...server.toolGroups],
+    allowedTools: [...server.allowedTools],
+    deniedTools: [...server.deniedTools],
+    notes: server.notes,
   }));
 }
 
@@ -156,6 +190,11 @@ function summarizeFrameworkPreview(input: {
       subjectType: preview.scopeProfile.subjectType,
       privacyBoundary: preview.scopeProfile.privacyBoundary,
       memoryNamespace: preview.scopeProfile.memoryNamespace,
+      vaultNamespace: preview.scopeProfile.vaultNamespace,
+      graphNamespace: preview.scopeProfile.graphNamespace,
+      entityNamespace: preview.scopeProfile.entityNamespace,
+      mcpPolicyId: preview.scopeProfile.mcpPolicyId,
+      mcpClientProfile: preview.scopeProfile.mcpClientProfile,
       promotionBoundary: "private-to-company gated",
     },
     senseMemory: {
@@ -220,11 +259,30 @@ async function buildRow(input: {
         ? {
             status: legacy.status,
             agentId: legacy.agentId,
+            sourceScript: legacy.sourceScript,
+            providerName: legacy.providerName,
+            model: legacy.model,
           }
         : undefined,
     mcp: {
+      defaultDecision: input.agent.mcp.defaultDecision,
       allowedServerCount: mcpServers.length,
       allowedServers: mcpServers,
+      restrictions: [...input.agent.mcp.restrictions],
+    },
+    manifest: {
+      kind: "agent-definition-v1",
+      manifestId: input.manifest.id,
+      manifestSchemaVersion: input.manifest.schemaVersion,
+      definitionId: input.agent.id,
+      definitionSchemaVersion: input.agent.schemaVersion,
+    },
+    actionPolicy: {
+      mode: input.agent.approvalPolicy.mode,
+      requiredFor: [...input.agent.approvalPolicy.requiredFor],
+      notes: input.agent.approvalPolicy.notes,
+      mutationRequiresApproval: input.agent.approvalPolicy.mode !== "never",
+      companyWritesRequirePromotion: true,
     },
     framework,
   };

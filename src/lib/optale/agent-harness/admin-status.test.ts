@@ -86,10 +86,35 @@ test("Harness admin snapshot marks stable generated personas in sync", async () 
     assert.equal(row.persona.state, "paused");
     assert.equal(row.persona.provider, "openrouter");
     assert.equal(row.persona.model, "anthropic/claude-sonnet-4");
+    assert.equal(row.manifest.kind, "agent-definition-v1");
+    assert.equal(row.manifest.manifestId, manifest.id);
+    assert.equal(row.manifest.definitionId, OPTALE_META_AGENT_IDS.research);
+    assert.equal(row.mcp.defaultDecision, "deny");
     assert.equal(row.mcp.allowedServerCount, manifest.agents[0].mcp.servers.length);
+    assert.ok(row.mcp.allowedServers.some((server) => server.id === "qmd"));
+    assert.ok(row.mcp.restrictions.some((entry) => entry.includes("Default decision")));
+    assert.equal(row.actionPolicy.mode, "on-request");
+    assert.equal(row.actionPolicy.mutationRequiresApproval, true);
+    assert.equal(row.actionPolicy.companyWritesRequirePromotion, true);
     assert.equal(row.framework.schemaVersion, 2);
     assert.equal(row.framework.scopeProfile.scope, "system");
     assert.equal(row.framework.scopeProfile.privacyBoundary, "system");
+    assert.equal(
+      row.framework.scopeProfile.vaultNamespace,
+      "optale.command.meta.research-context.vault"
+    );
+    assert.equal(
+      row.framework.scopeProfile.graphNamespace,
+      "optale.command.meta.research-context.graph"
+    );
+    assert.equal(
+      row.framework.scopeProfile.entityNamespace,
+      "optale.command.meta.research-context.entities"
+    );
+    assert.equal(
+      row.framework.scopeProfile.mcpPolicyId,
+      "agent-harness:optale-meta-research-context"
+    );
     assert.equal(
       row.framework.scopeProfile.promotionBoundary,
       "private-to-company gated"
