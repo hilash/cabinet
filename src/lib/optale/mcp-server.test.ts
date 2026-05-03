@@ -10,22 +10,36 @@ type McpServer = typeof import("./mcp-server");
 let mcpServer: McpServer;
 
 before(async () => {
-  tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "optale-mcp-server-test-"));
+  tempRoot = await fs.mkdtemp(
+    path.join(os.tmpdir(), "optale-mcp-server-test-"),
+  );
   process.env.CABINET_DATA_DIR = tempRoot;
 
   await fs.writeFile(
     path.join(tempRoot, ".cabinet"),
-    ["schemaVersion: 1", "id: mcp-test", "name: MCP Test", "kind: root", ""].join("\n"),
-    "utf8"
+    [
+      "schemaVersion: 1",
+      "id: mcp-test",
+      "name: MCP Test",
+      "kind: root",
+      "",
+    ].join("\n"),
+    "utf8",
   );
   await fs.writeFile(path.join(tempRoot, "index.md"), "# MCP Test\n", "utf8");
   await fs.mkdir(path.join(tempRoot, "clients", "acme"), { recursive: true });
   await fs.writeFile(
     path.join(tempRoot, "clients", "acme", ".cabinet"),
-    ["schemaVersion: 1", "id: acme", "name: Acme", "kind: cabinet", ""].join("\n"),
-    "utf8"
+    ["schemaVersion: 1", "id: acme", "name: Acme", "kind: cabinet", ""].join(
+      "\n",
+    ),
+    "utf8",
   );
-  await fs.writeFile(path.join(tempRoot, "clients", "acme", "index.md"), "# Acme\n", "utf8");
+  await fs.writeFile(
+    path.join(tempRoot, "clients", "acme", "index.md"),
+    "# Acme\n",
+    "utf8",
+  );
 
   mcpServer = await import("./mcp-server");
 });
@@ -72,14 +86,20 @@ test("handleOptaleMcpJsonRpc handles initialize and tools/list", async () => {
     method: "initialize",
     params: {},
   });
-  assert.equal((initialized as { result?: { serverInfo?: { name?: string } } }).result?.serverInfo?.name, "optale-agents");
+  assert.equal(
+    (initialized as { result?: { serverInfo?: { name?: string } } }).result
+      ?.serverInfo?.name,
+    "optale-agents",
+  );
 
   const listed = await mcpServer.handleOptaleMcpJsonRpc({
     jsonrpc: "2.0",
     id: 2,
     method: "tools/list",
   });
-  const tools = (listed as { result?: { tools?: Array<{ name: string }> } }).result?.tools || [];
+  const tools =
+    (listed as { result?: { tools?: Array<{ name: string }> } }).result
+      ?.tools || [];
   assert.ok(tools.find((tool) => tool.name === "optale_mcp_policy"));
 });
 
@@ -113,7 +133,7 @@ test("gateway context can default and lock cabinet access", async () => {
   const result = await mcpServer.callOptaleMcpTool(
     "optale_brain_summary",
     {},
-    { gatewayContext: context }
+    { gatewayContext: context },
   );
   const parsed = JSON.parse(result.content[0]?.text || "{}") as {
     cabinet?: { name?: string };
@@ -125,11 +145,14 @@ test("gateway context can default and lock cabinet access", async () => {
   const denied = await mcpServer.callOptaleMcpTool(
     "optale_brain_summary",
     { cabinetPath: "." },
-    { gatewayContext: context }
+    { gatewayContext: context },
   );
 
   assert.equal(denied.isError, true);
-  assert.match(denied.content[0]?.text || "", /scoped to cabinet clients\/acme/);
+  assert.match(
+    denied.content[0]?.text || "",
+    /scoped to cabinet clients\/acme/,
+  );
 });
 
 test("gateway context can restrict visible and callable tools", async () => {
@@ -145,13 +168,18 @@ test("gateway context can restrict visible and callable tools", async () => {
     canUseActions: false,
     auditEnabled: false,
   };
-  const listed = await mcpServer.listOptaleMcpTools({ gatewayContext: context });
-  assert.deepEqual(listed.map((tool) => tool.name), ["optale_mcp_policy"]);
+  const listed = await mcpServer.listOptaleMcpTools({
+    gatewayContext: context,
+  });
+  assert.deepEqual(
+    listed.map((tool) => tool.name),
+    ["optale_mcp_policy"],
+  );
 
   const denied = await mcpServer.callOptaleMcpTool(
     "optale_brain_summary",
     {},
-    { gatewayContext: context }
+    { gatewayContext: context },
   );
 
   assert.equal(denied.isError, true);
@@ -163,7 +191,10 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
   const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
   globalThis.fetch = async (input, init) => {
     const url = String(input);
-    const body = JSON.parse(String(init?.body || "{}")) as Record<string, unknown>;
+    const body = JSON.parse(String(init?.body || "{}")) as Record<
+      string,
+      unknown
+    >;
     calls.push({ url, body });
     const method = body.method;
     const isGraphiti = url.includes("8102");
@@ -186,7 +217,7 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
             "content-type": "application/json",
             "mcp-session-id": sessionId,
           },
-        }
+        },
       );
     }
 
@@ -238,7 +269,7 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
           id: body.id,
           result: { tools },
         }),
-        { status: 200, headers: { "content-type": "application/json" } }
+        { status: 200, headers: { "content-type": "application/json" } },
       );
     }
 
@@ -251,16 +282,22 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
             content: [
               {
                 type: "text",
-                text: JSON.stringify({ ok: true, server: isGraphiti ? "graphiti" : "qmd" }),
+                text: JSON.stringify({
+                  ok: true,
+                  server: isGraphiti ? "graphiti" : "qmd",
+                }),
               },
             ],
           },
         }),
-        { status: 200, headers: { "content-type": "application/json" } }
+        { status: 200, headers: { "content-type": "application/json" } },
       );
     }
 
-    return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    return new Response("{}", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
   };
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -295,7 +332,7 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
   const called = await mcpServer.callOptaleMcpTool(
     "qmd__status",
     {},
-    { gatewayContext: context, includeDownstream: true }
+    { gatewayContext: context, includeDownstream: true },
   );
 
   assert.equal(called.isError, undefined);
@@ -303,14 +340,17 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
   const toolCall = calls.find((call) => call.body.method === "tools/call");
   assert.ok(toolCall);
   assert.deepEqual(
-    ((toolCall.body.params as Record<string, unknown>).arguments as Record<string, unknown>),
-    {}
+    (toolCall.body.params as Record<string, unknown>).arguments as Record<
+      string,
+      unknown
+    >,
+    {},
   );
 
   const writeDenied = await mcpServer.callOptaleMcpTool(
     "graphiti__add_memory",
     { name: "Nope", episode_body: "Do not write" },
-    { gatewayContext: context, includeDownstream: true }
+    { gatewayContext: context, includeDownstream: true },
   );
   assert.equal(writeDenied.isError, true);
   assert.match(writeDenied.content[0]?.text || "", /read-only/);
@@ -322,7 +362,10 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
     },
     includeDownstream: true,
   });
-  assert.deepEqual(allowlisted.map((tool) => tool.name), ["qmd__status"]);
+  assert.deepEqual(
+    allowlisted.map((tool) => tool.name),
+    ["qmd__status"],
+  );
 
   const qmdServerOnly = await mcpServer.listOptaleMcpTools({
     gatewayContext: context,
@@ -334,13 +377,165 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
   assert.ok(!qmdServerOnlyNames.includes("graphiti__search_nodes"));
   assert.ok(!qmdServerOnlyNames.includes("optale_context_registry"));
 
+  const productFacingQmdOnly = await mcpServer.listOptaleMcpTools({
+    gatewayContext: context,
+    includeDownstream: true,
+    allowedServerIds: ["qmd"],
+    productFacing: true,
+  });
+  assert.deepEqual(
+    productFacingQmdOnly.map((tool) => tool.name),
+    ["sense_search_knowledge"],
+  );
+
+  const productFacingRpcList = (await mcpServer.handleOptaleMcpJsonRpc(
+    {
+      jsonrpc: "2.0",
+      id: 12,
+      method: "tools/list",
+    },
+    {
+      gatewayContext: context,
+      includeDownstream: true,
+      allowedServerIds: ["qmd"],
+      productFacing: true,
+    },
+  )) as { result?: { tools?: Array<{ name: string }> } };
+  assert.deepEqual(
+    productFacingRpcList.result?.tools?.map((tool) => tool.name),
+    ["sense_search_knowledge"],
+  );
+
+  const rawProductFacingCall = (await mcpServer.handleOptaleMcpJsonRpc(
+    {
+      jsonrpc: "2.0",
+      id: 13,
+      method: "tools/call",
+      params: {
+        name: "qmd__query",
+        arguments: { query: "Harness" },
+      },
+    },
+    {
+      gatewayContext: context,
+      includeDownstream: true,
+      allowedServerIds: ["qmd"],
+      productFacing: true,
+    },
+  )) as { error?: { message?: string } };
+  assert.match(
+    rawProductFacingCall.error?.message || "",
+    /not available on the product-facing MCP endpoint/,
+  );
+  assert.doesNotMatch(rawProductFacingCall.error?.message || "", /qmd__query/);
+
+  const { writeOptaleMcpPolicy } = await import("./mcp-policy");
+  await writeOptaleMcpPolicy(".", {
+    servers: [
+      {
+        serverId: "qmd",
+        enabled: true,
+        permissions: ["read"],
+        allowedTools: ["sense_search_knowledge"],
+      },
+    ],
+  });
+  const aliasPolicyTools = await mcpServer.listOptaleMcpTools({
+    gatewayContext: context,
+    includeDownstream: true,
+    allowedServerIds: ["qmd"],
+    productFacing: true,
+  });
+  assert.deepEqual(
+    aliasPolicyTools.map((tool) => tool.name),
+    ["sense_search_knowledge"],
+  );
+
+  await writeOptaleMcpPolicy(".", {
+    servers: [
+      {
+        serverId: "qmd",
+        enabled: true,
+        permissions: ["read"],
+        deniedTools: ["sense_search_knowledge"],
+      },
+    ],
+  });
+  const deniedAliasPolicyTools = await mcpServer.listOptaleMcpTools({
+    gatewayContext: context,
+    includeDownstream: true,
+    allowedServerIds: ["qmd"],
+    productFacing: true,
+  });
+  assert.deepEqual(deniedAliasPolicyTools, []);
+  const deniedAliasPolicyCall = await mcpServer.callOptaleMcpTool(
+    "qmd__query",
+    { query: "Harness" },
+    {
+      gatewayContext: context,
+      includeDownstream: true,
+      allowedServerIds: ["qmd"],
+    },
+  );
+  assert.equal(deniedAliasPolicyCall.isError, true);
+  assert.match(
+    deniedAliasPolicyCall.content[0]?.text || "",
+    /not allowed by the cabinet MCP policy/,
+  );
+
+  await writeOptaleMcpPolicy(".", {
+    servers: [
+      {
+        serverId: "qmd",
+        enabled: true,
+        permissions: ["read"],
+        allowedTools: ["sense_search_knowledge"],
+      },
+    ],
+  });
+
+  const aliasRequestId = "product-alias-call";
+  const productAliasCall = await mcpServer.callOptaleMcpTool(
+    "sense_search_knowledge",
+    { query: "Harness" },
+    {
+      gatewayContext: {
+        ...context,
+        requestId: aliasRequestId,
+        allowedTools: ["sense_search_knowledge"],
+        auditEnabled: true,
+      },
+      includeDownstream: true,
+      allowedServerIds: ["qmd"],
+    },
+  );
+  assert.equal(productAliasCall.isError, undefined);
+  const qmdQueryCalls = calls.filter(
+    (call) =>
+      call.body.method === "tools/call" &&
+      (call.body.params as Record<string, unknown> | undefined)?.name ===
+        "query",
+  );
+  assert.ok(qmdQueryCalls.length >= 1);
+  const audit = await import("./mcp-audit-log");
+  const [aliasEvent] = await audit.readOptaleMcpAuditEvents({
+    requestId: aliasRequestId,
+  });
+  assert.equal(aliasEvent?.toolName, "qmd__query");
+  assert.equal(aliasEvent?.internalToolName, "qmd__query");
+  assert.equal(aliasEvent?.productToolName, "sense_search_knowledge");
+  assert.equal(aliasEvent?.productToolLabel, "Docs / Knowledge Search");
+
   const builtInDenied = await mcpServer.callOptaleMcpTool(
     "optale_context_registry",
     {},
-    { gatewayContext: context, allowedServerIds: ["qmd"] }
+    { gatewayContext: context, allowedServerIds: ["qmd"] },
   );
   assert.equal(builtInDenied.isError, true);
-  assert.match(builtInDenied.content[0]?.text || "", /not allowed for this run/);
+  assert.match(
+    builtInDenied.content[0]?.text || "",
+    /not allowed for this run/,
+  );
 
   const graphitiDenied = await mcpServer.callOptaleMcpTool(
     "graphiti__get_status",
@@ -349,10 +544,13 @@ test("downstream gateway lists and calls read-only QMD/Graphiti tools", async (t
       gatewayContext: context,
       includeDownstream: true,
       allowedServerIds: ["qmd"],
-    }
+    },
   );
   assert.equal(graphitiDenied.isError, true);
-  assert.match(graphitiDenied.content[0]?.text || "", /not allowed for this run/);
+  assert.match(
+    graphitiDenied.content[0]?.text || "",
+    /not allowed for this run/,
+  );
 });
 
 test("gateway context enforces daily tool-call budget", async () => {
@@ -373,12 +571,12 @@ test("gateway context enforces daily tool-call budget", async () => {
   const first = await mcpServer.callOptaleMcpTool(
     "optale_context_registry",
     {},
-    { gatewayContext: context }
+    { gatewayContext: context },
   );
   const second = await mcpServer.callOptaleMcpTool(
     "optale_context_registry",
     {},
-    { gatewayContext: context }
+    { gatewayContext: context },
   );
 
   assert.equal(first.isError, undefined);
@@ -387,11 +585,14 @@ test("gateway context enforces daily tool-call budget", async () => {
 });
 
 test("write/control action tool is gated", async () => {
-  const result = await mcpServer.callOptaleMcpTool("optale_command_center_action", {
-    action: "create_task",
-    toAgent: "editor",
-    title: "Test task",
-  });
+  const result = await mcpServer.callOptaleMcpTool(
+    "optale_command_center_action",
+    {
+      action: "create_task",
+      toAgent: "editor",
+      title: "Test task",
+    },
+  );
 
   assert.equal(result.isError, true);
   assert.match(result.content[0]?.text || "", /disabled/i);
@@ -424,7 +625,7 @@ test("handleOptaleMcpJsonRpc writes compact audit events for gateway callers", a
         canUseActions: false,
         auditEnabled: true,
       },
-    }
+    },
   );
 
   const lines = (await fs.readFile(audit.getOptaleMcpAuditLogPath(), "utf8"))

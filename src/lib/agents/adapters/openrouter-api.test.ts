@@ -217,7 +217,7 @@ test("openRouterApiAdapter exposes only qmd tools for a per-run qmd allowlist", 
   const tools = bodies[0]?.tools as Array<{ function?: { name?: string } }>;
   assert.deepEqual(
     tools.map((tool) => tool.function?.name),
-    ["qmd__query"],
+    ["sense_search_knowledge"],
   );
 });
 
@@ -322,7 +322,7 @@ test("openRouterApiAdapter forces requiredToolName through OpenRouter tool_choic
                   id: "call-qmd",
                   type: "function",
                   function: {
-                    name: "qmd__query",
+                    name: "sense_search_knowledge",
                     arguments: JSON.stringify({ query: "Harness" }),
                   },
                 },
@@ -366,7 +366,7 @@ test("openRouterApiAdapter forces requiredToolName through OpenRouter tool_choic
   assert.equal(bodies.length, 2);
   assert.deepEqual(bodies[0]?.tool_choice, {
     type: "function",
-    function: { name: "qmd__query" },
+    function: { name: "sense_search_knowledge" },
   });
   assert.equal(bodies[1]?.tool_choice, "auto");
 });
@@ -543,7 +543,7 @@ test("openRouterApiAdapter fails when a model prints pseudo-tool text", async (t
           message: {
             role: "assistant",
             content:
-              '<invoke name="qmd__query"><parameter name="query">Harness</parameter></invoke>',
+              '<invoke name="sense_search_knowledge"><parameter name="query">Harness</parameter></invoke>',
           },
         },
       ],
@@ -568,7 +568,10 @@ test("openRouterApiAdapter fails when a model prints pseudo-tool text", async (t
 
   assert.ok(result);
   assert.equal(result.exitCode, 1);
-  assert.match(result.errorMessage || "", /pseudo-tool text for qmd__query/);
-  assert.match(result.output || "", /<invoke name="qmd__query">/);
+  assert.match(
+    result.errorMessage || "",
+    /pseudo-tool text for sense_search_knowledge/,
+  );
+  assert.match(result.output || "", /<invoke name="sense_search_knowledge">/);
   assert.equal(chunks.length, 1);
 });

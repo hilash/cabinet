@@ -4,7 +4,6 @@ import {
   Clock3,
   Database,
   FileSearch,
-  ServerCog,
   TriangleAlert,
   Wrench,
 } from "lucide-react";
@@ -18,7 +17,11 @@ function formatDuration(durationMs?: number): string {
   return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
-function OutcomeBadge({ outcome }: { outcome: ConversationMcpToolArtifact["outcome"] }) {
+function OutcomeBadge({
+  outcome,
+}: {
+  outcome: ConversationMcpToolArtifact["outcome"];
+}) {
   const ok = outcome === "ok";
   const Icon = ok ? CheckCircle2 : TriangleAlert;
   const tone = ok
@@ -29,7 +32,7 @@ function OutcomeBadge({ outcome }: { outcome: ConversationMcpToolArtifact["outco
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-        tone
+        tone,
       )}
     >
       <Icon className="size-3" />
@@ -66,12 +69,17 @@ export function ConversationMcpArtifactsPanel({
   if (items.length === 0 && !emptyState) return null;
 
   return (
-    <section className={cn("rounded-2xl border border-border bg-background p-5", className)}>
+    <section
+      className={cn(
+        "rounded-2xl border border-border bg-background p-5",
+        className,
+      )}
+    >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <Database className="h-4 w-4 text-primary" />
           <h4 className="text-[13px] font-semibold">
-            MCP Sources
+            Tool Sources
             {items.length > 0 ? (
               <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
                 ({items.length})
@@ -88,12 +96,14 @@ export function ConversationMcpArtifactsPanel({
 
       {items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-4 py-5 text-center text-[12px] text-muted-foreground">
-          No MCP source or tool artifacts were recorded for this run.
+          No tool source artifacts were recorded for this run.
         </div>
       ) : (
         <div className="space-y-3">
           {items.map((artifact) => {
             const sources = artifact.sources ?? [];
+            const displayLabel = artifact.productToolLabel || artifact.toolName;
+            const displayName = artifact.productToolName || artifact.toolName;
             return (
               <article
                 key={artifact.id}
@@ -103,14 +113,16 @@ export function ConversationMcpArtifactsPanel({
                   <div className="min-w-0 space-y-1">
                     <div className="flex min-w-0 items-center gap-2">
                       <Wrench className="size-4 shrink-0 text-primary" />
-                      <div className="truncate font-mono text-[12px] font-medium text-foreground">
-                        {artifact.toolName}
+                      <div className="truncate text-[13px] font-medium text-foreground">
+                        {displayLabel}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      <MetaChip icon={ServerCog}>server {artifact.serverId}</MetaChip>
-                      <MetaChip icon={FileSearch}>source {artifact.source}</MetaChip>
-                      <MetaChip icon={Clock3}>{formatDuration(artifact.durationMs)}</MetaChip>
+                      <MetaChip icon={Wrench}>{displayName}</MetaChip>
+                      <MetaChip icon={FileSearch}>{displayLabel}</MetaChip>
+                      <MetaChip icon={Clock3}>
+                        {formatDuration(artifact.durationMs)}
+                      </MetaChip>
                       {artifact.clientId ? (
                         <MetaChip icon={Database}>{artifact.clientId}</MetaChip>
                       ) : null}

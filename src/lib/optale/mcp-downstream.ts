@@ -12,6 +12,7 @@ import type {
   OptaleMcpToolCallResult,
 } from "@/lib/optale/mcp-server";
 import type { OptaleMcpGatewayContext } from "@/lib/optale/mcp-gateway";
+import { optaleToolNameMatches } from "@/lib/optale/tool-registry";
 
 type JsonObject = Record<string, unknown>;
 
@@ -104,15 +105,32 @@ function toolAllowedByServerRule(
 ): boolean {
   const prefixed = toolName(serverRule.serverId, downstreamName);
   if (
-    serverRule.deniedTools.includes(downstreamName) ||
-    serverRule.deniedTools.includes(prefixed)
+    toolListIncludesDownstreamTool(
+      serverRule.deniedTools,
+      downstreamName,
+      prefixed,
+    )
   ) {
     return false;
   }
   if (serverRule.allowedTools.length === 0) return true;
-  return (
-    serverRule.allowedTools.includes(downstreamName) ||
-    serverRule.allowedTools.includes(prefixed)
+  return toolListIncludesDownstreamTool(
+    serverRule.allowedTools,
+    downstreamName,
+    prefixed,
+  );
+}
+
+function toolListIncludesDownstreamTool(
+  configuredToolNames: string[],
+  downstreamName: string,
+  prefixedName: string,
+): boolean {
+  return configuredToolNames.some(
+    (configuredToolName) =>
+      configuredToolName === downstreamName ||
+      configuredToolName === prefixedName ||
+      optaleToolNameMatches(prefixedName, configuredToolName),
   );
 }
 

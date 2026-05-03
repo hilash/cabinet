@@ -4,6 +4,7 @@ import {
   listOptaleMcpTools,
 } from "@/lib/optale/mcp-server";
 import { buildOptaleMcpGatewayContextFromRequest } from "@/lib/optale/mcp-gateway";
+import { productFacingToolName } from "@/lib/optale/tool-registry";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +18,25 @@ function mcpHeaders(): HeadersInit {
 function unauthorizedResponse(message: string) {
   return NextResponse.json(
     { error: "Unauthorized", message },
-    { status: 401, headers: mcpHeaders() }
+    { status: 401, headers: mcpHeaders() },
   );
+}
+
+function productFacingToolNames(toolNames: string[]): string[] {
+  const seen = new Set<string>();
+  return toolNames.map(productFacingToolName).filter((name): name is string => {
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
 }
 
 export async function GET(request: NextRequest) {
   const gatewayContext = await buildOptaleMcpGatewayContextFromRequest(request);
   if (!gatewayContext.authorized) {
-    return unauthorizedResponse(gatewayContext.authorizationError || "Unauthorized MCP request.");
+    return unauthorizedResponse(
+      gatewayContext.authorizationError || "Unauthorized MCP request.",
+    );
   }
   return NextResponse.json(
     {
@@ -40,8 +52,8 @@ export async function GET(request: NextRequest) {
         cabinetPathLocked: gatewayContext.cabinetPathLocked,
         agentScope: gatewayContext.agentScope,
         permissions: gatewayContext.permissions,
-        allowedTools: gatewayContext.allowedTools,
-        deniedTools: gatewayContext.deniedTools,
+        allowedTools: productFacingToolNames(gatewayContext.allowedTools),
+        deniedTools: productFacingToolNames(gatewayContext.deniedTools),
         budget: gatewayContext.budget,
         actionsEnabled: gatewayContext.canUseActions,
         auditEnabled: gatewayContext.auditEnabled,
@@ -49,16 +61,19 @@ export async function GET(request: NextRequest) {
       tools: await listOptaleMcpTools({
         gatewayContext,
         includeDownstream: true,
+        productFacing: true,
       }),
     },
-    { headers: mcpHeaders() }
+    { headers: mcpHeaders() },
   );
 }
 
 export async function POST(request: NextRequest) {
   const gatewayContext = await buildOptaleMcpGatewayContextFromRequest(request);
   if (!gatewayContext.authorized) {
-    return unauthorizedResponse(gatewayContext.authorizationError || "Unauthorized MCP request.");
+    return unauthorizedResponse(
+      gatewayContext.authorizationError || "Unauthorized MCP request.",
+    );
   }
   const body = await request.json().catch(() => null);
   if (body === null) {
@@ -68,13 +83,14 @@ export async function POST(request: NextRequest) {
         id: null,
         error: { code: -32700, message: "Parse error" },
       },
-      { status: 400, headers: mcpHeaders() }
+      { status: 400, headers: mcpHeaders() },
     );
   }
 
   const result = await handleOptaleMcpJsonRpc(body, {
     gatewayContext,
     includeDownstream: true,
+    productFacing: true,
   });
   if (result === undefined) {
     return new NextResponse(null, { status: 204, headers: mcpHeaders() });

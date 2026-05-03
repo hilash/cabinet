@@ -45,7 +45,8 @@ test("buildConversationMcpToolArtifacts extracts qmd source preview from transcr
     auditEvents: [
       {
         timestamp: "2026-05-02T23:48:00.483Z",
-        requestId: "2026-05-02T23-47-55-149Z-3a52ce78-optale-research-context-manual",
+        requestId:
+          "2026-05-02T23-47-55-149Z-3a52ce78-optale-research-context-manual",
         clientId: "openrouter-api",
         authType: "internal",
         method: "tools/call",
@@ -61,6 +62,9 @@ test("buildConversationMcpToolArtifacts extracts qmd source preview from transcr
 
   assert.ok(artifact);
   assert.equal(artifact.toolName, "qmd__query");
+  assert.equal(artifact.productToolName, "sense_search_knowledge");
+  assert.equal(artifact.productToolLabel, "Docs / Knowledge Search");
+  assert.equal(artifact.internalToolName, "qmd__query");
   assert.equal(artifact.serverId, "qmd");
   assert.equal(artifact.source, "qmd");
   assert.equal(artifact.outcome, "ok");
@@ -73,10 +77,13 @@ test("buildConversationMcpToolArtifacts extracts qmd source preview from transcr
   ]);
   assert.deepEqual(artifact.sources, [
     {
-      id: "qmd__query:business/business/products-services/optale-bridge/workbench/readme.md:1",
+      id: "sense_search_knowledge:business/business/products-services/optale-bridge/workbench/readme.md:1",
       title: "Optale Bridge Workbench",
       path: "business/business/products-services/optale-bridge/workbench/readme.md",
-      sourceType: "Docs / QMD",
+      sourceType: "Docs / Knowledge Search",
+      productToolName: "sense_search_knowledge",
+      productToolLabel: "Docs / Knowledge Search",
+      internalToolName: "qmd__query",
       snippet:
         "Based on the search results, the Optale Agent Harness manifest canonical source for LibreChat bridge is documented in the Optale Bridge Workbench at `business/business/products-services/optale-bridge/workbench/readme.md`, which appears to be the primary reference.",
       outcome: "ok",
@@ -118,9 +125,9 @@ test("extractMcpSourcePaths deduplicates backticked and bare path references", (
         "`business/docs/source.md`",
         "Bare path business/docs/source.md should not duplicate.",
         "Another source is notes/research/context.yaml.",
-      ].join("\n")
+      ].join("\n"),
     ),
-    ["business/docs/source.md", "notes/research/context.yaml"]
+    ["business/docs/source.md", "notes/research/context.yaml"],
   );
 });
 
@@ -136,14 +143,17 @@ test("deriveMcpSourceRows falls back to path title when prose title is unavailab
     }),
     [
       {
-        id: "qmd__query:business/ops/runbooks/qmd-search.md:1",
+        id: "sense_search_knowledge:business/ops/runbooks/qmd-search.md:1",
         title: "Qmd Search",
         path: "business/ops/runbooks/qmd-search.md",
-        sourceType: "Docs / QMD",
+        sourceType: "Docs / Knowledge Search",
+        productToolName: "sense_search_knowledge",
+        productToolLabel: "Docs / Knowledge Search",
+        internalToolName: "qmd__query",
         snippet: "See `business/ops/runbooks/qmd-search.md` for the runbook.",
         outcome: "ok",
         durationMs: 1200,
       },
-    ]
+    ],
   );
 });

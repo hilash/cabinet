@@ -7,6 +7,7 @@ import {
   readOptaleMcpAuditEvents,
   type OptaleMcpAuditEvent,
 } from "@/lib/optale/mcp-audit-log";
+import { resolveOptaleToolName } from "@/lib/optale/tool-registry";
 
 const TOOL_MARKER_PREFIX = "[tool]";
 const MAX_PREVIEW_LENGTH = 420;
@@ -20,8 +21,7 @@ function isoDateKey(value?: string): string | null {
 }
 
 function serverIdFromToolName(toolName: string): string {
-  const [prefix] = toolName.split("__");
-  return prefix && prefix !== toolName ? prefix : "optale-agents";
+  return resolveOptaleToolName(toolName).internalServerId;
 }
 
 function truncatePreview(value: string): string {
@@ -77,7 +77,10 @@ function stripCabinetBlock(text: string): string {
   return kept.join("\n").trim();
 }
 
-function previewFromToolBlock(block: string, fallback?: string): string | undefined {
+function previewFromToolBlock(
+  block: string,
+  fallback?: string,
+): string | undefined {
   const stripped = stripCabinetBlock(block);
   const paragraphs = stripped
     .split(/\n{2,}/)
@@ -111,7 +114,7 @@ export function extractMcpSourcePaths(text: string): string[] {
   }
 
   for (const match of text.matchAll(
-    /(?:^|[\s([{])([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+\.[A-Za-z0-9]{1,8})(?=$|[\s)\]},.;:])/g
+    /(?:^|[\s([{])([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+\.[A-Za-z0-9]{1,8})(?=$|[\s)\]},.;:])/g,
   )) {
     add(match[1] || "");
   }
@@ -132,12 +135,18 @@ function titleFromPath(sourcePath: string): string {
   const file = parts[parts.length - 1] || sourcePath;
   const base = file.replace(/\.[^.]+$/, "").toLowerCase();
   const titleSegment =
-    base === "readme" || base === "index" ? parts[parts.length - 2] || file : file;
+    base === "readme" || base === "index"
+      ? parts[parts.length - 2] || file
+      : file;
   return humanizePathSegment(titleSegment) || sourcePath;
 }
 
 function sourceTypeForTool(toolName: string, serverId: string): string {
-  if (toolName === "qmd__query" || serverId === "qmd") return "Docs / QMD";
+  const resolved = resolveOptaleToolName(toolName);
+  if (resolved.productToolLabel) return resolved.productToolLabel;
+  if (resolved.internalToolName === "qmd__query" || serverId === "qmd") {
+    return "Docs / Knowledge Search";
+  }
   return serverId.toUpperCase();
 }
 
@@ -163,7 +172,10 @@ function sentenceForPath(text: string, sourcePath: string): string | undefined {
   return normalized.slice(start, end).trim();
 }
 
-function titleFromSnippet(snippet: string | undefined, sourcePath: string): string | null {
+function titleFromSnippet(
+  snippet: string | undefined,
+  sourcePath: string,
+): string | null {
   if (!snippet) return null;
   const beforePath = snippet.replace(/`/g, "").split(sourcePath)[0] || "";
   const match =
@@ -183,18 +195,24 @@ export function deriveMcpSourceRows(input: {
   durationMs?: number;
 }): ConversationMcpSourceRow[] {
   const sourceType = sourceTypeForTool(input.toolName, input.serverId);
+  const toolIdentity = resolveOptaleToolName(input.toolName);
+  const sourceRowToolName = toolIdentity.productToolName || input.toolName;
   const rows = input.sourcePaths.map((sourcePath, index) => {
     const sentence =
       sentenceForPath(input.text, sourcePath) ||
       sentenceForPath(input.fallbackPreview || "", sourcePath);
     const snippet = truncateSnippet(sentence || input.fallbackPreview || "");
-    const title = titleFromSnippet(sentence, sourcePath) || titleFromPath(sourcePath);
+    const title =
+      titleFromSnippet(sentence, sourcePath) || titleFromPath(sourcePath);
 
     return {
-      id: `${input.toolName}:${sourcePath}:${index + 1}`,
+      id: `${sourceRowToolName}:${sourcePath}:${index + 1}`,
       title,
       path: sourcePath,
       sourceType,
+      productToolName: toolIdentity.productToolName,
+      productToolLabel: toolIdentity.productToolLabel,
+      internalToolName: toolIdentity.internalToolName,
       snippet: snippet || undefined,
       outcome: input.outcome,
       durationMs: input.durationMs,
@@ -203,15 +221,18 @@ export function deriveMcpSourceRows(input: {
 
   if (
     rows.length === 0 &&
-    input.toolName === "qmd__query" &&
+    toolIdentity.internalToolName === "qmd__query" &&
     input.outcome === "ok" &&
     input.fallbackPreview
   ) {
     return [
       {
-        id: `${input.toolName}:qmd-result:1`,
-        title: "QMD result",
+        id: `${sourceRowToolName}:knowledge-result:1`,
+        title: "Knowledge result",
         sourceType,
+        productToolName: toolIdentity.productToolName,
+        productToolLabel: toolIdentity.productToolLabel,
+        internalToolName: toolIdentity.internalToolName,
         snippet: truncateSnippet(input.fallbackPreview),
         outcome: input.outcome,
         durationMs: input.durationMs,
@@ -220,6 +241,31 @@ export function deriveMcpSourceRows(input: {
   }
 
   return rows;
+}
+
+function uniqueToolNames(names: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  return names.filter((name): name is string => {
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
+}
+
+function shiftToolBlock(input: {
+  transcript: string;
+  names: string[];
+  cache: Map<string, string[]>;
+}): string {
+  for (const name of input.names) {
+    let blocks = input.cache.get(name);
+    if (!blocks) {
+      blocks = extractToolBlocks(input.transcript, name);
+      input.cache.set(name, blocks);
+    }
+    if (blocks.length > 0) return blocks.shift() || "";
+  }
+  return "";
 }
 
 export function buildConversationMcpToolArtifacts(input: {
@@ -233,20 +279,28 @@ export function buildConversationMcpToolArtifacts(input: {
     .filter((event) => event.method === "tools/call" && event.toolName)
     .map((event, index) => {
       const toolName = event.toolName || "unknown";
-      let toolBlocks = toolBlocksByName.get(toolName);
-      if (!toolBlocks) {
-        toolBlocks = extractToolBlocks(input.transcript, toolName);
-        toolBlocksByName.set(toolName, toolBlocks);
-      }
-      const block = toolBlocks.shift() || "";
+      const toolIdentity = resolveOptaleToolName(
+        event.productToolName || event.internalToolName || toolName,
+      );
+      const productToolName =
+        event.productToolName || toolIdentity.productToolName;
+      const productToolLabel =
+        event.productToolLabel || toolIdentity.productToolLabel;
+      const internalToolName =
+        event.internalToolName || toolIdentity.internalToolName;
+      const block = shiftToolBlock({
+        transcript: input.transcript,
+        names: uniqueToolNames([productToolName, internalToolName, toolName]),
+        cache: toolBlocksByName,
+      });
       const strippedBlock = stripCabinetBlock(block);
       const preview = previewFromToolBlock(block, event.error);
       const sourcePaths = extractMcpSourcePaths(
-        [strippedBlock, preview || ""].join("\n")
+        [strippedBlock, preview || ""].join("\n"),
       );
       const serverId = serverIdFromToolName(toolName);
       const sources = deriveMcpSourceRows({
-        toolName,
+        toolName: productToolName || internalToolName,
         serverId,
         sourcePaths,
         text: strippedBlock,
@@ -265,6 +319,10 @@ export function buildConversationMcpToolArtifacts(input: {
         timestamp: event.timestamp,
         method: "tools/call",
         toolName,
+        productToolName,
+        productToolLabel,
+        internalToolName,
+        internalServerId: serverId,
         serverId,
         source: serverId,
         outcome: event.outcome,
@@ -284,14 +342,14 @@ export function buildConversationMcpToolArtifacts(input: {
 
 export async function readConversationMcpToolArtifacts(
   meta: ConversationMeta,
-  transcript: string
+  transcript: string,
 ): Promise<ConversationMcpToolArtifact[]> {
   const dateKeys = new Set(
     [
       isoDateKey(meta.startedAt),
       isoDateKey(meta.completedAt),
       isoDateKey(meta.lastActivityAt),
-    ].filter((value): value is string => Boolean(value))
+    ].filter((value): value is string => Boolean(value)),
   );
 
   const events = (
@@ -301,8 +359,8 @@ export async function readConversationMcpToolArtifacts(
           date: new Date(`${dateKey}T00:00:00.000Z`),
           requestId: meta.id,
           limit: 200,
-        })
-      )
+        }),
+      ),
     )
   ).flat();
 

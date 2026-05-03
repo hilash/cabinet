@@ -38,6 +38,14 @@ Honcho remains internal-only. The private-to-company promotion boundary must rem
 
 Optale Command remains the control plane and runtime surface. LibreChat remains the bridge/runtime during migration only.
 
+## Tool Registry / Information Barrier
+
+The current Harness v1 manifest and v2 metadata are still projection/control-plane layers. The full approved Optale Agent Harness spec lives at `/home/thor/projects/optale-agent-harness-spec.md` and owns the long-term Tool Registry, execution engine, LLM gateway, memory, guardrail, trace, and ontology runtime.
+
+Product-facing tools must use Optale names. For the bridge runtime, the first alias maps `sense_search_knowledge` / `Docs / Knowledge Search` to the internal `qmd__query` execution target. Agents and user-facing source panels should render the product name and label; raw MCP names remain internal bridge/audit details so existing qmd smokes and governed execution keep working.
+
+Honcho remains internal-only. Customer-facing personal memory must be proprietary, even when internal bridge code keeps legacy Honcho-inspired metadata for projection or migration.
+
 ## AGENTS-FW V2 Preview Metadata
 
 AgentDefinition v1 remains the working tactical manifest for the current Harness slice. It is still the source used for validation, native Observatory persona projection, and temporary LibreChat bridge metadata.

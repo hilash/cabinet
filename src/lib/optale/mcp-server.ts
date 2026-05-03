@@ -18,6 +18,14 @@ import {
   callDownstreamOptaleMcpTool,
   listDownstreamOptaleMcpTools,
 } from "@/lib/optale/mcp-downstream";
+import {
+  isProductFacingToolName,
+  optaleToolNameAllowedByList,
+  optaleToolNameMatches,
+  resolveOptaleToolName,
+  toProductFacingToolOrNull,
+  type OptaleResolvedToolName,
+} from "@/lib/optale/tool-registry";
 
 type JsonRpcId = string | number | null;
 type JsonObject = Record<string, unknown>;
@@ -55,13 +63,14 @@ class OptaleMcpAccessDeniedError extends Error {
 export interface OptaleMcpServerOptions {
   includeActions?: boolean;
   includeDownstream?: boolean;
+  productFacing?: boolean;
   allowedServerIds?: string[];
   gatewayContext?: OptaleMcpGatewayContext;
 }
 
 function objectSchema(
   properties: JsonObject = {},
-  required: string[] = []
+  required: string[] = [],
 ): JsonObject {
   return {
     type: "object",
@@ -194,7 +203,7 @@ function canExposeActions(options: OptaleMcpServerOptions = {}): boolean {
 
 function withGatewayDefaults(
   args: unknown,
-  context?: OptaleMcpGatewayContext
+  context?: OptaleMcpGatewayContext,
 ): JsonObject {
   const input = { ...paramsObject(args) };
   if (!trimString(input.cabinetPath) && context?.defaultCabinetPath) {
@@ -208,7 +217,7 @@ function withGatewayDefaults(
 
 function isSameOrDescendantCabinet(
   requestedPath: string | undefined,
-  basePath: string | undefined
+  basePath: string | undefined,
 ): boolean {
   const requested =
     normalizeCabinetPath(requestedPath, true) || ROOT_CABINET_PATH;
@@ -219,26 +228,30 @@ function isSameOrDescendantCabinet(
 
 function assertGatewayCabinetAccess(
   input: JsonObject,
-  context?: OptaleMcpGatewayContext
+  context?: OptaleMcpGatewayContext,
 ): void {
   if (!context?.cabinetPathLocked || !context.defaultCabinetPath) return;
   const requestedCabinetPath =
     trimString(input.cabinetPath) || context.defaultCabinetPath;
-  if (isSameOrDescendantCabinet(requestedCabinetPath, context.defaultCabinetPath)) {
+  if (
+    isSameOrDescendantCabinet(requestedCabinetPath, context.defaultCabinetPath)
+  ) {
     return;
   }
   throw new Error(
-    `MCP client ${context.clientId} is scoped to cabinet ${context.defaultCabinetPath} and cannot access ${requestedCabinetPath}.`
+    `MCP client ${context.clientId} is scoped to cabinet ${context.defaultCabinetPath} and cannot access ${requestedCabinetPath}.`,
   );
 }
 
-function requiredToolPermission(toolName: string): "read" | "write" | "execute" {
+function requiredToolPermission(
+  toolName: string,
+): "read" | "write" | "execute" {
   return toolName === "optale_command_center_action" ? "write" : "read";
 }
 
 function hasToolPermission(
   context: OptaleMcpGatewayContext | undefined,
-  toolName: string
+  toolName: string,
 ): boolean {
   if (!context) return true;
   const permissions = context.permissions || [];
@@ -249,14 +262,18 @@ function hasToolPermission(
 
 function isToolVisibleToGateway(
   toolName: string,
-  context?: OptaleMcpGatewayContext
+  context?: OptaleMcpGatewayContext,
 ): boolean {
   if (!context) return true;
   if (!context.authorized) return false;
-  if (context.deniedTools?.includes(toolName)) return false;
-  if (context.allowedTools && context.allowedTools.length > 0 && !context.allowedTools.includes(toolName)) {
+  if (
+    context.deniedTools?.some((deniedToolName) =>
+      optaleToolNameMatches(toolName, deniedToolName),
+    )
+  )
     return false;
-  }
+  if (!optaleToolNameAllowedByList(toolName, context.allowedTools))
+    return false;
   return hasToolPermission(context, toolName);
 }
 
@@ -267,7 +284,7 @@ function serverIdForToolName(toolName: string): string {
 
 function isToolVisibleToServerAllowlist(
   toolName: string,
-  allowedServerIds?: string[]
+  allowedServerIds?: string[],
 ): boolean {
   if (!allowedServerIds) return true;
   return allowedServerIds.includes(serverIdForToolName(toolName));
@@ -276,41 +293,47 @@ function isToolVisibleToServerAllowlist(
 async function assertGatewayToolAccess(
   toolName: string,
   context?: OptaleMcpGatewayContext,
-  allowedServerIds?: string[]
+  allowedServerIds?: string[],
 ): Promise<void> {
   if (!isToolVisibleToServerAllowlist(toolName, allowedServerIds)) {
     throw new OptaleMcpAccessDeniedError(
-      `MCP server ${serverIdForToolName(toolName)} is not allowed for this run.`
+      `MCP server ${serverIdForToolName(toolName)} is not allowed for this run.`,
     );
   }
   if (!context) return;
   if (!context.authorized) {
     throw new OptaleMcpAccessDeniedError(
-      context.authorizationError || "MCP client is not authorized."
+      context.authorizationError || "MCP client is not authorized.",
     );
   }
-  if (context.deniedTools?.includes(toolName)) {
+  if (
+    context.deniedTools?.some((deniedToolName) =>
+      optaleToolNameMatches(toolName, deniedToolName),
+    )
+  ) {
     throw new OptaleMcpAccessDeniedError(
-      `MCP client ${context.clientId} is denied tool ${toolName}.`
+      `MCP client ${context.clientId} is denied tool ${toolName}.`,
     );
   }
-  if (context.allowedTools && context.allowedTools.length > 0 && !context.allowedTools.includes(toolName)) {
+  if (!optaleToolNameAllowedByList(toolName, context.allowedTools)) {
     throw new OptaleMcpAccessDeniedError(
-      `MCP client ${context.clientId} is not allowed to call tool ${toolName}.`
+      `MCP client ${context.clientId} is not allowed to call tool ${toolName}.`,
     );
   }
   if (!hasToolPermission(context, toolName)) {
     throw new OptaleMcpAccessDeniedError(
-      `MCP client ${context.clientId} does not have ${requiredToolPermission(toolName)} permission for ${toolName}.`
+      `MCP client ${context.clientId} does not have ${requiredToolPermission(toolName)} permission for ${toolName}.`,
     );
   }
 
   const dailyToolCalls = context.budget?.dailyToolCalls;
   if (dailyToolCalls) {
-    const used = await countOptaleMcpToolCallsToday({ clientId: context.clientId });
+    const used = await countOptaleMcpToolCallsToday({
+      clientId: context.clientId,
+    });
     if (used >= dailyToolCalls) {
       throw new OptaleMcpAccessDeniedError(
-        `MCP client ${context.clientId} exceeded daily tool-call budget (${dailyToolCalls}).`
+        `MCP client ${context.clientId} exceeded daily tool-call budget (${dailyToolCalls}).`,
       );
     }
   }
@@ -324,13 +347,19 @@ function argumentKeys(input: JsonObject): string[] {
 
 function errorText(result: OptaleMcpToolCallResult): string | undefined {
   if (!result.isError) return undefined;
-  return result.content.map((entry) => entry.text).join("\n").trim() || "Tool failed";
+  return (
+    result.content
+      .map((entry) => entry.text)
+      .join("\n")
+      .trim() || "Tool failed"
+  );
 }
 
 async function auditMcpToolCall(input: {
   context?: OptaleMcpGatewayContext;
   startedAt: number;
   toolName: string;
+  toolIdentity: OptaleResolvedToolName;
   args: JsonObject;
   result: OptaleMcpToolCallResult;
   outcome?: OptaleMcpAuditOutcome;
@@ -343,11 +372,13 @@ async function auditMcpToolCall(input: {
     authType: context.authType,
     method: "tools/call",
     toolName: input.toolName,
-    cabinetPath: trimString(input.args.cabinetPath) || context.defaultCabinetPath,
+    productToolName: input.toolIdentity.productToolName,
+    productToolLabel: input.toolIdentity.productToolLabel,
+    internalToolName: input.toolIdentity.internalToolName,
+    cabinetPath:
+      trimString(input.args.cabinetPath) || context.defaultCabinetPath,
     agentScope: trimString(input.args.agentScope) || context.agentScope,
-    outcome:
-      input.outcome ||
-      (input.result.isError ? "error" : "ok"),
+    outcome: input.outcome || (input.result.isError ? "error" : "ok"),
     durationMs: Date.now() - input.startedAt,
     argumentKeys: argumentKeys(input.args),
     error: errorText(input.result),
@@ -394,35 +425,52 @@ function errorResult(error: unknown): OptaleMcpToolCallResult {
 }
 
 export async function listOptaleMcpTools(
-  options: OptaleMcpServerOptions = {}
+  options: OptaleMcpServerOptions = {},
 ): Promise<OptaleMcpTool[]> {
-  const tools = canExposeActions(options) ? [...BASE_TOOLS, ACTION_TOOL] : BASE_TOOLS;
-  const builtInTools = tools.filter((tool) =>
-    isToolVisibleToServerAllowlist(tool.name, options.allowedServerIds) &&
-    isToolVisibleToGateway(tool.name, options.gatewayContext)
+  const tools = canExposeActions(options)
+    ? [...BASE_TOOLS, ACTION_TOOL]
+    : BASE_TOOLS;
+  const builtInTools = tools.filter(
+    (tool) =>
+      isToolVisibleToServerAllowlist(tool.name, options.allowedServerIds) &&
+      isToolVisibleToGateway(tool.name, options.gatewayContext),
   );
   const downstreamTools = await listDownstreamOptaleMcpTools(options);
-  return [...builtInTools, ...downstreamTools].filter((tool) =>
-    isToolVisibleToGateway(tool.name, options.gatewayContext)
+  const visibleTools = [...builtInTools, ...downstreamTools].filter((tool) =>
+    isToolVisibleToGateway(tool.name, options.gatewayContext),
   );
+  if (!options.productFacing) return visibleTools;
+
+  const exposedNames = new Set<string>();
+  return visibleTools
+    .map(toProductFacingToolOrNull)
+    .filter((tool): tool is OptaleMcpTool => tool !== null)
+    .filter((tool) => {
+      if (exposedNames.has(tool.name)) return false;
+      exposedNames.add(tool.name);
+      return true;
+    });
 }
 
 export async function callOptaleMcpTool(
   name: string,
   args: unknown,
-  options: OptaleMcpServerOptions = {}
+  options: OptaleMcpServerOptions = {},
 ): Promise<OptaleMcpToolCallResult> {
   const startedAt = Date.now();
+  const toolIdentity = resolveOptaleToolName(name);
+  const internalToolName = toolIdentity.internalToolName;
   const input = withGatewayDefaults(args, options.gatewayContext);
   const cabinetPath = trimString(input.cabinetPath);
   const finish = async (
     result: OptaleMcpToolCallResult,
-    outcome?: OptaleMcpAuditOutcome
+    outcome?: OptaleMcpAuditOutcome,
   ): Promise<OptaleMcpToolCallResult> => {
     await auditMcpToolCall({
       context: options.gatewayContext,
       startedAt,
-      toolName: name,
+      toolName: internalToolName,
+      toolIdentity,
       args: input,
       result,
       outcome,
@@ -432,28 +480,32 @@ export async function callOptaleMcpTool(
 
   try {
     await assertGatewayToolAccess(
-      name,
+      internalToolName,
       options.gatewayContext,
-      options.allowedServerIds
+      options.allowedServerIds,
     );
     assertGatewayCabinetAccess(input, options.gatewayContext);
 
-    switch (name) {
+    switch (internalToolName) {
       case "optale_context_registry":
         return finish(textResult(readOptaleContextRegistry()));
 
       case "optale_list_cabinets": {
         const overview = await readCabinetOverview(cabinetPath || ".", {
-          visibilityMode: parseCabinetVisibilityMode(trimString(input.visibilityMode)),
+          visibilityMode: parseCabinetVisibilityMode(
+            trimString(input.visibilityMode),
+          ),
         });
-        return finish(textResult({
-          cabinet: overview.cabinet,
-          parent: overview.parent,
-          children: overview.children,
-          visibleCabinets: overview.visibleCabinets,
-          agents: overview.agents,
-          jobs: overview.jobs,
-        }));
+        return finish(
+          textResult({
+            cabinet: overview.cabinet,
+            parent: overview.parent,
+            children: overview.children,
+            visibleCabinets: overview.visibleCabinets,
+            agents: overview.agents,
+            jobs: overview.jobs,
+          }),
+        );
       }
 
       case "optale_brain_summary":
@@ -461,45 +513,54 @@ export async function callOptaleMcpTool(
 
       case "optale_mcp_policy": {
         const policy = await readOptaleMcpPolicy(cabinetPath);
-        const agentScope = normalizeOptaleScope(input.agentScope) || policy.scope;
-        return finish(textResult({
-          policy,
-          effectiveAgentScope: agentScope,
-          allowedServers: resolveMcpPolicyServersForScope(policy, agentScope),
-        }));
+        const agentScope =
+          normalizeOptaleScope(input.agentScope) || policy.scope;
+        return finish(
+          textResult({
+            policy,
+            effectiveAgentScope: agentScope,
+            allowedServers: resolveMcpPolicyServersForScope(policy, agentScope),
+          }),
+        );
       }
 
       case "optale_command_center_snapshot":
-        return finish(textResult(
-          await (
-            await import("@/lib/optale/command-center-control")
-          ).readOptaleCommandCenterSnapshot({
-            cabinetPath,
-            visibilityMode: parseCabinetVisibilityMode(trimString(input.visibilityMode)),
-            limit:
-              typeof input.limit === "number" && Number.isFinite(input.limit)
-                ? input.limit
-                : undefined,
-          })
-        ));
+        return finish(
+          textResult(
+            await (
+              await import("@/lib/optale/command-center-control")
+            ).readOptaleCommandCenterSnapshot({
+              cabinetPath,
+              visibilityMode: parseCabinetVisibilityMode(
+                trimString(input.visibilityMode),
+              ),
+              limit:
+                typeof input.limit === "number" && Number.isFinite(input.limit)
+                  ? input.limit
+                  : undefined,
+            }),
+          ),
+        );
 
       case "optale_command_center_action":
         if (!canExposeActions(options)) {
           throw new Error(
-            "optale_command_center_action is disabled. Set OPTALE_MCP_ENABLE_ACTIONS=true to expose write/control actions."
+            "optale_command_center_action is disabled. Set OPTALE_MCP_ENABLE_ACTIONS=true to expose write/control actions.",
           );
         }
-        return finish(textResult(
-          await (
-            await import("@/lib/optale/command-center-control")
-          ).executeOptaleCommandCenterAction(input)
-        ));
+        return finish(
+          textResult(
+            await (
+              await import("@/lib/optale/command-center-control")
+            ).executeOptaleCommandCenterAction(input),
+          ),
+        );
 
       default: {
         const downstreamResult = await callDownstreamOptaleMcpTool(
-          name,
+          internalToolName,
           input,
-          options
+          options,
         );
         if (downstreamResult) return finish(downstreamResult);
         throw new Error(`Unknown Optale MCP tool: ${name}`);
@@ -510,9 +571,10 @@ export async function callOptaleMcpTool(
     return finish(
       result,
       error instanceof OptaleMcpAccessDeniedError ||
-        (name === "optale_command_center_action" && !canExposeActions(options))
+        (internalToolName === "optale_command_center_action" &&
+          !canExposeActions(options))
         ? "denied"
-        : "error"
+        : "error",
     );
   }
 }
@@ -521,7 +583,12 @@ function rpcResult(id: JsonRpcId, result: unknown): JsonObject {
   return { jsonrpc: "2.0", id, result };
 }
 
-function rpcError(id: JsonRpcId, code: number, message: string, data?: unknown): JsonObject {
+function rpcError(
+  id: JsonRpcId,
+  code: number,
+  message: string,
+  data?: unknown,
+): JsonObject {
   return {
     jsonrpc: "2.0",
     id,
@@ -536,9 +603,12 @@ function rpcError(id: JsonRpcId, code: number, message: string, data?: unknown):
 function parseRpcRequest(value: unknown): JsonRpcRequest | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
-  if (record.jsonrpc !== "2.0" || typeof record.method !== "string") return null;
+  if (record.jsonrpc !== "2.0" || typeof record.method !== "string")
+    return null;
   const id =
-    typeof record.id === "string" || typeof record.id === "number" || record.id === null
+    typeof record.id === "string" ||
+    typeof record.id === "number" ||
+    record.id === null
       ? record.id
       : undefined;
   return {
@@ -551,7 +621,7 @@ function parseRpcRequest(value: unknown): JsonRpcRequest | null {
 
 async function handleSingleRpc(
   value: unknown,
-  options: OptaleMcpServerOptions = {}
+  options: OptaleMcpServerOptions = {},
 ): Promise<JsonObject | undefined> {
   const startedAt = Date.now();
   const request = parseRpcRequest(value);
@@ -638,9 +708,21 @@ async function handleSingleRpc(
         });
         return rpcError(id, -32602, "tools/call requires params.name");
       }
+      if (options.productFacing && !isProductFacingToolName(name)) {
+        const message =
+          "This tool is not available on the product-facing MCP endpoint. Use an available product tool from tools/list.";
+        await auditMcpRpc({
+          context: options.gatewayContext,
+          startedAt,
+          method: request.method,
+          outcome: "denied",
+          error: message,
+        });
+        return rpcError(id, -32602, message);
+      }
       return rpcResult(
         id,
-        await callOptaleMcpTool(name, params.arguments, options)
+        await callOptaleMcpTool(name, params.arguments, options),
       );
     }
 
@@ -658,7 +740,7 @@ async function handleSingleRpc(
 
 export async function handleOptaleMcpJsonRpc(
   body: unknown,
-  options: OptaleMcpServerOptions = {}
+  options: OptaleMcpServerOptions = {},
 ): Promise<JsonObject | JsonObject[] | undefined> {
   if (Array.isArray(body)) {
     const results = (

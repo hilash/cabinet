@@ -17,6 +17,7 @@ import {
   buildInternalOptaleMcpGatewayContext,
   type OptaleMcpGatewayContext,
 } from "@/lib/optale/mcp-gateway";
+import { resolveOptaleToolName } from "@/lib/optale/tool-registry";
 
 type OpenRouterMessage = {
   role: "system" | "user" | "assistant" | "tool";
@@ -172,6 +173,7 @@ async function buildOpenRouterTools(input: {
   const tools = await listOptaleMcpTools({
     gatewayContext: input.gatewayContext,
     includeDownstream: shouldExposeDownstreamMcpTools(input.ctx.config),
+    productFacing: true,
     allowedServerIds: governedMcp?.allowedServerIds,
   });
   return tools.map((tool) => ({
@@ -254,6 +256,21 @@ function hasToolNamed(tools: OpenRouterTool[], name: string): boolean {
   return toolNames(tools).includes(name);
 }
 
+function resolveExposedToolName(input: {
+  tools: OpenRouterTool[];
+  requestedName: string;
+}): string | null {
+  if (hasToolNamed(input.tools, input.requestedName))
+    return input.requestedName;
+  const productToolName = resolveOptaleToolName(
+    input.requestedName,
+  ).productToolName;
+  if (productToolName && hasToolNamed(input.tools, productToolName)) {
+    return productToolName;
+  }
+  return null;
+}
+
 function hasRequestedToolCall(input: {
   messages: OpenRouterMessage[];
   name: string;
@@ -271,13 +288,19 @@ function readForcedToolChoice(input: {
   tools: OpenRouterTool[];
 }): OpenRouterToolChoice {
   const requiredToolName = readStringConfig(input.config, "requiredToolName");
-  if (requiredToolName && hasToolNamed(input.tools, requiredToolName)) {
+  const exposedRequiredToolName = requiredToolName
+    ? resolveExposedToolName({
+        tools: input.tools,
+        requestedName: requiredToolName,
+      })
+    : null;
+  if (exposedRequiredToolName) {
     return hasRequestedToolCall({
       messages: input.messages,
-      name: requiredToolName,
+      name: exposedRequiredToolName,
     })
       ? "auto"
-      : { type: "function", function: { name: requiredToolName } };
+      : { type: "function", function: { name: exposedRequiredToolName } };
   }
 
   const rawToolChoice = input.config.toolChoice;
@@ -300,12 +323,15 @@ function readForcedToolChoice(input: {
       fn && typeof fn === "object" && !Array.isArray(fn)
         ? (fn as Record<string, unknown>).name
         : undefined;
-    if (
-      record.type === "function" &&
-      typeof name === "string" &&
-      hasToolNamed(input.tools, name)
-    ) {
-      return { type: "function", function: { name } };
+    const exposedToolName =
+      typeof name === "string"
+        ? resolveExposedToolName({ tools: input.tools, requestedName: name })
+        : null;
+    if (record.type === "function" && exposedToolName) {
+      return {
+        type: "function",
+        function: { name: exposedToolName },
+      };
     }
   }
 

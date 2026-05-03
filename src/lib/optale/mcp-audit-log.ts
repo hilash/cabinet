@@ -12,6 +12,9 @@ export interface OptaleMcpAuditEvent {
   authType?: string;
   method: string;
   toolName?: string;
+  productToolName?: string;
+  productToolLabel?: string;
+  internalToolName?: string;
   cabinetPath?: string;
   agentScope?: string;
   outcome: OptaleMcpAuditOutcome;
@@ -49,6 +52,9 @@ function compactEvent(event: OptaleMcpAuditEvent): Record<string, unknown> {
       authType: event.authType,
       method: event.method,
       toolName: event.toolName,
+      productToolName: event.productToolName,
+      productToolLabel: event.productToolLabel,
+      internalToolName: event.internalToolName,
       cabinetPath: event.cabinetPath,
       agentScope: event.agentScope,
       outcome: event.outcome,
@@ -62,8 +68,10 @@ function compactEvent(event: OptaleMcpAuditEvent): Record<string, unknown> {
           : undefined,
       error: event.error ? event.error.slice(0, 500) : undefined,
     }).filter(([, value]) =>
-      Array.isArray(value) ? value.length > 0 : value !== undefined && value !== ""
-    )
+      Array.isArray(value)
+        ? value.length > 0
+        : value !== undefined && value !== "",
+    ),
   );
 }
 
@@ -106,7 +114,10 @@ function compactParsedEvent(value: unknown): OptaleMcpAuditEvent | null {
       : undefined;
   const argumentKeys = Array.isArray(record.argumentKeys)
     ? record.argumentKeys
-        .filter((entry): entry is string => typeof entry === "string" && entry.trim() !== "")
+        .filter(
+          (entry): entry is string =>
+            typeof entry === "string" && entry.trim() !== "",
+        )
         .map((entry) => entry.trim())
         .slice(0, 50)
     : undefined;
@@ -117,6 +128,9 @@ function compactParsedEvent(value: unknown): OptaleMcpAuditEvent | null {
   const clientId = trimString(record.clientId);
   const authType = trimString(record.authType);
   const toolName = trimString(record.toolName);
+  const productToolName = trimString(record.productToolName);
+  const productToolLabel = trimString(record.productToolLabel);
+  const internalToolName = trimString(record.internalToolName);
   const cabinetPath = trimString(record.cabinetPath);
   const agentScope = trimString(record.agentScope);
   const error = trimString(record.error);
@@ -126,10 +140,14 @@ function compactParsedEvent(value: unknown): OptaleMcpAuditEvent | null {
   if (clientId) event.clientId = clientId;
   if (authType) event.authType = authType;
   if (toolName) event.toolName = toolName;
+  if (productToolName) event.productToolName = productToolName;
+  if (productToolLabel) event.productToolLabel = productToolLabel;
+  if (internalToolName) event.internalToolName = internalToolName;
   if (cabinetPath) event.cabinetPath = cabinetPath;
   if (agentScope) event.agentScope = agentScope;
   if (durationMs !== undefined) event.durationMs = durationMs;
-  if (argumentKeys && argumentKeys.length > 0) event.argumentKeys = argumentKeys;
+  if (argumentKeys && argumentKeys.length > 0)
+    event.argumentKeys = argumentKeys;
   if (error) event.error = error.slice(0, 500);
   return event;
 }
@@ -155,32 +173,38 @@ export function getOptaleMcpAuditLogPath(date = new Date()): string {
     CABINET_INTERNAL_DIR,
     "optale-mcp",
     "audit",
-    `${dateKey(date)}.jsonl`
+    `${dateKey(date)}.jsonl`,
   );
 }
 
 export async function appendOptaleMcpAuditEvent(
-  event: OptaleMcpAuditEvent
+  event: OptaleMcpAuditEvent,
 ): Promise<void> {
   if (!isOptaleMcpAuditEnabled()) return;
 
   try {
     const logPath = getOptaleMcpAuditLogPath();
     await ensureDirectory(path.dirname(logPath));
-    await fs.appendFile(logPath, `${JSON.stringify(compactEvent(event))}\n`, "utf8");
+    await fs.appendFile(
+      logPath,
+      `${JSON.stringify(compactEvent(event))}\n`,
+      "utf8",
+    );
   } catch (error) {
     console.warn(
       "[optale-mcp] failed to write audit event",
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
   }
 }
 
-export async function readOptaleMcpAuditSummary(input: {
-  date?: Date;
-  limit?: number;
-  clientIds?: string[];
-} = {}): Promise<OptaleMcpAuditSummary> {
+export async function readOptaleMcpAuditSummary(
+  input: {
+    date?: Date;
+    limit?: number;
+    clientIds?: string[];
+  } = {},
+): Promise<OptaleMcpAuditSummary> {
   const date = input.date || new Date();
   const limit = Math.max(1, Math.min(input.limit || 25, 100));
   const clientIds = input.clientIds?.length ? new Set(input.clientIds) : null;
@@ -199,7 +223,9 @@ export async function readOptaleMcpAuditSummary(input: {
       })
       .filter((event): event is OptaleMcpAuditEvent => {
         if (!event) return false;
-        return !clientIds || (event.clientId ? clientIds.has(event.clientId) : false);
+        return (
+          !clientIds || (event.clientId ? clientIds.has(event.clientId) : false)
+        );
       });
     const clients = new Map<string, OptaleMcpAuditClientSummary>();
     const summary: OptaleMcpAuditSummary = {
@@ -229,15 +255,24 @@ export async function readOptaleMcpAuditSummary(input: {
       if (event.outcome === "error") client.errors += 1;
       if (event.outcome === "denied") client.denied += 1;
       if (event.outcome === "notification") client.notifications += 1;
-      if (event.timestamp && (!client.lastSeenAt || event.timestamp > client.lastSeenAt)) {
+      if (
+        event.timestamp &&
+        (!client.lastSeenAt || event.timestamp > client.lastSeenAt)
+      ) {
         client.lastSeenAt = event.timestamp;
       }
       clients.set(clientId, client);
     }
 
     summary.clients = Array.from(clients.values()).sort((left, right) => {
-      const lastSeen = (right.lastSeenAt || "").localeCompare(left.lastSeenAt || "");
-      return lastSeen || right.events - left.events || left.clientId.localeCompare(right.clientId);
+      const lastSeen = (right.lastSeenAt || "").localeCompare(
+        left.lastSeenAt || "",
+      );
+      return (
+        lastSeen ||
+        right.events - left.events ||
+        left.clientId.localeCompare(right.clientId)
+      );
     });
     return summary;
   } catch (error) {
@@ -250,12 +285,14 @@ export async function readOptaleMcpAuditSummary(input: {
   }
 }
 
-export async function readOptaleMcpAuditEvents(input: {
-  date?: Date;
-  requestId?: string;
-  clientIds?: string[];
-  limit?: number;
-} = {}): Promise<OptaleMcpAuditEvent[]> {
+export async function readOptaleMcpAuditEvents(
+  input: {
+    date?: Date;
+    requestId?: string;
+    clientIds?: string[];
+    limit?: number;
+  } = {},
+): Promise<OptaleMcpAuditEvent[]> {
   const clientIds = input.clientIds?.length ? new Set(input.clientIds) : null;
   const limit =
     typeof input.limit === "number" && Number.isFinite(input.limit)
@@ -276,7 +313,8 @@ export async function readOptaleMcpAuditEvents(input: {
       })
       .filter((event): event is OptaleMcpAuditEvent => {
         if (!event) return false;
-        if (input.requestId && event.requestId !== input.requestId) return false;
+        if (input.requestId && event.requestId !== input.requestId)
+          return false;
         if (clientIds && (!event.clientId || !clientIds.has(event.clientId))) {
           return false;
         }
@@ -300,7 +338,8 @@ export async function countOptaleMcpToolCallsToday(input: {
       .reduce((count, line) => {
         try {
           const parsed = JSON.parse(line) as Record<string, unknown>;
-          return parsed.clientId === input.clientId && parsed.method === "tools/call"
+          return parsed.clientId === input.clientId &&
+            parsed.method === "tools/call"
             ? count + 1
             : count;
         } catch {

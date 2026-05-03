@@ -52,6 +52,9 @@ export interface ConversationMcpSourceRow {
   title: string;
   path?: string;
   sourceType: string;
+  productToolName?: string;
+  productToolLabel?: string;
+  internalToolName?: string;
   snippet?: string;
   outcome: ConversationMcpOutcome;
   durationMs?: number;
@@ -62,6 +65,10 @@ export interface ConversationMcpToolArtifact {
   timestamp?: string;
   method: "tools/call";
   toolName: string;
+  productToolName?: string;
+  productToolLabel?: string;
+  internalToolName?: string;
+  internalServerId?: string;
   serverId: string;
   source: string;
   outcome: ConversationMcpOutcome;
