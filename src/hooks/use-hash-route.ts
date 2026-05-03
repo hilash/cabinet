@@ -2,7 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
-import { buildTaskHash, buildTasksHash } from "@/lib/navigation/task-route";
+import {
+  buildConversationHash,
+  buildTaskHash,
+  buildTasksHash,
+} from "@/lib/navigation/task-route";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -20,6 +24,7 @@ import { useEditorStore } from "@/stores/editor-store";
  *   #/p/{pagePath}           ← page in root cabinet
  *   #/agents                 ← agents list (root cabinet)
  *   #/a/{slug}               ← agent detail (root cabinet)
+ *   #/chat/{conversationId}   ← manual conversation/chat detail
  *   #/tasks                  ← tasks list (root cabinet)
  *   #/tasks/{taskId}         ← task detail (root cabinet)
  *   #/brain                  ← Optale brain overview
@@ -41,6 +46,7 @@ import { useEditorStore } from "@/stores/editor-store";
  *   #/cabinet/{cabinetPath}/data/{pagePath}
  *   #/cabinet/{cabinetPath}/agents
  *   #/cabinet/{cabinetPath}/agents/{slug}
+ *   #/cabinet/{cabinetPath}/chat/{conversationId}
  *   #/cabinet/{cabinetPath}/tasks
  *   #/cabinet/{cabinetPath}/tasks/{taskId}
  *   #/cabinet/{cabinetPath}/brain
@@ -120,6 +126,9 @@ function buildHash(section: SectionState, pagePath: string | null): string {
   if (section.type === "agents") {
     if (isRoot) return "#/agents";
     return `#/cabinet/${encodePathSegment(cabinetPath)}/agents`;
+  }
+  if (section.type === "conversation" && section.conversationId) {
+    return buildConversationHash(section.conversationId, cabinetPath);
   }
   if (section.type === "task" && section.taskId) {
     return buildTaskHash(section.taskId, cabinetPath);
@@ -250,6 +259,17 @@ function parseHash(hash: string): RouteState {
       };
     }
 
+    if (leaf === "chat" && parts[3]) {
+      return {
+        section: {
+          type: "conversation",
+          cabinetPath,
+          conversationId: decodePathSegment(parts[3]),
+        },
+        pagePath: null,
+      };
+    }
+
     if (leaf === "tasks") {
       return {
         section: { type: "tasks", cabinetPath },
@@ -352,6 +372,17 @@ function parseHash(hash: string): RouteState {
     }
     return {
       section: { type: "tasks", cabinetPath: ROOT_CABINET_PATH },
+      pagePath: null,
+    };
+  }
+
+  if (parts[0] === "chat" && parts[1]) {
+    return {
+      section: {
+        type: "conversation",
+        cabinetPath: ROOT_CABINET_PATH,
+        conversationId: decodePathSegment(parts[1]),
+      },
       pagePath: null,
     };
   }
@@ -503,7 +534,9 @@ export function useHashRoute() {
       if (
         state.section.type !== prev.section.type ||
         state.section.slug !== prev.section.slug ||
-        state.section.cabinetPath !== prev.section.cabinetPath
+        state.section.cabinetPath !== prev.section.cabinetPath ||
+        state.section.taskId !== prev.section.taskId ||
+        state.section.conversationId !== prev.section.conversationId
       ) {
         const selectedPath = useTreeStore.getState().selectedPath;
         const hash = buildHash(state.section, selectedPath);

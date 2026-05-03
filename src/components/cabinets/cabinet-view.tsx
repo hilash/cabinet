@@ -272,8 +272,8 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
                 focusRequest={composerFocusRequest}
                 onNavigate={(_agentSlug, agentCabinetPath, conversationId) =>
                   setSection({
-                    type: "task",
-                    taskId: conversationId,
+                    type: "conversation",
+                    conversationId,
                     cabinetPath: agentCabinetPath,
                   })
                 }

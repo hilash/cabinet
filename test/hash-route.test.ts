@@ -14,6 +14,18 @@ test("parseHash handles canonical tasks route under root cabinet", () => {
   assert.equal(route.section.cabinetPath, ".");
 });
 
+test("parseHash handles conversation chat routes separately from task routes", () => {
+  const root = parseHash("#/chat/convo-123");
+  assert.equal(root.section.type, "conversation");
+  assert.equal(root.section.cabinetPath, ".");
+  assert.equal(root.section.conversationId, "convo-123");
+
+  const cabinet = parseHash("#/cabinet/clients%2Facme/chat/convo-456");
+  assert.equal(cabinet.section.type, "conversation");
+  assert.equal(cabinet.section.cabinetPath, "clients/acme");
+  assert.equal(cabinet.section.conversationId, "convo-456");
+});
+
 test("parseHash handles Resource Registry routes", () => {
   const root = parseHash("#/resources");
   assert.equal(root.section.type, "resources");

@@ -3625,8 +3625,8 @@ export function AgentsWorkspace({
           setQuickSendAgent(null);
           setHandoffAgentSlug(null);
           setSection({
-            type: "task",
-            taskId: conversationId,
+            type: "conversation",
+            conversationId,
             cabinetPath: conversationCabinetPath || effectiveCabinetPath,
           });
         }}

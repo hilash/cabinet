@@ -15,6 +15,7 @@ export type SectionType =
   | "agent"
   | "tasks"
   | "task"
+  | "conversation"
   | "brain"
   | "vault"
   | "memory"
@@ -71,7 +72,7 @@ export interface SelectedSection {
   slug?: string; // agent slug when type === "agent"
   cabinetPath?: string; // scope for cabinet/page/agent/agents/tasks/task; defaults to ROOT_CABINET_PATH
   agentScopedId?: string;
-  conversationId?: string; // auto-select this conversation on mount
+  conversationId?: string; // conversation id when type === "conversation" or auto-select on agents mount
   taskId?: string; // task id when type === "task"
 }
 

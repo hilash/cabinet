@@ -10,20 +10,13 @@ import {
   type ReactNode,
 } from "react";
 import {
-  Boxes,
   Brain,
-  CircleDot,
-  Database,
   Home,
-  ListChecks,
-  Network,
   PanelLeftClose,
   PanelLeft,
   Plus,
   Settings,
-  Sparkles,
   UserPlus,
-  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -196,89 +189,20 @@ export function Sidebar() {
             onClick={() => setSection({ type: "home" })}
           />
           <SidebarNavButton
-            active={section.type === "resources"}
-            icon={<Boxes className="size-3.5 shrink-0" />}
-            label="Resources"
-            onClick={() =>
-              setSection({
-                type: "resources",
-                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
-              })
+            active={
+              section.type === "brain" ||
+              section.type === "vault" ||
+              section.type === "memory" ||
+              section.type === "graph" ||
+              section.type === "entities" ||
+              section.type === "dreams" ||
+              section.type === "company-brain"
             }
-          />
-          <SidebarNavButton
-            active={section.type === "actions"}
-            icon={<ListChecks className="size-3.5 shrink-0" />}
-            label="Actions"
-            onClick={() =>
-              setSection({
-                type: "actions",
-                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
-              })
-            }
-          />
-          <SidebarNavButton
-            active={section.type === "brain"}
             icon={<Brain className="size-3.5 shrink-0" />}
             label="Brain"
             onClick={() =>
               setSection({
                 type: "brain",
-                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
-              })
-            }
-          />
-          <SidebarNavButton
-            active={section.type === "vault"}
-            icon={<Database className="size-3.5 shrink-0" />}
-            label="Vault"
-            onClick={() =>
-              setSection({
-                type: "vault",
-                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
-              })
-            }
-          />
-          <SidebarNavButton
-            active={section.type === "memory"}
-            icon={<CircleDot className="size-3.5 shrink-0" />}
-            label="Memory"
-            onClick={() =>
-              setSection({
-                type: "memory",
-                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
-              })
-            }
-          />
-          <SidebarNavButton
-            active={section.type === "graph"}
-            icon={<Network className="size-3.5 shrink-0" />}
-            label="Graph"
-            onClick={() =>
-              setSection({
-                type: "graph",
-                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
-              })
-            }
-          />
-          <SidebarNavButton
-            active={section.type === "entities"}
-            icon={<Workflow className="size-3.5 shrink-0" />}
-            label="Entities"
-            onClick={() =>
-              setSection({
-                type: "entities",
-                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
-              })
-            }
-          />
-          <SidebarNavButton
-            active={section.type === "dreams"}
-            icon={<Sparkles className="size-3.5 shrink-0" />}
-            label="Dreams"
-            onClick={() =>
-              setSection({
-                type: "dreams",
                 cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
               })
             }

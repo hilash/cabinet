@@ -184,7 +184,7 @@ export function OptaleResourceRegistryWorkspace({
   }, [activeKind, registry?.resources, search]);
 
   return (
-    <main className="flex min-h-full flex-col bg-background">
+    <main className="flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden bg-background pb-12">
       <section className="border-b border-border/70 px-6 py-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">

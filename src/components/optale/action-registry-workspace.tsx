@@ -67,7 +67,7 @@ export function OptaleActionRegistryWorkspace({
   );
 
   return (
-    <main className="flex min-h-full flex-col bg-background">
+    <main className="flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden bg-background pb-12">
       <OptaleCommandHeader
         generatedAt={registry?.generatedAt}
         loading={loading}

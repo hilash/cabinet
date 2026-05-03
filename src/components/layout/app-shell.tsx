@@ -225,6 +225,9 @@ export function AppShell() {
       case "task":
         title = `Task — ${base}`;
         break;
+      case "conversation":
+        title = `Conversation — ${base}`;
+        break;
       case "brain":
         title = `Brain — ${base}`;
         break;
@@ -622,8 +625,8 @@ export function AppShell() {
             }
             onOpenConversation={(c: ConversationMeta) =>
               setSection({
-                type: "task",
-                taskId: c.id,
+                type: "conversation",
+                conversationId: c.id,
                 cabinetPath: c.cabinetPath,
               })
             }
@@ -659,6 +662,9 @@ export function AppShell() {
     }
     if (section.type === "task" && section.taskId) {
       return <TaskConversationPage taskId={section.taskId} />;
+    }
+    if (section.type === "conversation" && section.conversationId) {
+      return <TaskConversationPage taskId={section.conversationId} />;
     }
 
     // Page-based views (when a KB page is selected)

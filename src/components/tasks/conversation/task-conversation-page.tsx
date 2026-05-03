@@ -47,10 +47,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
-import { buildTaskHash } from "@/lib/navigation/task-route";
+import {
+  buildConversationHash,
+  buildTaskHash,
+} from "@/lib/navigation/task-route";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppStore } from "@/stores/app-store";
 import { TurnBlock, type TurnBlockAgent } from "./turn-block";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { ConversationApprovalPanel } from "@/components/agents/conversation-approval-panel";
@@ -342,6 +346,10 @@ export function TaskConversationPage({
 }: TaskConversationPageProps) {
   const isDemo = taskId === "demo";
   const isCompact = variant === "compact";
+  const section = useAppStore((s) => s.section);
+  const isConversationRoute = section.type === "conversation";
+  const surfaceNoun = isConversationRoute ? "conversation" : "task";
+  const surfaceTitle = isConversationRoute ? "Conversation" : "Task";
   const [task, setTask] = useState<Task | null>(isDemo ? MOCK_TASK : null);
   const [turnAgent, setTurnAgent] = useState<TurnBlockAgent | null>(null);
   const userState = useUserProfile();
@@ -803,13 +811,15 @@ export function TaskConversationPage({
   const handleCopyLink = useCallback(async () => {
     if (typeof window === "undefined") return;
     const base = `${window.location.origin}${window.location.pathname}`;
-    const hash = buildTaskHash(taskId, task?.meta.cabinetPath);
+    const hash = isConversationRoute
+      ? buildConversationHash(taskId, task?.meta.cabinetPath)
+      : buildTaskHash(taskId, task?.meta.cabinetPath);
     try {
       await navigator.clipboard.writeText(`${base}${hash}`);
     } catch {
       // clipboard blocked; silently ignore.
     }
-  }, [task?.meta.cabinetPath, taskId]);
+  }, [isConversationRoute, task?.meta.cabinetPath, taskId]);
 
   const handleOpenTranscriptExternal = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -837,9 +847,9 @@ export function TaskConversationPage({
   const handleDelete = useCallback(async () => {
     if (!task || isDemo) return;
     const ok = await confirmDialog({
-      title: "Delete this task?",
+      title: `Delete this ${surfaceNoun}?`,
       message: "This cannot be undone.",
-      confirmText: "Delete task",
+      confirmText: `Delete ${surfaceNoun}`,
       destructive: true,
     });
     if (!ok) return;
@@ -854,13 +864,15 @@ export function TaskConversationPage({
     } finally {
       setBusy(false);
     }
-  }, [task, isDemo, taskId]);
+  }, [task, isDemo, surfaceNoun, taskId]);
 
   if (loadError && !task) {
     return (
       <div className="flex h-full items-center justify-center bg-background text-foreground">
         <div className="max-w-sm rounded-2xl border border-border/70 bg-card px-6 py-5 text-center">
-          <p className="text-[13px] font-medium">Couldn&rsquo;t load task</p>
+          <p className="text-[13px] font-medium">
+            Couldn&rsquo;t load {surfaceNoun}
+          </p>
           <p className="mt-1 text-[12px] text-muted-foreground">{loadError}</p>
           <Link
             href="/"
@@ -941,7 +953,7 @@ export function TaskConversationPage({
         <div className="shrink-0 bg-zinc-950 px-2 pt-2">
           <div
             role="tablist"
-            aria-label="Task view"
+            aria-label={`${surfaceTitle} view`}
             className={cn(
               "relative z-10 grid gap-1 -mb-px text-[12px] font-medium",
               isClaudeProvider ? "grid-cols-3" : "grid-cols-2"
@@ -1119,12 +1131,12 @@ export function TaskConversationPage({
           <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-100">
             {task?.meta.title ??
               (loadError
-                ? "Task unavailable"
+                ? `${surfaceTitle} unavailable`
                 : connectTimedOut
-                  ? "Task is unreachable"
+                  ? `${surfaceTitle} is unreachable`
                   : terminalPrompt
                     ? terminalPrompt.split("\n")[0].slice(0, 80)
-                    : "Opening task…")}
+                    : `Opening ${surfaceNoun}…`)}
           </h1>
           {!task && (loadError || connectTimedOut) && (
             <button

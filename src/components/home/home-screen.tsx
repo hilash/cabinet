@@ -214,8 +214,8 @@ export function HomeScreen() {
         ...taskRuntime,
       });
       setSection({
-        type: "task",
-        taskId: data.conversation?.id,
+        type: "conversation",
+        conversationId: data.conversation?.id,
         cabinetPath: ROOT_CABINET_PATH,
       });
     },
@@ -267,8 +267,8 @@ export function HomeScreen() {
       });
       if (data.conversation?.id) {
         setSection({
-          type: "task",
-          taskId: data.conversation.id,
+          type: "conversation",
+          conversationId: data.conversation.id,
           cabinetPath: ROOT_CABINET_PATH,
         });
       }
@@ -385,13 +385,10 @@ export function HomeScreen() {
           </div>
           <div className="flex flex-wrap gap-2">
             {[
-              { label: "Resources", type: "resources" as const },
-              { label: "Actions", type: "actions" as const },
               { label: "Brain", type: "brain" as const },
               { label: "Vault", type: "vault" as const },
-              { label: "Graph", type: "graph" as const },
               { label: "Entities", type: "entities" as const },
-              { label: "Dreams", type: "dreams" as const },
+              { label: "Inspect", type: "resources" as const },
             ].map((item) => (
               <button
                 key={item.type}
@@ -429,8 +426,8 @@ export function HomeScreen() {
         onStarted={(conversationId) => {
           composer.reset();
           setSection({
-            type: "task",
-            taskId: conversationId,
+            type: "conversation",
+            conversationId,
             cabinetPath: ROOT_CABINET_PATH,
           });
         }}

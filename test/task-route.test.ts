@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildTaskHash, buildTaskHref, buildTasksHash } from "@/lib/navigation/task-route";
+import {
+  buildConversationHash,
+  buildConversationHref,
+  buildTaskHash,
+  buildTaskHref,
+  buildTasksHash,
+} from "@/lib/navigation/task-route";
 
 test("task routes use the short root alias for the root cabinet", () => {
   assert.equal(buildTasksHash("."), "#/tasks");
@@ -16,5 +22,14 @@ test("task routes preserve cabinet scope for nested cabinets", () => {
   assert.equal(
     buildTaskHash("launch review", "example-text-your-mom/marketing"),
     "#/cabinet/example-text-your-mom%2Fmarketing/tasks/launch%20review"
+  );
+});
+
+test("conversation routes are distinct from task board routes", () => {
+  assert.equal(buildConversationHash("convo-123", "."), "#/chat/convo-123");
+  assert.equal(buildConversationHref("convo-123", "."), "/#/chat/convo-123");
+  assert.equal(
+    buildConversationHash("launch review", "example-text-your-mom/marketing"),
+    "#/cabinet/example-text-your-mom%2Fmarketing/chat/launch%20review"
   );
 });

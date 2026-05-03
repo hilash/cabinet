@@ -19,3 +19,21 @@ export function buildTaskHash(taskId: string, cabinetPath?: string | null): stri
 export function buildTaskHref(taskId: string, cabinetPath?: string | null): string {
   return `/${buildTaskHash(taskId, cabinetPath)}`;
 }
+
+export function buildConversationHash(
+  conversationId: string,
+  cabinetPath?: string | null
+): string {
+  const normalized = normalizeCabinetPath(cabinetPath, true);
+  if (isRootCabinetPath(normalized)) {
+    return `#/chat/${encodeSegment(conversationId)}`;
+  }
+  return `#/cabinet/${encodeSegment(normalized || ".")}/chat/${encodeSegment(conversationId)}`;
+}
+
+export function buildConversationHref(
+  conversationId: string,
+  cabinetPath?: string | null
+): string {
+  return `/${buildConversationHash(conversationId, cabinetPath)}`;
+}
