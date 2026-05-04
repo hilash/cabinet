@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   Check,
+  BookOpen,
   ChevronRight,
   Copy,
   GitBranch,
@@ -22,7 +23,9 @@ import { useAppStore, type SelectedSection } from "@/stores/app-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { cn } from "@/lib/utils";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 import type { Turn } from "@/types/tasks";
+import type { ConversationMcpToolArtifact } from "@/types/conversations";
 import { Markdown } from "./markdown";
 import { TurnAttachments } from "./turn-attachments";
 import { ConversationContentViewer } from "@/components/agents/conversation-content-viewer";
@@ -181,6 +184,97 @@ function collectArtifactPaths(turn: Turn): string[] {
   return [...seen];
 }
 
+function isDiagnosticSourcePath(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.startsWith("/") ||
+    normalized.startsWith("file:") ||
+    normalized.startsWith("mcp:") ||
+    normalized.startsWith("mcp-server:") ||
+    normalized.includes("/.agents/") ||
+    normalized.includes(".agents/")
+  );
+}
+
+function visibleSourceCount(
+  artifact: ConversationMcpToolArtifact,
+  showDiagnostics: boolean
+): number {
+  if (artifact.sources.length > 0) {
+    return artifact.sources.filter(
+      (source) =>
+        showDiagnostics ||
+        !source.path ||
+        !isDiagnosticSourcePath(source.path)
+    ).length;
+  }
+  return artifact.sourcePaths.filter(
+    (path) => showDiagnostics || !isDiagnosticSourcePath(path)
+  ).length;
+}
+
+function TurnSourceSummary({
+  artifacts,
+  onOpenSources,
+}: {
+  artifacts?: ConversationMcpToolArtifact[];
+  onOpenSources?: () => void;
+}) {
+  const showDiagnostics = hasOptaleCapability("diagnostics.raw");
+  const items = (artifacts ?? []).filter(
+    (artifact) =>
+      visibleSourceCount(artifact, showDiagnostics) > 0 || artifact.preview
+  );
+  if (items.length === 0) return null;
+
+  const sourceCount = items.reduce(
+    (sum, artifact) => sum + visibleSourceCount(artifact, showDiagnostics),
+    0
+  );
+  const toolLabels = Array.from(
+    new Set(
+      items.map(
+        (artifact) =>
+          artifact.productToolLabel ||
+          artifact.productToolName ||
+          "Managed tool"
+      )
+    )
+  ).slice(0, 2);
+
+  return (
+    <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-background/75 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 font-medium text-foreground/80">
+        <BookOpen className="size-3.5 text-primary" />
+        {sourceCount} {sourceCount === 1 ? "source" : "sources"}
+      </span>
+      <span className="text-muted-foreground/35">·</span>
+      <span className="tabular-nums">
+        {items.length} tool {items.length === 1 ? "call" : "calls"}
+      </span>
+      {toolLabels.map((label) => (
+        <span
+          key={label}
+          className="max-w-[10rem] truncate rounded-full bg-muted/50 px-1.5 py-px text-[10px] text-foreground/75"
+        >
+          {label}
+        </span>
+      ))}
+      {onOpenSources ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+          onClick={onOpenSources}
+        >
+          Sources
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function TurnBlock({
   turn,
   agent,
@@ -191,6 +285,8 @@ export function TurnBlock({
   onRetryRun,
   onForkTurn,
   onUseAsDraft,
+  sourceArtifacts,
+  onOpenSources,
 }: {
   turn: Turn;
   agent?: TurnBlockAgent | null;
@@ -201,6 +297,8 @@ export function TurnBlock({
   onRetryRun?: () => void;
   onForkTurn?: (turn: Turn) => void;
   onUseAsDraft?: (turn: Turn) => void;
+  sourceArtifacts?: ConversationMcpToolArtifact[];
+  onOpenSources?: () => void;
 }) {
   const isUser = turn.role === "user";
   const totalTokens = turn.tokens
@@ -332,6 +430,13 @@ export function TurnBlock({
 
               {!isUser && turn.pending ? <PendingIndicator /> : null}
             </div>
+
+            {!isUser ? (
+              <TurnSourceSummary
+                artifacts={sourceArtifacts}
+                onOpenSources={onOpenSources}
+              />
+            ) : null}
 
             {canCopy ? (
               <div

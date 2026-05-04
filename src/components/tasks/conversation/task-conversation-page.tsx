@@ -293,6 +293,51 @@ function conversationSourceStats(
   };
 }
 
+function timeValue(iso?: string): number | null {
+  if (!iso) return null;
+  const value = new Date(iso).getTime();
+  return Number.isFinite(value) ? value : null;
+}
+
+function groupMcpArtifactsByAgentTurn(
+  turns: Turn[],
+  artifacts?: ConversationMcpToolArtifact[],
+): Map<string, ConversationMcpToolArtifact[]> {
+  const groups = new Map<string, ConversationMcpToolArtifact[]>();
+  const agentTurns = turns
+    .filter((turn) => turn.role === "agent" && !turn.pending)
+    .map((turn) => ({ turn, at: timeValue(turn.ts) }))
+    .filter(
+      (entry): entry is { turn: Turn; at: number } => entry.at !== null,
+    )
+    .sort((left, right) => left.at - right.at);
+
+  if (agentTurns.length === 0) return groups;
+  const firstAgentTurn = agentTurns[0];
+  if (!firstAgentTurn) return groups;
+
+  for (const artifact of artifacts ?? []) {
+    const artifactAt = timeValue(artifact.timestamp);
+    if (artifactAt === null) continue;
+
+    let target = firstAgentTurn;
+    let distance = Math.abs(target.at - artifactAt);
+    for (const entry of agentTurns.slice(1)) {
+      const nextDistance = Math.abs(entry.at - artifactAt);
+      if (nextDistance >= distance) continue;
+      target = entry;
+      distance = nextDistance;
+    }
+    if (!target) continue;
+
+    const existing = groups.get(target.turn.id) ?? [];
+    existing.push(artifact);
+    groups.set(target.turn.id, existing);
+  }
+
+  return groups;
+}
+
 function ConversationSourcesFooter({
   artifacts,
   onOpenSources,
@@ -895,6 +940,13 @@ export function TaskConversationPage({
   const turnArtifactCount = task
     ? task.turns.flatMap((turn) => turn.artifacts ?? []).length
     : 0;
+  const mcpArtifactsByTurnId = useMemo(
+    () =>
+      task
+        ? groupMcpArtifactsByAgentTurn(task.turns, task.mcpArtifacts)
+        : new Map<string, ConversationMcpToolArtifact[]>(),
+    [task]
+  );
 
   const lastTurn = task ? task.turns[task.turns.length - 1] : null;
   const showWrapUp =
@@ -2045,6 +2097,8 @@ export function TaskConversationPage({
                         ? handleUseTurnAsDraft
                         : undefined
                     }
+                    sourceArtifacts={mcpArtifactsByTurnId.get(turn.id)}
+                    onOpenSources={() => setActiveTab("sources")}
                   />
                 );
               })}
