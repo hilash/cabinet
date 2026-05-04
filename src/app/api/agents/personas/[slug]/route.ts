@@ -17,6 +17,10 @@ import { getTemplateRecommendedSkills } from "@/lib/agents/library-manager";
 import { startManualHeartbeat } from "@/lib/agents/heartbeat";
 import { updateGoal, getGoalHistory } from "@/lib/agents/goal-manager";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import {
+  restrictedCustomerModeResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -83,6 +87,13 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 }
 
 export async function PUT(req: NextRequest, { params }: RouteParams) {
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "agents.personas.write",
+      "Agent persona, heartbeat, memory, and inbox mutations are operator-only in restricted customer mode.",
+    );
+  }
+
   const { slug } = await params;
   const body = await req.json();
   const cabinetPath = typeof body.cabinetPath === "string" ? body.cabinetPath : undefined;
@@ -128,6 +139,13 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "agents.personas.write",
+      "Deleting agent personas is operator-only in restricted customer mode.",
+    );
+  }
+
   const { slug } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
   await deletePersona(slug, cabinetPath);

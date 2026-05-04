@@ -218,6 +218,24 @@ test("readOptaleCommandCenterSnapshot returns cabinet operational state and cont
   );
   assert.ok(snapshot.controls.includes("launch_conversation"));
   assert.ok(snapshot.controls.includes("review_actions"));
+  assert.deepEqual(snapshot.operatorOnlyControls, []);
+});
+
+test("restricted customer snapshot exposes only safe controls as available", async () => {
+  const previous = process.env.OPTALE_CUSTOMER_MODE;
+  process.env.OPTALE_CUSTOMER_MODE = "restricted";
+  try {
+    const snapshot = await commandCenter.readOptaleCommandCenterSnapshot({
+      cabinetPath: ".",
+    });
+    assert.deepEqual(snapshot.controls, ["review_actions"]);
+    assert.ok(snapshot.operatorOnlyControls.includes("launch_conversation"));
+    assert.ok(snapshot.operatorOnlyControls.includes("create_task"));
+    assert.ok(snapshot.operatorOnlyControls.includes("stop_conversation"));
+  } finally {
+    if (previous === undefined) delete process.env.OPTALE_CUSTOMER_MODE;
+    else process.env.OPTALE_CUSTOMER_MODE = previous;
+  }
 });
 
 test("executeOptaleCommandCenterAction can create/update tasks and toggle agent activity", async () => {
@@ -265,4 +283,26 @@ test("executeOptaleCommandCenterAction can create/update tasks and toggle agent 
   });
   assert.equal(snapshot.counts.activeAgents, 1);
   assert.equal(snapshot.counts.taskStatus.completed, 1);
+});
+
+test("executeOptaleCommandCenterAction blocks broad actions in restricted customer mode", async () => {
+  const previous = process.env.OPTALE_CUSTOMER_MODE;
+  process.env.OPTALE_CUSTOMER_MODE = "restricted";
+  try {
+    await assert.rejects(
+      () =>
+        commandCenter.executeOptaleCommandCenterAction({
+          action: "run_job",
+          cabinetPath: ".",
+          jobId: "missing",
+        }),
+      (error: unknown) =>
+        error instanceof Error &&
+        /operator-only in restricted customer mode/.test(error.message) &&
+        (error as { status?: number }).status === 403,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.OPTALE_CUSTOMER_MODE;
+    else process.env.OPTALE_CUSTOMER_MODE = previous;
+  }
 });

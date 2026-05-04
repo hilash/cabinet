@@ -4,6 +4,7 @@ import type { ConversationMeta } from "@/types/conversations";
 import type { ProviderInfo } from "@/types/agents";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 
 export type SectionType =
   | "home"
@@ -250,6 +251,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   toggleTerminal: () => {
+    if (!hasOptaleCapability("terminal.open")) return;
     const { terminalOpen, terminalTabs, terminalCwd } = get();
     if (terminalOpen) {
       // Panel is already visible — open a new tab rather than closing
@@ -274,6 +276,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeTerminal: () => set({ terminalOpen: false, terminalTabs: [], activeTerminalTab: null }),
 
   addTerminalTab: (label?: string, prompt?: string, adapterType?: string) => {
+    if (!hasOptaleCapability("terminal.open")) return;
     const { terminalTabs, terminalCwd } = get();
     const num = terminalTabs.length + 1;
     const id = `term-${Date.now()}`;
@@ -355,6 +358,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ taskPanelFullscreen: !get().taskPanelFullscreen }),
 
   openAgentTab: (taskTitle: string, prompt: string) => {
+    if (!hasOptaleCapability("terminal.open")) return;
     const id = `agent-${Date.now()}`;
     const { terminalTabs } = get();
     set({

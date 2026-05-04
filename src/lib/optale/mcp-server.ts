@@ -26,6 +26,8 @@ import {
   toProductFacingToolOrNull,
   type OptaleResolvedToolName,
 } from "@/lib/optale/tool-registry";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
+import { restrictedCustomerVisibilityMode } from "@/lib/optale/restricted-customer-mode";
 
 type JsonRpcId = string | number | null;
 type JsonObject = Record<string, unknown>;
@@ -196,6 +198,7 @@ function isActionsEnabled(): boolean {
 }
 
 function canExposeActions(options: OptaleMcpServerOptions = {}): boolean {
+  if (isOptaleRestrictedCustomerMode()) return false;
   const globallyEnabled = options.includeActions ?? isActionsEnabled();
   if (!globallyEnabled) return false;
   return options.gatewayContext?.canUseActions ?? true;
@@ -492,8 +495,8 @@ export async function callOptaleMcpTool(
 
       case "optale_list_cabinets": {
         const overview = await readCabinetOverview(cabinetPath || ".", {
-          visibilityMode: parseCabinetVisibilityMode(
-            trimString(input.visibilityMode),
+          visibilityMode: restrictedCustomerVisibilityMode(
+            parseCabinetVisibilityMode(trimString(input.visibilityMode)),
           ),
         });
         return finish(
@@ -531,8 +534,8 @@ export async function callOptaleMcpTool(
               await import("@/lib/optale/command-center-control")
             ).readOptaleCommandCenterSnapshot({
               cabinetPath,
-              visibilityMode: parseCabinetVisibilityMode(
-                trimString(input.visibilityMode),
+              visibilityMode: restrictedCustomerVisibilityMode(
+                parseCabinetVisibilityMode(trimString(input.visibilityMode)),
               ),
               limit:
                 typeof input.limit === "number" && Number.isFinite(input.limit)

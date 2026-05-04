@@ -27,6 +27,8 @@ import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
+import { AgentHarnessObservatoryPanel } from "@/components/optale/agent-harness-observatory-panel";
 
 type BrainView =
   | "overview"
@@ -35,6 +37,7 @@ type BrainView =
   | "graph"
   | "entities"
   | "dreams"
+  | "observatory"
   | "company-brain"
   | "admin";
 type ExploreView = "vault" | "graph";
@@ -761,6 +764,7 @@ const VIEW_LABELS: Record<BrainView, string> = {
   graph: "Graph",
   entities: "Entities",
   dreams: "Dreams",
+  observatory: "Observatory",
   "company-brain": "Company Brain",
   admin: "Admin",
 };
@@ -1266,7 +1270,15 @@ export function OptaleBrainWorkspace({
   initialView: BrainView;
   cabinetPath?: string;
 }) {
-  const [view, setView] = useState<BrainView>(initialView);
+  const canViewCompanyBrain = hasOptaleCapability("company_brain.view");
+  const canViewRawDiagnostics = hasOptaleCapability("diagnostics.raw");
+  const normalizedInitialView =
+    initialView === "company-brain" && !canViewCompanyBrain
+      ? "overview"
+      : initialView === "admin" && !canViewRawDiagnostics
+        ? "overview"
+        : initialView;
+  const [view, setView] = useState<BrainView>(normalizedInitialView);
   const [query, setQuery] = useState("");
   const [memoryPeer, setMemoryPeer] = useState("");
   const [entitiesOffset, setEntitiesOffset] = useState(0);
@@ -1301,8 +1313,9 @@ export function OptaleBrainWorkspace({
     [coreState.status?.sources]
   );
   const companyBrainVisible =
-    view === "company-brain" ||
-    Boolean(companyBrainSource && companyBrainSource.status !== "blocked");
+    canViewCompanyBrain &&
+    (view === "company-brain" ||
+      Boolean(companyBrainSource && companyBrainSource.status !== "blocked"));
   const companyBrainState = useCompanyBrain({
     active: view === "company-brain",
     cabinetPath,
@@ -1317,15 +1330,16 @@ export function OptaleBrainWorkspace({
       "graph",
       "entities",
       "dreams",
+      "observatory",
     ];
     if (companyBrainVisible) views.push("company-brain");
-    views.push("admin");
+    if (canViewRawDiagnostics) views.push("admin");
     return views;
-  }, [companyBrainVisible]);
+  }, [canViewRawDiagnostics, companyBrainVisible]);
 
   useEffect(() => {
-    setView(initialView);
-  }, [initialView]);
+    setView(normalizedInitialView);
+  }, [normalizedInitialView]);
 
   const sourceById = useMemo(() => {
     return new Map(summaryState.summary?.sources.map((source) => [source.id, source]));
@@ -1345,9 +1359,11 @@ export function OptaleBrainWorkspace({
       if (next === "graph") setSection({ type: "graph", cabinetPath });
       if (next === "entities") setSection({ type: "entities", cabinetPath });
       if (next === "dreams") setSection({ type: "dreams", cabinetPath });
-      if (next === "company-brain") setSection({ type: "company-brain", cabinetPath });
+      if (next === "company-brain" && canViewCompanyBrain) {
+        setSection({ type: "company-brain", cabinetPath });
+      }
     },
-    [cabinetPath, setSection]
+    [cabinetPath, canViewCompanyBrain, setSection]
   );
 
   const openVaultItem = useCallback(
@@ -1491,6 +1507,8 @@ export function OptaleBrainWorkspace({
             onSubmitAction={dreamsState.submitAction}
             onAsk={dreamsState.ask}
           />
+        ) : view === "observatory" ? (
+          <AgentHarnessObservatoryPanel />
         ) : view === "company-brain" ? (
           <CompanyBrainView
             data={companyBrainState.data}

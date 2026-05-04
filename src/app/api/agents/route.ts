@@ -5,6 +5,10 @@ import {
   runAgent,
   getAgentStats,
 } from "@/lib/agents/agent-manager";
+import {
+  restrictedCustomerModeResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 export async function GET() {
   try {
@@ -19,6 +23,13 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "agents.legacy_run",
+      "Direct legacy agent runs are operator-only in restricted customer mode.",
+    );
+  }
+
   try {
     const body = await req.json();
     const { taskTitle, prompt, taskId, workdir, providerId } = body;

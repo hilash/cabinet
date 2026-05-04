@@ -14,6 +14,8 @@ import {
   getProviderUsage,
   updateProviderSettingsWithMigrations,
 } from "@/lib/agents/provider-management";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
+import { restrictedCustomerModeResponse } from "@/lib/optale/restricted-customer-mode";
 
 // Short in-memory cache: the GET response is driven by spawning 8 CLI probes,
 // and the page fires this endpoint on every mount. Cache shared across requests.
@@ -113,6 +115,13 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
+  if (!hasOptaleCapability("providers.configure")) {
+    return restrictedCustomerModeResponse(
+      "providers.configure",
+      "Provider configuration is operator-only in the partner-safe desktop profile.",
+    );
+  }
+
   try {
     cachedResponse = null;
     const body = await req.json();

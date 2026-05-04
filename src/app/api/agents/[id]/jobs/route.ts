@@ -4,6 +4,10 @@ import type { JobConfig } from "@/types/jobs";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 import { normalizeJobConfig } from "@/lib/jobs/job-normalization";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
+import {
+  restrictedCustomerModeResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 export async function GET(
   req: NextRequest,
@@ -28,6 +32,13 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "jobs.write",
+      "Creating background jobs is operator-only in restricted customer mode.",
+    );
+  }
+
   const { id: slug } = await params;
   try {
     const body = await req.json();

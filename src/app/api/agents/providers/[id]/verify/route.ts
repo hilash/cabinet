@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { providerRegistry } from "@/lib/agents/provider-registry";
 import { ADAPTER_RUNTIME_PATH } from "@/lib/agents/adapters/utils";
 import { emit as emitTelemetry } from "@/lib/telemetry";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
+import { restrictedCustomerModeResponse } from "@/lib/optale/restricted-customer-mode";
 
 type VerifyStatus =
   | "pass"
@@ -122,7 +124,14 @@ function findVerifyStep(installSteps: Array<{ title: string; command?: string }>
 export async function POST(
   _req: Request,
   ctx: { params: Promise<{ id: string }> }
-): Promise<NextResponse<VerifyResult | { error: string }>> {
+): Promise<NextResponse> {
+  if (!hasOptaleCapability("providers.configure")) {
+    return restrictedCustomerModeResponse(
+      "providers.verify",
+      "Provider verification can expose local runtime details and is operator-only in the partner-safe desktop profile.",
+    );
+  }
+
   const { id } = await ctx.params;
   const provider = providerRegistry.get(id);
   if (!provider) {
@@ -155,7 +164,7 @@ export async function POST(
     durationMs,
   });
 
-  return NextResponse.json({
+  const response: VerifyResult = {
     status,
     failedStepTitle: status === "pass" ? "" : step.title,
     command: step.command,
@@ -165,7 +174,8 @@ export async function POST(
     stderr: truncate(result.stderr),
     durationMs,
     hint,
-  });
+  };
+  return NextResponse.json(response);
 }
 
 function runShellCommand(command: string): Promise<{

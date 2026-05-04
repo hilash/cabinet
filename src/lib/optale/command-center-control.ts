@@ -5,6 +5,7 @@ import {
 import {
   appendEventLog,
   finalizeConversation,
+  hydrateConversationMcpEvidenceMeta,
   listConversationMetas,
   readConversationMeta,
   writeConversationMeta,
@@ -28,6 +29,11 @@ import {
   type AgentTask,
 } from "@/lib/agents/task-inbox";
 import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
+import {
+  commandCenterRestrictedDenial,
+  isCommandCenterActionAllowedInRestrictedCustomerMode,
+  restrictedAgentRuntimeDenial,
+} from "@/lib/optale/restricted-customer-mode";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 import {
   invalidateCabinetOverviewCache,
@@ -67,6 +73,17 @@ export type OptaleCommandCenterAction =
   | "toggle_job"
   | "stop_conversation"
   | "review_actions";
+
+const COMMAND_CENTER_CONTROLS = [
+  "launch_conversation",
+  "create_task",
+  "update_task",
+  "set_agent_active",
+  "run_job",
+  "toggle_job",
+  "stop_conversation",
+  "review_actions",
+] satisfies OptaleCommandCenterAction[];
 
 export class OptaleCommandCenterError extends Error {
   status: number;
@@ -161,11 +178,28 @@ function mcpClientCounts(clients: PublicSanitizedOptaleMcpClient[]) {
   };
 }
 
+function commandCenterControlAvailability(): {
+  controls: OptaleCommandCenterAction[];
+  operatorOnlyControls: OptaleCommandCenterAction[];
+} {
+  const controls = COMMAND_CENTER_CONTROLS.filter((action) =>
+    isCommandCenterActionAllowedInRestrictedCustomerMode(action),
+  );
+  return {
+    controls,
+    operatorOnlyControls: COMMAND_CENTER_CONTROLS.filter(
+      (action) => !controls.includes(action),
+    ),
+  };
+}
+
 export async function readOptaleCommandCenterSnapshot(
   input: {
     cabinetPath?: string;
     visibilityMode?: CabinetVisibilityMode;
     limit?: number;
+    hydrateMcpEvidence?: boolean;
+    hydrateMcpEvidenceLimit?: number;
   } = {},
 ) {
   const cabinetPath = normalizeCabinetPath(input.cabinetPath, true) || ".";
@@ -190,16 +224,38 @@ export async function readOptaleCommandCenterSnapshot(
       readOptaleMcpAuditSummary({ limit: 25 }),
     ]);
 
-  const conversations = sortConversations(conversationGroups.flat()).slice(
+  const sortedConversations = sortConversations(conversationGroups.flat()).slice(
     0,
     limit,
   );
+  const hydrationLimit = input.hydrateMcpEvidence
+    ? Math.max(
+        0,
+        Math.min(input.hydrateMcpEvidenceLimit ?? 25, sortedConversations.length),
+      )
+    : 0;
+  const hydratedConversations =
+    hydrationLimit > 0
+      ? await Promise.all(
+          sortedConversations
+            .slice(0, hydrationLimit)
+            .map((conversation) => hydrateConversationMcpEvidenceMeta(conversation)),
+        )
+      : [];
+  const conversations =
+    hydrationLimit > 0
+      ? [
+          ...hydratedConversations,
+          ...sortedConversations.slice(hydrationLimit),
+        ]
+      : sortedConversations;
   const tasks = sortTasks(taskGroups.flat()).slice(0, limit);
   const mcpCounts = mcpClientCounts(mcpClients);
   const pendingActions = conversations.reduce(
     (total, conversation) => total + (conversation.pendingActions?.length || 0),
     0,
   );
+  const controlAvailability = commandCenterControlAvailability();
 
   return {
     cabinet: overview.cabinet,
@@ -213,16 +269,8 @@ export async function readOptaleCommandCenterSnapshot(
       audit: redactOptaleMcpAuditSummaryForClient(mcpAudit),
       counts: mcpCounts,
     },
-    controls: [
-      "launch_conversation",
-      "create_task",
-      "update_task",
-      "set_agent_active",
-      "run_job",
-      "toggle_job",
-      "stop_conversation",
-      "review_actions",
-    ] satisfies OptaleCommandCenterAction[],
+    controls: controlAvailability.controls,
+    operatorOnlyControls: controlAvailability.operatorOnlyControls,
     counts: {
       cabinets: visiblePaths.length,
       agents: overview.agents.length,
@@ -294,6 +342,19 @@ async function launchConversation(body: Record<string, unknown>) {
       adapterConfig: conversationInput.adapterConfig,
     },
   );
+  const restricted = restrictedAgentRuntimeDenial({
+    providerId: runtime.providerId,
+    adapterType: runtime.adapterType,
+    runtimeMode:
+      body.runtimeMode === "terminal"
+        ? "terminal"
+        : body.runtimeMode === "native"
+          ? "native"
+          : undefined,
+  });
+  if (restricted) {
+    throw new OptaleCommandCenterError(restricted.message, 403);
+  }
   const conversationCabinetPath = conversationInput.cabinetPath ?? cabinetPath;
   const conversation = await startConversationRun({
     agentSlug,
@@ -543,6 +604,10 @@ export async function executeOptaleCommandCenterAction(body: unknown) {
     | OptaleCommandCenterAction
     | undefined;
   if (!action) throw new OptaleCommandCenterError("action is required");
+  const restricted = commandCenterRestrictedDenial(action);
+  if (restricted) {
+    throw new OptaleCommandCenterError(restricted.message, 403);
+  }
 
   let result: Record<string, unknown>;
   switch (action) {

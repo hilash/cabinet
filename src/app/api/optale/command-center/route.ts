@@ -6,6 +6,7 @@ import {
 } from "@/lib/optale/command-center-control";
 import { parseCabinetVisibilityMode } from "@/lib/cabinets/visibility";
 import { requireOptaleControlPlaneRequest } from "@/lib/optale/control-plane-auth";
+import { restrictedCustomerVisibilityMode } from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +26,11 @@ export async function GET(request: NextRequest) {
     cabinetPath:
       trimString(request.nextUrl.searchParams.get("cabinetPath")) ||
       trimString(request.nextUrl.searchParams.get("path")),
-    visibilityMode: parseCabinetVisibilityMode(
-      request.nextUrl.searchParams.get("visibilityMode") ||
-        request.nextUrl.searchParams.get("visibility"),
+    visibilityMode: restrictedCustomerVisibilityMode(
+      parseCabinetVisibilityMode(
+        request.nextUrl.searchParams.get("visibilityMode") ||
+          request.nextUrl.searchParams.get("visibility"),
+      ),
     ),
     limit: Number.isFinite(limit) ? limit : 100,
   });

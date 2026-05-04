@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { continueConversationRun } from "@/lib/agents/conversation-runner";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
+import {
+  restrictedAgentRuntimeDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import {
+  isProductFacingToolName,
+  resolveOptaleToolName,
+} from "@/lib/optale/tool-registry";
 
 interface ContinueBody {
   userMessage?: string;
@@ -14,6 +22,7 @@ interface ContinueBody {
    * skills until it respawns. See docs/SKILLS_PLAN.md.
    */
   mentionedSkills?: string[];
+  productToolNames?: string[];
   attachmentPaths?: string[];
   cabinetPath?: string;
   providerId?: string;
@@ -65,6 +74,32 @@ export async function POST(
   const mentionedSkills = Array.isArray(body.mentionedSkills)
     ? body.mentionedSkills.filter((v): v is string => typeof v === "string")
     : [];
+  const productToolNames = Array.isArray(body.productToolNames)
+    ? Array.from(
+        new Set(
+          body.productToolNames
+            .filter((v): v is string => typeof v === "string")
+            .map((v) => v.trim())
+            .filter(Boolean)
+        )
+      )
+    : [];
+  const governedMcpAllowedTools: string[] = [];
+  for (const productToolName of productToolNames) {
+    if (!isProductFacingToolName(productToolName)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Unknown product tool: ${productToolName}`,
+          errorKind: "unknown",
+        },
+        { status: 400 }
+      );
+    }
+    governedMcpAllowedTools.push(
+      resolveOptaleToolName(productToolName).internalToolName
+    );
+  }
   const attachmentPaths = Array.isArray(body.attachmentPaths)
     ? body.attachmentPaths.filter((v): v is string => typeof v === "string")
     : [];
@@ -87,6 +122,14 @@ export async function POST(
       adapterConfig: existing.adapterConfig,
     }
   );
+  const restricted = restrictedModeDenialResponse(
+    restrictedAgentRuntimeDenial({
+      providerId: runtime.providerId,
+      adapterType: runtime.adapterType,
+      runtimeMode: body.runtimeMode,
+    })
+  );
+  if (restricted) return restricted;
 
   // Fire the continuation in the background; the UI streams updates via SSE.
   // continueConversationRun takes model/effort as separate overrides (it
@@ -96,6 +139,7 @@ export async function POST(
     userMessage,
     mentionedPaths,
     mentionedSkills,
+    governedMcpAllowedTools,
     attachmentPaths,
     cabinetPath: existing.cabinetPath ?? cabinetPath,
     providerId: runtime.providerId,

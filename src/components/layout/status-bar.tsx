@@ -18,6 +18,7 @@ import {
   type TaskRuntimeSelection,
 } from "@/components/composer/task-runtime-picker";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 
 function describeUncommittedStatus(s: "M" | "?" | "A" | "D" | "R"): string {
   switch (s) {
@@ -62,6 +63,7 @@ export function StatusBar() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiSubmitting, setAiSubmitting] = useState(false);
   const [aiRuntime, setAiRuntime] = useState<TaskRuntimeSelection>({});
+  const canOpenTerminal = hasOptaleCapability("terminal.open");
 
   const showAIPill = section.type === "page" && !!selectedPath;
 
@@ -646,15 +648,17 @@ export function StatusBar() {
             Sync
           </button>
         )}
-        <button
-          onClick={toggleTerminal}
-          aria-label={terminalOpen ? "New terminal tab" : "Open terminal"}
-          title={terminalOpen ? "New terminal tab" : "Open terminal"}
-          className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 ${terminalOpen ? "text-primary" : ""}`}
-        >
-          <Terminal className="h-3 w-3" />
-          Terminal
-        </button>
+        {canOpenTerminal && (
+          <button
+            onClick={toggleTerminal}
+            aria-label={terminalOpen ? "New terminal tab" : "Open terminal"}
+            title={terminalOpen ? "New terminal tab" : "Open terminal"}
+            className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 ${terminalOpen ? "text-primary" : ""}`}
+          >
+            <Terminal className="h-3 w-3" />
+            Terminal
+          </button>
+        )}
       </div>
       {/* Status-bar help menu. */}
       <div className="relative flex items-center">

@@ -9,6 +9,10 @@ import {
 } from "@/lib/optale/mcp-policy";
 import { normalizeOptaleScope } from "@/lib/optale/scope-registry";
 import { requireOptaleControlPlaneRequest } from "@/lib/optale/control-plane-auth";
+import {
+  restrictedCustomerModeResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +51,12 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const unauthorized = await requireOptaleControlPlaneRequest(request);
   if (unauthorized) return unauthorized;
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "mcp_policy.write",
+      "MCP policy changes are operator-only in restricted customer mode.",
+    );
+  }
 
   const body = (await request.json().catch(() => null)) as Record<
     string,

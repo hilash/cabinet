@@ -28,6 +28,8 @@ import {
   type RoomType,
   type StarterTeam,
 } from "@/lib/onboarding/rooms";
+import { OPTALE_PRODUCT } from "@/lib/optale/product";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 import { getSuggestedProviderEffort } from "@/lib/agents/runtime-options";
 import { sendTelemetry } from "@/lib/telemetry/browser";
 import { acknowledgeDisclaimer } from "@/components/layout/breaking-changes-warning";
@@ -88,7 +90,7 @@ interface SuggestedAgent {
 
 // Typewritten on the Welcome home step after the blueprint finishes drawing.
 const WELCOME_PARAGRAPH =
-  "Your Observatory is where spaces, agents, memory, governance, MCP access, traces, and evals come together. Set up one space now; the observability surfaces are already wired into the Optale brain.";
+  "Your Command workspace is where spaces, agents, memory, governance, MCP access, traces, and evals come together. Set up one space now; the observability surfaces are already wired into the Optale brain.";
 const WELCOME_TYPE_START_MS = 4800; // begin typing shortly after heading fades in
 const WELCOME_TYPE_CHAR_MS = 32;
 
@@ -101,7 +103,7 @@ const STEP_TEAM = 3;
 const STEP_PROVIDER = 4;
 const STEP_LAUNCH = 5;
 
-/* ─── Optale Observatory onboarding palette ─── */
+/* ─── Optale Command onboarding palette ─── */
 const WEB = {
   bg: "#F8FAFC",
   bgWarm: "#EEF6F7",
@@ -286,7 +288,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
               className="font-sans text-4xl sm:text-5xl font-semibold tracking-normal"
               style={{ color: WEB.text }}
             >
-              Optale Observatory
+              {OPTALE_PRODUCT.name}
             </h1>
             <span
               className="font-mono text-xs"
@@ -1012,7 +1014,7 @@ function AgentChatPreview({
   );
 }
 
-/* ─── Optale Observatory dot-grid background ─── */
+/* ─── Optale Command dot-grid background ─── */
 const dotGridStyle: React.CSSProperties = {
   backgroundImage: `radial-gradient(circle, ${WEB.borderDark} 0.5px, transparent 0.5px)`,
   backgroundSize: "32px 32px",
@@ -1029,6 +1031,8 @@ const STEP_NAMES: Record<number, string> = {
 
 export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(0);
+  const canConfigureProviders = hasOptaleCapability("providers.configure");
+  const canOpenTerminal = hasOptaleCapability("terminal.open");
 
   useEffect(() => {
     const stepName = STEP_NAMES[step] ?? `step-${step}`;
@@ -1089,6 +1093,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     Record<string, OnboardingVerifyState>
   >({});
   const runOnboardingVerify = useCallback(async (providerId: string) => {
+    if (!canConfigureProviders) return;
     setOnboardingVerifyState((prev) => ({
       ...prev,
       [providerId]: { phase: "running" },
@@ -1122,7 +1127,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         },
       }));
     }
-  }, []);
+  }, [canConfigureProviders]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedEffort, setSelectedEffort] = useState<string | null>(null);
@@ -1155,6 +1160,11 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   }, []);
 
   const checkProvider = useCallback(async () => {
+    if (!canConfigureProviders) {
+      setProviders([]);
+      setProvidersLoading(false);
+      return;
+    }
     setProvidersLoading(true);
     try {
       const res = await fetch("/api/agents/providers");
@@ -1185,7 +1195,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     } finally {
       setProvidersLoading(false);
     }
-  }, []);
+  }, [canConfigureProviders]);
 
   useEffect(() => {
     if (step === STEP_PROVIDER) {
@@ -1250,7 +1260,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       const selected = suggestedAgents.filter((a) => a.checked).map((a) => a.slug);
 
       // Save provider + model preference
-      if (selectedProvider) {
+      if (selectedProvider && canConfigureProviders) {
         await fetch("/api/agents/providers", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -1294,7 +1304,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       console.error("Setup failed:", e);
       setLaunching(false);
     }
-  }, [answers, suggestedAgents, selectedProvider, selectedModel, selectedEffort, onComplete]);
+  }, [answers, canConfigureProviders, suggestedAgents, selectedProvider, selectedModel, selectedEffort, onComplete]);
 
   const selectedAgentCount = suggestedAgents.filter(
     (agent) => agent.checked
@@ -1642,7 +1652,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               roomType={answers.roomType}
               mandatoryAgents={mandatoryAgents}
               onBack={() => setStep(STEP_ROOM_SETUP)}
-              onNext={() => setStep(STEP_PROVIDER)}
+              onNext={() => setStep(canConfigureProviders ? STEP_PROVIDER : STEP_LAUNCH)}
             />
           )}
 
@@ -1654,7 +1664,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   Agent Provider
                 </h1>
                 <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
-                  Optale Observatory needs an AI CLI to power your agents.
+                  {OPTALE_PRODUCT.name} needs an AI CLI to power your agents.
                 </p>
               </div>
 
@@ -1907,7 +1917,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                                 {setupStep.cmd && (
                                   <TerminalCommand command={setupStep.cmd} />
                                 )}
-                                {setupStep.openTerminal && (
+                                {setupStep.openTerminal && canOpenTerminal && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -2060,7 +2070,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             <div className="mx-auto flex max-w-4xl flex-col gap-6 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
                 <h1 className="font-sans font-semibold text-2xl tracking-normal">
-                  Start your <span style={{ color: WEB.accent }}>Observatory</span>
+                  Start your <span style={{ color: WEB.accent }}>{OPTALE_PRODUCT.shortName}</span>
                 </h1>
               </div>
 
@@ -2161,18 +2171,30 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     />
                     <span style={{ color: WEB.textSecondary }}>
                       <strong className="font-medium" style={{ color: WEB.text }}>
-                        Agents run with full access.
+                        {canConfigureProviders
+                          ? "Agents run with full access."
+                          : "Agents run through the scoped partner runtime."}
                       </strong>{" "}
-                      Optale Observatory uses{" "}
-                      <code
-                        className="rounded px-1 py-0.5 text-[11px]"
-                        style={{ background: WEB.bgWarm, color: WEB.text }}
-                      >
-                        --dangerously-skip-permissions
-                      </code>{" "}
-                      (Claude Code) and equivalent flags in other providers. This is identical
-                      to running these CLI tools from your own terminal. Any MCP servers or
-                      tools you&apos;ve configured may be invoked automatically by agents.
+                      {canConfigureProviders ? (
+                        <>
+                          {OPTALE_PRODUCT.name} uses{" "}
+                          <code
+                            className="rounded px-1 py-0.5 text-[11px]"
+                            style={{ background: WEB.bgWarm, color: WEB.text }}
+                          >
+                            --dangerously-skip-permissions
+                          </code>{" "}
+                          (Claude Code) and equivalent flags in other providers. This is identical
+                          to running these CLI tools from your own terminal. Any MCP servers or
+                          tools you&apos;ve configured may be invoked automatically by agents.
+                        </>
+                      ) : (
+                        <>
+                          {OPTALE_PRODUCT.name} uses approved API-backed agent adapters,
+                          scoped tools, and partner memory lanes. Terminal runtimes, provider
+                          credentials, and Optale-private Company Brain access stay disabled.
+                        </>
+                      )}
                     </span>
                   </li>
                   <li className="flex gap-3">
@@ -2185,8 +2207,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                       <strong className="font-medium" style={{ color: WEB.text }}>
                         Back up your data regularly.
                       </strong>{" "}
-                      Agents can read, write, and delete files across your KB and linked repos.
-                      Optale Observatory is not responsible for data loss. You are responsible for the AI
+                      {canConfigureProviders
+                        ? "Agents can read, write, and delete files across your KB and linked repos."
+                        : "Agents can read and write only through the workspace capabilities enabled for this partner profile."}{" "}
+                      {OPTALE_PRODUCT.name} is not responsible for data loss. You are responsible for the AI
                       providers you choose and their terms of service.
                     </span>
                   </li>
@@ -2249,7 +2273,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
               <div className="flex items-center justify-between pt-2">
                 <button
-                  onClick={() => setStep(STEP_PROVIDER)}
+                  onClick={() => setStep(canConfigureProviders ? STEP_PROVIDER : STEP_TEAM)}
                   className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
                   style={{ color: WEB.textSecondary }}
                 >
@@ -2270,7 +2294,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   ) : (
                     <>
                       <Rocket className="w-4 h-4" />
-                      Launch Observatory
+                      Launch {OPTALE_PRODUCT.shortName}
                     </>
                   )}
                 </button>

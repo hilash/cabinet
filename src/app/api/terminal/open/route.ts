@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
+import { restrictedCustomerModeResponse } from "@/lib/optale/restricted-customer-mode";
 
 export async function POST() {
+  if (!hasOptaleCapability("terminal.open")) {
+    return restrictedCustomerModeResponse(
+      "terminal.open",
+      "Opening a local terminal is operator-only in the partner-safe desktop profile.",
+    );
+  }
+
   const home = process.env.HOME || "~";
 
   try {

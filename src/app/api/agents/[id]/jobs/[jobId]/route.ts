@@ -11,6 +11,10 @@ import {
   normalizeJobConfig,
 } from "@/lib/jobs/job-normalization";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
+import {
+  restrictedCustomerModeResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 export async function GET(
   req: NextRequest,
@@ -39,6 +43,13 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; jobId: string }> }
 ) {
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "jobs.write",
+      "Updating or running background jobs is operator-only in restricted customer mode.",
+    );
+  }
+
   const { id: slug, jobId } = await params;
   try {
     const body = await req.json();
@@ -97,6 +108,13 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; jobId: string }> }
 ) {
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "jobs.write",
+      "Deleting background jobs is operator-only in restricted customer mode.",
+    );
+  }
+
   const { id: slug, jobId } = await params;
   try {
     const cabinetPath = normalizeCabinetPath(

@@ -81,6 +81,10 @@ import {
 import Image from "next/image";
 import { sendTelemetry } from "@/lib/telemetry/browser";
 import { OPTALE_PRODUCT } from "@/lib/optale/product";
+import {
+  getOptaleCapabilityProfile,
+  hasOptaleCapability,
+} from "@/lib/optale/capabilities";
 
 type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
 const VALID_TABS: Tab[] = ["profile", "providers", "skills", "storage", "integrations", "notifications", "appearance", "updates", "about"];
@@ -182,6 +186,11 @@ function matchesFailedStep(stepTitle: string, failedStepTitle?: string): boolean
 
 export function SettingsPage() {
   const { showHiddenFiles, setShowHiddenFiles } = useTreeStore();
+  const capabilityProfile = getOptaleCapabilityProfile();
+  const canConfigureProviders = hasOptaleCapability("providers.configure");
+  const canManageSecrets = hasOptaleCapability("secrets.manage");
+  const canManageUpdates = hasOptaleCapability("updates.manage");
+  const canOpenTerminal = hasOptaleCapability("terminal.open");
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("");
   const [defaultModel, setDefaultModel] = useState("");
@@ -193,6 +202,7 @@ export function SettingsPage() {
   const [verifyOutputOpen, setVerifyOutputOpen] = useState<Record<string, boolean>>({});
 
   const runVerify = async (providerId: string) => {
+    if (!canConfigureProviders) return;
     setVerifyState((prev) => ({ ...prev, [providerId]: { phase: "running" } }));
     try {
       const res = await fetch(`/api/agents/providers/${providerId}/verify`, {
@@ -333,6 +343,10 @@ export function SettingsPage() {
   const lightThemes = THEMES.filter((t) => t.type === "light");
 
   const refresh = useCallback(async (silent = false) => {
+    if (!canConfigureProviders) {
+      setLoading(false);
+      return;
+    }
     if (!silent) setLoading(true);
     try {
       const res = await fetch("/api/agents/providers");
@@ -348,7 +362,7 @@ export function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canConfigureProviders]);
 
   const saveProviderSettings = useCallback(async (
     nextDefaultProvider: string,
@@ -356,6 +370,7 @@ export function SettingsPage() {
     migrations: Array<{ fromProviderId: string; toProviderId: string }> = [],
     overrides?: { defaultModel?: string; defaultEffort?: string }
   ) => {
+    if (!canConfigureProviders) return false;
     setSavingProviders(true);
     try {
       const res = await fetch("/api/agents/providers", {
@@ -392,7 +407,7 @@ export function SettingsPage() {
       setSavingProviders(false);
     }
     return false;
-  }, [refresh, defaultModel, defaultEffort]);
+  }, [canConfigureProviders, refresh, defaultModel, defaultEffort]);
 
   const getProviderName = (providerId: string) =>
     providers.find((provider) => provider.id === providerId)?.name || providerId;
@@ -409,14 +424,16 @@ export function SettingsPage() {
   };
 
   const loadConfig = useCallback(async () => {
+    if (!canManageSecrets) return;
     try {
       await fetch("/api/agents/config/integrations");
     } catch {
       // ignore
     }
-  }, []);
+  }, [canManageSecrets]);
 
   const loadDataDir = useCallback(async () => {
+    if (!canManageSecrets) return;
     try {
       const res = await fetch("/api/system/data-dir");
       if (res.ok) {
@@ -426,7 +443,7 @@ export function SettingsPage() {
     } catch {
       // ignore
     }
-  }, []);
+  }, [canManageSecrets]);
 
   useEffect(() => {
     refresh();
@@ -434,17 +451,37 @@ export function SettingsPage() {
     loadDataDir();
   }, [refresh, loadConfig, loadDataDir]);
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "profile", label: "Profile", icon: <CircleUser className="h-3.5 w-3.5" /> },
-    { id: "providers", label: "Providers", icon: <Cpu className="h-3.5 w-3.5" /> },
-    { id: "skills", label: "Skills", icon: <Sparkles className="h-3.5 w-3.5" /> },
-    { id: "storage", label: "Storage", icon: <HardDrive className="h-3.5 w-3.5" /> },
-    { id: "integrations", label: "Integrations", icon: <Plug className="h-3.5 w-3.5" /> },
-    { id: "notifications", label: "Notifications", icon: <Bell className="h-3.5 w-3.5" /> },
-    { id: "appearance", label: "Appearance", icon: <Palette className="h-3.5 w-3.5" /> },
-    { id: "updates", label: "Updates", icon: <CloudDownload className="h-3.5 w-3.5" /> },
-    { id: "about", label: "About", icon: <Info className="h-3.5 w-3.5" /> },
-  ];
+  const allTabs = useMemo<{ id: Tab; label: string; icon: React.ReactNode }[]>(
+    () => [
+      { id: "profile", label: "Profile", icon: <CircleUser className="h-3.5 w-3.5" /> },
+      { id: "providers", label: "Providers", icon: <Cpu className="h-3.5 w-3.5" /> },
+      { id: "skills", label: "Skills", icon: <Sparkles className="h-3.5 w-3.5" /> },
+      { id: "storage", label: "Storage", icon: <HardDrive className="h-3.5 w-3.5" /> },
+      { id: "integrations", label: "Integrations", icon: <Plug className="h-3.5 w-3.5" /> },
+      { id: "notifications", label: "Notifications", icon: <Bell className="h-3.5 w-3.5" /> },
+      { id: "appearance", label: "Appearance", icon: <Palette className="h-3.5 w-3.5" /> },
+      { id: "updates", label: "Updates", icon: <CloudDownload className="h-3.5 w-3.5" /> },
+      { id: "about", label: "About", icon: <Info className="h-3.5 w-3.5" /> },
+    ],
+    [],
+  );
+  const tabs = useMemo(
+    () =>
+      allTabs.filter((entry) => {
+        if (entry.id === "providers") return canConfigureProviders;
+        if (entry.id === "storage" || entry.id === "integrations") {
+          return canManageSecrets;
+        }
+        if (entry.id === "updates") return canManageUpdates;
+        return true;
+      }),
+    [allTabs, canConfigureProviders, canManageSecrets, canManageUpdates],
+  );
+
+  useEffect(() => {
+    if (tabs.some((entry) => entry.id === tab)) return;
+    setTab("profile");
+  }, [tab, tabs, setTab]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -457,9 +494,12 @@ export function SettingsPage() {
           <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
             Settings
           </h2>
+          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {capabilityProfile.label}
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
-<Button
+          <Button
             variant="ghost"
             size="sm"
             className="h-7 gap-1.5 text-[12px]"
@@ -1011,7 +1051,7 @@ export function SettingsPage() {
                                                 {step.cmd && (
                                                   <TerminalCommand command={step.cmd} />
                                                 )}
-                                                {step.openTerminal && (
+                                                {step.openTerminal && canOpenTerminal && (
                                                   <button
                                                     onClick={() => {
                                                       fetch("/api/terminal/open", { method: "POST" }).catch(() => {
@@ -1241,7 +1281,7 @@ export function SettingsPage() {
               <div>
                 <h3 className="text-[14px] font-semibold mb-1">{OPTALE_PRODUCT.name}</h3>
                 <p className="text-[12px] text-muted-foreground">
-                  Observability, governance, traces, and evals for Optale&apos;s agent system.
+                  Desktop command surface for Optale knowledge, agents, actions, memory, and governance.
                 </p>
               </div>
 
@@ -1271,21 +1311,25 @@ export function SettingsPage() {
                   <span className="text-muted-foreground">AI</span>
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5" />
-                    Powered by local AI CLIs
+                    Governed agent runtime
                   </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-border">
+                  <span className="text-muted-foreground">Profile</span>
+                  <span>{capabilityProfile.label}</span>
                 </div>
               </div>
 
               <div className="pt-2">
                 <p className="text-[12px] text-muted-foreground">
-                  Spaces keep knowledge, agents, jobs, and approvals organized while the observatory ties them into Optale memory, MCP policy, and evaluation workflows.
+                  Spaces keep knowledge, agents, jobs, and approvals organized while Observatory ties them into Optale memory, governed tools, and evaluation workflows.
                 </p>
               </div>
 
               <div className="border-t border-border pt-6">
                 <h3 className="text-[14px] font-semibold mb-1">Privacy</h3>
                 <p className="text-[12px] text-muted-foreground mb-3">
-                  Optale Observatory sends anonymous usage telemetry to help us improve the
+                  {OPTALE_PRODUCT.name} sends anonymous usage telemetry to help us improve the
                   product. No file contents, paths, prompts, or secrets are collected.
                   See Optale privacy policy details at optale.com/privacy.
                 </p>

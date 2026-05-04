@@ -7,6 +7,7 @@ import { useAIPanelStore } from "@/stores/ai-panel-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useSearchStore } from "@/stores/search-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -44,6 +45,7 @@ export function useGlobalHotkeys(): void {
       // Ctrl+` — toggle terminal (VS Code / iTerm2 convention; avoids Cmd+`
       // which is "Cycle windows of same app" at macOS system level)
       if (e.ctrlKey && !e.metaKey && !e.shiftKey && e.key === "`") {
+        if (!hasOptaleCapability("terminal.open")) return;
         e.preventDefault();
         useAppStore.getState().toggleTerminal();
         return;

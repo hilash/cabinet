@@ -13,6 +13,10 @@ import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 import { defaultAdapterTypeForProvider } from "@/lib/agents/adapters";
 import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
+import {
+  restrictedCustomerModeResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 // Initialize heartbeats on first request
 let initialized = false;
@@ -43,6 +47,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "agents.personas.write",
+      "Agent persona changes are operator-only in restricted customer mode.",
+    );
+  }
+
   const body = await req.json();
   const { slug, ...personaData } = body;
   const cabinetPath = normalizeCabinetPath(

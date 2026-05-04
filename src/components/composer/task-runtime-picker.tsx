@@ -24,6 +24,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { getDefaultAdapterTypeForProviderInfo } from "@/lib/agents/adapter-options";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 import type {
   ConversationRuntimeMode,
   ConversationRuntimeOverride,
@@ -678,7 +679,11 @@ export function RuntimeMatrixPicker({
   className,
   emptyText = "No providers available.",
 }: RuntimeMatrixPickerProps) {
-  const runtimeMode: RuntimeMode = value.runtimeMode === "terminal" ? "terminal" : "native";
+  const canUseTerminalRuntime = hasOptaleCapability("terminal.runtime");
+  const runtimeMode: RuntimeMode =
+    value.runtimeMode === "terminal" && canUseTerminalRuntime
+      ? "terminal"
+      : "native";
   const selectableProviders = useMemo(() => {
     const base = includeUnavailable
       ? providers.filter((provider) => provider.enabled ?? true)
@@ -773,6 +778,7 @@ export function RuntimeMatrixPicker({
       "";
     if (!targetProviderId) return;
     if (nextMode === "terminal") {
+      if (!canUseTerminalRuntime) return;
       onChange({
         providerId: targetProviderId,
         runtimeMode: "terminal",
@@ -791,7 +797,7 @@ export function RuntimeMatrixPicker({
 
   return (
     <div className={cn("flex flex-col", className)}>
-      {showRuntimeModeToggle && (
+      {showRuntimeModeToggle && canUseTerminalRuntime && (
         <div
           role="tablist"
           aria-label="Runtime mode"
@@ -1071,6 +1077,7 @@ export function TaskRuntimePicker({
   const defaultEffort = useAppStore((s) => s.defaultEffort);
   const loading = useAppStore((s) => s.providersLoading);
   const [open, setOpen] = useState(false);
+  const canUseTerminalRuntime = hasOptaleCapability("terminal.runtime");
 
 
   const normalizedValue = useMemo(
@@ -1191,6 +1198,8 @@ export function TaskRuntimePicker({
     effortId?: string,
     runtimeMode?: RuntimeMode
   ) {
+    const requestedRuntimeMode =
+      runtimeMode === "terminal" && !canUseTerminalRuntime ? "native" : runtimeMode;
     const normalized = normalizeSelection(
       {
         providerId,
@@ -1204,16 +1213,20 @@ export function TaskRuntimePicker({
     );
     onChange({
       ...normalized,
-      runtimeMode: runtimeMode ?? value.runtimeMode ?? "native",
+      runtimeMode:
+        requestedRuntimeMode ??
+        (value.runtimeMode === "terminal" && canUseTerminalRuntime
+          ? "terminal"
+          : "native"),
       // Terminal mode should not carry model/effort — PTY uses the CLI's own
       // defaults, so clear them to keep the conversation override honest.
-      ...(runtimeMode === "terminal"
+      ...(requestedRuntimeMode === "terminal"
         ? { model: undefined, effort: undefined }
         : {}),
     });
     // Only close the dropdown on provider/model selection, not when toggling
     // mode — users should see the toggle animate.
-    if (runtimeMode === undefined) setOpen(false);
+    if (requestedRuntimeMode === undefined) setOpen(false);
   }
 
   function resetToDefault() {
@@ -1221,7 +1234,8 @@ export function TaskRuntimePicker({
     setOpen(false);
   }
 
-  const isTerminalTrigger = value.runtimeMode === "terminal";
+  const isTerminalTrigger =
+    value.runtimeMode === "terminal" && canUseTerminalRuntime;
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger

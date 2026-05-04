@@ -7,6 +7,10 @@ import {
   updateOptaleMcpClient,
 } from "@/lib/optale/mcp-client-registry";
 import { requireOptaleControlPlaneRequest } from "@/lib/optale/control-plane-auth";
+import {
+  restrictedCustomerModeResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +51,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const unauthorized = await requireOptaleControlPlaneRequest(request);
   if (unauthorized) return unauthorized;
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "mcp_clients.write",
+      "MCP client changes are operator-only in restricted customer mode.",
+    );
+  }
 
   const body = await readBody(request);
   if (!body) return errorResponse("JSON body is required");
@@ -79,6 +89,12 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const unauthorized = await requireOptaleControlPlaneRequest(request);
   if (unauthorized) return unauthorized;
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "mcp_clients.write",
+      "MCP client changes are operator-only in restricted customer mode.",
+    );
+  }
 
   const body = await readBody(request);
   if (!body) return errorResponse("JSON body is required");
@@ -97,6 +113,12 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const unauthorized = await requireOptaleControlPlaneRequest(request);
   if (unauthorized) return unauthorized;
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "mcp_clients.write",
+      "MCP client changes are operator-only in restricted customer mode.",
+    );
+  }
 
   const body = await readBody(request);
   if (!body) return errorResponse("JSON body is required");

@@ -10,6 +10,10 @@ import { normalizeAgentSlug, readMemory, writeMemory } from "@/lib/agents/person
 import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
 import { readCabinetOverview } from "@/lib/cabinets/overview";
 import { findOwningCabinetPathForPage } from "@/lib/cabinets/server-paths";
+import {
+  restrictedAgentRuntimeDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 
 export async function GET(req: NextRequest) {
@@ -134,6 +138,14 @@ export async function POST(req: NextRequest) {
         { providerId: body.providerId, adapterType: body.adapterType, model: body.model, effort: body.effort, runtimeMode: body.runtimeMode },
         { providerId: draftInput.providerId, adapterType: draftInput.adapterType, adapterConfig: draftInput.adapterConfig }
       );
+      const restricted = restrictedModeDenialResponse(
+        restrictedAgentRuntimeDenial({
+          providerId: runtime.providerId,
+          adapterType: runtime.adapterType,
+          runtimeMode: body.runtimeMode,
+        })
+      );
+      if (restricted) return restricted;
       const conversation = await createConversation({
         agentSlug,
         title: draftInput.title,
@@ -189,6 +201,14 @@ export async function POST(req: NextRequest) {
         adapterConfig: conversationInput.adapterConfig,
       }
     );
+    const restricted = restrictedModeDenialResponse(
+      restrictedAgentRuntimeDenial({
+        providerId: runtime.providerId,
+        adapterType: runtime.adapterType,
+        runtimeMode: body.runtimeMode,
+      })
+    );
+    if (restricted) return restricted;
 
     const conversation = await startConversationRun({
       agentSlug,

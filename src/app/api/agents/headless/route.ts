@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
+import {
+  restrictedCustomerModeResponse,
+} from "@/lib/optale/restricted-customer-mode";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 export async function POST(req: NextRequest) {
+  if (isOptaleRestrictedCustomerMode()) {
+    return restrictedCustomerModeResponse(
+      "agents.headless",
+      "Headless provider execution is operator-only in restricted customer mode.",
+    );
+  }
+
   try {
     const {
       prompt,

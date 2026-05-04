@@ -6,6 +6,7 @@ import {
 } from "@/lib/optale/mcp-client-registry";
 import type { OptaleAgentScope } from "@/lib/optale/product";
 import { normalizeOptaleScope } from "@/lib/optale/scope-registry";
+import { isOptaleRestrictedCustomerMode } from "@/lib/optale/runtime-mode";
 
 export type OptaleMcpGatewayAuthType =
   | "internal"
@@ -173,7 +174,10 @@ function headerScopedContext(
   const cabinetPathLocked =
     Boolean(defaultCabinetPath) &&
     (headerLock ?? envBool("OPTALE_MCP_LOCK_CABINET_SCOPE", false));
-  const permissions: OptaleMcpClientPermission[] = ["read", "write", "execute"];
+  const restricted = isOptaleRestrictedCustomerMode();
+  const permissions: OptaleMcpClientPermission[] = restricted
+    ? ["read"]
+    : ["read", "write", "execute"];
   const actionsGloballyEnabled = envBool("OPTALE_MCP_ENABLE_ACTIONS", false);
 
   return {
@@ -186,7 +190,8 @@ function headerScopedContext(
     permissions,
     allowedTools: [],
     deniedTools: [],
-    canUseActions: actionsGloballyEnabled && remoteActionsAllowed(authType),
+    canUseActions:
+      !restricted && actionsGloballyEnabled && remoteActionsAllowed(authType),
     auditEnabled: auditEnabled(),
   };
 }
@@ -216,10 +221,15 @@ export async function buildOptaleMcpGatewayContextFromRequest(
       };
     }
 
+    const restricted = isOptaleRestrictedCustomerMode();
+    const permissions = restricted
+      ? client.permissions.filter((permission) => permission === "read")
+      : client.permissions;
     const canUseActions =
+      !restricted &&
       envBool("OPTALE_MCP_ENABLE_ACTIONS", false) &&
       client.remoteActionsEnabled &&
-      (client.permissions.includes("write") || client.permissions.includes("execute"));
+      (permissions.includes("write") || permissions.includes("execute"));
     return {
       ...base,
       authorized: true,
@@ -228,7 +238,7 @@ export async function buildOptaleMcpGatewayContextFromRequest(
       defaultCabinetPath: client.cabinetPath,
       cabinetPathLocked: client.lockCabinet,
       agentScope: client.agentScope,
-      permissions: client.permissions,
+      permissions,
       allowedTools: client.allowedTools,
       deniedTools: client.deniedTools,
       budget: client.budget,
@@ -268,6 +278,12 @@ export function buildInternalOptaleMcpGatewayContext(input: {
   canUseActions?: boolean;
   auditEnabled?: boolean;
 }): OptaleMcpGatewayContext {
+  const restricted = isOptaleRestrictedCustomerMode();
+  const requestedPermissions = input.permissions || ["read", "write", "execute"];
+  const permissions = restricted
+    ? requestedPermissions.filter((permission) => permission === "read")
+    : requestedPermissions;
+
   return {
     requestId: input.requestId || randomId("mcp_internal"),
     clientId: input.clientId,
@@ -277,11 +293,13 @@ export function buildInternalOptaleMcpGatewayContext(input: {
     defaultCabinetPath: normalizeCabinetPath(input.defaultCabinetPath, false),
     cabinetPathLocked: Boolean(input.cabinetPathLocked && input.defaultCabinetPath),
     agentScope: input.agentScope,
-    permissions: input.permissions || ["read", "write", "execute"],
+    permissions,
     allowedTools: input.allowedTools || [],
     deniedTools: input.deniedTools || [],
     budget: input.budget,
-    canUseActions: input.canUseActions ?? envBool("OPTALE_MCP_ENABLE_ACTIONS", false),
+    canUseActions:
+      !restricted &&
+      (input.canUseActions ?? envBool("OPTALE_MCP_ENABLE_ACTIONS", false)),
     auditEnabled: input.auditEnabled ?? auditEnabled(),
   };
 }
