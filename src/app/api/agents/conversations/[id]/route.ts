@@ -12,6 +12,7 @@ import { publishConversationEvent } from "@/lib/agents/conversation-events";
 import type { ConversationMeta } from "@/types/conversations";
 import {
   restrictedAgentRuntimeDenial,
+  restrictedCapabilityDenial,
   restrictedModeDenialResponse,
 } from "@/lib/optale/restricted-customer-mode";
 
@@ -26,6 +27,14 @@ export async function GET(
 
   if (!detail) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+  }
+
+  if (restrictedCapabilityDenial("diagnostics.raw")) {
+    return NextResponse.json({
+      ...detail,
+      rawTranscript: "",
+      session: null,
+    });
   }
 
   return NextResponse.json(detail);

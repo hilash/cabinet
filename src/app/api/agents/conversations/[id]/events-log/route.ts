@@ -3,6 +3,10 @@ import path from "path";
 import fs from "fs/promises";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 interface EventLine {
   ts?: string;
@@ -18,6 +22,11 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("diagnostics.raw"),
+  );
+  if (restricted) return restricted;
+
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
 

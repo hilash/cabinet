@@ -20,6 +20,22 @@ const SENSITIVE_RESTRICTED_GUARDS: GuardSpec[] = [
     tokens: ['restrictedCapabilityDenial("agents.mutate")'],
   },
   {
+    file: "src/app/api/agents/conversations/[id]/claude-transcript/route.ts",
+    tokens: ['restrictedCapabilityDenial("diagnostics.raw")'],
+  },
+  {
+    file: "src/app/api/agents/conversations/[id]/events-log/route.ts",
+    tokens: ['restrictedCapabilityDenial("diagnostics.raw")'],
+  },
+  {
+    file: "src/app/api/agents/conversations/[id]/route.ts",
+    tokens: ['restrictedCapabilityDenial("diagnostics.raw")'],
+  },
+  {
+    file: "src/app/api/agents/harness/route.ts",
+    tokens: ['restrictedCapabilityDenial("diagnostics.raw")'],
+  },
+  {
     file: "src/app/api/agents/import/route.ts",
     tokens: ['restrictedCapabilityDenial("agents.mutate")'],
   },
@@ -62,6 +78,10 @@ const SENSITIVE_RESTRICTED_GUARDS: GuardSpec[] = [
   {
     file: "src/app/api/optale/brain/dreams/route.ts",
     tokens: ['restrictedCapabilityDenial("company_brain.view")'],
+  },
+  {
+    file: "src/app/api/optale/observatory/[...path]/route.ts",
+    tokens: ['restrictedCapabilityDenial("diagnostics.raw")'],
   },
   {
     file: "src/app/api/system/backup/route.ts",

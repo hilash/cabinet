@@ -58,6 +58,7 @@ export function useGlobalHotkeys(): void {
       // Cmd+Opt+T — quick-add a task to the Inbox (no agent, no run)
       // e.code used because Option modifies e.key on macOS (Option+T → "†")
       if (e.altKey && !e.shiftKey && e.code === "KeyT") {
+        if (!hasOptaleCapability("agents.mutate")) return;
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("cabinet:global-inbox-task"));
         return;
@@ -66,6 +67,7 @@ export function useGlobalHotkeys(): void {
       // Cmd+Opt+R — open the run-now composer (pick agent + start immediately)
       // e.code used because Option modifies e.key on macOS (Option+R → "®")
       if (e.altKey && !e.shiftKey && e.code === "KeyR") {
+        if (!hasOptaleCapability("agents.mutate")) return;
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("cabinet:global-run-task"));
         return;

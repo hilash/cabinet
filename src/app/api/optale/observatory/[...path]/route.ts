@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,6 +39,11 @@ function methodNotAllowed(method: string) {
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("diagnostics.raw"),
+  );
+  if (restricted) return restricted;
+
   let path: string[];
   try {
     ({ path } = await params);

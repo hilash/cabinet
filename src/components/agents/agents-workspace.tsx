@@ -95,6 +95,7 @@ import {
   getDefaultAdapterTypeForProviderInfo,
   resolveAdapterTypeForProvider,
 } from "@/lib/agents/adapter-options";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 
 type MainPanelMode = "composer" | "conversation" | "settings";
 type SettingsTarget = "directory" | string | null;
@@ -375,6 +376,8 @@ export function AgentsWorkspace({
   selectedScope?: "all" | "agent";
   cabinetPath?: string;
 }) {
+  const canManageAgents = hasOptaleCapability("agents.mutate");
+  const canViewDiagnostics = hasOptaleCapability("diagnostics.raw");
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
@@ -1684,10 +1687,16 @@ export function AgentsWorkspace({
               }
             }}
           />
-          <Button size="sm" className="h-8 gap-1 text-xs" onClick={openAddAgentDialog}>
-            <Plus className="h-3.5 w-3.5" />
-            New Agent
-          </Button>
+          {canManageAgents && (
+            <Button
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              onClick={openAddAgentDialog}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New Agent
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -2611,14 +2620,16 @@ export function AgentsWorkspace({
                   <Network className="size-3.5" />
                   Org chart
                 </Button>
-                <Button
-                  size="sm"
-                  className="h-7 gap-1 text-[11px]"
-                  onClick={openAddAgentDialog}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  New Agent
-                </Button>
+                {canManageAgents && (
+                  <Button
+                    size="sm"
+                    className="h-7 gap-1 text-[11px]"
+                    onClick={openAddAgentDialog}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    New Agent
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -2629,7 +2640,7 @@ export function AgentsWorkspace({
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
-                <NewTaskButton />
+                {canManageAgents && <NewTaskButton />}
               </div>
             </div>
 
@@ -2671,7 +2682,7 @@ export function AgentsWorkspace({
                   </p>
                 </div>
 
-                <AgentHarnessPanel />
+                {canViewDiagnostics && <AgentHarnessPanel />}
 
                 {/* Agents grid */}
                 <section className="space-y-4">

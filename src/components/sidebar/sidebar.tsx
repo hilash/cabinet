@@ -27,6 +27,7 @@ import { NewPageDialog } from "./new-page-dialog";
 import { NewCabinetDialog } from "./new-cabinet-dialog";
 import { useAppStore } from "@/stores/app-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 
 function useIsMobile() {
   const isMobile = useSyncExternalStore(
@@ -84,6 +85,7 @@ export function Sidebar() {
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
   const sidebarDrawer = useAppStore((s) => s.sidebarDrawer);
+  const canManageAgents = hasOptaleCapability("agents.mutate");
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
     const storedWidth = window.localStorage.getItem("cabinet-sidebar-width");
@@ -245,7 +247,7 @@ export function Sidebar() {
               </div>
             </>
           )}
-          {sidebarDrawer === "agents" && (
+          {sidebarDrawer === "agents" && canManageAgents && (
             <button
               type="button"
               title="New Agent"
@@ -264,7 +266,7 @@ export function Sidebar() {
               <span className="min-w-0 truncate">New Agent</span>
             </button>
           )}
-          {sidebarDrawer === "tasks" && (
+          {sidebarDrawer === "tasks" && canManageAgents && (
             <button
               type="button"
               title="New Task"

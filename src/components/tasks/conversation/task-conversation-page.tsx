@@ -81,6 +81,7 @@ import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { ConversationMcpToolArtifact } from "@/types/conversations";
 import { compactTask, fetchTask, patchTask, postTurn } from "@/lib/agents/task-client";
 import { peekTaskIsTerminal } from "@/lib/agents/terminal-mode-cache";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 
 const STATUS_META: Record<
   TaskStatus,
@@ -461,6 +462,7 @@ export function TaskConversationPage({
 }: TaskConversationPageProps) {
   const isDemo = taskId === "demo";
   const isCompact = variant === "compact";
+  const canViewDiagnostics = hasOptaleCapability("diagnostics.raw");
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
   const isConversationRoute = section.type === "conversation";
@@ -1160,7 +1162,8 @@ export function TaskConversationPage({
     // Keep the tab row consistent: hide the transcript tab until we've
     // confirmed this is Claude. While `task` is loading we don't know the
     // provider, so fall back to a 2-column layout (Terminal | Details).
-    const isClaudeProvider = task?.meta.providerId === "claude-code";
+    const isClaudeProvider =
+      canViewDiagnostics && task?.meta.providerId === "claude-code";
 
     return (
       <div className="flex h-full flex-col bg-zinc-950 text-zinc-100">
@@ -1483,10 +1486,12 @@ export function TaskConversationPage({
                 <Link2 className="mr-2 size-3.5" />
                 Copy link
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleOpenTranscriptExternal}>
-                <ExternalLink className="mr-2 size-3.5" />
-                Open transcript
-              </DropdownMenuItem>
+              {canViewDiagnostics && (
+                <DropdownMenuItem onClick={handleOpenTranscriptExternal}>
+                  <ExternalLink className="mr-2 size-3.5" />
+                  Open transcript
+                </DropdownMenuItem>
+              )}
               {task && taskStatus !== "running" && !isDemo ? (
                 <DropdownMenuItem onClick={() => void handleRestart()}>
                   <RotateCcw className="mr-2 size-3.5" />
@@ -1648,10 +1653,12 @@ export function TaskConversationPage({
                 <Link2 className="mr-2 size-3.5" />
                 Copy link
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleOpenTranscriptExternal}>
-                <ExternalLink className="mr-2 size-3.5" />
-                Open transcript
-              </DropdownMenuItem>
+              {canViewDiagnostics && (
+                <DropdownMenuItem onClick={handleOpenTranscriptExternal}>
+                  <ExternalLink className="mr-2 size-3.5" />
+                  Open transcript
+                </DropdownMenuItem>
+              )}
               {task.meta.status !== "running" && !isDemo ? (
                 <DropdownMenuItem onClick={() => void handleRestart()}>
                   <RotateCcw className="mr-2 size-3.5" />
@@ -1747,8 +1754,8 @@ export function TaskConversationPage({
                 {task.mcpArtifacts?.length ?? 0}
               </span>
             </TabsTrigger>
-            <TabsTrigger value="diff">Diff</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
+            {canViewDiagnostics && <TabsTrigger value="diff">Diff</TabsTrigger>}
+            {canViewDiagnostics && <TabsTrigger value="logs">Logs</TabsTrigger>}
           </TabsList>
         </div>
 
@@ -1984,39 +1991,49 @@ export function TaskConversationPage({
           </div>
         </TabsContent>
 
-        <TabsContent
-          value="diff"
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="mx-auto max-w-3xl">
-              {isDemo ? (
-                <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-                  Diff view is only available for real tasks.
-                </p>
-              ) : (
-                <DiffPanel taskId={taskId} cabinetPath={task.meta.cabinetPath} />
-              )}
+        {canViewDiagnostics && (
+          <TabsContent
+            value="diff"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="mx-auto max-w-3xl">
+                {isDemo ? (
+                  <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+                    Diff view is only available for real tasks.
+                  </p>
+                ) : (
+                  <DiffPanel
+                    taskId={taskId}
+                    cabinetPath={task.meta.cabinetPath}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
+        )}
 
-        <TabsContent
-          value="logs"
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="mx-auto max-w-3xl">
-              {isDemo ? (
-                <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-                  Logs view is only available for real tasks.
-                </p>
-              ) : (
-                <LogsPanel taskId={taskId} cabinetPath={task.meta.cabinetPath} />
-              )}
+        {canViewDiagnostics && (
+          <TabsContent
+            value="logs"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="mx-auto max-w-3xl">
+                {isDemo ? (
+                  <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+                    Logs view is only available for real tasks.
+                  </p>
+                ) : (
+                  <LogsPanel
+                    taskId={taskId}
+                    cabinetPath={task.meta.cabinetPath}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
+        )}
       </Tabs>
 
       <StartWorkDialog
