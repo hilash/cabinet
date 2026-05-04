@@ -1,23 +1,23 @@
 "use client";
 
-import { ArrowRight, Music, AtSign } from "lucide-react";
+import { ArrowRight, AtSign, ClipboardCheck } from "lucide-react";
 import { MockupSidebar } from "./mockup-sidebar";
 import { TOUR_PALETTE as P } from "./palette";
 
-const SONG_TITLES = [
-  "Neon Dreams",
-  "Paper Moons",
-  "Cassette",
-  "Slow Burn",
-  "Overgrown",
-  "Salt & Smoke",
-  "Late Bloom",
-  "Low Tide",
-  "Signal Lost",
-  "Halfway Home",
+const ACTION_TITLES = [
+  "Summarize rollout risk",
+  "Draft customer brief",
+  "Check policy gate",
+  "Update action queue",
+  "Attach source evidence",
+  "Review account status",
+  "Prepare weekly note",
+  "Flag blocker",
+  "Create follow-up task",
+  "Compile decision log",
 ];
 
-const TYPED_COMMAND = "Run 10 tasks, each writing a song, save to @Songs/";
+const TYPED_COMMAND = "Review the Q3 pipeline and draft actions for @RevenueOps/";
 
 export function SlideTasks() {
   return (
@@ -85,7 +85,7 @@ export function SlideTasks() {
 
             {/* Fan-out grid */}
             <div className="grid flex-1 grid-cols-2 gap-1.5 overflow-hidden">
-              {SONG_TITLES.map((title, i) => (
+              {ACTION_TITLES.map((title, i) => (
                 <div
                   key={title}
                   className="opacity-0 flex flex-col gap-1 rounded-md px-1.5 py-1.5"
@@ -97,9 +97,9 @@ export function SlideTasks() {
                   }}
                 >
                   <div className="flex items-center gap-1">
-                    <Music
+                    <ClipboardCheck
                       className="h-2.5 w-2.5 shrink-0"
-                      style={{ color: "#D08BA6" }}
+                      style={{ color: "#4A8E6B" }}
                     />
                     <span
                       className="truncate text-[9px] font-medium"
@@ -161,7 +161,7 @@ export function SlideTasks() {
               <AtSign className="h-2.5 w-2.5" style={{ color: P.accent }} />
               <span>Saving to </span>
               <span className="font-mono font-semibold" style={{ color: P.text }}>
-                Songs/
+                RevenueOps/
               </span>
             </div>
           </div>
@@ -190,7 +190,7 @@ export function SlideTasks() {
             animationDelay: "180ms",
           }}
         >
-          Ready to <span style={{ color: P.accent }}>start</span>?
+          Governed work, <span style={{ color: P.accent }}>not loose prompts</span>.
         </h2>
         <p
           className="font-body-serif text-base leading-relaxed opacity-0 lg:text-lg"
@@ -200,10 +200,10 @@ export function SlideTasks() {
             animationDelay: "320ms",
           }}
         >
-          Write a task. Run one, run ten, schedule them forever.
-          Mention pages with{" "}
+          Ask for an outcome, attach the right object or source, and route the result through review.
+          Mention business context with{" "}
           <span className="font-mono" style={{ color: P.accent }}>@</span>,
-          save output wherever you want. You&apos;re the director now.
+          then keep actions, evidence, and decisions in the same operating graph.
         </p>
       </div>
     </div>

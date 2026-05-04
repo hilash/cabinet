@@ -20,7 +20,7 @@ const COPY_SUB_DELAY = 240;
 const ICON_INTRO_DELAY = 520;
 const ICON_INTRO_DURATION = 1100;
 
-// Cabinet shell (2 containers) fades in at narrow/square size after the
+// Command shell (2 containers) fades in at narrow/square size after the
 // icon settles, with a slight overlap so the hand-off reads as one motion.
 const SHELL_APPEAR_DELAY = 1520;
 const SHELL_FADE_DURATION = 400;
@@ -56,7 +56,7 @@ export function SlideIntro() {
             animationDelay: `${COPY_H1_DELAY}ms`,
           }}
         >
-          Meet <span style={{ color: P.accent }}>Optale Observatory</span>.
+          Meet <span style={{ color: P.accent }}>Optale Command</span>.
         </h2>
         <p
           className="font-body-serif text-lg leading-relaxed opacity-0 lg:text-xl"
@@ -66,7 +66,7 @@ export function SlideIntro() {
             animationDelay: `${COPY_SUB_DELAY}ms`,
           }}
         >
-          Your AI team. Your knowledge base. One place.
+          One operating workspace for objects, agents, governed actions, and evidence.
         </p>
       </div>
 
@@ -77,7 +77,7 @@ export function SlideIntro() {
         className="relative flex items-center justify-center"
         style={{ width: FULL_WIDTH, minHeight: NARROW_WIDTH }}
       >
-        {/* Big Archive glyph: pops larger, then shrinks + fades as the
+        {/* Big product glyph: pops larger, then shrinks + fades as the
             shell takes over. */}
         <div
           aria-hidden="true"
@@ -94,7 +94,7 @@ export function SlideIntro() {
           />
         </div>
 
-        {/* Cabinet shell — fades in narrow, rests, then widens. */}
+        {/* Command shell — fades in narrow, rests, then widens. */}
         <div
           className="opacity-0"
           style={{

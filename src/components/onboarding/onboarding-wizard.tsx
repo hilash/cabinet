@@ -23,7 +23,6 @@ import { TiltCard } from "@/components/ui/tilt-card";
 import { showError } from "@/lib/ui/toast";
 import {
   ROOMS,
-  ROOM_TYPES,
   STARTER_TEAMS,
   type RoomType,
   type StarterTeam,
@@ -88,14 +87,16 @@ interface SuggestedAgent {
   checked: boolean;
 }
 
-// Typewritten on the Welcome home step after the blueprint finishes drawing.
+// Typewritten on the welcome step after the blueprint finishes drawing.
 const WELCOME_PARAGRAPH =
   "Your Command workspace is where spaces, agents, memory, governance, MCP access, traces, and evals come together. Set up one space now; the observability surfaces are already wired into the Optale brain.";
 const WELCOME_TYPE_START_MS = 4800; // begin typing shortly after heading fades in
 const WELCOME_TYPE_CHAR_MS = 32;
 
+const BUSINESS_ROOM_TYPE: RoomType = "office";
+
 // Step indices after the compress pass:
-// 0 intro · 1 welcome · 2 space-setup · 3 team · 4 provider · 5 launch
+// 0 intro · 1 welcome · 2 workspace · 3 team · 4 provider · 5 launch
 const STEP_COUNT = 6;
 const STEP_WELCOME_HOME = 1;
 const STEP_ROOM_SETUP = 2;
@@ -401,6 +402,7 @@ function TeamBuildStep({
   toggleAgent,
   roomType,
   mandatoryAgents,
+  mandatoryCount,
   onBack,
   onNext,
 }: {
@@ -413,6 +415,7 @@ function TeamBuildStep({
   toggleAgent: (slug: string) => void;
   roomType: RoomType;
   mandatoryAgents: Set<string>;
+  mandatoryCount: number;
   onBack: () => void;
   onNext: () => void;
 }) {
@@ -511,10 +514,11 @@ function TeamBuildStep({
         style={{ opacity: 1 }}
       >
         <h1 className="font-sans font-semibold text-2xl tracking-normal">
-          Build <span style={{ color: WEB.accent }}>your</span> team
+          Configure <span style={{ color: WEB.accent }}>operating roles</span>
         </h1>
         <p className="text-sm" style={{ color: WEB.textSecondary }}>
-          Each space is an AI team: agents, tasks, and a shared knowledge base working together.
+          Start with a small business-ready set of roles. Required roles are included in
+          the active total so the count reflects what will launch, not only what you clicked.
         </p>
       </div>
 
@@ -533,7 +537,7 @@ function TeamBuildStep({
             className="text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: WEB.textTertiary }}
           >
-            Local starter patterns
+            Business playbooks
           </p>
         </div>
         <div
@@ -560,9 +564,9 @@ function TeamBuildStep({
           className="text-[11px] font-semibold uppercase tracking-wider text-center mb-2"
           style={{ color: WEB.textTertiary }}
         >
-          Or pick your agents{" "}
+          Active roles{" "}
           <span style={{ color: selectedCount >= maxAgents ? WEB.accent : WEB.textTertiary }}>
-            ({selectedCount}/{maxAgents})
+            ({selectedCount}/{maxAgents}, {mandatoryCount} required)
           </span>
         </p>
         {agentsLoading ? (
@@ -1023,13 +1027,19 @@ const dotGridStyle: React.CSSProperties = {
 const STEP_NAMES: Record<number, string> = {
   0: "intro",
   [STEP_WELCOME_HOME]: "welcome-home",
-  [STEP_ROOM_SETUP]: "room-setup",
+  [STEP_ROOM_SETUP]: "workspace-setup",
   [STEP_TEAM]: "team",
   [STEP_PROVIDER]: "provider",
   [STEP_LAUNCH]: "launch",
 };
 
-export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
+export function OnboardingWizard({
+  onComplete,
+  preview = false,
+}: {
+  onComplete: () => void;
+  preview?: boolean;
+}) {
   const [step, setStep] = useState(0);
   const canConfigureProviders = hasOptaleCapability("providers.configure");
   const canOpenTerminal = hasOptaleCapability("terminal.open");
@@ -1043,7 +1053,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     name: "",
     role: "",
     homeName: "",
-    roomType: "study",
+    roomType: BUSINESS_ROOM_TYPE,
     workspaceName: "",
     description: "",
     teamSize: "",
@@ -1053,10 +1063,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     () => new Set<string>(ROOMS[answers.roomType].mandatoryAgents),
     [answers.roomType]
   );
-  const activeRoom = ROOMS[answers.roomType];
   const descriptionInputRef = useRef<HTMLInputElement>(null);
 
-  // Welcome-home typewriter. Starts after the blueprint-draw delay so the
+  // Welcome typewriter. Starts after the blueprint-draw delay so the
   // cursor begins typing inside the freshly-appeared popup.
   const [welcomeTyped, setWelcomeTyped] = useState(0);
   useEffect(() => {
@@ -1259,6 +1268,16 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     try {
       const selected = suggestedAgents.filter((a) => a.checked).map((a) => a.slug);
 
+      if (preview) {
+        sendTelemetry("onboarding.completed", {
+          roomType: answers.roomType ?? null,
+          provider: selectedProvider ?? null,
+        });
+        setLaunching(false);
+        onComplete();
+        return;
+      }
+
       // Save provider + model preference
       if (selectedProvider && canConfigureProviders) {
         await fetch("/api/agents/providers", {
@@ -1276,7 +1295,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          homeName: answers.homeName || (answers.name ? `${answers.name}'s Home` : "Home"),
+          homeName:
+            answers.homeName ||
+            answers.workspaceName ||
+            (answers.name ? `${answers.name}'s workspace` : "Optale Command"),
           roomType: answers.roomType,
           answers: {
             name: answers.name,
@@ -1304,7 +1326,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       console.error("Setup failed:", e);
       setLaunching(false);
     }
-  }, [answers, canConfigureProviders, suggestedAgents, selectedProvider, selectedModel, selectedEffort, onComplete]);
+  }, [answers, canConfigureProviders, preview, suggestedAgents, selectedProvider, selectedModel, selectedEffort, onComplete]);
 
   const selectedAgentCount = suggestedAgents.filter(
     (agent) => agent.checked
@@ -1346,7 +1368,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         style={step === STEP_WELCOME_HOME ? undefined : dotGridStyle}
       >
         <div className="w-full">
-          {/* Progress indicator — hidden on Welcome home so the popup truly
+          {/* Progress indicator — hidden on welcome so the popup truly
               centers over the blueprint's patio. */}
           {step !== STEP_WELCOME_HOME && (
             <div className="mb-10 flex items-center justify-center gap-2">
@@ -1369,7 +1391,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             <IntroStep onNext={() => setStep(1)} />
           )}
 
-          {/* Step 1: Welcome home — appears after the blueprint finishes drawing */}
+          {/* Step 1: Welcome — appears after the blueprint finishes drawing */}
           {step === STEP_WELCOME_HOME && (
             <div className="relative">
               <style>{`
@@ -1420,7 +1442,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     className="wh-item font-sans font-semibold text-2xl tracking-normal"
                     style={{ ["--wh-d" as string]: "4.6s" } as React.CSSProperties}
                   >
-                    Welcome <span style={{ color: WEB.accent }}>home</span>
+                    Welcome to <span style={{ color: WEB.accent }}>Command</span>
                   </h1>
                   {/* Typewriter paragraph — reserves its full final height via a
                       transparent clone of the remaining text so the layout
@@ -1450,7 +1472,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   style={{ ["--wh-d" as string]: "5.0s" } as React.CSSProperties}
                 >
                   <label className="text-sm font-medium" style={{ color: WEB.text }}>
-                    What&apos;s your name?
+                    What should we call you?
                   </label>
                   <input
                     value={answers.name}
@@ -1493,95 +1515,36 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
 
-          {/* Step 2: Pick a room + name + describe the space (merged) */}
+          {/* Step 2: Business workspace setup */}
           {step === STEP_ROOM_SETUP && (
-            <div className="mx-auto flex max-w-4xl flex-col gap-7 animate-in fade-in duration-300">
+            <div className="mx-auto flex max-w-2xl flex-col gap-7 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
                 <h1 className="font-sans font-semibold text-2xl tracking-normal">
-                  Pick a <span style={{ color: WEB.accent }}>room</span>
+                  Set up your <span style={{ color: WEB.accent }}>business workspace</span>
                 </h1>
                 <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
-                  What&apos;s this space for? Each room comes with its own AI team.
+                  Optale Command starts as a governed operating workspace for one company,
+                  client, or business function. No room picking, no personal template detour.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {ROOM_TYPES.map((id) => {
-                  const room = ROOMS[id];
-                  const Icon = room.icon;
-                  const isSelected = answers.roomType === id;
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => setAnswers({ ...answers, roomType: id })}
-                      className="group relative flex flex-col gap-2.5 rounded-xl p-4 text-left transition-all hover:-translate-y-0.5 overflow-hidden"
-                      style={{
-                        background: isSelected ? WEB.accentBg : WEB.bgCard,
-                        border: `1px solid ${isSelected ? WEB.accent : WEB.border}`,
-                        boxShadow: isSelected
-                          ? "0 4px 14px rgba(139, 94, 60, 0.15)"
-                          : "0 1px 2px rgba(59, 47, 47, 0.03)",
-                        minHeight: 170,
-                      }}
-                    >
-                      {/* Vague background glyph — blurred, tiny-opacity, bleeds off the card */}
-                      <Icon
-                        aria-hidden="true"
-                        className="pointer-events-none absolute transition-opacity duration-300"
-                        style={{
-                          right: -40,
-                          bottom: -40,
-                          width: 190,
-                          height: 190,
-                          color: WEB.accent,
-                          opacity: isSelected ? 0.09 : 0.045,
-                          strokeWidth: 1,
-                          filter: "blur(1.5px)",
-                        }}
-                      />
-                      <div className="relative space-y-1">
-                        <p className="text-sm font-semibold" style={{ color: WEB.text }}>
-                          {room.label}
-                        </p>
-                        <p className="text-[11px] leading-relaxed" style={{ color: WEB.textSecondary }}>
-                          {room.tagline}
-                        </p>
-                      </div>
-                      <div
-                        className="relative mt-auto flex flex-wrap items-center gap-1 pt-2"
-                        style={{ borderTop: `1px solid ${WEB.borderLight}` }}
-                      >
-                        {room.exampleAgents.slice(0, 2).map((ex) => (
-                          <span
-                            key={ex}
-                            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                            style={{
-                              background: isSelected ? WEB.bgCard : WEB.bgWarm,
-                              color: WEB.textSecondary,
-                            }}
-                          >
-                            {ex}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Space name + description inputs, adaptive to the active room */}
+              {/* Workspace name + description inputs, using the business operating profile. */}
               <div
                 className="space-y-5 rounded-2xl p-5"
                 style={{ background: WEB.bgCard, border: `1px solid ${WEB.border}` }}
               >
                 <div className="space-y-2">
                   <label className="text-sm font-medium" style={{ color: WEB.text }}>
-                    {activeRoom.workspaceLabel}
+                    Company, client, or workspace name
                   </label>
                   <input
                     value={answers.workspaceName}
                     onChange={(e) =>
-                      setAnswers({ ...answers, workspaceName: e.target.value })
+                      setAnswers({
+                        ...answers,
+                        roomType: BUSINESS_ROOM_TYPE,
+                        workspaceName: e.target.value,
+                      })
                     }
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -1589,20 +1552,24 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         descriptionInputRef.current?.focus();
                       }
                     }}
-                    placeholder={activeRoom.workspacePlaceholder}
+                    placeholder="Optale Customer Operations"
                     style={inputStyle}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium" style={{ color: WEB.text }}>
-                    {activeRoom.descriptionLabel}
+                    What should Command help the business manage?
                   </label>
                   <input
                     ref={descriptionInputRef}
                     value={answers.description}
                     onChange={(e) =>
-                      setAnswers({ ...answers, description: e.target.value })
+                      setAnswers({
+                        ...answers,
+                        roomType: BUSINESS_ROOM_TYPE,
+                        description: e.target.value,
+                      })
                     }
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && answers.workspaceName.trim()) {
@@ -1610,7 +1577,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         void goToTeamSuggestion();
                       }
                     }}
-                    placeholder={activeRoom.descriptionPlaceholder}
+                    placeholder="Customer onboarding, governed actions, source evidence, and weekly operator reviews"
                     style={inputStyle}
                   />
                 </div>
@@ -1651,6 +1618,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               toggleAgent={toggleAgent}
               roomType={answers.roomType}
               mandatoryAgents={mandatoryAgents}
+              mandatoryCount={mandatoryAgents.size}
               onBack={() => setStep(STEP_ROOM_SETUP)}
               onNext={() => setStep(canConfigureProviders ? STEP_PROVIDER : STEP_LAUNCH)}
             />
@@ -1661,10 +1629,11 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             <div className="mx-auto flex max-w-xl flex-col gap-6 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
                 <h1 className="font-sans font-semibold text-2xl tracking-normal">
-                  Agent Provider
+                  Runtime connection
                 </h1>
                 <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
-                  {OPTALE_PRODUCT.name} needs an AI CLI to power your agents.
+                  This local operator build can verify a CLI runtime. Hosted business
+                  deployments can ship with preconfigured Azure/API-backed runtime access.
                 </p>
               </div>
 
@@ -2004,14 +1973,14 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               {/* Coming soon providers */}
               <div className="space-y-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: WEB.textTertiary }}>
-                  Coming soon
+                  Managed deployments
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[
-                    { name: "Anthropic API", type: "API", icon: "api" },
-                    { name: "OpenAI API", type: "API", icon: "api" },
-                    { name: "Google AI API", type: "API", icon: "api" },
-                    { name: "Plugin SDK", type: "SDK", icon: "terminal" },
+                    { name: "Azure-hosted model gateway", type: "Managed", icon: "api" },
+                    { name: "Optale-approved tool runtime", type: "Managed", icon: "api" },
+                    { name: "Customer-scoped memory lane", type: "Scoped", icon: "api" },
+                    { name: "Partner-safe action approvals", type: "Policy", icon: "terminal" },
                   ].map((p) => (
                     <div
                       key={p.name}
@@ -2036,7 +2005,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           {p.name}
                         </p>
                         <p className="text-[10px]" style={{ color: WEB.textTertiary }}>
-                          {p.type} agent
+                          {p.type}
                         </p>
                       </div>
                     </div>
@@ -2086,7 +2055,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 <div className="p-5 space-y-4 flex-1 overflow-y-auto scrollbar-thin">
                   <div className="space-y-1">
                     <h2 className="font-sans font-semibold text-xl tracking-normal" style={{ color: WEB.text }}>
-                      {answers.workspaceName || "Your Space"}
+                      {answers.workspaceName || "Business workspace"}
                     </h2>
                     <p
                       className="text-[11px] font-semibold uppercase tracking-wider"
@@ -2144,7 +2113,11 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     <AgentChatPreview
                       agents={suggestedAgents.filter((a) => a.checked)}
                       workspaceName={answers.workspaceName}
-                      homeName={answers.homeName || (answers.name ? `${answers.name}'s Home` : "Home")}
+                      homeName={
+                        answers.homeName ||
+                        answers.workspaceName ||
+                        (answers.name ? `${answers.name}'s workspace` : "Optale Command")
+                      }
                       roomType={answers.roomType}
                     />
                   </div>
@@ -2160,7 +2133,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 }}
               >
                 <p className="text-[13px] font-semibold" style={{ color: WEB.text }}>
-                  Before you launch
+                  Before you open Command
                 </p>
                 <ul className="space-y-2">
                   <li className="flex gap-3">
@@ -2172,21 +2145,14 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     <span style={{ color: WEB.textSecondary }}>
                       <strong className="font-medium" style={{ color: WEB.text }}>
                         {canConfigureProviders
-                          ? "Agents run with full access."
-                          : "Agents run through the scoped partner runtime."}
+                          ? "Local operator runtime."
+                          : "Scoped partner runtime."}
                       </strong>{" "}
                       {canConfigureProviders ? (
                         <>
-                          {OPTALE_PRODUCT.name} uses{" "}
-                          <code
-                            className="rounded px-1 py-0.5 text-[11px]"
-                            style={{ background: WEB.bgWarm, color: WEB.text }}
-                          >
-                            --dangerously-skip-permissions
-                          </code>{" "}
-                          (Claude Code) and equivalent flags in other providers. This is identical
-                          to running these CLI tools from your own terminal. Any MCP servers or
-                          tools you&apos;ve configured may be invoked automatically by agents.
+                          This dev/operator setup can call local CLI providers and tools you
+                          explicitly configure. Hosted customer deployments should use the
+                          managed runtime profile instead.
                         </>
                       ) : (
                         <>
@@ -2205,13 +2171,12 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     />
                     <span style={{ color: WEB.textSecondary }}>
                       <strong className="font-medium" style={{ color: WEB.text }}>
-                        Back up your data regularly.
+                        Business data stays scoped.
                       </strong>{" "}
                       {canConfigureProviders
-                        ? "Agents can read, write, and delete files across your KB and linked repos."
+                        ? "Operator mode can access local workspace files and linked repositories."
                         : "Agents can read and write only through the workspace capabilities enabled for this partner profile."}{" "}
-                      {OPTALE_PRODUCT.name} is not responsible for data loss. You are responsible for the AI
-                      providers you choose and their terms of service.
+                      Raw diagnostics, provider secrets, and Company Brain access stay governed by profile capabilities.
                     </span>
                   </li>
                   <li className="flex gap-3">
@@ -2222,9 +2187,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     />
                     <span style={{ color: WEB.textSecondary }}>
                       <strong className="font-medium" style={{ color: WEB.text }}>
-                        Beta software. Things may break.
+                        Review mode first.
                       </strong>{" "}
-                      We ship fast. Breaking changes can land without notice.
+                      Start with review queues, visible source evidence, and governed actions before enabling broader automation.
                     </span>
                   </li>
                 </ul>
@@ -2247,25 +2212,25 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   className="text-[11px]"
                   style={{ color: WEB.textTertiary }}
                 >
-                  By continuing you agree to our{" "}
+                  By continuing you confirm that your workspace use follows the applicable{" "}
                   <a
-                    href="https://optale.com/terms"
+                    href="/terms"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline underline-offset-2"
                     style={{ color: WEB.textSecondary }}
                   >
-                    Terms
+                    terms
                   </a>{" "}
                   and{" "}
                   <a
-                    href="https://optale.com/privacy"
+                    href="/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline underline-offset-2"
                     style={{ color: WEB.textSecondary }}
                   >
-                    Privacy
+                    privacy notice
                   </a>
                   .
                 </p>

@@ -41,7 +41,9 @@ export async function POST(req: NextRequest) {
     const workspaceName =
       answers.workspaceName?.trim() || answers.companyName?.trim() || "My Space";
     const homeName =
-      body.homeName?.trim() || (answers.name ? `${answers.name}'s Home` : "Home");
+      body.homeName?.trim() ||
+      workspaceName ||
+      (answers.name ? `${answers.name}'s workspace` : "Optale Command");
 
     const selectedAgents = mergeMandatoryAgentSlugs(
       body.selectedAgents || [],

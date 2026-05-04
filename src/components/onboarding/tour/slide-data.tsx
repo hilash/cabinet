@@ -102,7 +102,7 @@ function ViewerFrame({
 
 function VideoViewer() {
   return (
-    <ViewerFrame title="Night market.mp4" icon={Video} iconColor={ICON.cyan}>
+    <ViewerFrame title="Customer rollout brief.mp4" icon={Video} iconColor={ICON.cyan}>
       <div
         className="relative flex h-full w-full items-center justify-center"
         style={{
@@ -164,17 +164,17 @@ function VideoViewer() {
 
 function CalculatorAppViewer() {
   return (
-    <ViewerFrame title="Calculator" icon={AppWindow} iconColor={ICON.green} badge="Live app">
+    <ViewerFrame title="Pipeline forecast" icon={AppWindow} iconColor={ICON.green} badge="Live app">
       <div className="flex h-full flex-col gap-2.5 p-3.5">
         <div className="flex flex-col gap-1.5">
           <span className="text-[8px] font-semibold uppercase tracking-[0.1em]" style={{ color: P.textTertiary }}>
-            2026 tax estimate
+            Q3 revenue forecast
           </span>
         </div>
         {[
-          { label: "Income", value: "$85,000" },
-          { label: "Deductions", value: "$12,000" },
-          { label: "Tax bracket", value: "22%" },
+          { label: "Qualified pipeline", value: "$1.8M" },
+          { label: "Commit", value: "$640K" },
+          { label: "At risk", value: "$210K" },
         ].map((row) => (
           <div
             key={row.label}
@@ -192,8 +192,8 @@ function CalculatorAppViewer() {
             color: P.paper,
           }}
         >
-          <span className="font-medium">Estimated tax</span>
-          <span className="font-mono text-[13px] font-bold">$15,970</span>
+          <span className="font-medium">Forecast</span>
+          <span className="font-mono text-[13px] font-bold">$920K</span>
         </div>
         <div className="mt-auto flex items-end gap-1.5 pt-3" style={{ borderTop: `1px solid ${P.borderLight}` }}>
           {[60, 42, 78, 55, 90, 68, 82].map((h, i) => (
@@ -210,28 +210,28 @@ function CalculatorAppViewer() {
 }
 
 function CsvTableViewer() {
-  const vitamins = [
-    { name: "Vitamin D", dose: "2000 IU", time: "8 am", done: true },
-    { name: "Iron", dose: "25 mg", time: "12 pm", done: true },
-    { name: "Magnesium", dose: "400 mg", time: "8 pm", done: false },
-    { name: "Vitamin C", dose: "1 g", time: "10 am", done: true },
-    { name: "Omega-3", dose: "1 g", time: "8 pm", done: true },
-    { name: "B-Complex", dose: "1 cap", time: "8 am", done: true },
+  const controls = [
+    { name: "Data processing addendum", owner: "Legal", status: "Ready", done: true },
+    { name: "SOC 2 evidence packet", owner: "Security", status: "Review", done: true },
+    { name: "Subprocessor register", owner: "Ops", status: "Open", done: false },
+    { name: "Retention policy", owner: "Legal", status: "Ready", done: true },
+    { name: "Access review", owner: "Security", status: "Ready", done: true },
+    { name: "Customer approval log", owner: "CS", status: "Ready", done: true },
   ];
   return (
-    <ViewerFrame title="Daily vitamins.csv" icon={Table} iconColor={ICON.green}>
+    <ViewerFrame title="Compliance controls.csv" icon={Table} iconColor={ICON.green}>
       <div className="flex h-full flex-col">
         <div
           className="grid grid-cols-[1.3fr_0.9fr_0.8fr_0.3fr] gap-2 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.08em]"
           style={{ color: P.textTertiary, borderBottom: `1px solid ${P.borderLight}`, background: P.paperWarm }}
         >
-          <span>Vitamin</span>
-          <span>Dose</span>
-          <span>Time</span>
-          <span className="text-right">Done</span>
+          <span>Control</span>
+          <span>Owner</span>
+          <span>Status</span>
+          <span className="text-right">OK</span>
         </div>
         <div className="flex-1 overflow-hidden">
-          {vitamins.map((v, i) => (
+          {controls.map((v, i) => (
             <div
               key={v.name}
               className="grid grid-cols-[1.3fr_0.9fr_0.8fr_0.3fr] gap-2 px-3 py-1.5 text-[11px] items-center"
@@ -242,8 +242,8 @@ function CsvTableViewer() {
               }}
             >
               <span className="truncate font-medium">{v.name}</span>
-              <span className="font-mono" style={{ color: P.textSecondary }}>{v.dose}</span>
-              <span className="font-mono" style={{ color: P.textSecondary }}>{v.time}</span>
+              <span className="font-mono" style={{ color: P.textSecondary }}>{v.owner}</span>
+              <span className="font-mono" style={{ color: P.textSecondary }}>{v.status}</span>
               <span className="flex justify-end">
                 {v.done ? (
                   <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full" style={{ background: ICON.green }}>
@@ -264,21 +264,21 @@ function CsvTableViewer() {
 
 function CodeViewer() {
   const lines = [
-    { n: 1, html: <><span style={{ color: "#B47ED8" }}>export type</span> <span style={{ color: "#D9A55E" }}>Page</span> = {"{"}</> },
-    { n: 2, html: <>  path: <span style={{ color: "#7BAEDB" }}>string</span>;</> },
+    { n: 1, html: <><span style={{ color: "#B47ED8" }}>export type</span> <span style={{ color: "#D9A55E" }}>CustomerObject</span> = {"{"}</> },
+    { n: 2, html: <>  objectId: <span style={{ color: "#7BAEDB" }}>string</span>;</> },
     { n: 3, html: <>  title: <span style={{ color: "#7BAEDB" }}>string</span>;</> },
-    { n: 4, html: <>  tags: <span style={{ color: "#7BAEDB" }}>string</span>[];</> },
-    { n: 5, html: <>  modified: <span style={{ color: "#7BAEDB" }}>Date</span>;</> },
+    { n: 4, html: <>  status: <span style={{ color: "#7BAEDB" }}>&quot;active&quot; | &quot;risk&quot;</span>;</> },
+    { n: 5, html: <>  sourceIds: <span style={{ color: "#7BAEDB" }}>string</span>[];</> },
     { n: 6, html: <>{"}"};</> },
     { n: 7, html: <>&nbsp;</> },
-    { n: 8, html: <><span style={{ color: "#B47ED8" }}>export type</span> <span style={{ color: "#D9A55E" }}>Agent</span> = {"{"}</> },
+    { n: 8, html: <><span style={{ color: "#B47ED8" }}>export type</span> <span style={{ color: "#D9A55E" }}>GovernedAction</span> = {"{"}</> },
     { n: 9, html: <>  slug: <span style={{ color: "#7BAEDB" }}>string</span>;</> },
-    { n: 10, html: <>  persona: <span style={{ color: "#7BAEDB" }}>string</span>;</> },
-    { n: 11, html: <>  heartbeatMs?: <span style={{ color: "#7BAEDB" }}>number</span>;</> },
+    { n: 10, html: <>  policy: <span style={{ color: "#7BAEDB" }}>string</span>;</> },
+    { n: 11, html: <>  evidenceRequired: <span style={{ color: "#7BAEDB" }}>boolean</span>;</> },
     { n: 12, html: <>{"}"};</> },
   ];
   return (
-    <ViewerFrame title="schema.ts" icon={Code} iconColor={ICON.violet} badge="TS">
+    <ViewerFrame title="object-schema.ts" icon={Code} iconColor={ICON.violet} badge="OAG">
       <div
         className="h-full overflow-hidden py-2 font-mono text-[11px] leading-relaxed"
         style={{ color: P.text, background: "#FBF7F0" }}
@@ -299,70 +299,69 @@ function CodeViewer() {
 // ── Scenes ────────────────────────────────────────────────────
 const SCENES: Scene[] = [
   {
-    id: "thailand-video",
+    id: "customer-rollout",
     rootIcon: ChevronDown as IconComponent,
     rootColor: P.textTertiary,
-    rootLabel: "Thailand Trip",
+    rootLabel: "Customer Rollout",
     rows: [
-      { label: "Itinerary.md", icon: FileText, color: ICON.gray, indent: 1 },
-      { label: "Phuket sunset.jpg", icon: ImageIcon, color: ICON.pink, indent: 1 },
-      { label: "Chiang Mai temple.jpg", icon: ImageIcon, color: ICON.pink, indent: 1 },
-      { label: "Night market.mp4", icon: Video, color: ICON.cyan, indent: 1 },
-      { label: "Budget.xlsx", icon: FileSpreadsheet, color: ICON.green, indent: 1 },
-      { label: "Street food notes.mp3", icon: Music, color: ICON.amber, indent: 1 },
-      { label: "Flights.pdf", icon: FileType, color: ICON.red, indent: 1 },
+      { label: "Rollout brief.md", icon: FileText, color: ICON.gray, indent: 1 },
+      { label: "Customer rollout brief.mp4", icon: Video, color: ICON.cyan, indent: 1 },
+      { label: "Stakeholder map.jpg", icon: ImageIcon, color: ICON.pink, indent: 1 },
+      { label: "Risk register.xlsx", icon: FileSpreadsheet, color: ICON.green, indent: 1 },
+      { label: "Decision log.md", icon: FileText, color: ICON.gray, indent: 1 },
+      { label: "Customer notes.mp3", icon: Music, color: ICON.amber, indent: 1 },
+      { label: "Security packet.pdf", icon: FileType, color: ICON.red, indent: 1 },
     ],
-    featuredIdx: 3,
-    caption: "View all your files in one place.",
+    featuredIdx: 1,
+    caption: "Customer evidence, rollout media, risks, and decisions stay attached to the object.",
     viewer: <VideoViewer />,
   },
   {
-    id: "tax-webapp",
+    id: "revenue-ops",
     rootIcon: ChevronDown as IconComponent,
     rootColor: P.textTertiary,
-    rootLabel: "Tax 2026",
+    rootLabel: "Revenue Operations",
     rows: [
-      { label: "Calculator", icon: AppWindow, color: ICON.green, indent: 1 },
-      { label: "Income.xlsx", icon: FileSpreadsheet, color: ICON.green, indent: 1 },
-      { label: "Receipts.pdf", icon: FileType, color: ICON.red, indent: 1 },
-      { label: "Deductions.md", icon: FileText, color: ICON.gray, indent: 1 },
-      { label: "W-2 2026.pdf", icon: FileType, color: ICON.red, indent: 1 },
-      { label: "CPA notes.docx", icon: FileText, color: ICON.blue, indent: 1 },
+      { label: "Pipeline forecast", icon: AppWindow, color: ICON.green, indent: 1 },
+      { label: "Accounts.xlsx", icon: FileSpreadsheet, color: ICON.green, indent: 1 },
+      { label: "Next actions.md", icon: FileText, color: ICON.gray, indent: 1 },
+      { label: "Contract packet.pdf", icon: FileType, color: ICON.red, indent: 1 },
+      { label: "Forecast notes.docx", icon: FileText, color: ICON.blue, indent: 1 },
     ],
     featuredIdx: 0,
-    caption: "Tax 2026 — a live calculator web app, embedded right in your cabinet.",
+    caption: "Operational apps can sit beside source records and action plans.",
     viewer: <CalculatorAppViewer />,
   },
   {
-    id: "health",
+    id: "compliance",
     rootIcon: ChevronDown as IconComponent,
     rootColor: P.textTertiary,
-    rootLabel: "Health",
+    rootLabel: "Compliance Review",
     rows: [
-      { label: "Daily vitamins.csv", icon: Table, color: ICON.green, indent: 1 },
-      { label: "Supplements.md", icon: FileText, color: ICON.gray, indent: 1 },
-      { label: "Dosage schedule.xlsx", icon: FileSpreadsheet, color: ICON.green, indent: 1 },
-      { label: "Lab results.pdf", icon: FileType, color: ICON.red, indent: 1 },
-      { label: "Progress chart.png", icon: ImageIcon, color: ICON.pink, indent: 1 },
+      { label: "Compliance controls.csv", icon: Table, color: ICON.green, indent: 1 },
+      { label: "Policy exceptions.md", icon: FileText, color: ICON.gray, indent: 1 },
+      { label: "Access review.xlsx", icon: FileSpreadsheet, color: ICON.green, indent: 1 },
+      { label: "DPA.pdf", icon: FileType, color: ICON.red, indent: 1 },
+      { label: "Audit snapshot.png", icon: ImageIcon, color: ICON.pink, indent: 1 },
     ],
     featuredIdx: 0,
-    caption: "Vitamins & labs — a spreadsheet that feels like a page.",
+    caption: "Policy evidence is readable as data, not buried in raw diagnostics.",
     viewer: <CsvTableViewer />,
   },
   {
-    id: "repo",
+    id: "object-graph",
     rootIcon: GitBranch as IconComponent,
     rootColor: ICON.orange,
-    rootLabel: "cabinet-repo",
+    rootLabel: "Object Graph",
     rows: [
-      { label: "README.md", icon: FileText, color: ICON.gray, indent: 1 },
-      { label: "package.json", icon: Code, color: ICON.violet, indent: 1 },
-      { label: "src", icon: Folder, color: ICON.gray, indent: 1 },
-      { label: "schema.ts", icon: Code, color: ICON.violet, indent: 1 },
-      { label: ".repo.yaml", icon: GitBranch, color: ICON.orange, indent: 1 },
+      { label: "object-schema.ts", icon: Code, color: ICON.violet, indent: 1 },
+      { label: "lineage.md", icon: FileText, color: ICON.gray, indent: 1 },
+      { label: "actions", icon: Folder, color: ICON.gray, indent: 1 },
+      { label: "policy.json", icon: Code, color: ICON.violet, indent: 1 },
+      { label: "source-map.yaml", icon: GitBranch, color: ICON.orange, indent: 1 },
     ],
     featuredIdx: 3,
-    caption: "Codebases — link any Git repo, searchable by your agents.",
+    caption: "The OAG connects objects, evidence, policy, and governed actions.",
     viewer: <CodeViewer />,
   },
 ];

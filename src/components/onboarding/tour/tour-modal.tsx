@@ -16,7 +16,7 @@ interface TourModalProps {
 }
 
 const STARTER_TASK =
-  "Let's talk through my goals and what I want to achieve here, then capture it in a new About page.";
+  "Review the current business workspace, identify the first operating priorities, and draft a source-backed action plan.";
 
 // Each data scene is its own back/next step. `stageKey` is stable across
 // all data slides so `SlideData` stays mounted while stepping through
@@ -41,7 +41,7 @@ type DocWithViewTransitions = Document & {
 };
 
 // Animate cross-slide state changes with the View Transitions API. The
-// shared `view-transition-name` on the Cabinet card gives the browser an
+// shared `view-transition-name` on the Command card gives the browser an
 // identity to morph between the intro (centered) and tour (left) layouts.
 // Falls back to a synchronous update on browsers without the API.
 function transition(update: () => void) {
@@ -129,7 +129,7 @@ function TourBody({
       className="fixed inset-0 z-[200] flex items-center justify-center backdrop-blur-md"
       role="dialog"
       aria-modal="true"
-      aria-label="Meet Optale Observatory tour"
+      aria-label="Meet Optale Command tour"
       style={{ background: `${P.paper}F0`, color: P.text }}
     >
       {/* Soft decorative background wash — warm cream with subtle mocha glow */}
@@ -212,7 +212,7 @@ function TourBody({
               }}
             >
               <Sparkles className="h-4 w-4" />
-              Write your first task
+              Draft first action plan
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           ) : (

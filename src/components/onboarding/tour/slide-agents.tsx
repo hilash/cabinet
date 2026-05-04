@@ -5,8 +5,8 @@ import { MockupSidebar } from "./mockup-sidebar";
 import { TOUR_PALETTE as P } from "./palette";
 
 const OTHER_AGENTS = [
-  { name: "Writer", icon: PenLine, tone: "#6B8CC4" },
-  { name: "Organizer", icon: FolderTree, tone: "#9678BA" },
+  { name: "Account Analyst", icon: PenLine, tone: "#6B8CC4" },
+  { name: "Evidence Curator", icon: FolderTree, tone: "#9678BA" },
 ];
 
 export function SlideAgents() {
@@ -71,7 +71,7 @@ export function SlideAgents() {
                     className="text-[12px] font-semibold"
                     style={{ color: P.text }}
                   >
-                    Research Analyst
+                    Operations Analyst
                   </span>
                   <span
                     className="text-[10px]"
@@ -109,7 +109,7 @@ export function SlideAgents() {
                 icon={Brain}
                 iconColor={P.accent}
                 label="Persona"
-                body="&ldquo;Rigorous analyst. Cites sources. Flags conflicting claims.&rdquo;"
+                body="&ldquo;Cites sources, flags risks, and turns account evidence into next actions.&rdquo;"
                 delay="2500ms"
               />
 
@@ -118,8 +118,8 @@ export function SlideAgents() {
                 num={2}
                 icon={Heart}
                 iconColor="#C26B6B"
-                label="Heartbeat"
-                body="Scans @Market Research every 15 min"
+                label="Checks"
+                body="Reviews customer signals and policy exceptions every 15 min"
                 delay="2900ms"
               />
 
@@ -128,8 +128,8 @@ export function SlideAgents() {
                 num={3}
                 icon={Calendar}
                 iconColor="#8B7FB5"
-                label="Jobs"
-                body="Mon 9:00 · Weekly competitor digest"
+                label="Reviews"
+                body="Mon 9:00 · Weekly operator briefing"
                 delay="3300ms"
               />
             </div>
@@ -149,7 +149,7 @@ export function SlideAgents() {
             animationDelay: "60ms",
           }}
         >
-          02 &middot; AGENTS
+          02 &middot; OPERATORS
         </span>
         <h2
           className="font-sans font-semibold text-4xl tracking-normal opacity-0 lg:text-5xl"
@@ -159,7 +159,7 @@ export function SlideAgents() {
             animationDelay: "180ms",
           }}
         >
-          Your <span style={{ color: P.accent }}>AI team</span>.
+          Business roles with <span style={{ color: P.accent }}>clear boundaries</span>.
         </h2>
         <p
           className="font-body-serif text-base leading-relaxed opacity-0 lg:text-lg"
@@ -169,9 +169,9 @@ export function SlideAgents() {
             animationDelay: "320ms",
           }}
         >
-          Each agent has a <span className="font-medium" style={{ color: P.text }}>persona</span>, its own{" "}
-          <span className="font-medium" style={{ color: P.text }}>schedule</span>, and a{" "}
-          <span className="font-medium" style={{ color: P.text }}>memory</span>. Your AI agents get the work done, 24/7. Go be human — they&apos;ll handle the rest.
+          Each role has a <span className="font-medium" style={{ color: P.text }}>purpose</span>, scoped{" "}
+          <span className="font-medium" style={{ color: P.text }}>memory</span>, and governed{" "}
+          <span className="font-medium" style={{ color: P.text }}>tool access</span>. Command keeps automation visible through evidence, review queues, and policy decisions.
         </p>
       </div>
     </div>

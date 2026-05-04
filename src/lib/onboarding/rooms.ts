@@ -28,13 +28,13 @@ export const ROOM_TYPES: RoomType[] = ["office", "study", "lab", "family-room", 
 export const ROOMS: Record<RoomType, RoomConfig> = {
   office: {
     id: "office",
-    label: "The Office",
-    tagline: "Run a business, startup, or side project.",
+    label: "Business Workspace",
+    tagline: "Run customer work, operations, governed actions, and source-backed reviews.",
     icon: Briefcase,
-    workspaceLabel: "Company or project name",
-    workspacePlaceholder: "Acme Corp",
-    descriptionLabel: "What do you do?",
-    descriptionPlaceholder: "We make a podcast about AI startups",
+    workspaceLabel: "Company, client, or workspace name",
+    workspacePlaceholder: "Optale Customer Operations",
+    descriptionLabel: "What should Command help manage?",
+    descriptionPlaceholder: "Customer onboarding, governed actions, source evidence, and weekly operator reviews",
     askTeamSize: true,
     mandatoryAgents: ["ceo", "editor"],
     suggestedAgents: ["content-marketer", "copywriter"],
@@ -57,7 +57,7 @@ export const ROOMS: Record<RoomType, RoomConfig> = {
       [/operations|process|efficiency/, ["coo"]],
     ],
     greetingTemplate: (_home, workspace) =>
-      `Good morning team! Welcome to ${workspace || "the company"}. Let's hit the ground running.`,
+      `${workspace || "The business workspace"} is online. Let's review the active work, sources, and next governed actions.`,
   },
 
   study: {
@@ -182,19 +182,19 @@ export interface StarterTeam {
 }
 
 export const STARTER_TEAMS: StarterTeam[] = [
-  // Office (keep existing 12)
-  { name: "Content Engine", description: "Blog posts, newsletters & social media on autopilot", agents: 5, domain: "Marketing", rooms: ["office"] },
-  { name: "Cold Email Agency", description: "ICP research, list building, copy & sending", agents: 7, domain: "Sales", rooms: ["office"] },
-  { name: "Carousel Factory", description: "Design Instagram, LinkedIn & TikTok carousels", agents: 4, domain: "Marketing", rooms: ["office"] },
-  { name: "SEO War Room", description: "Keyword research, write, optimize & rank", agents: 6, domain: "Marketing", rooms: ["office"] },
-  { name: "LinkedIn Lead Gen Shop", description: "Profile optimization, connections & DM sequences", agents: 5, domain: "Sales", rooms: ["office"] },
-  { name: "Podcast Booking Agency", description: "Research shows, pitch, schedule & prep talking points", agents: 6, domain: "Media", rooms: ["office"] },
-  { name: "TikTok Shop Operator", description: "Product listings, affiliate outreach & live stream", agents: 8, domain: "E-commerce", rooms: ["office"] },
-  { name: "Ghostwriting Studio", description: "LinkedIn posts, Twitter threads & newsletters", agents: 5, domain: "Content", rooms: ["office"] },
-  { name: "PR Pitching Machine", description: "Media list, write pitches, send & track", agents: 5, domain: "Marketing", rooms: ["office"] },
-  { name: "App Store Optimization", description: "Keyword research, screenshots & A/B test", agents: 5, domain: "Marketing", rooms: ["office"] },
-  { name: "Shopify Store Setup", description: "Theme, products, payments & launch checklist", agents: 5, domain: "E-commerce", rooms: ["office"] },
-  { name: "Proposal & RFP Factory", description: "Parse RFPs, draft responses, format & submit", agents: 6, domain: "Services", rooms: ["office"] },
+  // Business workspace
+  { name: "Customer Onboarding", description: "Track accounts, evidence, approvals, and rollout actions", agents: 5, domain: "Operations", rooms: ["office"] },
+  { name: "Revenue Operations", description: "Pipeline review, account research, next steps, and weekly summaries", agents: 5, domain: "Revenue", rooms: ["office"] },
+  { name: "Compliance Review", description: "Policy checks, audit events, source evidence, and decision records", agents: 4, domain: "Governance", rooms: ["office"] },
+  { name: "Partner Success Desk", description: "Partner requests, status reports, follow-ups, and action queues", agents: 5, domain: "Success", rooms: ["office"] },
+  { name: "Product Feedback Loop", description: "Collect customer evidence, cluster themes, and route product actions", agents: 5, domain: "Product", rooms: ["office"] },
+  { name: "Executive Weekly Review", description: "Summaries, risks, decisions, and accountable next actions", agents: 4, domain: "Leadership", rooms: ["office"] },
+  { name: "Implementation Control", description: "Scope, owners, blockers, lineage, and launch readiness checks", agents: 5, domain: "Delivery", rooms: ["office"] },
+  { name: "Source Evidence Desk", description: "Attach citations, files, and system evidence to decisions", agents: 4, domain: "Knowledge", rooms: ["office"] },
+  { name: "Action Approval Queue", description: "Governed execution with review queues and policy visibility", agents: 5, domain: "Actions", rooms: ["office"] },
+  { name: "Account Intelligence", description: "Account facts, relationship history, risks, and next best actions", agents: 5, domain: "Sales", rooms: ["office"] },
+  { name: "Operations Briefing", description: "Daily operating overview across tasks, objects, actions, and sources", agents: 4, domain: "Ops", rooms: ["office"] },
+  { name: "Board Update Prep", description: "Draft narrative, evidence, metrics, risks, and decision asks", agents: 5, domain: "Leadership", rooms: ["office"] },
 
   // Study
   { name: "Karpathy Wiki", description: "Personal knowledge base with AI-assisted note synthesis", agents: 4, domain: "PKM", rooms: ["study"] },

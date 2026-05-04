@@ -1,7 +1,7 @@
 "use client";
 
 import { type CSSProperties, type ReactNode } from "react";
-import { Archive, BookOpen, Users, SquareKanban, ChevronDown } from "lucide-react";
+import { BookOpen, BriefcaseBusiness, Users, SquareKanban, ChevronDown } from "lucide-react";
 import { TOUR_PALETTE as P } from "./palette";
 
 export type MockupTab = "data" | "agents" | "tasks";
@@ -11,7 +11,7 @@ interface MockupSidebarProps {
   children?: ReactNode;
   /**
    * Hide the tab rail entirely. Used by the intro slide when only the
-   * Cabinet header has appeared and tabs haven't populated yet.
+   * Command header has appeared and tabs haven't populated yet.
    */
   hideTabs?: boolean;
   /**
@@ -30,7 +30,7 @@ interface MockupSidebarProps {
    */
   tabsPopInDelay?: number;
   /**
-   * Space header title. Defaults to "Thor's Workspace" to match the
+   * Space header title. Defaults to "Optale Workspace" to match the
    * sidebar; the intro slide overrides to the generic Optale label.
    */
   title?: string;
@@ -40,7 +40,7 @@ interface MockupSidebarProps {
    */
   titleDelay?: number;
   /**
-   * Right-side chip in the Cabinet header (e.g. "+1", "All"). Matches the
+   * Right-side chip in the Command header (e.g. "+1", "All"). Matches the
    * `DepthDropdown` slot in the real sidebar. Pass an empty string to
    * hide the chip entirely.
    */
@@ -53,7 +53,7 @@ interface MockupSidebarProps {
 }
 
 const TABS: Array<{ id: MockupTab; label: string; icon: typeof BookOpen }> = [
-  { id: "data", label: "Data", icon: BookOpen },
+  { id: "data", label: "Objects", icon: BookOpen },
   { id: "agents", label: "Agents", icon: Users },
   { id: "tasks", label: "Tasks", icon: SquareKanban },
 ];
@@ -65,7 +65,7 @@ export function MockupSidebar({
   hideBody = false,
   tabsPopIn = false,
   tabsPopInDelay = 900,
-  title = "Thor's Workspace",
+  title = "Optale Workspace",
   titleDelay = 0,
   headerBadge = "+1",
   viewTransitionName,
@@ -89,7 +89,7 @@ export function MockupSidebar({
       aria-hidden="true"
       style={rootStyle}
     >
-      {/* ── Container 1: Cabinet header rail ─────────────────────── */}
+      {/* ── Container 1: Command header rail ─────────────────────── */}
       <div
         className="flex items-center gap-2 rounded-lg px-2.5 py-1.5"
         style={{
@@ -97,7 +97,7 @@ export function MockupSidebar({
           boxShadow: `inset 0 0 0 1px ${P.border}`,
         }}
       >
-        <Archive
+        <BriefcaseBusiness
           className="h-[18px] w-[18px] shrink-0"
           style={{ color: P.iconAmber }}
         />
