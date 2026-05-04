@@ -66,6 +66,142 @@ test("readConversationTurns synthesizes turn 1 from prompt + transcript on a sin
   assert.match(turns[1].content, /I created the poem/);
 });
 
+test("finalizeConversation stores bounded MCP evidence projection on meta", async () => {
+  const meta = await store.createConversation({
+    agentSlug: "general",
+    title: "MCP evidence",
+    trigger: "manual",
+    prompt: "User request:\nSearch the knowledge base.",
+    providerId: "openrouter",
+    adapterType: "openrouter_api",
+  });
+  const sourcePath = "business/products-services/optale-bridge/workbench/readme.md";
+  const output = [
+    "[tool] qmd__query",
+    `Found the Optale Bridge Workbench at \`${sourcePath}\`.`,
+    "",
+    "```cabinet",
+    "SUMMARY: Found source",
+    "```",
+  ].join("\n");
+  const auditDir = path.join(
+    tempRoot,
+    ".cabinet-state",
+    "optale-mcp",
+    "audit",
+  );
+  await fs.mkdir(auditDir, { recursive: true });
+  await fs.writeFile(
+    path.join(auditDir, `${meta.startedAt.slice(0, 10)}.jsonl`),
+    `${JSON.stringify({
+      timestamp: meta.startedAt,
+      requestId: meta.id,
+      clientId: "openrouter-api",
+      authType: "internal",
+      method: "tools/call",
+      toolName: "qmd__query",
+      internalToolName: "qmd__query",
+      cabinetPath: ".",
+      outcome: "ok",
+      durationMs: 100,
+      argumentKeys: ["searches"],
+    })}\n`,
+    "utf8",
+  );
+
+  await store.appendConversationTranscript(meta.id, output);
+  const finalized = await store.finalizeConversation(meta.id, {
+    status: "completed",
+    exitCode: 0,
+    output,
+  });
+
+  assert.equal(finalized?.mcpEvidenceArtifacts?.[0]?.serverId, "knowledge-search");
+  assert.deepEqual(finalized?.mcpEvidenceArtifacts?.[0]?.sourcePaths, [
+    sourcePath,
+  ]);
+  assert.deepEqual(finalized?.mcpEvidenceArtifacts?.[0]?.sources, [
+    {
+      title: "Optale Bridge Workbench",
+      path: sourcePath,
+      sourceType: "Docs / Knowledge Search",
+    },
+  ]);
+});
+
+test("hydrateConversationMcpEvidenceMeta can backfill old completed runs", async () => {
+  const meta = await store.createConversation({
+    agentSlug: "general",
+    title: "Old MCP evidence",
+    trigger: "manual",
+    prompt: "User request:\nSearch an old run.",
+    providerId: "openrouter",
+    adapterType: "openrouter_api",
+    startedAt: "2026-05-02T23:47:55.149Z",
+  });
+  const sourcePath = "business/ops/runbooks/qmd-search.md";
+  const output = [
+    "[tool] qmd__query",
+    `The QMD runbook is documented at \`${sourcePath}\`.`,
+    "",
+    "```cabinet",
+    "SUMMARY: Found runbook",
+    "```",
+  ].join("\n");
+  const auditDir = path.join(
+    tempRoot,
+    ".cabinet-state",
+    "optale-mcp",
+    "audit",
+  );
+  await fs.mkdir(auditDir, { recursive: true });
+  await fs.writeFile(
+    path.join(auditDir, "2026-05-02.jsonl"),
+    `${JSON.stringify({
+      timestamp: "2026-05-02T23:48:00.000Z",
+      requestId: meta.id,
+      clientId: "openrouter-api",
+      authType: "internal",
+      method: "tools/call",
+      toolName: "qmd__query",
+      internalToolName: "qmd__query",
+      cabinetPath: ".",
+      outcome: "ok",
+      durationMs: 120,
+      argumentKeys: ["searches"],
+    })}\n`,
+    "utf8",
+  );
+
+  await store.appendConversationTranscript(meta.id, output);
+  const completed = {
+    ...meta,
+    status: "completed" as const,
+    completedAt: "2026-05-02T23:48:05.000Z",
+  };
+  await store.writeConversationMeta(completed);
+
+  const hydrated = await store.hydrateConversationMcpEvidenceMeta(completed);
+  assert.equal(hydrated.mcpEvidenceArtifacts?.[0]?.serverId, "knowledge-search");
+  assert.deepEqual(hydrated.mcpEvidenceArtifacts?.[0]?.sourcePaths, [
+    sourcePath,
+  ]);
+  assert.equal(
+    (await store.readConversationMeta(meta.id))?.mcpEvidenceArtifacts,
+    undefined,
+  );
+
+  const persisted = await store.hydrateConversationMcpEvidenceMeta(completed, {
+    persist: true,
+  });
+  assert.equal(persisted.mcpEvidenceArtifacts?.[0]?.serverId, "knowledge-search");
+  assert.equal(
+    (await store.readConversationMeta(meta.id))?.mcpEvidenceArtifacts?.[0]
+      ?.serverId,
+    "knowledge-search",
+  );
+});
+
 test("readConversationTurns synthesizes a pending agent placeholder while turn 1 is still running", async () => {
   const meta = await store.createConversation({
     agentSlug: "general",
@@ -83,6 +219,23 @@ test("readConversationTurns synthesizes a pending agent placeholder while turn 1
   assert.equal(turns[1].content, "Working on it…");
   assert.equal(turns[1].pending, true);
   assert.equal(turns[1].ts, meta.startedAt);
+});
+
+test("extractConversationRequest uses the final user request marker in fork prompts", () => {
+  const prompt = [
+    "Prior conversation (for context, do not re-output):",
+    "<turn-user>",
+    "first request",
+    "</turn-user>",
+    "",
+    "User request:",
+    "edited branch request",
+  ].join("\n");
+
+  assert.equal(
+    store.extractConversationRequest(prompt),
+    "edited branch request"
+  );
 });
 
 test("appendUserTurn + appendAgentTurn build up multi-turn state and aggregate tokens", async () => {

@@ -12,6 +12,7 @@
     "build": "next build",
     "electron:prep": "node scripts/prepare-electron-package.mjs",
     "release:manifest": "node scripts/generate-release-manifest.mjs",
+    "optale:mcp-evidence:backfill": "tsx scripts/backfill-mcp-evidence.ts",
     "start": "npm run start:next & npm run start:daemon",
     "start:next": "next start",
     "start:daemon": "tsx server/cabinet-daemon.ts",

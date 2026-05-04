@@ -1,4 +1,5 @@
 import type {
+  ConversationMcpEvidenceArtifact,
   ConversationMcpSourceRow,
   ConversationMcpToolArtifact,
   ConversationMeta,
@@ -8,6 +9,7 @@ import {
   type OptaleMcpAuditEvent,
 } from "@/lib/optale/mcp-audit-log";
 import { resolveOptaleToolName } from "@/lib/optale/tool-registry";
+import { productMcpServerId } from "@/lib/optale/context-registry";
 
 const TOOL_MARKER_PREFIX = "[tool]";
 const MAX_PREVIEW_LENGTH = 420;
@@ -338,6 +340,30 @@ export function buildConversationMcpToolArtifacts(input: {
         sources,
       };
     });
+}
+
+export function projectConversationMcpEvidenceArtifacts(
+  artifacts: ConversationMcpToolArtifact[],
+): ConversationMcpEvidenceArtifact[] {
+  return artifacts.map((artifact) => {
+    const serverId = productMcpServerId(
+      artifact.internalServerId || artifact.serverId || artifact.source,
+    );
+    return {
+      id: artifact.id,
+      source: serverId,
+      serverId,
+      productToolName: artifact.productToolName,
+      productToolLabel: artifact.productToolLabel,
+      outcome: artifact.outcome,
+      sourcePaths: [...artifact.sourcePaths],
+      sources: artifact.sources.map((source) => ({
+        title: source.title,
+        path: source.path,
+        sourceType: source.sourceType,
+      })),
+    };
+  });
 }
 
 export async function readConversationMcpToolArtifacts(

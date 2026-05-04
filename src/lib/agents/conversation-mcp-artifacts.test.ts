@@ -4,6 +4,7 @@ import {
   buildConversationMcpToolArtifacts,
   deriveMcpSourceRows,
   extractMcpSourcePaths,
+  projectConversationMcpEvidenceArtifacts,
 } from "./conversation-mcp-artifacts";
 import type { ConversationMeta } from "@/types/conversations";
 
@@ -88,6 +89,27 @@ test("buildConversationMcpToolArtifacts extracts qmd source preview from transcr
         "Based on the search results, the Optale Agent Harness manifest canonical source for LibreChat bridge is documented in the Optale Bridge Workbench at `business/business/products-services/optale-bridge/workbench/readme.md`, which appears to be the primary reference.",
       outcome: "ok",
       durationMs: 3061,
+    },
+  ]);
+
+  assert.deepEqual(projectConversationMcpEvidenceArtifacts([artifact]), [
+    {
+      id: artifact.id,
+      source: "knowledge-search",
+      serverId: "knowledge-search",
+      productToolName: "sense_search_knowledge",
+      productToolLabel: "Docs / Knowledge Search",
+      outcome: "ok",
+      sourcePaths: [
+        "business/business/products-services/optale-bridge/workbench/readme.md",
+      ],
+      sources: [
+        {
+          title: "Optale Bridge Workbench",
+          path: "business/business/products-services/optale-bridge/workbench/readme.md",
+          sourceType: "Docs / Knowledge Search",
+        },
+      ],
     },
   ]);
 });

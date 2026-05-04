@@ -5,6 +5,7 @@ import type {
   ConversationArtifact,
   ConversationDetail,
   ConversationErrorKind,
+  ConversationMcpEvidenceArtifact,
   ConversationMeta,
   ConversationStatus,
   ConversationTokens,
@@ -49,7 +50,10 @@ import {
   readFileContent,
   writeFileContent,
 } from "../storage/fs-operations";
-import { readConversationMcpToolArtifacts } from "./conversation-mcp-artifacts";
+import {
+  projectConversationMcpEvidenceArtifacts,
+  readConversationMcpToolArtifacts,
+} from "./conversation-mcp-artifacts";
 
 export const CONVERSATIONS_DIR = path.join(DATA_DIR, ".agents", ".conversations");
 
@@ -134,6 +138,15 @@ interface ListConversationFilters {
   status?: ConversationStatus;
   pagePath?: string;
   limit?: number;
+}
+
+export interface ConversationMcpEvidenceBackfillReport {
+  scanned: number;
+  updated: number;
+  withExistingEvidence: number;
+  withoutEvidence: number;
+  skippedRunning: number;
+  errors: number;
 }
 
 interface ParsedCabinetBlock {
@@ -955,6 +968,86 @@ export async function writeConversationMeta(meta: ConversationMeta): Promise<voi
   await writeFileContent(metaPath(meta.id, meta.cabinetPath), JSON.stringify(meta, null, 2));
 }
 
+export async function readConversationMcpEvidenceArtifacts(
+  meta: ConversationMeta,
+  output?: string,
+): Promise<ConversationMcpEvidenceArtifact[]> {
+  const cp = meta.cabinetPath;
+  const transcript = output ?? await readConversationTranscript(meta.id, cp);
+  const mcpArtifacts = await readConversationMcpToolArtifacts(meta, transcript);
+  return projectConversationMcpEvidenceArtifacts(mcpArtifacts);
+}
+
+export async function hydrateConversationMcpEvidenceMeta(
+  meta: ConversationMeta,
+  options: { persist?: boolean } = {},
+): Promise<ConversationMeta> {
+  if (meta.mcpEvidenceArtifacts && meta.mcpEvidenceArtifacts.length > 0) {
+    return meta;
+  }
+  if (meta.status === "running") return meta;
+
+  try {
+    const mcpEvidenceArtifacts = await readConversationMcpEvidenceArtifacts(meta);
+    if (mcpEvidenceArtifacts.length === 0) return meta;
+    const hydrated = { ...meta, mcpEvidenceArtifacts };
+    if (options.persist) {
+      await writeConversationMeta(hydrated);
+    }
+    return hydrated;
+  } catch {
+    return meta;
+  }
+}
+
+export async function backfillConversationMcpEvidence(
+  input: {
+    cabinetPath?: string;
+    limit?: number;
+    dryRun?: boolean;
+  } = {},
+): Promise<ConversationMcpEvidenceBackfillReport> {
+  const metas = await listConversationMetas({
+    cabinetPath: input.cabinetPath,
+    limit: input.limit || 500,
+  });
+  const report: ConversationMcpEvidenceBackfillReport = {
+    scanned: 0,
+    updated: 0,
+    withExistingEvidence: 0,
+    withoutEvidence: 0,
+    skippedRunning: 0,
+    errors: 0,
+  };
+
+  for (const meta of metas) {
+    report.scanned += 1;
+    if (meta.mcpEvidenceArtifacts && meta.mcpEvidenceArtifacts.length > 0) {
+      report.withExistingEvidence += 1;
+      continue;
+    }
+    if (meta.status === "running") {
+      report.skippedRunning += 1;
+      continue;
+    }
+    try {
+      const mcpEvidenceArtifacts = await readConversationMcpEvidenceArtifacts(meta);
+      if (mcpEvidenceArtifacts.length === 0) {
+        report.withoutEvidence += 1;
+        continue;
+      }
+      if (!input.dryRun) {
+        await writeConversationMeta({ ...meta, mcpEvidenceArtifacts });
+      }
+      report.updated += 1;
+    } catch {
+      report.errors += 1;
+    }
+  }
+
+  return report;
+}
+
 // Throttle state for transcript-driven task.updated events. Streaming stdout
 // can fire 100+ times per second; we coalesce to ~one event per 500 ms per
 // conversation so the UI refetch cadence stays sane.
@@ -1125,6 +1218,17 @@ export async function finalizeConversation(
   // awaitingInput over doneAt/status).
   if (input.status === "completed" || input.status === "failed") {
     meta.awaitingInput = false;
+  }
+
+  try {
+    const mcpArtifacts = await readConversationMcpToolArtifacts(meta, output);
+    const mcpEvidenceArtifacts =
+      projectConversationMcpEvidenceArtifacts(mcpArtifacts);
+    meta.mcpEvidenceArtifacts =
+      mcpEvidenceArtifacts.length > 0 ? mcpEvidenceArtifacts : undefined;
+  } catch {
+    // MCP evidence is lineage metadata; finalizing the run should not fail if
+    // audit logs are unavailable or an old transcript cannot be parsed.
   }
 
   if (input.status === "completed") {
