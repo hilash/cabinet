@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { restoreFileFromCommit } from "@/lib/git/git-service";
 import path from "path";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export async function POST(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("diagnostics.raw"),
+  );
+  if (restricted) return restricted;
+
   try {
     const { hash, pagePath } = await req.json();
     if (!hash || !pagePath) {

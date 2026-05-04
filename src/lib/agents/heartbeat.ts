@@ -23,6 +23,7 @@ import {
   defaultAdapterTypeForProvider,
   resolveExecutionProviderId,
 } from "./adapters";
+import { restrictedAgentRuntimeDenial } from "@/lib/optale/restricted-customer-mode";
 
 interface HeartbeatContext {
   prompt: string;
@@ -447,6 +448,11 @@ export async function runQuickResponse(
 ): Promise<string> {
   const persona = await readPersona(slug);
   if (!persona) return "";
+  const restricted = restrictedAgentRuntimeDenial({
+    adapterType: "claude_code_legacy",
+    runtimeMode: "terminal",
+  });
+  if (restricted) throw new Error(restricted.message);
 
   // Load memory for context
   const context = await readMemory(slug, "context.md");

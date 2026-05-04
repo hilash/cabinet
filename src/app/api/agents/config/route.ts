@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 const CONFIG_DIR = path.join(DATA_DIR, ".agents", ".config");
 const WORKSPACE_FILE = path.join(CONFIG_DIR, "workspace.json");
@@ -48,6 +52,11 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("agents.mutate"),
+  );
+  if (restricted) return restricted;
+
   const body = await req.json();
 
   await fs.mkdir(CONFIG_DIR, { recursive: true });

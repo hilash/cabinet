@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readOptaleCompanyBrainAddon } from "@/lib/optale/brain-company-brain-adapter";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,6 +13,11 @@ function trimString(value: unknown): string | undefined {
 }
 
 export async function GET(request: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("company_brain.view"),
+  );
+  if (restricted) return restricted;
+
   const response = await readOptaleCompanyBrainAddon({
     cabinetPath:
       trimString(request.nextUrl.searchParams.get("cabinetPath")) ||

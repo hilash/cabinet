@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, stopAgent } from "@/lib/agents/agent-manager";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -18,6 +22,11 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("terminal.runtime"),
+  );
+  if (restricted) return restricted;
+
   try {
     const { id } = await params;
     const stopped = stopAgent(id);

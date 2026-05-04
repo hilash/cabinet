@@ -5,10 +5,19 @@ import { DATA_DIR } from "@/lib/storage/path-utils";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { writeUpdateStatus } from "@/lib/system/update-status";
 import { getUpdateCheckResult } from "@/lib/system/update-service";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("updates.manage"),
+  );
+  if (restricted) return restricted;
+
   const update = await getUpdateCheckResult();
 
   if (!update.updateAvailable || !update.latest) {

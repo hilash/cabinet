@@ -178,6 +178,26 @@ test("restricted customer mode blocks direct legacy mutation routes", async () =
     skill,
     bundleSkill,
     importSkill,
+    agentConfig,
+    agentSession,
+    agentScheduler,
+    importAgent,
+    libraryAddAgent,
+    agentAvatar,
+    dataDir,
+    openDataDir,
+    pickDirectory,
+    linkRepo,
+    updateApply,
+    backup,
+    reveal,
+    gitCommit,
+    gitPull,
+    gitRestore,
+    companyBrain,
+    dreams,
+    dreamAction,
+    dreamAsk,
   ] = await Promise.all([
     import("../agents/tasks/route"),
     import("../agents/inbox-drafts/route"),
@@ -190,9 +210,31 @@ test("restricted customer mode blocks direct legacy mutation routes", async () =
     import("../agents/skills/[key]/route"),
     import("../agents/skills/[key]/bundle-into-cabinet/route"),
     import("../agents/skills/import/route"),
+    import("../agents/config/route"),
+    import("../agents/[id]/route"),
+    import("../agents/scheduler/route"),
+    import("../agents/import/route"),
+    import("../agents/library/[slug]/add/route"),
+    import("../agents/personas/[slug]/avatar/route"),
+    import("../system/data-dir/route"),
+    import("../system/open-data-dir/route"),
+    import("../system/pick-directory/route"),
+    import("../system/link-repo/route"),
+    import("../system/update/apply/route"),
+    import("../system/backup/route"),
+    import("../system/reveal/route"),
+    import("../git/commit/route"),
+    import("../git/pull/route"),
+    import("../git/restore/route"),
+    import("./brain/company-brain/route"),
+    import("./brain/dreams/route"),
+    import("./brain/dreams/action/route"),
+    import("./brain/dreams/ask/route"),
   ]);
 
   const routeContext = { params: Promise.resolve({ key: "demo-skill" }) };
+  const agentContext = { params: Promise.resolve({ id: "demo-agent" }) };
+  const libraryContext = { params: Promise.resolve({ slug: "demo-agent" }) };
   const checks: Array<Promise<Response>> = [
     tasks.POST(jsonRequest("/api/agents/tasks", "POST", { title: "x" })),
     drafts.POST(jsonRequest("/api/agents/inbox-drafts", "POST", { title: "x" })),
@@ -243,6 +285,69 @@ test("restricted customer mode blocks direct legacy mutation routes", async () =
     importSkill.POST(
       jsonRequest("/api/agents/skills/import", "POST", {
         source: "github:owner/repo/demo",
+      }),
+    ),
+    agentConfig.POST(
+      jsonRequest("/api/agents/config", "POST", {
+        company: { name: "Optale" },
+      }),
+    ),
+    agentSession.DELETE(
+      jsonRequest("/api/agents/demo-agent", "DELETE"),
+      agentContext,
+    ),
+    agentScheduler.POST(
+      jsonRequest("/api/agents/scheduler", "POST", { action: "start-all" }),
+    ),
+    importAgent.POST(
+      jsonRequest("/api/agents/import", "POST", {
+        agent: { slug: "demo", frontmatter: {} },
+      }),
+    ),
+    libraryAddAgent.POST(
+      jsonRequest("/api/agents/library/demo-agent/add", "POST", {}),
+      libraryContext,
+    ),
+    agentAvatar.POST(
+      jsonRequest("/api/agents/personas/demo-agent/avatar", "POST", {}),
+      libraryContext,
+    ),
+    agentAvatar.DELETE(
+      jsonRequest("/api/agents/personas/demo-agent/avatar", "DELETE"),
+      libraryContext,
+    ),
+    dataDir.PUT(
+      jsonRequest("/api/system/data-dir", "PUT", { dataDir: tempRoot }),
+    ),
+    dataDir.DELETE(),
+    openDataDir.POST(
+      jsonRequest("/api/system/open-data-dir", "POST", { subpath: "." }),
+    ),
+    pickDirectory.POST(),
+    linkRepo.POST(
+      jsonRequest("/api/system/link-repo", "POST", { localPath: tempRoot }),
+    ),
+    updateApply.POST(),
+    backup.POST(jsonRequest("/api/system/backup", "POST", { scope: "data" })),
+    reveal.POST(jsonRequest("/api/system/reveal", "POST", { path: "." })),
+    gitCommit.POST(jsonRequest("/api/git/commit", "POST", { message: "x" })),
+    gitPull.POST(),
+    gitRestore.POST(
+      jsonRequest("/api/git/restore", "POST", { hash: "HEAD", pagePath: "." }),
+    ),
+    companyBrain.GET(
+      requestFor("/api/optale/brain/company-brain"),
+    ),
+    dreams.GET(requestFor("/api/optale/brain/dreams")),
+    dreamAction.POST(
+      jsonRequest("/api/optale/brain/dreams/action", "POST", {
+        proposalPath: "dreams/demo.md",
+        action: "approve",
+      }),
+    ),
+    dreamAsk.POST(
+      jsonRequest("/api/optale/brain/dreams/ask", "POST", {
+        question: "What changed?",
       }),
     ),
   ];

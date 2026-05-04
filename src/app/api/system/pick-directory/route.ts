@@ -1,5 +1,9 @@
 import { spawn } from "child_process";
 import { NextResponse } from "next/server";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +40,11 @@ function getPickerCommand(): { command: string; args: string[] } {
 }
 
 export async function POST() {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("secrets.manage"),
+  );
+  if (restricted) return restricted;
+
   try {
     const { command, args } = getPickerCommand();
 

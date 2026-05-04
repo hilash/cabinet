@@ -2,6 +2,10 @@ import { spawn } from "child_process";
 import path from "path";
 import { NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +25,11 @@ function getOpenCommand(targetPath: string, reveal?: boolean): { command: string
 }
 
 export async function POST(request: Request) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("diagnostics.raw"),
+  );
+  if (restricted) return restricted;
+
   try {
     let targetPath = DATA_DIR;
 

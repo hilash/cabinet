@@ -48,18 +48,12 @@ test("Codex provider builds the expected launch arguments", () => {
 
   const session = codexCliProvider.buildSessionInvocation?.("Say OK", process.cwd());
   assert.ok(session);
-  assert.deepEqual(session.args, [
-    "exec",
-    "--ephemeral",
-    "--skip-git-repo-check",
-    "--dangerously-bypass-approvals-and-sandbox",
-    "Say OK",
-  ]);
-  assert.equal(session.initialPrompt, undefined);
+  assert.deepEqual(session.args, []);
+  assert.equal(session.initialPrompt, "Say OK");
 
   const interactiveSession = codexCliProvider.buildSessionInvocation?.(undefined, process.cwd());
   assert.ok(interactiveSession);
-  assert.deepEqual(interactiveSession.args, ["--ephemeral"]);
+  assert.deepEqual(interactiveSession.args, []);
   assert.equal(interactiveSession.initialPrompt, undefined);
 });
 
@@ -206,4 +200,61 @@ test("runOneShotProviderPrompt closes stdin for CLI providers", async (t) => {
   });
 
   assert.equal(output, "OK");
+});
+
+test("runOneShotProviderPrompt blocks local CLI providers in restricted customer mode", async (t) => {
+  const previousDefaultProvider = providerRegistry.defaultProvider;
+  const originalProfile = process.env.OPTALE_DESKTOP_PROFILE;
+  const originalRuntimeMode = process.env.OPTALE_RUNTIME_MODE;
+  const scriptPath = await createExecutableScript("#!/bin/sh\nprintf '%s' \"$1\"\n");
+  const provider: AgentProvider = {
+    id: "test-restricted-cli-provider",
+    name: "Test Restricted CLI Provider",
+    type: "cli",
+    icon: "bot",
+    command: "test-restricted-cli-provider",
+    commandCandidates: [scriptPath],
+    buildOneShotInvocation(prompt: string) {
+      return {
+        command: this.command || "test-restricted-cli-provider",
+        args: [prompt],
+      };
+    },
+    async isAvailable() {
+      return true;
+    },
+    async healthCheck() {
+      return {
+        available: true,
+        authenticated: true,
+        version: "test",
+      };
+    },
+  };
+
+  registerTestProvider(provider, t, previousDefaultProvider);
+  process.env.OPTALE_DESKTOP_PROFILE = "partner";
+  process.env.OPTALE_RUNTIME_MODE = "restricted_customer";
+  t.after(() => {
+    if (originalProfile === undefined) {
+      delete process.env.OPTALE_DESKTOP_PROFILE;
+    } else {
+      process.env.OPTALE_DESKTOP_PROFILE = originalProfile;
+    }
+    if (originalRuntimeMode === undefined) {
+      delete process.env.OPTALE_RUNTIME_MODE;
+    } else {
+      process.env.OPTALE_RUNTIME_MODE = originalRuntimeMode;
+    }
+  });
+
+  await assert.rejects(
+    runOneShotProviderPrompt({
+      providerId: provider.id,
+      prompt: "OK",
+      cwd: process.cwd(),
+      timeoutMs: 1_000,
+    }),
+    /restricted customer mode/,
+  );
 });

@@ -3,6 +3,10 @@ import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { INSTALL_CONFIG_PATH } from "@/lib/runtime/runtime-config";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +17,11 @@ export async function GET() {
 
 /** PUT — persist a new data directory (requires restart) */
 export async function PUT(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("secrets.manage"),
+  );
+  if (restricted) return restricted;
+
   try {
     const body = await req.json();
     const newDir = body.dataDir?.trim();
@@ -65,6 +74,11 @@ export async function PUT(req: NextRequest) {
 
 /** DELETE — remove persisted data dir (revert to default, requires restart) */
 export async function DELETE() {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("secrets.manage"),
+  );
+  if (restricted) return restricted;
+
   try {
     let config: Record<string, unknown> = {};
     try {

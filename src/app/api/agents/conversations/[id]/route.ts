@@ -10,6 +10,10 @@ import { closeDaemonSession, stopDaemonSession } from "@/lib/agents/daemon-clien
 import { startConversationRun } from "@/lib/agents/conversation-runner";
 import { publishConversationEvent } from "@/lib/agents/conversation-events";
 import type { ConversationMeta } from "@/types/conversations";
+import {
+  restrictedAgentRuntimeDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export async function GET(
   req: NextRequest,
@@ -115,6 +119,14 @@ export async function PATCH(
     }
 
     const { meta, prompt } = detail;
+    const restricted = restrictedModeDenialResponse(
+      restrictedAgentRuntimeDenial({
+        providerId: meta.providerId,
+        adapterType: meta.adapterType,
+      }),
+    );
+    if (restricted) return restricted;
+
     const newConversation = await startConversationRun({
       agentSlug: meta.agentSlug,
       title: meta.title,

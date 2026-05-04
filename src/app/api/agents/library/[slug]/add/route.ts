@@ -6,6 +6,10 @@ import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import { resolveCabinetDir } from "@/lib/cabinets/server-paths";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 const LIBRARY_DIR = path.join(PROJECT_ROOT, "src", "lib", "agents", "library");
 
@@ -13,6 +17,11 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("agents.mutate"),
+  );
+  if (restricted) return restricted;
+
   const { slug } = await params;
 
   try {

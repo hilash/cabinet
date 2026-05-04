@@ -10,6 +10,10 @@ import {
 } from "@/lib/storage/path-utils";
 import { ensureDirectory, fileExists, writeFileContent } from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +54,11 @@ async function detectGitMetadata(localPath: string): Promise<{
 }
 
 export async function POST(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("diagnostics.raw"),
+  );
+  if (restricted) return restricted;
+
   let symlinkCreated = false;
   let targetDir = "";
   let localPath = "";

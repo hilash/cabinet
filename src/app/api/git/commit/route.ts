@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { manualCommit, getStatus } from "@/lib/git/git-service";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export async function POST(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("diagnostics.raw"),
+  );
+  if (restricted) return restricted;
+
   try {
     const body = await req.json();
     const message = body.message || "Manual commit from KB";

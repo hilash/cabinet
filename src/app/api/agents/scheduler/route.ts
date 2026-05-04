@@ -4,6 +4,10 @@ import {
   writePersona,
 } from "@/lib/agents/persona-manager";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 /**
  * GET /api/agents/scheduler — Get scheduler status
@@ -52,6 +56,11 @@ export async function GET() {
  * body.exclude?: string[] — agents to exclude from bulk operations
  */
 export async function POST(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("agents.mutate"),
+  );
+  if (restricted) return restricted;
+
   const body = await req.json();
   const { action, slugs, exclude = [], cabinetPath } = body;
 

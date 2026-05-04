@@ -11,6 +11,8 @@ import {
   readProviderSettingsSync,
   resolveEnabledProviderId,
 } from "./provider-settings";
+import { defaultAdapterTypeForProvider } from "./adapters";
+import { restrictedAgentRuntimeDenial } from "@/lib/optale/restricted-customer-mode";
 
 export interface ProviderLaunchSpec extends CliProviderInvocation {
   providerId: string;
@@ -140,6 +142,13 @@ export async function runOneShotProviderPrompt(input: {
   effort?: string;
 }): Promise<string> {
   const provider = resolveProviderOrThrow(input.providerId);
+  const restricted = restrictedAgentRuntimeDenial({
+    providerId: provider.id,
+    adapterType: defaultAdapterTypeForProvider(provider.id),
+  });
+  if (restricted) {
+    throw new Error(restricted.message);
+  }
 
   if (provider.type === "api" && provider.runPrompt) {
     return provider.runPrompt(input.prompt, "");

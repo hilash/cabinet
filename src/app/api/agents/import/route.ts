@@ -5,12 +5,21 @@ import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { writePersona } from "@/lib/agents/persona-manager";
 import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 async function ensureDir(dir: string) {
   try { await fs.mkdir(dir, { recursive: true }); } catch { /* exists */ }
 }
 
 export async function POST(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("agents.mutate"),
+  );
+  if (restricted) return restricted;
+
   try {
     const bundle = await req.json();
 

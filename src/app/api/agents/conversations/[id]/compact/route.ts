@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { compactConversation } from "@/lib/agents/conversation-runner";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
+import {
+  restrictedAgentRuntimeDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export async function POST(
   req: NextRequest,
@@ -13,6 +17,14 @@ export async function POST(
   if (!existing) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
+
+  const restricted = restrictedModeDenialResponse(
+    restrictedAgentRuntimeDenial({
+      providerId: existing.providerId,
+      adapterType: existing.adapterType,
+    }),
+  );
+  if (restricted) return restricted;
 
   // Kick off in background so SSE delivers the compaction turn.
   void compactConversation(id, {

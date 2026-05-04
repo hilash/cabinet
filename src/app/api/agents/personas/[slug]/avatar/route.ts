@@ -3,6 +3,10 @@ import path from "path";
 import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { readPersona, writePersona } from "@/lib/agents/persona-manager";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -60,6 +64,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 }
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("agents.mutate"),
+  );
+  if (restricted) return restricted;
+
   const { slug } = await params;
   const form = await req.formData();
   const file = form.get("file");
@@ -102,6 +111,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("agents.mutate"),
+  );
+  if (restricted) return restricted;
+
   const { slug } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinet") || undefined;
 

@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import { resolveContentPath } from "@/lib/storage/path-utils";
 import { fileExists } from "@/lib/storage/fs-operations";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export async function POST(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("diagnostics.raw"),
+  );
+  if (restricted) return restricted;
+
   try {
     const { path: filePath } = await req.json();
     if (typeof filePath !== "string" || !filePath) {

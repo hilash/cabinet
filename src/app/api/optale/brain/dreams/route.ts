@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readOptaleBrainDreams } from "@/lib/optale/brain-dreams-adapter";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,6 +19,11 @@ function parseNumber(value: string | null): number | undefined {
 }
 
 export async function GET(request: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("company_brain.view"),
+  );
+  if (restricted) return restricted;
+
   const response = await readOptaleBrainDreams({
     cabinetPath:
       trimString(request.nextUrl.searchParams.get("cabinetPath")) ||

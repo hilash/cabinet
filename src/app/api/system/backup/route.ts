@@ -4,10 +4,19 @@ import {
   createProjectSnapshotBackup,
   type BackupOptions,
 } from "@/lib/system/backup";
+import {
+  restrictedCapabilityDenial,
+  restrictedModeDenialResponse,
+} from "@/lib/optale/restricted-customer-mode";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const restricted = restrictedModeDenialResponse(
+    restrictedCapabilityDenial("diagnostics.raw"),
+  );
+  if (restricted) return restricted;
+
   try {
     const body = (await req.json().catch(() => ({}))) as {
       scope?: "data" | "project";
