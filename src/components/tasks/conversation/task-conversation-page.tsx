@@ -13,6 +13,7 @@ import {
   Copy,
   Database,
   ExternalLink,
+  FileSearch,
   GitBranch,
   Link2,
   Loader2,
@@ -27,6 +28,7 @@ import {
   Square,
   Terminal,
   Trash2,
+  Wrench,
 } from "lucide-react";
 import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
 import { WebTerminal } from "@/components/terminal/web-terminal";
@@ -237,7 +239,39 @@ function TokenBar({ used, window: ctxWindow }: { used: number; window: number })
   );
 }
 
-function conversationSourceStats(artifacts: ConversationMcpToolArtifact[]) {
+function isDiagnosticSourcePath(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.startsWith("/") ||
+    normalized.startsWith("file:") ||
+    normalized.startsWith("mcp:") ||
+    normalized.startsWith("mcp-server:") ||
+    normalized.includes("/.agents/") ||
+    normalized.includes(".agents/")
+  );
+}
+
+function visibleSourcePathCount(
+  artifact: ConversationMcpToolArtifact,
+  showDiagnostics: boolean,
+): number {
+  if (artifact.sources.length > 0) {
+    return artifact.sources.filter(
+      (source) =>
+        showDiagnostics ||
+        !source.path ||
+        !isDiagnosticSourcePath(source.path),
+    ).length;
+  }
+  return artifact.sourcePaths.filter(
+    (path) => showDiagnostics || !isDiagnosticSourcePath(path),
+  ).length;
+}
+
+function conversationSourceStats(
+  artifacts: ConversationMcpToolArtifact[],
+  showDiagnostics: boolean,
+) {
   let sourceCount = 0;
   let errorCount = 0;
   const toolLabels = new Set<string>();
@@ -249,10 +283,7 @@ function conversationSourceStats(artifacts: ConversationMcpToolArtifact[]) {
       artifact.productToolName ||
       "Managed tool";
     toolLabels.add(label);
-    sourceCount +=
-      artifact.sources?.length && artifact.sources.length > 0
-        ? artifact.sources.length
-        : artifact.sourcePaths.length;
+    sourceCount += visibleSourcePathCount(artifact, showDiagnostics);
   }
 
   return {
@@ -264,19 +295,21 @@ function conversationSourceStats(artifacts: ConversationMcpToolArtifact[]) {
 
 function ConversationSourcesFooter({
   artifacts,
+  onOpenSources,
 }: {
   artifacts?: ConversationMcpToolArtifact[];
+  onOpenSources?: () => void;
 }) {
   const items = artifacts ?? [];
+  const showDiagnostics = hasOptaleCapability("diagnostics.raw");
   const visibleItems = items.filter(
     (artifact) =>
-      artifact.sources.length > 0 ||
-      artifact.sourcePaths.length > 0 ||
+      visibleSourcePathCount(artifact, showDiagnostics) > 0 ||
       artifact.preview,
   );
   if (visibleItems.length === 0) return null;
 
-  const stats = conversationSourceStats(visibleItems);
+  const stats = conversationSourceStats(visibleItems, showDiagnostics);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 pb-4 pt-2">
@@ -309,8 +342,97 @@ function ConversationSourcesFooter({
               </span>
             ))}
           </span>
+          {onOpenSources ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="ml-auto h-7 gap-1.5 px-2 text-[11px]"
+              onClick={onOpenSources}
+            >
+              <FileSearch className="size-3.5" />
+              Review sources
+            </Button>
+          ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ConversationEvidenceSummary({
+  artifacts,
+  artifactCount,
+  status,
+  showDiagnostics,
+  onOpenArtifacts,
+  onOpenSources,
+}: {
+  artifacts?: ConversationMcpToolArtifact[];
+  artifactCount: number;
+  status: TaskStatus;
+  showDiagnostics: boolean;
+  onOpenArtifacts: () => void;
+  onOpenSources: () => void;
+}) {
+  const items = artifacts ?? [];
+  const stats = conversationSourceStats(items, showDiagnostics);
+  const running = status === "running" || status === "awaiting-input";
+  if (items.length === 0 && artifactCount === 0 && !running) return null;
+
+  return (
+    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+      <button
+        type="button"
+        onClick={onOpenSources}
+        className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-left transition-colors hover:border-primary/30 hover:bg-muted/30"
+      >
+        <BookOpen className="size-4 shrink-0 text-primary" />
+        <span className="min-w-0">
+          <span className="block truncate text-[12px] font-medium text-foreground">
+            {stats.sourceCount} {stats.sourceCount === 1 ? "source" : "sources"}
+          </span>
+          <span className="block truncate text-[10.5px] text-muted-foreground">
+            {running && stats.sourceCount === 0
+              ? "Collecting evidence"
+              : "Evidence cited by tools"}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onOpenSources}
+        className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-left transition-colors hover:border-primary/30 hover:bg-muted/30"
+      >
+        <Wrench className="size-4 shrink-0 text-primary" />
+        <span className="min-w-0">
+          <span className="block truncate text-[12px] font-medium text-foreground">
+            {items.length} {items.length === 1 ? "tool call" : "tool calls"}
+          </span>
+          <span className="block truncate text-[10.5px] text-muted-foreground">
+            {stats.errorCount > 0
+              ? `${stats.errorCount} need review`
+              : running
+                ? "In progress"
+                : "Completed"}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onOpenArtifacts}
+        className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-left transition-colors hover:border-primary/30 hover:bg-muted/30"
+      >
+        <Database className="size-4 shrink-0 text-primary" />
+        <span className="min-w-0">
+          <span className="block truncate text-[12px] font-medium text-foreground">
+            {artifactCount} {artifactCount === 1 ? "artifact" : "artifacts"}
+          </span>
+          <span className="block truncate text-[10.5px] text-muted-foreground">
+            Files and outputs
+          </span>
+        </span>
+      </button>
     </div>
   );
 }
@@ -519,6 +641,7 @@ export function TaskConversationPage({
   const [handoffMode, setHandoffMode] = useState<StartWorkMode>("recurring");
   const [handoffPrompt, setHandoffPrompt] = useState("");
   const [handoffAgents, setHandoffAgents] = useState<CabinetAgentSummary[]>([]);
+  const [activeTab, setActiveTab] = useState("chat");
 
   const openScheduleHandoff = useCallback(
     async (mode: Exclude<StartWorkMode, "now">, message: string) => {
@@ -769,6 +892,9 @@ export function TaskConversationPage({
   const firstUserTurn = task?.turns.find((t) => t.role === "user") || null;
   const terminalPrompt = firstUserTurn?.content || task?.meta.title || "";
   const attachedSkills = task ? readRuntimeSkills(task.meta.adapterConfig) : null;
+  const turnArtifactCount = task
+    ? task.turns.flatMap((turn) => turn.artifacts ?? []).length
+    : 0;
 
   const lastTurn = task ? task.turns[task.turns.length - 1] : null;
   const showWrapUp =
@@ -1616,6 +1742,14 @@ export function TaskConversationPage({
                 {task.meta.errorHint}
               </div>
             ) : null}
+            <ConversationEvidenceSummary
+              artifacts={task.mcpArtifacts}
+              artifactCount={turnArtifactCount}
+              status={task.meta.status}
+              showDiagnostics={canViewDiagnostics}
+              onOpenArtifacts={() => setActiveTab("artifacts")}
+              onOpenSources={() => setActiveTab("sources")}
+            />
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1 sm:shrink-0">
@@ -1738,7 +1872,11 @@ export function TaskConversationPage({
       </div>
 
       {/* Tabs + content */}
-      <Tabs defaultValue="chat" className="flex flex-1 min-h-0 flex-col gap-0">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex flex-1 min-h-0 flex-col gap-0"
+      >
         <div className="overflow-x-auto border-b border-border/70 px-4 sm:px-6">
           <TabsList variant="line" className="h-10">
             <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -1925,7 +2063,10 @@ export function TaskConversationPage({
                 }}
               />
             </div>
-            <ConversationSourcesFooter artifacts={task.mcpArtifacts} />
+            <ConversationSourcesFooter
+              artifacts={task.mcpArtifacts}
+              onOpenSources={() => setActiveTab("sources")}
+            />
             {showWrapUp && !readOnly ? (
               <WrapUpCard
                 onMarkDone={handleMarkDone}

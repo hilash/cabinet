@@ -67,42 +67,23 @@ function RelativeTime({ iso }: { iso: string }) {
   return <span suppressHydrationWarning>{label}</span>;
 }
 
-const THINKING_VERBS = [
-  "Thinking",
-  "Pondering",
-  "Cogitating",
-  "Musing",
-  "Ruminating",
-  "Forging",
-  "Weaving",
-  "Conjuring",
-  "Brewing",
-  "Mulling",
-  "Stirring",
-  "Sizzling",
-  "Tinkering",
-  "Grokking",
-  "Percolating",
-  "Hacking",
-  "Wrangling",
-  "Divining",
-  "Plotting",
-  "Scheming",
-  "Jizzling",
-  "Noodling",
-  "Riffing",
-  "Whirring",
-  "Simmering",
+const WORK_STAGES = [
+  "Reading context",
+  "Checking sources",
+  "Running tools",
+  "Reviewing evidence",
+  "Drafting response",
+  "Verifying output",
 ];
 
 function PendingIndicator() {
   const [idx, setIdx] = useState(() =>
-    Math.floor(Math.random() * THINKING_VERBS.length)
+    Math.floor(Math.random() * WORK_STAGES.length)
   );
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     const verbIv = setInterval(() => {
-      setIdx((i) => (i + 1 + Math.floor(Math.random() * 3)) % THINKING_VERBS.length);
+      setIdx((i) => (i + 1) % WORK_STAGES.length);
     }, 2400);
     const tickIv = setInterval(() => setElapsed((t) => t + 1), 1000);
     return () => {
@@ -111,14 +92,14 @@ function PendingIndicator() {
     };
   }, []);
   return (
-    <div className="mt-2 inline-flex items-center gap-2 text-[13px] italic text-muted-foreground">
+    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-2.5 py-1 text-[12px] text-muted-foreground">
       <span className="font-medium text-foreground/75">
-        {THINKING_VERBS[idx]}
+        {WORK_STAGES[idx]}
       </span>
       <span className="inline-flex items-end gap-0.5" aria-hidden>
-        <span className="size-1 rounded-full bg-foreground/60 animate-bounce [animation-delay:-0.3s] [animation-duration:1s]" />
-        <span className="size-1 rounded-full bg-foreground/60 animate-bounce [animation-delay:-0.15s] [animation-duration:1s]" />
-        <span className="size-1 rounded-full bg-foreground/60 animate-bounce [animation-duration:1s]" />
+        <span className="size-1 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.3s] [animation-duration:1s]" />
+        <span className="size-1 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.15s] [animation-duration:1s]" />
+        <span className="size-1 rounded-full bg-primary/70 animate-bounce [animation-duration:1s]" />
       </span>
       {elapsed > 2 ? (
         <span className="ml-1 font-mono text-[10.5px] tabular-nums opacity-60">

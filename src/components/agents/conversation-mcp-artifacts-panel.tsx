@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import type { ConversationMcpToolArtifact } from "@/types/conversations";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 import { cn } from "@/lib/utils";
 
 function formatDuration(durationMs?: number): string {
@@ -56,6 +57,77 @@ function MetaChip({
   );
 }
 
+function displayToken(value: string | undefined): string {
+  if (!value) return "";
+  return value
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function toolDisplayLabel(artifact: ConversationMcpToolArtifact): string {
+  return (
+    artifact.productToolLabel ||
+    artifact.productToolName ||
+    (hasOptaleCapability("diagnostics.raw") ? artifact.toolName : "Managed tool")
+  );
+}
+
+function toolDisplayName(artifact: ConversationMcpToolArtifact): string {
+  return (
+    artifact.productToolName ||
+    artifact.productToolLabel ||
+    (hasOptaleCapability("diagnostics.raw") ? artifact.toolName : "Managed tool")
+  );
+}
+
+function sourceTypeLabel(value: string): string {
+  if (value === "mcp") return "Tool source";
+  if (value === "vault") return "Vault source";
+  if (value === "memory") return "Memory source";
+  if (value === "artifact") return "Artifact";
+  return displayToken(value) || "Source";
+}
+
+function isDiagnosticPath(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.startsWith("/") ||
+    normalized.startsWith("file:") ||
+    normalized.startsWith("mcp:") ||
+    normalized.startsWith("mcp-server:") ||
+    normalized.includes("/.agents/") ||
+    normalized.includes(".agents/")
+  );
+}
+
+function visibleSourcePath(
+  path: string | undefined,
+  showDiagnostics: boolean,
+): string | undefined {
+  if (!path) return undefined;
+  if (!showDiagnostics && isDiagnosticPath(path)) return undefined;
+  return path;
+}
+
+function sourceCount(
+  artifact: ConversationMcpToolArtifact,
+  showDiagnostics: boolean,
+): number {
+  if (artifact.sources.length > 0) {
+    return artifact.sources.filter((source) =>
+      visibleSourcePath(source.path, showDiagnostics) !== undefined ||
+      !source.path,
+    ).length;
+  }
+  return artifact.sourcePaths.filter(
+    (path) => visibleSourcePath(path, showDiagnostics) !== undefined,
+  ).length;
+}
+
 export function ConversationMcpArtifactsPanel({
   artifacts,
   className,
@@ -66,6 +138,12 @@ export function ConversationMcpArtifactsPanel({
   emptyState?: boolean;
 }) {
   const items = artifacts ?? [];
+  const showDiagnostics = hasOptaleCapability("diagnostics.raw");
+  const totalSources = items.reduce(
+    (sum, item) => sum + sourceCount(item, showDiagnostics),
+    0,
+  );
+  const issueCount = items.filter((item) => item.outcome !== "ok").length;
   if (items.length === 0 && !emptyState) return null;
 
   return (
@@ -79,7 +157,7 @@ export function ConversationMcpArtifactsPanel({
         <div className="flex items-center gap-2">
           <Database className="h-4 w-4 text-primary" />
           <h4 className="text-[13px] font-semibold">
-            Tool Sources
+            Sources & Tools
             {items.length > 0 ? (
               <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
                 ({items.length})
@@ -88,9 +166,16 @@ export function ConversationMcpArtifactsPanel({
           </h4>
         </div>
         {items.length > 0 ? (
-          <span className="rounded-full border border-border bg-muted/20 px-2.5 py-1 text-[11px] text-muted-foreground">
-            read-only
-          </span>
+          <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+            <span className="rounded-full border border-border bg-muted/20 px-2.5 py-1 text-[11px] text-muted-foreground">
+              {totalSources} {totalSources === 1 ? "source" : "sources"}
+            </span>
+            {issueCount > 0 ? (
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[11px] text-amber-700 dark:text-amber-400">
+                {issueCount} with issues
+              </span>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -102,8 +187,11 @@ export function ConversationMcpArtifactsPanel({
         <div className="space-y-3">
           {items.map((artifact) => {
             const sources = artifact.sources ?? [];
-            const displayLabel = artifact.productToolLabel || artifact.toolName;
-            const displayName = artifact.productToolName || artifact.toolName;
+            const displayLabel = toolDisplayLabel(artifact);
+            const displayName = toolDisplayName(artifact);
+            const visibleSourcePaths = showDiagnostics
+              ? artifact.sourcePaths
+              : artifact.sourcePaths.filter((path) => !isDiagnosticPath(path));
             return (
               <article
                 key={artifact.id}
@@ -119,11 +207,16 @@ export function ConversationMcpArtifactsPanel({
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       <MetaChip icon={Wrench}>{displayName}</MetaChip>
-                      <MetaChip icon={FileSearch}>{displayLabel}</MetaChip>
+                      <MetaChip icon={FileSearch}>
+                        {sourceCount(artifact, showDiagnostics)}{" "}
+                        {sourceCount(artifact, showDiagnostics) === 1
+                          ? "source"
+                          : "sources"}
+                      </MetaChip>
                       <MetaChip icon={Clock3}>
                         {formatDuration(artifact.durationMs)}
                       </MetaChip>
-                      {artifact.clientId ? (
+                      {showDiagnostics && artifact.clientId ? (
                         <MetaChip icon={Database}>{artifact.clientId}</MetaChip>
                       ) : null}
                     </div>
@@ -162,15 +255,15 @@ export function ConversationMcpArtifactsPanel({
                                   {source.title}
                                 </div>
                               </div>
-                              {source.path ? (
+                              {visibleSourcePath(source.path, showDiagnostics) ? (
                                 <div className="truncate font-mono text-[11px] text-muted-foreground">
-                                  {source.path}
+                                  {visibleSourcePath(source.path, showDiagnostics)}
                                 </div>
                               ) : null}
                             </div>
                             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                               <span className="rounded-full border border-border bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground">
-                                {source.sourceType}
+                                {sourceTypeLabel(source.sourceType)}
                               </span>
                               <span className="rounded-full border border-border bg-muted/20 px-2 py-0.5 text-[11px] text-muted-foreground">
                                 {formatDuration(source.durationMs)}
@@ -187,13 +280,13 @@ export function ConversationMcpArtifactsPanel({
                       ))}
                     </div>
                   </div>
-                ) : artifact.sourcePaths.length > 0 ? (
+                ) : visibleSourcePaths.length > 0 ? (
                   <div className="mt-3 space-y-1.5">
                     <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                       Source references
                     </div>
                     <div className="space-y-1.5">
-                      {artifact.sourcePaths.map((sourcePath) => (
+                      {visibleSourcePaths.map((sourcePath) => (
                         <div
                           key={sourcePath}
                           className="truncate rounded-lg border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground/85"
@@ -205,7 +298,9 @@ export function ConversationMcpArtifactsPanel({
                   </div>
                 ) : null}
 
-                {artifact.argumentKeys && artifact.argumentKeys.length > 0 ? (
+                {showDiagnostics &&
+                artifact.argumentKeys &&
+                artifact.argumentKeys.length > 0 ? (
                   <div className="mt-3 text-[11px] text-muted-foreground">
                     Arguments: {artifact.argumentKeys.join(", ")}
                   </div>
