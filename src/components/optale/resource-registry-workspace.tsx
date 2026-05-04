@@ -32,6 +32,7 @@ import {
 } from "@/components/optale/oag-object-explorer-state";
 import { useOptaleCommandWorkspaceData } from "@/components/optale/use-command-workspace-data";
 import { cn } from "@/lib/utils";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 import type {
   OptaleResourceKind,
   OptaleResourceRecord,
@@ -109,6 +110,51 @@ function statusTone(status?: string): string {
   return "border-border bg-muted text-muted-foreground";
 }
 
+function tokenLabel(value: string): string {
+  return value.replaceAll("_", " ");
+}
+
+function displayToken(value: string | undefined): string {
+  if (!value) return "";
+  return tokenLabel(value)
+    .replaceAll("-", " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function sourceSystemLabel(value?: string): string {
+  switch (value) {
+    case "agent-harness":
+      return "Agent Harness";
+    case "command-center":
+      return "Command Center";
+    case "mcp":
+      return "Tooling";
+    case "brain":
+      return "Brain";
+    case "cabinet":
+      return "Cabinet";
+    default:
+      return displayToken(value);
+  }
+}
+
+function factIsDiagnostic(fact: OptaleResourceRecord["facts"][number]): boolean {
+  const label = fact.label.toLowerCase();
+  const value = String(fact.value).toLowerCase();
+  return (
+    label === "mcp" ||
+    label === "provider" ||
+    label.includes("token") ||
+    label.includes("path") ||
+    value.startsWith("mcp-server:") ||
+    value.includes("/.agents/") ||
+    value.includes(".agents/")
+  );
+}
+
 function matchesSearch(
   resource: OptaleResourceRecord,
   search: string,
@@ -167,13 +213,17 @@ export function OptaleResourceRegistryWorkspace({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const commandData = useOptaleCommandWorkspaceData({ cabinetPath });
+  const showDiagnostics = hasOptaleCapability("diagnostics.raw");
+  const visibilityMode = hasOptaleCapability("memory.cross_tenant")
+    ? "all"
+    : "own";
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         cabinetPath,
-        visibilityMode: "all",
+        visibilityMode,
         limit: "300",
       });
       const response = await fetch(
@@ -191,7 +241,7 @@ export function OptaleResourceRegistryWorkspace({
     } finally {
       setLoading(false);
     }
-  }, [cabinetPath]);
+  }, [cabinetPath, visibilityMode]);
 
   useEffect(() => {
     void refresh();
@@ -465,28 +515,43 @@ export function OptaleResourceRegistryWorkspace({
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                       <CheckCircle2 className="size-3" />
-                      {resource.source}
+                      {sourceSystemLabel(resource.source)}
                     </div>
-                    {resource.cabinetPath && (
+                    {showDiagnostics && resource.cabinetPath && (
                       <div className="truncate text-[11px] text-muted-foreground">
                         {resource.cabinetPath}
                       </div>
                     )}
+                    {!showDiagnostics && resource.oag?.scope && (
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {displayToken(resource.oag.scope)}
+                      </div>
+                    )}
                   </div>
 
-                  {resource.facts.length > 0 && (
+                  {(showDiagnostics
+                    ? resource.facts
+                    : resource.facts.filter((fact) => !factIsDiagnostic(fact))
+                  ).length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {resource.facts.slice(0, 6).map((fact) => (
-                        <span
-                          key={`${resource.id}:${fact.label}`}
-                          className="rounded-md border border-border/70 bg-background px-2 py-1 text-[11px] text-muted-foreground"
-                        >
-                          {fact.label}:{" "}
-                          <span className="text-foreground/80">
-                            {String(fact.value)}
+                      {(showDiagnostics
+                        ? resource.facts
+                        : resource.facts.filter(
+                            (fact) => !factIsDiagnostic(fact),
+                          )
+                      )
+                        .slice(0, 6)
+                        .map((fact) => (
+                          <span
+                            key={`${resource.id}:${fact.label}`}
+                            className="rounded-md border border-border/70 bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                          >
+                            {fact.label}:{" "}
+                            <span className="text-foreground/80">
+                              {String(fact.value)}
+                            </span>
                           </span>
-                        </span>
-                      ))}
+                        ))}
                     </div>
                   )}
                 </article>

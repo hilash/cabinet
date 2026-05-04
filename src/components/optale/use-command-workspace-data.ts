@@ -27,6 +27,7 @@ import type {
   OptalePolicyDecisionLog,
   OptalePolicyDecisionRecord,
 } from "@/lib/optale/policy-decision-log";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 
 function matchesAction(
   action: OptaleActionDefinition,
@@ -187,13 +188,16 @@ export function useOptaleCommandWorkspaceData({
   >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const visibilityMode = hasOptaleCapability("memory.cross_tenant")
+    ? "all"
+    : "own";
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         cabinetPath,
-        visibilityMode: "all",
+        visibilityMode,
         limit: "300",
       });
       const [
@@ -245,7 +249,7 @@ export function useOptaleCommandWorkspaceData({
     } finally {
       setLoading(false);
     }
-  }, [cabinetPath]);
+  }, [cabinetPath, visibilityMode]);
 
   useEffect(() => {
     void refresh();

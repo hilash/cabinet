@@ -4,6 +4,8 @@ import { useState } from "react";
 import {
   Activity,
   AlertCircle,
+  Brain,
+  Building2,
   Database,
   ExternalLink,
   FileText,
@@ -11,10 +13,13 @@ import {
   GitBranch,
   Link2,
   ListChecks,
+  LockKeyhole,
   Loader2,
+  Network,
   Play,
   ScrollText,
   ShieldCheck,
+  UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +30,7 @@ import {
 } from "@/components/ui/tabs";
 import { confirmDialog } from "@/lib/ui/confirm";
 import { cn } from "@/lib/utils";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 import type { OptaleActionDefinition } from "@/lib/optale/action-registry";
 import type { OptaleResourceRecord } from "@/lib/optale/resource-registry";
 import type { OptaleActionRunRecord } from "@/lib/optale/action-run-ledger";
@@ -65,15 +71,96 @@ function tokenLabel(value: string): string {
   return value.replaceAll("_", " ");
 }
 
+function displayToken(value: string | undefined): string {
+  if (!value) return "";
+  return tokenLabel(value)
+    .replaceAll("-", " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function sourceSystemLabel(value?: string): string {
+  switch (value) {
+    case "agent-harness":
+      return "Agent Harness";
+    case "command-center":
+      return "Command Center";
+    case "mcp":
+      return "Tooling";
+    case "brain":
+      return "Brain";
+    case "cabinet":
+      return "Cabinet";
+    default:
+      return displayToken(value);
+  }
+}
+
+function materializerLabel(value?: string): string {
+  switch (value) {
+    case "lineage":
+      return "Lineage";
+    case "operational_spine":
+      return "Operational Spine";
+    case "resource_fact":
+      return "Object Fact";
+    case "runtime":
+      return "Runtime";
+    default:
+      return displayToken(value);
+  }
+}
+
+function memoryLaneLabel(
+  value: string | undefined,
+  canViewCompanyBrain: boolean,
+): string {
+  if (value === "operator_company_brain") {
+    return canViewCompanyBrain ? "Company Brain" : "Operator memory";
+  }
+  if (value === "partner_scoped_memory") return "Scoped memory";
+  return displayToken(value);
+}
+
+function scopeLabel(value?: string): string {
+  if (value === "system") return "Operator";
+  if (value === "company") return "Workspace";
+  if (value === "personal") return "Personal";
+  return displayToken(value);
+}
+
+function visibilityLabel(value?: string): string {
+  if (value === "tenant_scoped") return "Workspace scoped";
+  if (value === "operator_only") return "Operator only";
+  if (value === "private") return "Private";
+  return displayToken(value);
+}
+
 function listLabel(values: string[] | undefined): string {
   if (!values || values.length === 0) return "";
-  return values.map(tokenLabel).join(", ");
+  return values.map(displayToken).join(", ");
 }
 
 function valueType(value: EvidenceItem["value"]): string {
   if (typeof value === "boolean") return "boolean";
   if (typeof value === "number") return "number";
   return "string";
+}
+
+function factIsDiagnostic(fact: OptaleResourceRecord["facts"][number]): boolean {
+  const label = fact.label.toLowerCase();
+  const value = String(fact.value).toLowerCase();
+  return (
+    label === "mcp" ||
+    label === "provider" ||
+    label.includes("token") ||
+    label.includes("path") ||
+    value.startsWith("mcp-server:") ||
+    value.includes("/.agents/") ||
+    value.includes(".agents/")
+  );
 }
 
 function statusTone(value?: string): string {
@@ -106,6 +193,36 @@ function statusTone(value?: string): string {
   return "border-border bg-muted text-muted-foreground";
 }
 
+function shouldShowEvidenceItem(item: EvidenceItem): boolean {
+  const label = item.label.toLowerCase();
+  const value = String(item.value).toLowerCase();
+  if (
+    label.includes("mcp server") ||
+    label === "mcp source" ||
+    label.includes("action run") ||
+    label.includes("policy decision")
+  ) {
+    return false;
+  }
+  if (
+    value.startsWith("command:") ||
+    value.startsWith("policy:") ||
+    value.startsWith("mcp-server:") ||
+    value.startsWith("mcp:")
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function operatorOnlyAction(action: OptaleActionDefinition): boolean {
+  return action.facts.some(
+    (fact) =>
+      fact.label === "Availability" &&
+      String(fact.value).toLowerCase() === "operator-only",
+  );
+}
+
 function Pill({ value }: { value?: string | number | boolean }) {
   if (value === undefined || value === "") return null;
   return (
@@ -115,7 +232,7 @@ function Pill({ value }: { value?: string | number | boolean }) {
         statusTone(String(value)),
       )}
     >
-      <span className="truncate">{tokenLabel(String(value))}</span>
+      <span className="truncate">{displayToken(String(value))}</span>
     </span>
   );
 }
@@ -194,15 +311,20 @@ function ReferenceMetaLine({
 
 function EvidencePreview({
   evidence,
+  showDiagnostics,
   limit = 3,
 }: {
   evidence: EvidenceItem[];
+  showDiagnostics: boolean;
   limit?: number;
 }) {
-  if (evidence.length === 0) return null;
+  const visibleEvidence = showDiagnostics
+    ? evidence
+    : evidence.filter(shouldShowEvidenceItem);
+  if (visibleEvidence.length === 0) return null;
   return (
     <dl className="mt-2 space-y-1">
-      {evidence.slice(0, limit).map((item) => (
+      {visibleEvidence.slice(0, limit).map((item) => (
         <MetaLine
           key={`${item.label}:${String(item.value)}`}
           label={item.label}
@@ -210,6 +332,91 @@ function EvidencePreview({
         />
       ))}
     </dl>
+  );
+}
+
+function SummaryTile({
+  label,
+  value,
+  icon,
+  tone = "neutral",
+}: {
+  label: string;
+  value?: string | number | boolean;
+  icon: React.ReactNode;
+  tone?: "neutral" | "accent" | "locked";
+}) {
+  if (value === undefined || value === "") return null;
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-md border px-2.5 py-2",
+        tone === "accent"
+          ? "border-primary/25 bg-primary/5"
+          : tone === "locked"
+            ? "border-amber-500/25 bg-amber-500/10"
+            : "border-border bg-background",
+      )}
+    >
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <p className="truncate text-xs font-medium text-foreground">
+        {String(value)}
+      </p>
+    </div>
+  );
+}
+
+function LineageSnapshot({
+  runs,
+  policyDecisions,
+  lineageEdges,
+  auditEvents,
+  relationships,
+}: {
+  runs: OptaleActionRunRecord[];
+  policyDecisions: OptalePolicyDecisionRecord[];
+  lineageEdges: OptaleLineageEdgeRecord[];
+  auditEvents: OptaleAuditEventRecord[];
+  relationships: OagObjectRelationshipInstance[];
+}) {
+  const sourceRelationships = relationships.filter(
+    (relationship) =>
+      relationship.name.includes("source") ||
+      relationship.target.kind === "brain_source",
+  ).length;
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <SummaryTile
+        label="Runs"
+        value={runs.length}
+        icon={<Activity className="size-3" />}
+      />
+      <SummaryTile
+        label="Policy"
+        value={policyDecisions.length}
+        icon={<ShieldCheck className="size-3" />}
+        tone={policyDecisions.length > 0 ? "accent" : "neutral"}
+      />
+      <SummaryTile
+        label="Lineage"
+        value={lineageEdges.length}
+        icon={<GitBranch className="size-3" />}
+      />
+      <SummaryTile
+        label="Sources"
+        value={sourceRelationships}
+        icon={<Database className="size-3" />}
+      />
+      <SummaryTile
+        label="Audit"
+        value={auditEvents.length}
+        icon={<ScrollText className="size-3" />}
+      />
+    </div>
   );
 }
 
@@ -261,7 +468,13 @@ function MoreCount({
   );
 }
 
-function RunRow({ run }: { run: OptaleActionRunRecord }) {
+function RunRow({
+  run,
+  showDiagnostics,
+}: {
+  run: OptaleActionRunRecord;
+  showDiagnostics: boolean;
+}) {
   return (
     <div className="border-t border-border/50 py-3 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex items-start justify-between gap-2">
@@ -269,19 +482,23 @@ function RunRow({ run }: { run: OptaleActionRunRecord }) {
           <p className="truncate text-sm font-medium text-foreground">
             {run.label}
           </p>
-          <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
-            {run.id}
-          </p>
+          {showDiagnostics && (
+            <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
+              {run.id}
+            </p>
+          )}
         </div>
         <Pill value={run.status} />
       </div>
       <dl className="mt-2 space-y-1">
-        <MetaLine label="Source" value={tokenLabel(run.source)} />
+        <MetaLine label="Source" value={sourceSystemLabel(run.source)} />
         <MetaLine label="Agent" value={run.agentSlug} />
-        <MetaLine label="Conversation" value={run.conversationId} />
+        {showDiagnostics && (
+          <MetaLine label="Run Ref" value={run.conversationId} />
+        )}
         <MetaLine label="Updated" value={formatTime(run.updatedAt || run.createdAt)} />
       </dl>
-      <EvidencePreview evidence={run.evidence} />
+      <EvidencePreview evidence={run.evidence} showDiagnostics={showDiagnostics} />
       {run.href && (
         <a
           href={run.href}
@@ -295,17 +512,25 @@ function RunRow({ run }: { run: OptaleActionRunRecord }) {
   );
 }
 
-function PolicyRow({ decision }: { decision: OptalePolicyDecisionRecord }) {
+function PolicyRow({
+  decision,
+  showDiagnostics,
+}: {
+  decision: OptalePolicyDecisionRecord;
+  showDiagnostics: boolean;
+}) {
   return (
     <div className="border-t border-border/50 py-3 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">
-            {tokenLabel(decision.reasonCode)}
+            {displayToken(decision.reasonCode)}
           </p>
-          <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
-            {decision.id}
-          </p>
+          {showDiagnostics && (
+            <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
+              {decision.id}
+            </p>
+          )}
         </div>
         <Pill value={decision.outcome} />
       </div>
@@ -313,7 +538,9 @@ function PolicyRow({ decision }: { decision: OptalePolicyDecisionRecord }) {
         {decision.explanation}
       </p>
       <dl className="mt-2 space-y-1">
-        <MetaLine label="Action Run" value={decision.subjectId} />
+        {showDiagnostics && (
+          <MetaLine label="Action Run" value={decision.subjectId} />
+        )}
         <MetaLine label="Actor" value={decision.actor} />
         <MetaLine label="Evaluated" value={formatTime(decision.evaluatedAt)} />
       </dl>
@@ -325,10 +552,12 @@ function LineageRow({
   edge,
   referenceIndex,
   onSelectResource,
+  showDiagnostics,
 }: {
   edge: OptaleLineageEdgeRecord;
   referenceIndex: OagObjectReferenceIndex;
   onSelectResource?: (resourceId: string) => void;
+  showDiagnostics: boolean;
 }) {
   const sourceTarget = resolveOagObjectReference(referenceIndex, [
     edge.source.id,
@@ -360,34 +589,46 @@ function LineageRow({
               onSelectResource={onSelectResource}
             />
           </p>
-          <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
-            {edge.id}
-          </p>
+          {showDiagnostics && (
+            <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
+              {edge.id}
+            </p>
+          )}
         </div>
         <Pill value={edge.kind} />
       </div>
       <dl className="mt-2 space-y-1">
-        <ReferenceMetaLine
-          label="Source"
-          value={`${edge.source.kind}:${edge.source.id}`}
-          targetId={sourceTarget?.resourceId}
-          targetLabel={sourceTarget?.label}
-          onSelectResource={onSelectResource}
-        />
-        <ReferenceMetaLine
-          label="Target"
-          value={`${edge.target.kind}:${edge.target.id}`}
-          targetId={targetTarget?.resourceId}
-          targetLabel={targetTarget?.label}
-          onSelectResource={onSelectResource}
-        />
+        {showDiagnostics && (
+          <>
+            <ReferenceMetaLine
+              label="Source"
+              value={`${edge.source.kind}:${edge.source.id}`}
+              targetId={sourceTarget?.resourceId}
+              targetLabel={sourceTarget?.label}
+              onSelectResource={onSelectResource}
+            />
+            <ReferenceMetaLine
+              label="Target"
+              value={`${edge.target.kind}:${edge.target.id}`}
+              targetId={targetTarget?.resourceId}
+              targetLabel={targetTarget?.label}
+              onSelectResource={onSelectResource}
+            />
+          </>
+        )}
         <MetaLine label="Created" value={formatTime(edge.createdAt)} />
       </dl>
     </div>
   );
 }
 
-function AuditRow({ event }: { event: OptaleAuditEventRecord }) {
+function AuditRow({
+  event,
+  showDiagnostics,
+}: {
+  event: OptaleAuditEventRecord;
+  showDiagnostics: boolean;
+}) {
   return (
     <div className="border-t border-border/50 py-3 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex items-start justify-between gap-2">
@@ -395,14 +636,21 @@ function AuditRow({ event }: { event: OptaleAuditEventRecord }) {
           <p className="text-sm font-medium text-foreground">
             {event.summary}
           </p>
-          <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
-            {event.id}
-          </p>
+          {showDiagnostics && (
+            <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
+              {event.id}
+            </p>
+          )}
         </div>
         <Pill value={event.severity} />
       </div>
       <dl className="mt-2 space-y-1">
-        <MetaLine label="Subject" value={`${event.subjectType}:${event.subjectId}`} />
+        {showDiagnostics && (
+          <MetaLine
+            label="Subject"
+            value={`${event.subjectType}:${event.subjectId}`}
+          />
+        )}
         <MetaLine label="Actor" value={event.actor} />
         <MetaLine label="Occurred" value={formatTime(event.occurredAt)} />
       </dl>
@@ -414,11 +662,13 @@ function ActionRow({
   action,
   resource,
   running,
+  showDiagnostics,
   onRun,
 }: {
   action: OptaleActionDefinition;
   resource: OptaleResourceRecord;
   running: boolean;
+  showDiagnostics: boolean;
   onRun: (action: OptaleActionDefinition) => void;
 }) {
   const draft = buildOagObjectCommandDraft(resource, action);
@@ -433,9 +683,11 @@ function ActionRow({
           <p className="truncate text-sm font-medium text-foreground">
             {action.label}
           </p>
-          <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
-            {action.id}
-          </p>
+          {showDiagnostics && (
+            <p className="mt-0.5 break-all text-[11px] text-muted-foreground">
+              {action.id}
+            </p>
+          )}
         </div>
         <Pill value={availability || action.status} />
       </div>
@@ -443,7 +695,7 @@ function ActionRow({
         {action.description}
       </p>
       <dl className="mt-2 space-y-1">
-        <MetaLine label="Kind" value={action.kind} />
+        <MetaLine label="Kind" value={displayToken(action.kind)} />
         <MetaLine label="Risk" value={action.risk} />
         <MetaLine label="Approval" value={action.oagContract?.approval} />
         <MetaLine
@@ -455,7 +707,10 @@ function ActionRow({
           value={listLabel(action.oagContract?.resultObjectTypes)}
         />
         <MetaLine label="Inputs" value={action.inputs.length} />
-        <MetaLine label="Path" value={action.executionPath} />
+        <MetaLine label="Surface" value={sourceSystemLabel(action.source)} />
+        {showDiagnostics && (
+          <MetaLine label="Path" value={action.executionPath} />
+        )}
       </dl>
       <div className="mt-3 flex items-center justify-between gap-2">
         <p className="min-w-0 text-[11px] leading-5 text-muted-foreground">
@@ -552,7 +807,10 @@ function RelationshipDefinitionRow({
         <MetaLine label="Name" value={relationship.name} />
         <MetaLine label="Direction" value={relationship.direction} />
         <MetaLine label="Target" value={listLabel(relationship.targetTypes)} />
-        <MetaLine label="Source" value={relationship.materializedBy} />
+        <MetaLine
+          label="Source"
+          value={materializerLabel(relationship.materializedBy)}
+        />
       </dl>
     </div>
   );
@@ -561,9 +819,11 @@ function RelationshipDefinitionRow({
 function RelationshipInstanceRow({
   relationship,
   onSelectResource,
+  showDiagnostics,
 }: {
   relationship: OagObjectRelationshipInstance;
   onSelectResource?: (resourceId: string) => void;
+  showDiagnostics: boolean;
 }) {
   return (
     <div className="border-t border-border/50 py-3 first:border-t-0 first:pt-0 last:pb-0">
@@ -585,10 +845,17 @@ function RelationshipInstanceRow({
       </div>
       <dl className="mt-2 space-y-1">
         <MetaLine label="Type" value={relationship.name} />
-        <MetaLine label="Target" value={relationship.target.kind} />
-        <MetaLine label="Source" value={relationship.materializedBy} />
+        <MetaLine label="Target" value={displayToken(relationship.target.kind)} />
+        <MetaLine
+          label="Source"
+          value={materializerLabel(relationship.materializedBy)}
+        />
       </dl>
-      <EvidencePreview evidence={relationship.evidence} limit={2} />
+      <EvidencePreview
+        evidence={relationship.evidence}
+        showDiagnostics={showDiagnostics}
+        limit={2}
+      />
     </div>
   );
 }
@@ -634,12 +901,22 @@ export function OagObjectInspector({
   const auditEvents = related?.auditEvents || [];
   const objectRelationships = relationships || [];
   const objectActions = actions || [];
+  const showDiagnostics = hasOptaleCapability("diagnostics.raw");
+  const canViewCompanyBrain = hasOptaleCapability("company_brain.view");
   const refs = referenceIndex || {};
   const objectSchema = resource.oag
     ? optaleOagObjectSchemaForType(resource.oag.objectType)
     : null;
   const totalRelated =
     runs.length + policyDecisions.length + lineageEdges.length + auditEvents.length;
+  const visibleObjectActions = showDiagnostics
+    ? objectActions
+    : objectActions.filter((action) => !operatorOnlyAction(action));
+  const visibleFacts = showDiagnostics
+    ? resource.facts
+    : resource.facts.filter((fact) => !factIsDiagnostic(fact));
+  const hiddenOperatorActionCount =
+    objectActions.length - visibleObjectActions.length;
 
   const runObjectAction = async (action: OptaleActionDefinition) => {
     const draft = buildOagObjectCommandDraft(resource, action);
@@ -702,9 +979,11 @@ export function OagObjectInspector({
             <h2 className="break-words text-lg font-semibold tracking-normal text-foreground">
               {resource.label}
             </h2>
-            <p className="mt-1 break-all text-[11px] text-muted-foreground">
-              {resource.id}
-            </p>
+            {showDiagnostics && (
+              <p className="mt-1 break-all text-[11px] text-muted-foreground">
+                {resource.id}
+              </p>
+            )}
           </div>
           <Pill value={resource.status || resource.kind} />
         </div>
@@ -713,11 +992,60 @@ export function OagObjectInspector({
             {resource.description}
           </p>
         )}
+        {resource.oag && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <SummaryTile
+              label="Type"
+              value={resource.oag.objectType}
+              icon={<Network className="size-3" />}
+              tone="accent"
+            />
+            <SummaryTile
+              label="Scope"
+              value={scopeLabel(resource.oag.scope)}
+              icon={
+                resource.oag.scope === "personal" ? (
+                  <UserRound className="size-3" />
+                ) : (
+                  <Building2 className="size-3" />
+                )
+              }
+            />
+            <SummaryTile
+              label="Memory"
+              value={memoryLaneLabel(resource.oag.memoryLane, canViewCompanyBrain)}
+              icon={
+                resource.oag.memoryLane === "operator_company_brain" &&
+                !canViewCompanyBrain ? (
+                  <LockKeyhole className="size-3" />
+                ) : (
+                  <Brain className="size-3" />
+                )
+              }
+              tone={
+                resource.oag.memoryLane === "operator_company_brain" &&
+                !canViewCompanyBrain
+                  ? "locked"
+                  : "neutral"
+              }
+            />
+            <SummaryTile
+              label="Activity"
+              value={loading ? "Loading" : totalRelated}
+              icon={<Activity className="size-3" />}
+            />
+          </div>
+        )}
         <dl className="mt-3 space-y-1">
-          <MetaLine label="Source" value={resource.source} />
-          <MetaLine label="Cabinet" value={resource.cabinetPath} />
+          <MetaLine label="Source" value={sourceSystemLabel(resource.source)} />
+          {showDiagnostics && (
+            <MetaLine label="Cabinet" value={resource.cabinetPath} />
+          )}
           <MetaLine label="Updated" value={formatTime(resource.updatedAt)} />
-          <MetaLine label="Related" value={loading ? "loading" : totalRelated} />
+          <MetaLine label="Visibility" value={visibilityLabel(resource.oag?.visibility)} />
+          {showDiagnostics && (
+            <MetaLine label="Related" value={loading ? "loading" : totalRelated} />
+          )}
         </dl>
         {resource.href && (
           <a
@@ -772,17 +1100,58 @@ export function OagObjectInspector({
           >
             {resource.oag && (
               <dl className="space-y-1">
-                <MetaLine label="Canonical" value={resource.oag.canonicalId} />
+                {showDiagnostics ? (
+                  <MetaLine label="Canonical" value={resource.oag.canonicalId} />
+                ) : (
+                  <MetaLine
+                    label="Identity"
+                    value={`${resource.oag.objectType} object`}
+                  />
+                )}
                 <MetaLine label="Type" value={resource.oag.objectType} />
-                <MetaLine label="Object ID" value={resource.oag.objectId} />
-                <MetaLine label="Schema" value={resource.oag.schemaRef} />
-                <MetaLine label="Scope" value={resource.oag.scope} />
-                <MetaLine label="Visibility" value={resource.oag.visibility} />
-                <MetaLine label="Memory" value={resource.oag.memoryLane} />
-                <MetaLine label="Temporal" value={resource.oag.temporalMode} />
-                <MetaLine label="Source" value={resource.oag.sourceSystem} />
+                {showDiagnostics && (
+                  <>
+                    <MetaLine label="Object ID" value={resource.oag.objectId} />
+                    <MetaLine label="Schema" value={resource.oag.schemaRef} />
+                  </>
+                )}
+                <MetaLine label="Scope" value={scopeLabel(resource.oag.scope)} />
+                <MetaLine
+                  label="Visibility"
+                  value={visibilityLabel(resource.oag.visibility)}
+                />
+                <MetaLine
+                  label="Memory"
+                  value={memoryLaneLabel(
+                    resource.oag.memoryLane,
+                    canViewCompanyBrain,
+                  )}
+                />
+                <MetaLine
+                  label="Temporal"
+                  value={displayToken(resource.oag.temporalMode)}
+                />
+                <MetaLine
+                  label="Source"
+                  value={sourceSystemLabel(resource.oag.sourceSystem)}
+                />
               </dl>
             )}
+          </InspectorSection>
+
+          <InspectorSection
+            title="Lineage Snapshot"
+            count={totalRelated + objectRelationships.length}
+            icon={<Activity className="size-3.5" />}
+            empty="No runs, policy decisions, lineage, or source evidence are visible for this object yet."
+          >
+            <LineageSnapshot
+              runs={runs}
+              policyDecisions={policyDecisions}
+              lineageEdges={lineageEdges}
+              auditEvents={auditEvents}
+              relationships={objectRelationships}
+            />
           </InspectorSection>
 
           <InspectorSection
@@ -796,6 +1165,7 @@ export function OagObjectInspector({
                 key={relationship.id}
                 relationship={relationship}
                 onSelectResource={onSelectResource}
+                showDiagnostics={showDiagnostics}
               />
             ))}
             <MoreCount shown={6} total={objectRelationships.length} />
@@ -803,12 +1173,12 @@ export function OagObjectInspector({
 
           <InspectorSection
             title="Facts"
-            count={resource.facts.length}
+            count={visibleFacts.length}
             icon={<FileText className="size-3.5" />}
             empty="No facts projected for this object."
           >
             <dl className="space-y-1">
-              {resource.facts.map((fact) => (
+              {visibleFacts.map((fact) => (
                 <MetaLine
                   key={`${resource.id}:${fact.label}`}
                   label={fact.label}
@@ -831,7 +1201,7 @@ export function OagObjectInspector({
                 <MetaLine label="Ontology" value={resource.oag.ontologyVersion} />
                 <MetaLine label="Schema" value={resource.oag.schemaRef} />
                 <MetaLine label="Type" value={resource.oag.objectType} />
-                <MetaLine label="Category" value={objectSchema.category} />
+                <MetaLine label="Category" value={displayToken(objectSchema.category)} />
                 <MetaLine label="Primary" value={objectSchema.primaryKey} />
                 <MetaLine label="Display" value={objectSchema.displayField} />
                 <MetaLine label="Fields" value={objectSchema.fields.length} />
@@ -844,10 +1214,19 @@ export function OagObjectInspector({
                   label="Systems"
                   value={listLabel(objectSchema.sourceSystems)}
                 />
-                <MetaLine label="Object ID" value={resource.oag.objectId} />
-                <MetaLine label="Source Ref" value={resource.oag.sourceRef} />
-                <MetaLine label="Source" value={resource.oag.sourceSystem} />
-                <MetaLine label="Cabinet" value={resource.oag.cabinetPath} />
+                {showDiagnostics && (
+                  <>
+                    <MetaLine label="Object ID" value={resource.oag.objectId} />
+                    <MetaLine label="Source Ref" value={resource.oag.sourceRef} />
+                  </>
+                )}
+                <MetaLine
+                  label="Source"
+                  value={sourceSystemLabel(resource.oag.sourceSystem)}
+                />
+                {showDiagnostics && (
+                  <MetaLine label="Cabinet" value={resource.oag.cabinetPath} />
+                )}
               </dl>
             )}
           </InspectorSection>
@@ -886,12 +1265,12 @@ export function OagObjectInspector({
 
           <InspectorSection
             title="Projected Fields"
-            count={resource.facts.length}
+            count={visibleFacts.length}
             icon={<FileText className="size-3.5" />}
             empty="No projected fields are available for this object yet."
           >
             <div>
-              {resource.facts.map((fact) => (
+              {visibleFacts.map((fact) => (
                 <SchemaFieldRow
                   key={`${resource.id}:schema:${fact.label}`}
                   fact={fact}
@@ -904,20 +1283,25 @@ export function OagObjectInspector({
         <TabsContent value="actions" className="mt-0">
           <InspectorSection
             title="Object Actions"
-            count={objectActions.length}
+            count={visibleObjectActions.length}
             icon={<ListChecks className="size-3.5" />}
-            empty="No contextual actions are projected for this object yet."
+            empty={
+              hiddenOperatorActionCount > 0
+                ? "No partner-safe actions are available for this object."
+                : "No contextual actions are projected for this object yet."
+            }
           >
-            {objectActions.slice(0, 6).map((action) => (
+            {visibleObjectActions.slice(0, 6).map((action) => (
               <ActionRow
                 key={action.id}
                 action={action}
                 resource={resource}
                 running={runningActionId === action.id}
+                showDiagnostics={showDiagnostics}
                 onRun={(nextAction) => void runObjectAction(nextAction)}
               />
             ))}
-            <MoreCount shown={6} total={objectActions.length} />
+            <MoreCount shown={6} total={visibleObjectActions.length} />
           </InspectorSection>
         </TabsContent>
 
@@ -929,7 +1313,11 @@ export function OagObjectInspector({
             empty="No action runs are linked yet."
           >
             {runs.slice(0, 5).map((run) => (
-              <RunRow key={run.id} run={run} />
+              <RunRow
+                key={run.id}
+                run={run}
+                showDiagnostics={showDiagnostics}
+              />
             ))}
             <MoreCount shown={5} total={runs.length} />
           </InspectorSection>
@@ -941,7 +1329,11 @@ export function OagObjectInspector({
             empty="No policy decisions are linked yet."
           >
             {policyDecisions.slice(0, 4).map((decision) => (
-              <PolicyRow key={decision.id} decision={decision} />
+              <PolicyRow
+                key={decision.id}
+                decision={decision}
+                showDiagnostics={showDiagnostics}
+              />
             ))}
             <MoreCount shown={4} total={policyDecisions.length} />
           </InspectorSection>
@@ -958,6 +1350,7 @@ export function OagObjectInspector({
                 edge={edge}
                 referenceIndex={refs}
                 onSelectResource={onSelectResource}
+                showDiagnostics={showDiagnostics}
               />
             ))}
             <MoreCount shown={4} total={lineageEdges.length} />
@@ -970,7 +1363,11 @@ export function OagObjectInspector({
             empty="No audit events are linked yet."
           >
             {auditEvents.slice(0, 4).map((event) => (
-              <AuditRow key={event.id} event={event} />
+              <AuditRow
+                key={event.id}
+                event={event}
+                showDiagnostics={showDiagnostics}
+              />
             ))}
             <MoreCount shown={4} total={auditEvents.length} />
           </InspectorSection>
