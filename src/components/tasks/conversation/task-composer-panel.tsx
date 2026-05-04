@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
-import { Terminal } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Terminal, X } from "lucide-react";
 import { ComposerInput } from "@/components/composer/composer-input";
 import {
   TaskRuntimePicker,
   type TaskRuntimeSelection,
 } from "@/components/composer/task-runtime-picker";
+import { TaskProductToolPicker } from "@/components/composer/task-product-tool-picker";
 import {
   AgentPicker,
   type AgentPickerOption,
@@ -52,6 +53,22 @@ function flattenTreeToMentions(
   return out;
 }
 
+export interface TaskComposerPayload {
+  text: string;
+  mentionedPaths: string[];
+  mentionedSkills: string[];
+  attachmentPaths: string[];
+  productToolNames: string[];
+  runtime: ConversationRuntimeOverride;
+}
+
+export interface TaskComposerDraftSeed {
+  id: string;
+  text: string;
+  mode?: "fork";
+  label?: string;
+}
+
 export interface TaskComposerPanelProps {
   awaitingInput: boolean;
   /**
@@ -65,13 +82,9 @@ export interface TaskComposerPanelProps {
    */
   cabinetPath?: string;
   conversationId?: string;
-  onSend: (payload: {
-    text: string;
-    mentionedPaths: string[];
-    mentionedSkills: string[];
-    attachmentPaths: string[];
-    runtime: ConversationRuntimeOverride;
-  }) => void | Promise<void>;
+  onSend: (payload: TaskComposerPayload) => void | Promise<void>;
+  onSendDraftSeed?: (payload: TaskComposerPayload) => void | Promise<void>;
+  onCancelDraftSeed?: () => void;
   /**
    * Pre-built mentionable list (e.g. the AI Panel passes a known set).
    * Omitted → the composer lazy-loads the cabinet tree on demand.
@@ -98,6 +111,7 @@ export interface TaskComposerPanelProps {
    * non-interactive because continuation turns can't change the agent.
    */
   agent?: AgentPickerOption | null;
+  draftSeed?: TaskComposerDraftSeed | null;
 }
 
 export function TaskComposerPanel({
@@ -112,6 +126,9 @@ export function TaskComposerPanel({
   disabled,
   onScheduleHandoff,
   agent,
+  draftSeed,
+  onSendDraftSeed,
+  onCancelDraftSeed,
 }: TaskComposerPanelProps) {
   // We don't seed with initialRuntime directly — that way, when the parent
   // re-renders with fresh meta (SSE → fetchTask), the displayed runtime
@@ -119,6 +136,7 @@ export function TaskComposerPanel({
   // choice sticks through the send and is cleared again after submit.
   const [userPickedRuntime, setUserPickedRuntime] =
     useState<TaskRuntimeSelection | null>(null);
+  const [productToolNames, setProductToolNames] = useState<string[]>([]);
   const [loadedMentions, setLoadedMentions] = useState<MentionableItem[] | null>(
     null
   );
@@ -217,11 +235,12 @@ export function TaskComposerPanel({
       mentionedSkills: string[];
       attachmentPaths: string[];
     }) => {
-      await onSend({
+      const payload: TaskComposerPayload = {
         text: message,
         mentionedPaths,
         mentionedSkills,
         attachmentPaths,
+        productToolNames,
         runtime: {
           providerId: effectiveRuntime.providerId,
           adapterType: effectiveRuntime.adapterType,
@@ -229,12 +248,18 @@ export function TaskComposerPanel({
           effort: effectiveRuntime.effort,
           runtimeMode: effectiveRuntime.runtimeMode,
         },
-      });
+      };
+      if (draftSeed?.mode === "fork" && onSendDraftSeed) {
+        await onSendDraftSeed(payload);
+      } else {
+        await onSend(payload);
+      }
       // Reset the user's explicit pick after send so the composer snaps
       // back to whatever runtime the next turn settles on.
       setUserPickedRuntime(null);
+      setProductToolNames([]);
     },
-    [onSend, effectiveRuntime]
+    [draftSeed?.mode, onSend, onSendDraftSeed, effectiveRuntime, productToolNames]
   );
 
   // Continuation turns upload directly into the existing conversation's
@@ -255,11 +280,28 @@ export function TaskComposerPanel({
     disabled,
     attachments,
   });
+  const lastDraftSeedIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!draftSeed) return;
+    if (lastDraftSeedIdRef.current === draftSeed.id) return;
+    lastDraftSeedIdRef.current = draftSeed.id;
+    composer.setInput(draftSeed.text);
+    window.setTimeout(() => {
+      const textarea = composer.textareaRef.current;
+      textarea?.focus();
+      if (textarea) {
+        const end = draftSeed.text.length;
+        textarea.selectionStart = end;
+        textarea.selectionEnd = end;
+      }
+    }, 0);
+  }, [composer, draftSeed]);
 
   return (
     <div
       className={cn(
-        "bg-background px-4 py-3",
+        "px-3 py-3 sm:px-4",
         awaitingInput && "bg-amber-500/[0.04]",
         className
       )}
@@ -280,6 +322,24 @@ export function TaskComposerPanel({
           <span>
             Sending in <strong>terminal mode</strong> — opens a live PTY stream
           </span>
+        </div>
+      ) : null}
+
+      {draftSeed?.mode === "fork" ? (
+        <div className="mb-2 flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
+          <span className="min-w-0 flex-1 truncate">
+            {draftSeed.label || "Editing as a new branch"}
+          </span>
+          {onCancelDraftSeed ? (
+            <button
+              type="button"
+              className="rounded p-0.5 text-primary/70 transition-colors hover:bg-primary/10 hover:text-primary"
+              title="Cancel branch draft"
+              onClick={onCancelDraftSeed}
+            >
+              <X className="size-3" />
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -306,11 +366,12 @@ export function TaskComposerPanel({
         items={items}
         attachments={attachments}
         placeholder={
-          awaitingInput ? "Reply to the agent…" : "Continue the conversation…"
+          awaitingInput ? "Reply to the agent…" : "Message Optale Command…"
         }
+        variant="chat"
         autoFocus={awaitingInput}
         showKeyHint={false}
-        minHeight="52px"
+        minHeight="56px"
         maxHeight="240px"
         className={awaitingInput ? "[&>div:first-child]:border-amber-500/40" : undefined}
         topRightOverlay={
@@ -339,11 +400,16 @@ export function TaskComposerPanel({
               onChange={handleRuntimeChange}
               align="start"
             />
+            <TaskProductToolPicker
+              value={productToolNames}
+              onChange={setProductToolNames}
+              disabled={disabled}
+            />
           </>
         }
       />
 
-      <p className="mt-1.5 px-1 text-[10px] text-muted-foreground">
+      <p className="mt-1.5 hidden px-1 text-[10px] text-muted-foreground sm:block">
         ⌘↵ to send · @ to mention · this turn&rsquo;s runtime:{" "}
         {effectiveRuntime.model || effectiveRuntime.providerId || "default"}
       </p>

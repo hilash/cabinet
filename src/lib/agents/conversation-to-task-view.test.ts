@@ -35,3 +35,21 @@ test("conversationMetaToTaskMeta mirrors agent action lineage fields", () => {
   assert.equal(task.triggeringAgent, "ceo");
   assert.equal(task.spawnDepth, 2);
 });
+
+test("conversationMetaToTaskMeta mirrors fork lineage fields", () => {
+  const task = conversationMetaToTaskMeta(
+    makeMeta({
+      forkedFromTaskId: "source-convo",
+      forkedFromCabinetPath: "client-source",
+      forkedFromTurn: 3,
+      forkedFromTurnId: "source-turn-id",
+      forkReason: "retry",
+    }),
+  );
+
+  assert.equal(task.forkedFromTaskId, "source-convo");
+  assert.equal(task.forkedFromCabinetPath, "client-source");
+  assert.equal(task.forkedFromTurn, 3);
+  assert.equal(task.forkedFromTurnId, "source-turn-id");
+  assert.equal(task.forkReason, "retry");
+});

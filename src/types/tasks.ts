@@ -138,6 +138,16 @@ export interface TaskMeta {
     result: "resumed" | "replayed" | "failed";
     reason?: string;
   };
+  /** Source conversation when this task was forked from an existing turn. */
+  forkedFromTaskId?: string;
+  /** Cabinet path for forkedFromTaskId when the source lives in another scope. */
+  forkedFromCabinetPath?: string;
+  /** User turn number that seeded the fork. */
+  forkedFromTurn?: number;
+  /** Stable id of the source turn that seeded the fork. */
+  forkedFromTurnId?: string;
+  /** Human-facing reason for the fork, e.g. retry or branch. */
+  forkReason?: "retry" | "branch";
   /** Soft-archive timestamp. Mirrors ConversationMeta.archivedAt. */
   archivedAt?: string;
   /** Within-lane sort index for the v2 task board. Default 0. */

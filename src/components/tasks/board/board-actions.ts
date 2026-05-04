@@ -157,3 +157,37 @@ export async function restartConversation(
   }
   return (await res.json()) as { conversation: { id: string; cabinetPath?: string } };
 }
+
+export async function forkConversationFromTurn(
+  id: string,
+  input: {
+    fromTurn: number;
+    userMessage?: string;
+    reason?: "retry" | "branch";
+  },
+  cabinetPath?: string
+): Promise<{ conversation: { id: string; cabinetPath?: string } }> {
+  const params = new URLSearchParams();
+  if (cabinetPath) params.set("cabinetPath", cabinetPath);
+  const qs = params.toString();
+  const res = await fetch(
+    `/api/agents/conversations/${encodeURIComponent(id)}/fork${qs ? `?${qs}` : ""}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fromTurn: input.fromTurn,
+        userMessage: input.userMessage,
+        reason: input.reason,
+        cabinetPath,
+      }),
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`fork ${id} failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as {
+    conversation: { id: string; cabinetPath?: string };
+  };
+}

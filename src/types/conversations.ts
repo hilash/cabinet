@@ -84,6 +84,23 @@ export interface ConversationMcpToolArtifact {
   sources: ConversationMcpSourceRow[];
 }
 
+export interface ConversationMcpEvidenceSourceRow {
+  title: string;
+  path?: string;
+  sourceType: string;
+}
+
+export interface ConversationMcpEvidenceArtifact {
+  id: string;
+  source: string;
+  serverId: string;
+  productToolName?: string;
+  productToolLabel?: string;
+  outcome: ConversationMcpOutcome;
+  sourcePaths: string[];
+  sources: ConversationMcpEvidenceSourceRow[];
+}
+
 export interface TurnTokens {
   input: number;
   output: number;
@@ -197,6 +214,17 @@ export interface ConversationMeta {
   /** Most recent resume/replay outcome. Written by the runner every turn. */
   lastResumeAttempt?: ConversationResumeAttempt;
 
+  /** Source conversation when this run was forked from an existing turn. */
+  forkedFromTaskId?: string;
+  /** Cabinet path for forkedFromTaskId when the source lives in another scope. */
+  forkedFromCabinetPath?: string;
+  /** User turn number that seeded the fork. */
+  forkedFromTurn?: number;
+  /** Stable id of the source turn that seeded the fork. */
+  forkedFromTurnId?: string;
+  /** Human-facing reason for the fork, e.g. retry or branch. */
+  forkReason?: "retry" | "branch";
+
   /** Conversation that dispatched this one via an agent action. */
   parentTaskId?: string;
   /** Cabinet path for parentTaskId; required when parent and child scopes differ. */
@@ -211,6 +239,8 @@ export interface ConversationMeta {
   pendingActions?: PendingAction[];
   /** Actions that have been dispatched or rejected by the human. */
   dispatchedActions?: DispatchedAction[];
+  /** Bounded, product-facing MCP citation projection for list/ledger views. */
+  mcpEvidenceArtifacts?: ConversationMcpEvidenceArtifact[];
 }
 
 export interface ConversationDetail {

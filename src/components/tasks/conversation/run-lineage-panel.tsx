@@ -40,7 +40,8 @@ function childRuns(
 export function RunLineagePanel({ meta }: { meta: TaskMeta }) {
   const children = childRuns(meta.dispatchedActions);
   const hasParent = Boolean(meta.parentTaskId);
-  if (!hasParent && children.length === 0) return null;
+  const hasForkSource = Boolean(meta.forkedFromTaskId);
+  if (!hasParent && !hasForkSource && children.length === 0) return null;
 
   return (
     <section className="mx-auto mt-4 w-full max-w-3xl px-1">
@@ -64,6 +65,22 @@ export function RunLineagePanel({ meta }: { meta: TaskMeta }) {
               href={buildTaskHash(
                 meta.parentTaskId,
                 meta.parentCabinetPath ?? meta.cabinetPath
+              )}
+            />
+          ) : null}
+          {meta.forkedFromTaskId ? (
+            <LineageRow
+              icon={GitBranch}
+              label={meta.forkReason === "retry" ? "Retried from" : "Forked from"}
+              title={
+                typeof meta.forkedFromTurn === "number"
+                  ? `Turn ${meta.forkedFromTurn}`
+                  : "Source turn"
+              }
+              detail={meta.forkedFromTaskId}
+              href={buildTaskHash(
+                meta.forkedFromTaskId,
+                meta.forkedFromCabinetPath ?? meta.cabinetPath
               )}
             />
           ) : null}

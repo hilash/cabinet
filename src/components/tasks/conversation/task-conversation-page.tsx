@@ -5,11 +5,13 @@ import Link from "next/link";
 import {
   Archive,
   ArrowLeft,
+  BookOpen,
   Check,
   CheckCircle2,
   Circle,
   CircleAlert,
   Copy,
+  Database,
   ExternalLink,
   GitBranch,
   Link2,
@@ -36,6 +38,7 @@ import { confirmDialog } from "@/lib/ui/confirm";
 import {
   closeConversation,
   deleteConversation,
+  forkConversationFromTurn,
   restartConversation,
   stopConversation,
 } from "@/components/tasks/board/board-actions";
@@ -62,15 +65,20 @@ import { ArtifactsList } from "./artifacts-list";
 import { DiffPanel } from "./diff-panel";
 import { LogsPanel } from "./logs-panel";
 import { RunLineagePanel } from "./run-lineage-panel";
-import { TaskComposerPanel } from "./task-composer-panel";
+import {
+  TaskComposerPanel,
+  type TaskComposerDraftSeed,
+  type TaskComposerPayload,
+} from "./task-composer-panel";
 import { MOCK_TASK } from "./mock-data";
 import {
   StartWorkDialog,
   type StartWorkMode,
 } from "@/components/composer/start-work-dialog";
-import type { Task, TaskEvent, TaskStatus } from "@/types/tasks";
+import type { Task, TaskEvent, TaskStatus, Turn } from "@/types/tasks";
 import type { AgentListItem } from "@/types/agents";
 import type { CabinetAgentSummary } from "@/types/cabinets";
+import type { ConversationMcpToolArtifact } from "@/types/conversations";
 import { compactTask, fetchTask, patchTask, postTurn } from "@/lib/agents/task-client";
 import { peekTaskIsTerminal } from "@/lib/agents/terminal-mode-cache";
 
@@ -228,6 +236,113 @@ function TokenBar({ used, window: ctxWindow }: { used: number; window: number })
   );
 }
 
+function conversationSourceStats(artifacts: ConversationMcpToolArtifact[]) {
+  let sourceCount = 0;
+  let errorCount = 0;
+  const toolLabels = new Set<string>();
+
+  for (const artifact of artifacts) {
+    if (artifact.outcome !== "ok") errorCount += 1;
+    const label =
+      artifact.productToolLabel ||
+      artifact.productToolName ||
+      "Managed tool";
+    toolLabels.add(label);
+    sourceCount +=
+      artifact.sources?.length && artifact.sources.length > 0
+        ? artifact.sources.length
+        : artifact.sourcePaths.length;
+  }
+
+  return {
+    sourceCount,
+    errorCount,
+    toolLabels: [...toolLabels].slice(0, 4),
+  };
+}
+
+function ConversationSourcesFooter({
+  artifacts,
+}: {
+  artifacts?: ConversationMcpToolArtifact[];
+}) {
+  const items = artifacts ?? [];
+  const visibleItems = items.filter(
+    (artifact) =>
+      artifact.sources.length > 0 ||
+      artifact.sourcePaths.length > 0 ||
+      artifact.preview,
+  );
+  if (visibleItems.length === 0) return null;
+
+  const stats = conversationSourceStats(visibleItems);
+
+  return (
+    <div className="mx-auto w-full max-w-3xl px-6 pb-4 pt-2">
+      <div className="rounded-xl border border-border/70 bg-card px-3 py-2.5">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 font-medium text-foreground/85">
+            <BookOpen className="size-3.5 text-primary" />
+            Source evidence
+          </span>
+          <span className="rounded-full border border-border bg-muted/20 px-2 py-0.5">
+            {visibleItems.length} tool {visibleItems.length === 1 ? "call" : "calls"}
+          </span>
+          <span className="rounded-full border border-border bg-muted/20 px-2 py-0.5">
+            {stats.sourceCount} {stats.sourceCount === 1 ? "source" : "sources"}
+          </span>
+          {stats.errorCount > 0 ? (
+            <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-400">
+              {stats.errorCount} with issues
+            </span>
+          ) : null}
+          <span className="hidden h-3 w-px bg-border sm:inline-block" />
+          <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+            <Database className="size-3 shrink-0 text-muted-foreground" />
+            {stats.toolLabels.map((label) => (
+              <span
+                key={label}
+                className="rounded-full bg-muted/40 px-2 py-0.5 text-[10.5px] text-foreground/80"
+              >
+                {label}
+              </span>
+            ))}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ForkSourceBanner({ meta }: { meta: Task["meta"] }) {
+  if (!meta.forkedFromTaskId) return null;
+  const label = meta.forkReason === "retry" ? "Retried from" : "Forked from";
+  const href = buildTaskHash(
+    meta.forkedFromTaskId,
+    meta.forkedFromCabinetPath ?? meta.cabinetPath
+  );
+
+  return (
+    <div className="mx-auto w-full max-w-3xl px-1 pt-4">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/15 bg-primary/10 px-3 py-2 text-[12px] text-primary">
+        <GitBranch className="size-3.5 shrink-0" />
+        <span className="font-medium">
+          {label} {typeof meta.forkedFromTurn === "number" ? `turn ${meta.forkedFromTurn}` : "a prior turn"}
+        </span>
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-primary/75">
+          {meta.forkedFromTaskId}
+        </span>
+        <Link
+          href={href}
+          className="rounded border border-primary/20 px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-primary/10"
+        >
+          Open source
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function WrapUpCard({
   onMarkDone,
   onDismiss,
@@ -347,6 +462,7 @@ export function TaskConversationPage({
   const isDemo = taskId === "demo";
   const isCompact = variant === "compact";
   const section = useAppStore((s) => s.section);
+  const setSection = useAppStore((s) => s.setSection);
   const isConversationRoute = section.type === "conversation";
   const surfaceNoun = isConversationRoute ? "conversation" : "task";
   const surfaceTitle = isConversationRoute ? "Conversation" : "Task";
@@ -360,6 +476,9 @@ export function TaskConversationPage({
   const [retryNonce, setRetryNonce] = useState(0);
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
+  const [draftSeed, setDraftSeed] = useState<
+    (TaskComposerDraftSeed & { sourceTurn?: Pick<Turn, "id" | "turn"> }) | null
+  >(null);
   const [wrapUpDismissed, setWrapUpDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -663,6 +782,7 @@ export function TaskConversationPage({
       mentionedPaths: string[];
       mentionedSkills: string[];
       attachmentPaths: string[];
+      productToolNames: string[];
       runtime: {
         providerId?: string;
         adapterType?: string;
@@ -737,6 +857,7 @@ export function TaskConversationPage({
             mentionedPaths: payload.mentionedPaths,
             mentionedSkills: payload.mentionedSkills,
             attachmentPaths: payload.attachmentPaths,
+            productToolNames: payload.productToolNames,
             runtime: payload.runtime,
           },
           task.meta.cabinetPath
@@ -832,17 +953,113 @@ export function TaskConversationPage({
     );
   }, [task?.meta.cabinetPath, taskId]);
 
+  const navigateToRun = useCallback(
+    (id: string, cabinetPath?: string) => {
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/tasks/")) {
+        window.location.assign(`/tasks/${encodeURIComponent(id)}`);
+        return;
+      }
+      setSection(
+        isConversationRoute
+          ? { type: "conversation", conversationId: id, cabinetPath }
+          : { type: "task", taskId: id, cabinetPath }
+      );
+    },
+    [isConversationRoute, setSection]
+  );
+
   const handleRestart = useCallback(async () => {
     if (!task || isDemo) return;
     setBusy(true);
     try {
-      await restartConversation(taskId, task.meta.cabinetPath);
+      const result = await restartConversation(taskId, task.meta.cabinetPath);
+      navigateToRun(
+        result.conversation.id,
+        result.conversation.cabinetPath ?? task.meta.cabinetPath
+      );
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Failed to restart");
     } finally {
       setBusy(false);
     }
-  }, [task, isDemo, taskId]);
+  }, [task, isDemo, taskId, navigateToRun]);
+
+  const handleUseTurnAsDraft = useCallback((turn: Turn) => {
+    setDraftSeed({
+      id: `${Date.now()}`,
+      text: turn.content,
+      mode: "fork",
+      label: `Editing turn ${turn.turn} as a new branch`,
+      sourceTurn: { id: turn.id, turn: turn.turn },
+    });
+    chatScrollRef.current?.scrollTo({
+      top: chatScrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, []);
+
+  const handleCancelDraftSeed = useCallback(() => {
+    setDraftSeed(null);
+  }, []);
+
+  const handleForkFromTurn = useCallback(
+    async (turn: Turn, reason: "retry" | "branch" = "branch") => {
+      if (!task || isDemo) return;
+      setBusy(true);
+      try {
+        const result = await forkConversationFromTurn(
+          taskId,
+          {
+            fromTurn: turn.turn,
+            userMessage: turn.content,
+            reason,
+          },
+          task.meta.cabinetPath
+        );
+        navigateToRun(
+          result.conversation.id,
+          result.conversation.cabinetPath ?? task.meta.cabinetPath
+        );
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Failed to fork turn");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [task, isDemo, taskId, navigateToRun]
+  );
+
+  const handleSendDraftSeed = useCallback(
+    async (payload: TaskComposerPayload) => {
+      if (!draftSeed?.sourceTurn) {
+        await handleSend(payload);
+        return;
+      }
+      if (!task || isDemo) return;
+      setBusy(true);
+      try {
+        const result = await forkConversationFromTurn(
+          taskId,
+          {
+            fromTurn: draftSeed.sourceTurn.turn,
+            userMessage: payload.text,
+            reason: "branch",
+          },
+          task.meta.cabinetPath
+        );
+        setDraftSeed(null);
+        navigateToRun(
+          result.conversation.id,
+          result.conversation.cabinetPath ?? task.meta.cabinetPath
+        );
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Failed to launch branch");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [draftSeed?.sourceTurn, handleSend, task, isDemo, taskId, navigateToRun]
+  );
 
   const handleDelete = useCallback(async () => {
     if (!task || isDemo) return;
@@ -1336,65 +1553,67 @@ export function TaskConversationPage({
     <div className="flex h-full flex-col bg-background text-foreground">
       {/* Top bar (hidden in compact variant) */}
       {!isCompact ? (
-      <header className="flex items-center gap-3 border-b border-border/70 px-6 py-3">
-        <Link
-          href="/"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            {isTerminalMode && (
-              <span
-                title="Running in terminal (PTY) mode"
-                className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400"
-              >
-                <Terminal className="size-3" />
-                PTY
-              </span>
-            )}
-            {attachedSkills && attachedSkills.length > 0 && (
-              <span
-                className="inline-flex items-center gap-1 rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-medium text-violet-700 dark:text-violet-400"
-                title={`Skills attached: ${attachedSkills.join(", ")}`}
-              >
-                <Sparkles className="size-3" />
-                {attachedSkills.length === 1
-                  ? attachedSkills[0]
-                  : `${attachedSkills.length} skills`}
-              </span>
-            )}
-            <h1 className="truncate text-[14px] font-semibold tracking-tight">
-              {task.meta.title}
-            </h1>
-            <StatusBadge status={task.meta.status} />
-            {busy ? <Loader2 className="size-3.5 animate-spin text-muted-foreground" /> : null}
-          </div>
-          <div className="mt-0.5 flex items-center gap-3 text-[11px] text-muted-foreground">
-            <span>{runtimeLabel}</span>
-            <span>·</span>
-            <TokenBar used={task.meta.tokens?.total ?? 0} window={contextWindow} />
-            {task.meta.errorKind ? (
-              <>
-                <span>·</span>
+      <header className="flex flex-col gap-2 border-b border-border/70 px-4 py-3 sm:flex-row sm:items-center sm:px-6">
+        <div className="flex min-w-0 items-start gap-3 sm:flex-1">
+          <Link
+            href="/"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {isTerminalMode && (
                 <span
-                  className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive"
-                  title={task.meta.errorHint || undefined}
+                  title="Running in terminal (PTY) mode"
+                  className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400"
                 >
-                  <CircleAlert className="size-3" />
-                  {task.meta.errorKind.replace(/_/g, " ")}
+                  <Terminal className="size-3" />
+                  PTY
                 </span>
-              </>
+              )}
+              {attachedSkills && attachedSkills.length > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-medium text-violet-700 dark:text-violet-400"
+                  title={`Skills attached: ${attachedSkills.join(", ")}`}
+                >
+                  <Sparkles className="size-3" />
+                  {attachedSkills.length === 1
+                    ? attachedSkills[0]
+                    : `${attachedSkills.length} skills`}
+                </span>
+              )}
+              <h1 className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-tight">
+                {task.meta.title}
+              </h1>
+              <StatusBadge status={task.meta.status} />
+              {busy ? <Loader2 className="size-3.5 animate-spin text-muted-foreground" /> : null}
+            </div>
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="min-w-0 truncate">{runtimeLabel}</span>
+              <span>·</span>
+              <TokenBar used={task.meta.tokens?.total ?? 0} window={contextWindow} />
+              {task.meta.errorKind ? (
+                <>
+                  <span>·</span>
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive"
+                    title={task.meta.errorHint || undefined}
+                  >
+                    <CircleAlert className="size-3" />
+                    {task.meta.errorKind.replace(/_/g, " ")}
+                  </span>
+                </>
+              ) : null}
+            </div>
+            {task.meta.errorKind && task.meta.errorHint ? (
+              <div className="mt-1 text-[11px] leading-4 text-destructive/90">
+                {task.meta.errorHint}
+              </div>
             ) : null}
           </div>
-          {task.meta.errorKind && task.meta.errorHint ? (
-            <div className="mt-1 text-[11px] leading-4 text-destructive/90">
-              {task.meta.errorHint}
-            </div>
-          ) : null}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1 sm:shrink-0">
           <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-[11px]">
             <GitBranch className="size-3.5" />
             main
@@ -1455,7 +1674,7 @@ export function TaskConversationPage({
       ) : null}
 
       {/* Summary */}
-      <div className="border-b border-border/70 bg-muted/20 px-6 py-3">
+      <div className="border-b border-border/70 bg-muted/20 px-4 py-3 sm:px-6">
         <div className="flex items-start gap-2">
           <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             Summary
@@ -1513,7 +1732,7 @@ export function TaskConversationPage({
 
       {/* Tabs + content */}
       <Tabs defaultValue="chat" className="flex flex-1 min-h-0 flex-col gap-0">
-        <div className="border-b border-border/70 px-6">
+        <div className="overflow-x-auto border-b border-border/70 px-4 sm:px-6">
           <TabsList variant="line" className="h-10">
             <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="artifacts">
@@ -1633,16 +1852,56 @@ export function TaskConversationPage({
                 </div>
               </div>
             ) : null}
-            <div className="mx-auto max-w-3xl divide-y divide-border/40">
-              {task.turns.map((turn) => (
-                <TurnBlock
-                  key={turn.id}
-                  turn={turn}
-                  agent={turnAgent}
-                  user={turnUser}
-                  returnContext={returnContext}
-                />
-              ))}
+            <ForkSourceBanner meta={task.meta} />
+            <div className="mx-auto flex max-w-3xl flex-col gap-1 px-1 pb-4 pt-6">
+              {task.turns.map((turn, index) => {
+                const isLastTurn = index === task.turns.length - 1;
+                const previousUserTurn = [...task.turns]
+                  .slice(0, index)
+                  .reverse()
+                  .find((candidate) => candidate.role === "user");
+                const canForkTurn =
+                  !readOnly &&
+                  !isDemo &&
+                  turn.role === "user" &&
+                  !turn.pending &&
+                  task.meta.status !== "running";
+                const canRetryRun =
+                  !readOnly &&
+                  !isDemo &&
+                  isLastTurn &&
+                  turn.role === "agent" &&
+                  !turn.pending &&
+                  !!previousUserTurn &&
+                  task.meta.status !== "running" &&
+                  task.meta.status !== "awaiting-input";
+                return (
+                  <TurnBlock
+                    key={turn.id}
+                    turn={turn}
+                    agent={turnAgent}
+                    user={turnUser}
+                    returnContext={returnContext}
+                    canRetryRun={canRetryRun}
+                    retryTitle="Retry from the previous user turn"
+                    onRetryRun={
+                      canRetryRun && previousUserTurn
+                        ? () => handleForkFromTurn(previousUserTurn, "retry")
+                        : undefined
+                    }
+                    onForkTurn={
+                      canForkTurn
+                        ? (sourceTurn) => handleForkFromTurn(sourceTurn, "branch")
+                        : undefined
+                    }
+                    onUseAsDraft={
+                      !readOnly && turn.role === "user"
+                        ? handleUseTurnAsDraft
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </div>
             <RunLineagePanel meta={task.meta} />
             {/* Proposed agent actions — sibling views: conversation-result-view.tsx, conversation-live-view.tsx */}
@@ -1659,6 +1918,7 @@ export function TaskConversationPage({
                 }}
               />
             </div>
+            <ConversationSourcesFooter artifacts={task.mcpArtifacts} />
             {showWrapUp && !readOnly ? (
               <WrapUpCard
                 onMarkDone={handleMarkDone}
@@ -1667,14 +1927,17 @@ export function TaskConversationPage({
             ) : null}
           </div>
           {!readOnly ? (
-            <div className="shrink-0 border-t border-border/70 bg-background">
+            <div className="shrink-0 border-t border-border/40 bg-background/95 px-2 py-3 backdrop-blur">
               <div className="mx-auto w-full max-w-3xl">
                 <TaskComposerPanel
                   awaitingInput={task.meta.status === "awaiting-input"}
                   cabinetPath={task.meta.cabinetPath}
                   conversationId={task.meta.id}
                   onSend={handleSend}
+                  onSendDraftSeed={draftSeed ? handleSendDraftSeed : undefined}
+                  onCancelDraftSeed={draftSeed ? handleCancelDraftSeed : undefined}
                   onScheduleHandoff={openScheduleHandoff}
+                  draftSeed={draftSeed}
                   agent={
                     turnAgent
                       ? { ...turnAgent, name: turnAgent.name ?? turnAgent.slug }

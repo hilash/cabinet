@@ -8,5 +8,9 @@ export default async function TaskPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <TaskConversationPage taskId={id} />;
+  return (
+    <main className="h-screen overflow-hidden">
+      <TaskConversationPage taskId={id} />
+    </main>
+  );
 }

@@ -18,6 +18,7 @@ import { appendEventLog } from "./conversation-store";
 import { tagConversationLineage } from "./run-lineage";
 import { normalizeRuntimeOverride } from "./runtime-overrides";
 import { providerSupportsEffort } from "./provider-registry";
+import { restrictedAgentRuntimeDenial } from "@/lib/optale/restricted-customer-mode";
 
 function pickString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -255,6 +256,18 @@ async function dispatchLaunchTask(
   }
 
   const runtime = resolveDispatchRuntime(meta, target, action);
+  const restricted = restrictedAgentRuntimeDenial({
+    providerId: runtime.providerId,
+    adapterType: runtime.adapterType,
+  });
+  if (restricted) {
+    return makeDispatched({
+      id: item.id,
+      action,
+      status: "rejected",
+      reason: restricted.code,
+    });
+  }
   const spawned = await startConversationRun(
     await buildScopedDispatchConversationInput({
       target,
@@ -302,6 +315,18 @@ async function dispatchScheduleJob(
   }
 
   const runtime = resolveDispatchRuntime(meta, target, action);
+  const restricted = restrictedAgentRuntimeDenial({
+    providerId: runtime.providerId,
+    adapterType: runtime.adapterType,
+  });
+  if (restricted) {
+    return makeDispatched({
+      id: item.id,
+      action,
+      status: "rejected",
+      reason: restricted.code,
+    });
+  }
   const job: JobConfig = {
     id: "",
     name: action.name,
@@ -358,6 +383,18 @@ async function dispatchScheduleTask(
   const msFromNow = when.getTime() - Date.now();
 
   const runtime = resolveDispatchRuntime(meta, target, action);
+  const restricted = restrictedAgentRuntimeDenial({
+    providerId: runtime.providerId,
+    adapterType: runtime.adapterType,
+  });
+  if (restricted) {
+    return makeDispatched({
+      id: item.id,
+      action,
+      status: "rejected",
+      reason: restricted.code,
+    });
+  }
 
   // Fire immediately when the scheduled time is past or within 60 s — no point
   // routing through cron for that.

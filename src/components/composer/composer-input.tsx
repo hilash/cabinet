@@ -24,7 +24,7 @@ export interface ComposerInputProps {
   header?: React.ReactNode;
   actionsStart?: React.ReactNode;
   footer?: React.ReactNode;
-  variant?: "card" | "inline";
+  variant?: "card" | "inline" | "chat";
   items?: MentionableItem[];
   secondaryAction?: {
     label: string;
@@ -160,6 +160,8 @@ export function ComposerInput({
         className={cn(
           "relative flex flex-col",
           variant === "card" && "rounded-2xl border border-border bg-card",
+          variant === "chat" &&
+            "rounded-2xl border border-border/70 bg-background shadow-[0_14px_44px_-26px_rgba(15,23,42,0.45)] dark:shadow-[0_18px_48px_-28px_rgba(0,0,0,0.75)]",
           focusTint && "transition-all",
           focusTint && cardFocused && "shadow-sm",
           isDragging && "ring-2 ring-primary/60 ring-offset-0"
@@ -224,7 +226,10 @@ export function ComposerInput({
             disabled={isDisabled}
             style={{ minHeight, maxHeight }}
             className={cn(
-              "w-full resize-none overflow-y-auto bg-transparent px-4 pt-4 pb-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 disabled:cursor-not-allowed",
+              "w-full resize-none overflow-y-auto bg-transparent px-4 text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-50",
+              variant === "chat"
+                ? "pt-3 pb-2 text-[14px] leading-6"
+                : "pt-4 pb-2 text-[13px]",
               topRightOverlay && "pr-28",
               textareaClassName
             )}
@@ -252,7 +257,8 @@ export function ComposerInput({
 
         <div
           className={cn(
-            "flex items-center gap-2 px-4 pb-3",
+            "flex items-center gap-2 pb-3",
+            variant === "chat" ? "px-3" : "px-4",
             actionsStart || attachmentsEnabled ? "justify-between" : "justify-end"
           )}
         >

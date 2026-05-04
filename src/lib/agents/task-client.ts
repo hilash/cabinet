@@ -63,6 +63,7 @@ export async function postTurn(
     mentionedPaths?: string[];
     mentionedSkills?: string[];
     attachmentPaths?: string[];
+    productToolNames?: string[];
     runtime?: ConversationRuntimeOverride;
   },
   cabinetPath?: string
@@ -84,6 +85,7 @@ export async function postTurn(
         mentionedPaths: input.mentionedPaths,
         mentionedSkills: input.mentionedSkills,
         attachmentPaths: input.attachmentPaths,
+        productToolNames: input.productToolNames,
         providerId: runtime.providerId,
         adapterType: runtime.adapterType,
         model: runtime.model,
@@ -139,4 +141,3 @@ export async function compactTask(
   );
   await jsonOrThrow(res);
 }
-

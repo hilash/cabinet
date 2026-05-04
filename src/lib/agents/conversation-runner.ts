@@ -455,6 +455,152 @@ export async function buildManualConversationPrompt(input: {
   };
 }
 
+function withoutEphemeralAdapterConfig(
+  adapterConfig?: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  if (!adapterConfig) return undefined;
+  const { skillsDir: _skillsDir, ...rest } = adapterConfig;
+  void _skillsDir;
+  return rest;
+}
+
+async function buildForkConversationPrompt(input: {
+  meta: ConversationMeta;
+  userMessage: string;
+  reason?: "retry" | "branch";
+  mentionedPaths?: string[];
+  priorTurns: { role: "user" | "agent"; content: string; pending?: boolean }[];
+  persona: AgentPersona | null;
+  baseCwd: string;
+}): Promise<string> {
+  const mentionContext = await buildMentionContext(input.mentionedPaths || []);
+  const priorSkills = readStringArrayConfig(input.meta.adapterConfig?.skills) ?? [];
+  const skillBundles = await resolveDesiredSkills(
+    Array.from(new Set([...(input.persona?.skills ?? []), ...priorSkills])),
+    input.meta.cabinetPath
+  );
+  const skillIndex = buildSkillIndex(skillBundles);
+  const forkKind = input.reason === "branch" ? "branch" : "retry";
+  const mcpPolicyInstructions = await buildOptaleMcpPolicyInstructions({
+    cabinetPath: input.meta.cabinetPath,
+    agentScope: input.persona?.optaleScope?.scope,
+  });
+  const priorHistory = serializeTurnHistory(input.priorTurns);
+
+  return [
+    buildCabinetRequirementHeader(),
+    "",
+    buildAgentContextHeader(input.persona, input.meta.agentSlug),
+    ...(skillIndex ? ["", skillIndex] : []),
+    "",
+    ...buildKnowledgeBaseScopeInstructions(input.baseCwd, input.meta.cabinetPath),
+    ...mcpPolicyInstructions,
+    `This is a forked ${forkKind} from an earlier conversation turn. Use the prior conversation only as context and answer the current user request.`,
+    "Reflect useful outputs in KB files, not only in terminal text.",
+    ...buildDiagramOutputInstructions(),
+    await buildCabinetEpilogueInstructions({
+      canDispatch: resolvePersonaCanDispatch(input.persona),
+      cabinetPath: input.meta.cabinetPath,
+      selfSlug: input.meta.agentSlug,
+    }),
+    ...(priorHistory
+      ? ["", "Prior conversation (for context, do not re-output):", priorHistory]
+      : []),
+    "",
+    `User request:\n${input.userMessage}${mentionContext}`,
+  ].join("\n");
+}
+
+export interface ForkConversationInput {
+  fromTurn: number;
+  userMessage?: string;
+  cabinetPath?: string;
+  reason?: "retry" | "branch";
+}
+
+export async function forkConversationRun(
+  sourceConversationId: string,
+  input: ForkConversationInput
+): Promise<ConversationMeta | null> {
+  const sourceMeta = await readConversationMeta(
+    sourceConversationId,
+    input.cabinetPath
+  );
+  if (!sourceMeta) return null;
+  if (sourceMeta.status === "running") {
+    throw new Error("Cannot fork a conversation while it is running.");
+  }
+
+  const cp = sourceMeta.cabinetPath || input.cabinetPath;
+  const turns = (await readConversationTurns(sourceConversationId, cp)).filter(
+    (turn) => !turn.pending
+  );
+  const sourceTurn = turns.find(
+    (turn) => turn.role === "user" && turn.turn === input.fromTurn
+  );
+  if (!sourceTurn) {
+    throw new Error(`User turn ${input.fromTurn} was not found.`);
+  }
+
+  const userMessage =
+    typeof input.userMessage === "string" ? input.userMessage.trim() : sourceTurn.content;
+  if (!userMessage) {
+    throw new Error("Fork userMessage cannot be empty.");
+  }
+
+  const persona = sourceMeta.agentSlug
+    ? await readPersona(sourceMeta.agentSlug, cp)
+    : null;
+  const baseCwd = cp ? path.join(DATA_DIR, cp) : DATA_DIR;
+  const cwd =
+    persona?.workdir && persona.workdir !== "/data"
+      ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
+      : baseCwd;
+  const priorTurns = turns
+    .filter((turn) => turn.turn < sourceTurn.turn)
+    .map((turn) => ({
+      role: turn.role,
+      content: turn.content,
+      pending: turn.pending,
+    }));
+  const inheritedSkills = readStringArrayConfig(sourceMeta.adapterConfig?.skills) ?? [];
+  const prompt = await buildForkConversationPrompt({
+    meta: sourceMeta,
+    userMessage,
+    reason: input.reason,
+    mentionedPaths: sourceTurn.mentionedPaths,
+    priorTurns,
+    persona,
+    baseCwd,
+  });
+
+  const fork = await startConversationRun({
+    agentSlug: sourceMeta.agentSlug,
+    title: `${input.reason === "branch" ? "Branch" : "Retry"}: ${sourceMeta.title}`,
+    trigger: "manual",
+    prompt,
+    providerId: sourceMeta.providerId,
+    adapterType: sourceMeta.adapterType,
+    adapterConfig: withoutEphemeralAdapterConfig(sourceMeta.adapterConfig),
+    mentionedPaths: sourceTurn.mentionedPaths,
+    mentionedSkills: inheritedSkills,
+    attachmentPaths: sourceTurn.attachmentPaths,
+    cabinetPath: cp,
+    cwd,
+  });
+
+  const nextFork: ConversationMeta = {
+    ...fork,
+    forkedFromTaskId: sourceMeta.id,
+    forkedFromCabinetPath: sourceMeta.cabinetPath ?? cp,
+    forkedFromTurn: sourceTurn.turn,
+    forkedFromTurnId: sourceTurn.id,
+    forkReason: input.reason ?? "retry",
+  };
+  await writeConversationMeta(nextFork);
+  return nextFork;
+}
+
 export async function buildEditorConversationPrompt(input: {
   pagePath: string;
   userMessage: string;
@@ -1067,6 +1213,12 @@ export interface ContinueConversationInput {
    */
   mentionedSkills?: string[];
   /**
+   * Internal governed MCP tool names selected via product-facing aliases.
+   * The browser sends aliases only; the API route resolves them before
+   * calling the runner.
+   */
+  governedMcpAllowedTools?: string[];
+  /**
    * Virtual paths of composer attachments for this follow-up turn.
    * Uploaded directly to `{conversationId}/attachments/` (no staging,
    * since the conversation already exists) and appended to the
@@ -1594,6 +1746,26 @@ export async function continueConversationRun(
   };
   if (turnOverride.model) turnAdapterConfig.model = turnOverride.model;
   if (turnOverride.effort) turnAdapterConfig.effort = turnOverride.effort;
+  const selectedGovernedTools = readStringArrayConfig(
+    input.governedMcpAllowedTools
+  );
+  if (selectedGovernedTools && selectedGovernedTools.length > 0) {
+    const existingGovernedMcp =
+      turnAdapterConfig.governedMcp &&
+      typeof turnAdapterConfig.governedMcp === "object" &&
+      !Array.isArray(turnAdapterConfig.governedMcp)
+        ? (turnAdapterConfig.governedMcp as Record<string, unknown>)
+        : {};
+    turnAdapterConfig.governedMcp = {
+      ...existingGovernedMcp,
+      allowedTools: Array.from(
+        new Set([
+          ...(readStringArrayConfig(existingGovernedMcp.allowedTools) ?? []),
+          ...selectedGovernedTools,
+        ])
+      ),
+    };
+  }
 
   // 3. Session handle + mode selection. Rehydrate codec blob into
   //    `sessionParams` so adapters like Cursor/OpenCode/Pi can resume in
