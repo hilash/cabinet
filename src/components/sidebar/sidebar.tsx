@@ -18,7 +18,9 @@ import {
   PanelLeft,
   Plus,
   Settings,
+  SquareKanban,
   UserPlus,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,11 +56,13 @@ function SidebarNavButton({
   active,
   icon,
   label,
+  meta,
   onClick,
 }: {
   active: boolean;
   icon: ReactNode;
   label: string;
+  meta?: string;
   onClick: () => void;
 }) {
   return (
@@ -66,14 +70,21 @@ function SidebarNavButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium transition-colors",
+        "flex min-h-[58px] w-full flex-col items-start justify-center gap-1 rounded-md px-2.5 py-2 text-left transition-colors",
         active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+          ? "bg-background text-foreground shadow-sm ring-1 ring-sidebar-border/80"
+          : "text-sidebar-foreground/70 hover:bg-background/70 hover:text-sidebar-foreground"
       )}
     >
-      {icon}
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="flex items-center gap-1.5 text-[12px] font-semibold">
+        {icon}
+        <span className="min-w-0 truncate">{label}</span>
+      </span>
+      {meta ? (
+        <span className="line-clamp-1 text-[9px] font-medium uppercase text-muted-foreground">
+          {meta}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -185,12 +196,60 @@ export function Sidebar() {
             <PanelLeftClose className="h-4 w-4" />
           </Button>
         </div>
-        <nav className="space-y-1 border-b border-sidebar-border/70 px-2 pb-2">
+        <div className="border-y border-sidebar-border/70 px-3 py-2">
+          <div className="text-[10px] font-semibold uppercase text-sidebar-foreground/45">
+            Command workspace
+          </div>
+          <p className="mt-1 text-[11px] leading-4 text-sidebar-foreground/55">
+            Operate across conversations, objects, governed actions, and observability.
+          </p>
+        </div>
+        <nav
+          aria-label="Optale Command sections"
+          className="grid grid-cols-2 gap-1.5 border-b border-sidebar-border/70 px-2 py-2"
+        >
           <SidebarNavButton
-            active={section.type === "home"}
+            active={section.type === "home" || section.type === "conversation"}
             icon={<Command className="size-3.5 shrink-0" />}
             label="Command"
+            meta="chat + context"
             onClick={() => setSection({ type: "home" })}
+          />
+          <SidebarNavButton
+            active={section.type === "tasks" || section.type === "task"}
+            icon={<SquareKanban className="size-3.5 shrink-0" />}
+            label="Tasks"
+            meta="tracked work"
+            onClick={() =>
+              setSection({
+                type: "tasks",
+                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
+              })
+            }
+          />
+          <SidebarNavButton
+            active={section.type === "resources"}
+            icon={<Boxes className="size-3.5 shrink-0" />}
+            label="Objects"
+            meta="OAG registry"
+            onClick={() =>
+              setSection({
+                type: "resources",
+                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
+              })
+            }
+          />
+          <SidebarNavButton
+            active={section.type === "actions"}
+            icon={<GitBranch className="size-3.5 shrink-0" />}
+            label="Actions"
+            meta="approval lane"
+            onClick={() =>
+              setSection({
+                type: "actions",
+                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
+              })
+            }
           />
           <SidebarNavButton
             active={
@@ -204,6 +263,7 @@ export function Sidebar() {
             }
             icon={<Brain className="size-3.5 shrink-0" />}
             label="Observatory"
+            meta="brain + traces"
             onClick={() =>
               setSection({
                 type: "brain",
@@ -212,23 +272,13 @@ export function Sidebar() {
             }
           />
           <SidebarNavButton
-            active={section.type === "resources"}
-            icon={<Boxes className="size-3.5 shrink-0" />}
-            label="Objects"
+            active={section.type === "agents" || section.type === "agent"}
+            icon={<Users className="size-3.5 shrink-0" />}
+            label="Agents"
+            meta="roles + runs"
             onClick={() =>
               setSection({
-                type: "resources",
-                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
-              })
-            }
-          />
-          <SidebarNavButton
-            active={section.type === "actions"}
-            icon={<GitBranch className="size-3.5 shrink-0" />}
-            label="Actions"
-            onClick={() =>
-              setSection({
-                type: "actions",
+                type: "agents",
                 cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
               })
             }

@@ -49,55 +49,55 @@ const LEAD_FALLBACKS = ["ceo", "cto", "pm"];
 
 const QUICK_ACTIONS: QuickAction[] = [
   {
-    label: "Launch 10 song-writing editors",
+    label: "Review customer rollout risks",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
-      "Launch 10 LAUNCH_TASKs to the editor in parallel. Each one writes a short song from the perspective of a different Harry Potter character (Harry, Hermione, Ron, Dumbledore, Snape, Hagrid, Luna, Draco, Neville, McGonagall). Save each as its own page under @Songs. Use effort=low.",
+      "Review the current customer rollout materials, identify the top risks, cite the relevant sources, and draft a concise action plan for operator review.",
   },
   {
-    label: "Daily review at 9am",
+    label: "Create weekly operator briefing",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
-      "Schedule a SCHEDULE_JOB on the editor with cron `0 9 * * *` — every day at 9am, write a short daily review of yesterday and what's on today, and append it to @Daily Review.",
+      "Draft a weekly operator briefing from recent tasks, source updates, object activity, and action queues. Highlight blockers, pending approvals, and next governed actions.",
   },
   {
-    label: "Weekly review next Monday",
+    label: "Find accounts missing next action",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
-      "Schedule a SCHEDULE_TASK on the assistant for next Monday 09:00 — review what I worked on this past week by inspecting recently-modified files in this space, then write @Weekly Review and a @Tasks for Next Week list.",
+      "Inspect the business workspace for account or opportunity records that need a next action before Friday. Summarize findings and propose follow-ups without writing external systems.",
   },
   {
-    label: "Plan my Thailand trip",
+    label: "Prepare approval queue",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
-      "Plan a 2-week Thailand trip. Dispatch a LAUNCH_TASK to the librarian (effort=high) to research itinerary, places to stay, and food spots, and a LAUNCH_TASK to the editor (effort=medium) to compile the findings into one @Thailand Trip page with a day-by-day schedule and a rough budget.",
+      "Review pending actions, group them by risk and owner, attach source evidence where available, and prepare an approval queue for the operator.",
   },
   {
-    label: "Build me a physics study app",
+    label: "Map source evidence",
     prompt:
-      "Create an interactive webapp inside this space so I can study physics for beginners. Include clear explanations, simple animations where useful, and quick checks for understanding.",
+      "Map the most relevant source files, notes, and records for the current workspace. Explain which sources support which business objects or action decisions.",
   },
   {
-    label: "Summarise my recent work",
+    label: "Summarize recent work",
     prompt:
-      "Read the most recently modified pages in this space and write a concise summary of what I've been working on. Group by theme, note any open threads, and save the result as @Recent Work Summary.",
+      "Read the most recently modified workspace pages and task records. Group recent work by business theme, identify open threads, and draft a concise source-backed summary.",
   },
   {
-    label: "Draft a recruiter reply",
+    label: "Draft partner follow-up",
     prompt:
-      "Write a polite, direct reply to a recruiter outreach message. Ask the key qualifying questions (role, comp range, company stage, remote policy) without committing to anything. Keep it under 100 words.",
+      "Draft a clear partner follow-up that summarizes current status, open asks, risks, and next steps. Keep it business-facing and avoid internal diagnostic details.",
   },
   {
-    label: "Map article connections",
+    label: "Inspect object relationships",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
-      "Pipeline of two LAUNCH_TASKs: first dispatch the librarian to identify the articles in this space and map connections between their ideas, people, and concepts. Then dispatch the editor to build an interactive webapp that visualises that graph.",
+      "Inspect the current object registry relationships for accounts, people, projects, tasks, sources, policies, and actions. Summarize gaps or suspicious relationships.",
   },
   {
-    label: "Spin up a 6-module physics course",
+    label: "Draft compliance evidence note",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
-      "Plan a beginner physics curriculum across 6 modules (motion, forces, energy, waves, electricity, light). Dispatch one LAUNCH_TASK per module to the editor (effort=high) to build an interactive lesson page. Save them under @Physics 101.",
+      "Draft a compliance evidence note for the current workspace. Include what is known, what still needs proof, and which governed actions require review.",
   },
 ];
 
@@ -244,7 +244,7 @@ export function HomeScreen() {
     {
       slug: "",
       name: "Auto",
-      role: "editor → first agent",
+      role: "best available role",
     } as AgentPickerOption,
     ...(agents as AgentPickerOption[]),
   ];
@@ -289,14 +289,23 @@ export function HomeScreen() {
   const daemonDown = daemonLevel === "down";
   const composerPlaceholder = daemonDown
     ? "Agent daemon offline — restart to send"
-    : "I want to create...";
+    : "Ask Command to review, draft, inspect, or prepare an action...";
 
   return (
-    <div className="flex-1 flex flex-col items-center overflow-y-auto px-4 py-8">
-      <div className="flex min-h-[46vh] w-full max-w-xl flex-col items-center justify-center space-y-8">
-        <h1 className="text-3xl md:text-4xl font-semibold text-center text-foreground tracking-normal">
-          {headline}
-        </h1>
+    <div className="flex-1 flex flex-col items-center overflow-y-auto px-4 py-7">
+      <div className="flex min-h-[44vh] w-full max-w-3xl flex-col items-center justify-center space-y-7">
+        <div className="space-y-2 text-center">
+          <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+            Optale Command
+          </p>
+          <h1 className="text-3xl md:text-4xl font-semibold text-foreground tracking-normal">
+            {headline}
+          </h1>
+          <p className="mx-auto max-w-2xl text-sm leading-6 text-muted-foreground">
+            Start from chat, then turn useful work into tracked tasks, source-backed
+            object updates, or governed actions for review.
+          </p>
+        </div>
 
         <ComposerInput
           composer={composer}
@@ -341,7 +350,46 @@ export function HomeScreen() {
           }
         />
 
-        <div className="flex flex-wrap items-start justify-center content-start gap-1.5 min-h-[8rem]">
+        <div className="grid w-full gap-2 sm:grid-cols-3">
+          {[
+            {
+              label: "Objects",
+              detail: "Inspect OAG records and relationships",
+              type: "resources" as const,
+            },
+            {
+              label: "Actions",
+              detail: "Review queues, policy, lineage, and audit",
+              type: "actions" as const,
+            },
+            {
+              label: "Observatory",
+              detail: "Brain, memory, graph, sources, and traces",
+              type: "brain" as const,
+            },
+          ].map((item) => (
+            <button
+              key={item.type}
+              type="button"
+              onClick={() =>
+                setSection({
+                  type: item.type,
+                  cabinetPath: ROOT_CABINET_PATH,
+                })
+              }
+              className="rounded-md border border-border/70 bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-accent"
+            >
+              <span className="block text-[13px] font-semibold text-foreground">
+                {item.label}
+              </span>
+              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                {item.detail}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-start justify-center content-start gap-1.5 min-h-[7rem]">
           {chipsReady &&
             visibleActions.map((action, index) => {
               const disabled = composer.submitting || quickRunning || daemonDown;
@@ -377,10 +425,10 @@ export function HomeScreen() {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <h2 className="text-base font-semibold tracking-normal text-foreground">
-              Observatory
+              Operating visibility
             </h2>
             <p className="text-xs text-muted-foreground">
-              Brain, MCP oversight, and client access for the root Optale space.
+              Brain, MCP oversight, and client access for the active Command workspace.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

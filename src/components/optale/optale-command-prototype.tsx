@@ -53,9 +53,9 @@ type SidebarItem = {
 };
 
 const PRIMARY_TABS: PrimaryTab[] = [
-  { id: "chat", label: "Chat", icon: MessageSquare },
-  { id: "data", label: "Data", icon: FileText },
-  { id: "brain", label: "Brain", icon: Brain },
+  { id: "chat", label: "Command", icon: MessageSquare },
+  { id: "data", label: "Objects", icon: FileText },
+  { id: "brain", label: "Observatory", icon: Brain },
   { id: "agents", label: "Agents", icon: Users },
   { id: "tasks", label: "Tasks", icon: SquareKanban },
 ];
@@ -168,11 +168,11 @@ function PrototypeSidebar({
           type="button"
           className="group -ml-1 flex min-w-0 items-baseline gap-2 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-sidebar-accent"
         >
-          <span className="font-logo text-[22px] italic leading-none text-sidebar-foreground">
-            cabinet
+          <span className="font-semibold text-[18px] leading-none text-sidebar-foreground">
+            Optale
           </span>
-          <span className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">
-            Optale Command
+          <span className="truncate text-[10px] font-semibold uppercase text-sidebar-foreground/45">
+            Command
           </span>
         </button>
         <Button variant="ghost" size="icon-sm" aria-label="Settings">

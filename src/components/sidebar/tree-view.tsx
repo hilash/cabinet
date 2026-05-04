@@ -42,7 +42,7 @@ import {
   ClipboardCopy,
   Copy,
   Trash2,
-  Archive,
+  BriefcaseBusiness,
   TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -166,7 +166,7 @@ export function TreeView() {
   const cabinetVisibilityMode =
     cabinetVisibilityModes[effectiveCabinetPath] || "own";
   const visibleTreeNodes = activeCabinet?.children || rootCabinet?.children || nodes;
-  const kbSectionLabel = "Data";
+  const kbSectionLabel = "Sources";
 
   /* ── agent polling ─────────────────────────────────────────── */
 
@@ -402,7 +402,7 @@ export function TreeView() {
           </button>
         ) : null}
 
-        {/* ── Cabinet header + drawer tabs (H variant) ─────
+        {/* ── Workspace scope + drawer tabs ─────────────────
              Header rail (always) + drawer-tab strip (flush below) wrapped
              in one `px-2 pt-3` column. Strip is `mx-[9px]`-inset so the
              header reads as a wider crown over the drawer frame. */}
@@ -414,7 +414,7 @@ export function TreeView() {
             onClick={() => openCabinetOverview(activeCabinet?.path || cabinetPath)}
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
           >
-            <Archive className="h-[18px] w-[18px] shrink-0 text-amber-400" />
+            <BriefcaseBusiness className="h-[18px] w-[18px] shrink-0 text-amber-400" />
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">
               {cabinetAgentScopeName || activeCabinet?.frontmatter?.title || activeCabinet?.name || "Space"}
             </span>
@@ -488,14 +488,14 @@ export function TreeView() {
              header above, inset by mx-[9px] so the header reads as a crown. */
           <div
             role="tablist"
-            aria-label="Space drawers"
+            aria-label="Workspace lanes"
             className="mx-[9px] grid grid-cols-3 gap-1 rounded-b-lg bg-muted/40 p-1 pt-2 border border-border/60"
           >
                 {([
                   {
                     id: "data" as DrawerId,
-                    label: "Data",
-                    addLabel: "New Page",
+                    label: "Sources",
+                    addLabel: "New Source Page",
                     icon: BookOpen,
                     addIcon: FilePlus,
                     onOpen: () => {
