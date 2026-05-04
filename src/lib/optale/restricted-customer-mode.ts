@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
-import {
-  agentAdapterRegistry,
-  defaultAdapterTypeForProvider,
-  isLegacyAdapterType,
-} from "@/lib/agents/adapters";
+import { defaultAdapterTypeForProviderId } from "@/lib/agents/adapters/default-ids";
+import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
 import { isOptaleRestrictedCustomerMode } from "./runtime-mode";
 
 export const RESTRICTED_CUSTOMER_MODE_ERROR = "OptaleRestrictedCustomerMode";
@@ -131,7 +128,7 @@ export function restrictedAgentRuntimeDenial(
     typeof input.adapterType === "string" && input.adapterType.trim()
       ? input.adapterType.trim()
       : typeof input.providerId === "string" && input.providerId.trim()
-        ? defaultAdapterTypeForProvider(input.providerId.trim())
+        ? defaultAdapterTypeForProviderId(input.providerId.trim())
         : undefined;
 
   if (!adapterType) {
@@ -154,14 +151,10 @@ export function restrictedAgentRuntimeDenial(
 
   const allowed = restrictedAllowedAdapterTypes(env);
   if (!allowed.has(adapterType)) {
-    const adapter = agentAdapterRegistry.get(adapterType);
     return {
       code: "restricted_customer_adapter_not_allowed",
       capability: `agent_runtime.${adapterType}`,
-      message:
-        `Adapter "${adapterType}"` +
-        (adapter ? ` (${adapter.executionEngine})` : "") +
-        " is not allowed in restricted customer mode.",
+      message: `Adapter "${adapterType}" is not allowed in restricted customer mode.`,
     };
   }
 

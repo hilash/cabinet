@@ -1,5 +1,26 @@
 import type { NextConfig } from "next";
 
+const outputTraceExcludes = [
+  ".next/dev/**/*",
+  ".next/cache/**/*",
+  ".git/**/*",
+  ".github/**/*",
+  ".claude/**/*",
+  ".agents/**/*",
+  "next.config.ts",
+  "next.config.mjs",
+  "next.config.js",
+  "coverage/**/*",
+  "data/**/*",
+  "docs/**/*",
+  "Dockerfile",
+  "out/**/*",
+  "src/**/*.test.ts",
+  "src/**/*.test.tsx",
+  "test/**/*",
+  "**/.DS_Store",
+];
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "127.0.0.1",
@@ -22,18 +43,8 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   serverExternalPackages: ["node-pty", "simple-git", "better-sqlite3"],
   outputFileTracingExcludes: {
-    "/*": [
-      ".next/dev/**/*",
-      ".next/cache/**/*",
-      ".git/**/*",
-      ".github/**/*",
-      ".claude/**/*",
-      ".agents/**/*",
-      "coverage/**/*",
-      "out/**/*",
-      "test/**/*",
-      "**/.DS_Store",
-    ],
+    "/*": outputTraceExcludes,
+    "/instrumentation": outputTraceExcludes,
   },
 };
 

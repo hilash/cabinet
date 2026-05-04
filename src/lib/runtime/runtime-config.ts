@@ -59,11 +59,17 @@ export function isElectronRuntime(): boolean {
 }
 
 /** Path to the project-root config file that persists settings like dataDir. */
-export const INSTALL_CONFIG_PATH = path.join(PROJECT_ROOT, ".cabinet-install.json");
+export const INSTALL_CONFIG_PATH = path.join(
+  /*turbopackIgnore: true*/ process.cwd(),
+  ".cabinet-install.json"
+);
 
 function readPersistedDataDir(): string | null {
   try {
-    const raw = fs.readFileSync(INSTALL_CONFIG_PATH, "utf-8");
+    const raw = fs.readFileSync(
+      /*turbopackIgnore: true*/ INSTALL_CONFIG_PATH,
+      "utf-8"
+    );
     const json = JSON.parse(raw);
     const dir = json?.dataDir?.trim();
     return dir || null;
@@ -90,7 +96,7 @@ export function getManagedDataDir(): string {
     return defaultElectronDataDir();
   }
 
-  return path.join(PROJECT_ROOT, "data");
+  return path.join(/*turbopackIgnore: true*/ process.cwd(), "data");
 }
 
 function getRuntimePortsPath(): string {

@@ -18,6 +18,9 @@ import { grokLocalAdapter } from "./grok-local";
 import { openCodeLocalAdapter } from "./opencode-local";
 import { openRouterApiAdapter } from "./openrouter-api";
 import { piLocalAdapter } from "./pi-local";
+import { DEFAULT_ADAPTER_BY_PROVIDER_ID } from "./default-ids";
+
+export { DEFAULT_ADAPTER_BY_PROVIDER_ID } from "./default-ids";
 
 export const LEGACY_ADAPTER_BY_PROVIDER_ID: Record<string, string> = {
   "claude-code": "claude_code_legacy",
@@ -28,18 +31,6 @@ export const LEGACY_ADAPTER_BY_PROVIDER_ID: Record<string, string> = {
   "pi": "pi_legacy",
   "grok-cli": "grok_cli_legacy",
   "copilot-cli": "copilot_cli_legacy",
-};
-
-export const DEFAULT_ADAPTER_BY_PROVIDER_ID: Record<string, string> = {
-  "claude-code": claudeLocalAdapter.type,
-  "codex-cli": codexLocalAdapter.type,
-  "gemini-cli": geminiLocalAdapter.type,
-  "cursor-cli": cursorLocalAdapter.type,
-  "opencode": openCodeLocalAdapter.type,
-  "openrouter": openRouterApiAdapter.type,
-  "pi": piLocalAdapter.type,
-  "grok-cli": grokLocalAdapter.type,
-  "copilot-cli": copilotLocalAdapter.type,
 };
 
 export const LEGACY_PROVIDER_ID_BY_ADAPTER: Record<string, string> = Object.fromEntries(

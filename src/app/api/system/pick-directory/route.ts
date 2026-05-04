@@ -49,7 +49,7 @@ export async function POST() {
     const { command, args } = getPickerCommand();
 
     const selectedPath = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(command, args, {
+      const proc = spawn(/*turbopackIgnore: true*/ command, args, {
         stdio: ["ignore", "pipe", "pipe"],
       });
 

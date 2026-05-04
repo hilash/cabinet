@@ -3,7 +3,6 @@ import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { ensureDirectory, fileExists, readFileContent } from "@/lib/storage/fs-operations";
-import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import { getDefaultProviderId } from "./provider-runtime";
 import { resolveEnabledProviderId } from "./provider-settings";
@@ -12,7 +11,7 @@ import { ensureAgentScaffold } from "./scaffold";
 
 export const SEEDED_AGENT_LIBRARY_DIR = path.join(DATA_DIR, ".agents", ".library");
 export const SOURCE_AGENT_LIBRARY_DIR = path.join(
-  PROJECT_ROOT,
+  /*turbopackIgnore: true*/ process.cwd(),
   "src",
   "lib",
   "agents",

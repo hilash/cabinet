@@ -1,7 +1,8 @@
+import fs from "fs";
+import os from "os";
 import { spawn } from "child_process";
 import path from "path";
 import { NextResponse } from "next/server";
-import { DATA_DIR } from "@/lib/storage/path-utils";
 import {
   restrictedCapabilityDenial,
   restrictedModeDenialResponse,
@@ -24,6 +25,55 @@ function getOpenCommand(targetPath: string, reveal?: boolean): { command: string
   }
 }
 
+function defaultElectronDataDir(): string {
+  if (process.platform === "darwin") {
+    return path.join(os.homedir(), "Library", "Application Support", "Cabinet");
+  }
+  if (process.platform === "win32") {
+    return path.join(
+      process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
+      "Cabinet"
+    );
+  }
+  return path.join(
+    process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"),
+    "cabinet"
+  );
+}
+
+function readPersistedDataDir(): string | null {
+  try {
+    const configPath = path.join(
+      /*turbopackIgnore: true*/ process.cwd(),
+      ".cabinet-install.json"
+    );
+    const raw = fs.readFileSync(
+      /*turbopackIgnore: true*/ configPath,
+      "utf-8"
+    );
+    const json = JSON.parse(raw) as { dataDir?: unknown };
+    return typeof json.dataDir === "string" && json.dataDir.trim()
+      ? path.resolve(/*turbopackIgnore: true*/ json.dataDir.trim())
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function getOpenDataDir(): string {
+  const configured = process.env.CABINET_DATA_DIR?.trim();
+  if (configured) return path.resolve(/*turbopackIgnore: true*/ configured);
+
+  const persisted = readPersistedDataDir();
+  if (persisted) return persisted;
+
+  if (process.env.CABINET_RUNTIME === "electron") {
+    return defaultElectronDataDir();
+  }
+
+  return path.join(/*turbopackIgnore: true*/ process.cwd(), "data");
+}
+
 export async function POST(request: Request) {
   const restricted = restrictedModeDenialResponse(
     restrictedCapabilityDenial("diagnostics.raw"),
@@ -31,13 +81,20 @@ export async function POST(request: Request) {
   if (restricted) return restricted;
 
   try {
-    let targetPath = DATA_DIR;
+    const dataDir = path.resolve(/*turbopackIgnore: true*/ getOpenDataDir());
+    const dataDirWithSep = dataDir.endsWith(path.sep)
+      ? dataDir
+      : `${dataDir}${path.sep}`;
+    let targetPath = dataDir;
 
     // Optional subpath to open a specific item
     const body = await request.json().catch(() => null);
     if (body?.subpath) {
-      const resolved = path.resolve(DATA_DIR, body.subpath);
-      if (!resolved.startsWith(DATA_DIR)) {
+      const resolved = path.resolve(
+        /*turbopackIgnore: true*/ dataDir,
+        body.subpath
+      );
+      if (resolved !== dataDir && !resolved.startsWith(dataDirWithSep)) {
         return NextResponse.json({ error: "Invalid path" }, { status: 400 });
       }
       targetPath = resolved;
@@ -47,7 +104,7 @@ export async function POST(request: Request) {
     const { command, args } = getOpenCommand(targetPath, !!body?.subpath);
 
     await new Promise<void>((resolve, reject) => {
-      const proc = spawn(command, args, {
+      const proc = spawn(/*turbopackIgnore: true*/ command, args, {
         stdio: "ignore",
       });
 
