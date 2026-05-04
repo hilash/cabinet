@@ -10,8 +10,10 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Boxes,
   Brain,
-  Home,
+  Command,
+  GitBranch,
   PanelLeftClose,
   PanelLeft,
   Plus,
@@ -184,8 +186,8 @@ export function Sidebar() {
         <nav className="space-y-1 border-b border-sidebar-border/70 px-2 pb-2">
           <SidebarNavButton
             active={section.type === "home"}
-            icon={<Home className="size-3.5 shrink-0" />}
-            label="Home"
+            icon={<Command className="size-3.5 shrink-0" />}
+            label="Command"
             onClick={() => setSection({ type: "home" })}
           />
           <SidebarNavButton
@@ -199,10 +201,32 @@ export function Sidebar() {
               section.type === "company-brain"
             }
             icon={<Brain className="size-3.5 shrink-0" />}
-            label="Brain"
+            label="Observatory"
             onClick={() =>
               setSection({
                 type: "brain",
+                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
+              })
+            }
+          />
+          <SidebarNavButton
+            active={section.type === "resources"}
+            icon={<Boxes className="size-3.5 shrink-0" />}
+            label="Objects"
+            onClick={() =>
+              setSection({
+                type: "resources",
+                cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
+              })
+            }
+          />
+          <SidebarNavButton
+            active={section.type === "actions"}
+            icon={<GitBranch className="size-3.5 shrink-0" />}
+            label="Actions"
+            onClick={() =>
+              setSection({
+                type: "actions",
                 cabinetPath: section.cabinetPath || ROOT_CABINET_PATH,
               })
             }

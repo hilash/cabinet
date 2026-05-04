@@ -3,6 +3,12 @@ import {
   OPTALE_SCOPE_LABELS,
   type OptaleAgentScope,
 } from "./product";
+import {
+  getOptaleCapabilityProfile,
+  type OptaleCapability,
+  type OptaleMemoryLane,
+} from "./capabilities";
+import type { OptaleRuntimeMode } from "./runtime-mode";
 import { getAppOrigin } from "@/lib/runtime/runtime-config";
 
 export type OptaleBrainKind =
@@ -42,6 +48,13 @@ export type OptaleBrainSource = {
 
 export type OptaleContextRegistry = {
   product: typeof OPTALE_PRODUCT;
+  runtime: {
+    mode: OptaleRuntimeMode;
+    label: string;
+    description: string;
+    memoryLane: OptaleMemoryLane;
+    capabilities: Record<OptaleCapability, boolean>;
+  };
   generatedAt: string;
   commandCenter: {
     role: "control-plane";
@@ -346,14 +359,14 @@ export function readOptaleMcpServers(): OptaleMcpServerConfig[] {
     },
     {
       id: "optale-agents",
-      name: "Optale Observatory",
+      name: "Optale Command",
       transport: "http",
       url:
         process.env.OPTALE_AGENTS_MCP_URL?.trim() ||
         `${getAppOrigin()}/api/optale/mcp`,
       scopes: ["company", "personal", "system"],
       description:
-        "Optale Observatory space, brain, and Command Center MCP surface.",
+        "Optale Command spaces, Observatory brain, and Command Center MCP surface.",
       status: "configured",
     },
   ];
@@ -440,14 +453,22 @@ export function readOptaleBrainSources(): OptaleBrainSource[] {
       mcpServerId: "optale-agents",
       scopes: ["company", "personal", "system"],
       description:
-        "Optale Observatory spaces, tasks, agents, jobs, and brain summaries.",
+        "Optale Command spaces, tasks, agents, jobs, and Observatory brain summaries.",
     },
   ];
 }
 
 export function readOptaleContextRegistry(): OptaleContextRegistry {
+  const capabilityProfile = getOptaleCapabilityProfile();
   return {
     product: OPTALE_PRODUCT,
+    runtime: {
+      mode: capabilityProfile.mode,
+      label: capabilityProfile.label,
+      description: capabilityProfile.description,
+      memoryLane: capabilityProfile.memoryLane,
+      capabilities: { ...capabilityProfile.capabilities },
+    },
     generatedAt: new Date().toISOString(),
     commandCenter: {
       role: "control-plane",

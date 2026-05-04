@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OPTALE_PRODUCT } from "@/lib/optale/product";
 
 type CabinetDesktopBridge = {
   runtime: "electron";
@@ -17,12 +18,11 @@ declare global {
 }
 
 /**
- * Settings → About → Uninstall Optale Observatory (macOS Electron only).
+ * Settings → About → uninstall the macOS Electron app.
  *
  * Removes the .app bundle, caches, prefs, saved state, web storage, and
- * logs. Does NOT touch user data at `~/Library/Application Support/Optale
- * Observatory/data` — your space content is preserved and the path is shown
- * in the confirmation so you know where to find it.
+ * logs. Does NOT touch user data; the preserved data path is shown in the
+ * confirmation so you know where to find it.
  */
 export function UninstallSection() {
   const [bridge, setBridge] = useState<CabinetDesktopBridge | null>(null);
@@ -40,16 +40,16 @@ export function UninstallSection() {
 
   if (!bridge) return null;
 
-  const dataPath = "~/Library/Application Support/Optale Observatory/data";
+  const dataPath = `~/Library/Application Support/${OPTALE_PRODUCT.name}/cabinet-data`;
 
   const handleUninstall = async () => {
     const ok = window.confirm(
-      `Uninstall Optale Observatory?\n\n` +
+      `Uninstall ${OPTALE_PRODUCT.name}?\n\n` +
         `This removes the app from /Applications and clears caches, ` +
         `preferences, saved state, web storage, and logs.\n\n` +
         `Your space content at\n  ${dataPath}\nwill be preserved. ` +
         `Open that folder in Finder if you want to back it up before reinstalling later.\n\n` +
-        `Optale Observatory will quit immediately after you confirm.`
+        `${OPTALE_PRODUCT.name} will quit immediately after you confirm.`
     );
     if (!ok) return;
     setSubmitting(true);
@@ -70,9 +70,9 @@ export function UninstallSection() {
 
   return (
     <div className="border-t border-border pt-6">
-      <h3 className="text-[14px] font-semibold mb-1">Uninstall Optale Observatory</h3>
+      <h3 className="text-[14px] font-semibold mb-1">Uninstall {OPTALE_PRODUCT.name}</h3>
       <p className="text-[12px] text-muted-foreground mb-3">
-        Remove the Optale Observatory app and Library caches/preferences/state/logs from your
+        Remove the {OPTALE_PRODUCT.name} app and Library caches/preferences/state/logs from your
         Mac. Your space content at{" "}
         <span className="font-mono text-[11px] rounded bg-muted px-1 py-0.5">
           {dataPath}
@@ -88,7 +88,7 @@ export function UninstallSection() {
         onClick={handleUninstall}
       >
         <Trash2 className="h-3.5 w-3.5" />
-        {submitting ? "Uninstalling…" : "Uninstall Optale Observatory"}
+        {submitting ? "Uninstalling…" : `Uninstall ${OPTALE_PRODUCT.name}`}
       </Button>
       {error && (
         <p className="mt-2 text-[11px] text-destructive">{error}</p>

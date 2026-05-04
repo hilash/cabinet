@@ -7,6 +7,12 @@ const { MakerDMG } = require("@electron-forge/maker-dmg");
 const { AutoUnpackNativesPlugin } = require("@electron-forge/plugin-auto-unpack-natives");
 const { PublisherGithub } = require("@electron-forge/publisher-github");
 
+const APP_NAME = process.env.OPTALE_DESKTOP_APP_NAME || "Optale Command";
+const APP_BUNDLE_ID = process.env.OPTALE_DESKTOP_BUNDLE_ID || "com.optale.command";
+const APP_COPYRIGHT = process.env.OPTALE_DESKTOP_COPYRIGHT || "(C) 2026 Optale";
+const RELEASE_GITHUB_OWNER = process.env.OPTALE_RELEASE_GITHUB_OWNER || "hilash";
+const RELEASE_GITHUB_REPO = process.env.OPTALE_RELEASE_GITHUB_REPO || "cabinet";
+
 const PACKAGER_IGNORE = [
   /^\/\.git(?:\/|$)/,
   /^\/\.github(?:\/|$)/,
@@ -89,7 +95,7 @@ function codesignNativeBinaries(buildPath, electronVersion, platform, arch, done
   // node-pty is extracted outside the .app bundle at runtime (see main.cjs).
   const bundledNode = path.join(
     buildPath,
-    "Cabinet.app",
+    `${APP_NAME}.app`,
     "Contents",
     "Resources",
     "app.asar.unpacked",
@@ -103,7 +109,7 @@ function codesignNativeBinaries(buildPath, electronVersion, platform, arch, done
     execFileSync("codesign", ["--force", "--sign", "-", bundledNode]);
   } catch {}
 
-  const appPath = path.join(buildPath, "Cabinet.app");
+  const appPath = path.join(buildPath, `${APP_NAME}.app`);
   try {
     execFileSync("codesign", ["--force", "--deep", "--sign", "-", appPath]);
   } catch {}
@@ -142,10 +148,10 @@ function pruneMacLocales(buildPath, electronVersion, platform, arch, done) {
 
 module.exports = {
   packagerConfig: {
-    name: "Cabinet",
+    name: APP_NAME,
     icon: "./electron/assets/cabinet-icon",
-    appBundleId: "com.runcabinet.cabinet",
-    appCopyright: "© 2026 Hila Shmuel",
+    appBundleId: APP_BUNDLE_ID,
+    appCopyright: APP_COPYRIGHT,
     appCategoryType: "public.app-category.productivity",
     asar: {
       unpackDir: ".next/standalone",
@@ -180,8 +186,8 @@ module.exports = {
   publishers: [
     new PublisherGithub({
       repository: {
-        owner: "hilash",
-        name: "cabinet",
+        owner: RELEASE_GITHUB_OWNER,
+        name: RELEASE_GITHUB_REPO,
       },
       prerelease: false,
       draft: false,

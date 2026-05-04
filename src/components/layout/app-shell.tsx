@@ -117,6 +117,7 @@ import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useHashRoute } from "@/hooks/use-hash-route";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { hasOptaleCapability } from "@/lib/optale/capabilities";
 import { OPTALE_PRODUCT } from "@/lib/optale/product";
 
 const DISMISSED_UPDATE_STORAGE_KEY = "cabinet.dismissed-update-version";
@@ -140,6 +141,8 @@ export function AppShell() {
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
   const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
+  const canOpenTerminal = hasOptaleCapability("terminal.open");
+  const canViewCompanyBrain = hasOptaleCapability("company_brain.view");
   const taskPanelConversation = useAppStore((s) => s.taskPanelConversation);
   const setTaskPanelConversation = useAppStore((s) => s.setTaskPanelConversation);
   const {
@@ -201,7 +204,7 @@ export function AppShell() {
         title = base;
         break;
       case "resources":
-        title = `Resources — ${base}`;
+        title = `Objects — ${base}`;
         break;
       case "actions":
         title = `Actions — ${base}`;
@@ -229,7 +232,7 @@ export function AppShell() {
         title = `Conversation — ${base}`;
         break;
       case "brain":
-        title = `Brain — ${base}`;
+        title = `Observatory — ${base}`;
         break;
       case "vault":
         title = `Vault — ${base}`;
@@ -589,10 +592,18 @@ export function AppShell() {
         />
       );
     }
-    if (section.type === "company-brain") {
+    if (section.type === "company-brain" && canViewCompanyBrain) {
       return (
         <OptaleBrainWorkspace
           initialView="company-brain"
+          cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
+        />
+      );
+    }
+    if (section.type === "company-brain") {
+      return (
+        <OptaleBrainWorkspace
+          initialView="overview"
           cabinetPath={section.cabinetPath || ROOT_CABINET_PATH}
         />
       );
@@ -801,10 +812,10 @@ export function AppShell() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {renderContent()}
         </main>
-        {terminalOpen && terminalPosition === "bottom" && <TerminalTabs />}
+        {canOpenTerminal && terminalOpen && terminalPosition === "bottom" && <TerminalTabs />}
         <StatusBar />
       </div>
-      {terminalOpen && terminalPosition === "right" && <TerminalTabs />}
+      {canOpenTerminal && terminalOpen && terminalPosition === "right" && <TerminalTabs />}
       {taskPanelConversation && <TaskDetailPanel />}
       {!aiPanelCollapsed && <AIPanel />}
       <SearchPalette />

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Remove every trace of the packaged Cabinet desktop app on macOS:
+# Remove every trace of the packaged Optale Command desktop app on macOS:
 # the .app bundle, user data (notes, agents, sqlite), caches, preferences,
 # saved state, web storage, logs, and the auto-updater's ShipIt cache.
 #
-# This is destructive. Cabinet stores your workspace under
-#   ~/Library/Application Support/Cabinet/cabinet-data
+# This is destructive. By default Optale Command stores your workspace under
+#   ~/Library/Application Support/Optale Command/cabinet-data
 # and this script deletes it. Back up first if you want to keep anything.
 #
 # Usage:
@@ -36,8 +36,8 @@ for arg in "$@"; do
   esac
 done
 
-APP_NAME="Cabinet"
-BUNDLE_ID="com.runcabinet.cabinet"
+APP_NAME="${OPTALE_DESKTOP_APP_NAME:-Optale Command}"
+BUNDLE_ID="${OPTALE_DESKTOP_BUNDLE_ID:-com.optale.command}"
 HOME_LIB="$HOME/Library"
 
 TARGETS=(
@@ -65,7 +65,7 @@ for t in "${TARGETS[@]}"; do
   fi
 done
 
-# Mounted DMG volumes (e.g. /Volumes/Cabinet 0.4.1-arm64)
+# Mounted DMG volumes (e.g. /Volumes/Optale Command 0.4.1-arm64)
 mounted_volumes=()
 while IFS= read -r vol; do
   [ -n "$vol" ] && mounted_volumes+=("$vol")
@@ -79,7 +79,7 @@ if [ ${#mounted_volumes[@]} -gt 0 ]; then
 fi
 
 if [ ${#existing[@]} -eq 0 ] && [ ${#mounted_volumes[@]} -eq 0 ]; then
-  echo "Nothing to do — no Cabinet artifacts found."
+  echo "Nothing to do — no ${APP_NAME} artifacts found."
   exit 0
 fi
 
@@ -90,7 +90,7 @@ fi
 
 if [ "$ASSUME_YES" -ne 1 ]; then
   echo
-  echo "This will permanently delete your Cabinet workspace and all listed paths."
+  echo "This will permanently delete your ${APP_NAME} workspace and all listed paths."
   read -r -p "Type 'yes' to continue: " reply
   if [ "$reply" != "yes" ]; then
     echo "Aborted."
@@ -131,5 +131,5 @@ if [ -x "$LS_REG" ]; then
   "$LS_REG" -u "/Applications/${APP_NAME}.app" >/dev/null 2>&1 || true
 fi
 
-echo "Done. Cabinet desktop app and all known data have been removed."
+echo "Done. ${APP_NAME} desktop app and all known data have been removed."
 echo "Note: the installer DMG in ~/Downloads (if any) was not touched."

@@ -14,8 +14,8 @@
   "electron": {
     "macos": {
       "arch": "arm64",
-      "zipAssetName": "Cabinet-darwin-arm64-0.4.3.zip",
-      "dmgAssetName": "Cabinet-0.4.3-arm64.dmg"
+      "zipAssetName": "Optale Command-darwin-arm64-0.4.3.zip",
+      "dmgAssetName": "Optale Command-0.4.3-arm64.dmg"
     }
   }
 }

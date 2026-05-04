@@ -1,7 +1,7 @@
 export type OptaleAgentScope = "company" | "personal" | "system";
 
 export type OptaleProductIdentity = {
-  id: "optale-observatory";
+  id: "optale-command";
   name: string;
   shortName: string;
   description: string;
@@ -9,12 +9,12 @@ export type OptaleProductIdentity = {
 };
 
 export const OPTALE_PRODUCT: OptaleProductIdentity = {
-  id: "optale-observatory",
-  name: process.env.NEXT_PUBLIC_OPTALE_PRODUCT_NAME || "Optale Observatory",
-  shortName: process.env.NEXT_PUBLIC_OPTALE_PRODUCT_SHORT_NAME || "Observatory",
+  id: "optale-command",
+  name: process.env.NEXT_PUBLIC_OPTALE_PRODUCT_NAME || "Optale Command",
+  shortName: process.env.NEXT_PUBLIC_OPTALE_PRODUCT_SHORT_NAME || "Command",
   description:
     process.env.NEXT_PUBLIC_OPTALE_PRODUCT_DESCRIPTION ||
-    "Governance, traces, evals, and observability for Optale's agent system.",
+    "Desktop command surface for Optale knowledge, agents, actions, memory, and governance.",
   license: "MIT",
 };
 

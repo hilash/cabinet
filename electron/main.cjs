@@ -17,7 +17,23 @@ if (!gotSingleInstanceLock) {
 }
 
 const isDev = !app.isPackaged;
-const managedDataDir = path.join(app.getPath("userData"), "cabinet-data");
+const PRODUCT_NAME = process.env.OPTALE_DESKTOP_APP_NAME || app.getName() || "Optale Command";
+const APP_BUNDLE_ID = process.env.OPTALE_DESKTOP_BUNDLE_ID || "com.optale.command";
+const UPDATE_REPO = process.env.OPTALE_RELEASE_REPO || "hilash/cabinet";
+const DATA_DIR_BASENAME = process.env.OPTALE_DESKTOP_DATA_DIR_NAME || "cabinet-data";
+const DESKTOP_PROFILE =
+  process.env.OPTALE_DESKTOP_PROFILE ||
+  process.env.NEXT_PUBLIC_OPTALE_DESKTOP_PROFILE ||
+  "operator";
+const RUNTIME_MODE =
+  process.env.OPTALE_RUNTIME_MODE ||
+  process.env.NEXT_PUBLIC_OPTALE_RUNTIME_MODE ||
+  (["partner", "customer", "restricted", "restricted_customer", "restricted-customer"].includes(
+    DESKTOP_PROFILE.trim().toLowerCase()
+  )
+    ? "restricted_customer"
+    : "operator");
+const managedDataDir = path.join(app.getPath("userData"), DATA_DIR_BASENAME);
 const updateStatusPath = path.join(managedDataDir, ".cabinet-state", "update-status.json");
 let mainWindow = null;
 let backendChildren = [];
@@ -60,7 +76,7 @@ async function waitForHealth(url, timeoutMs = 45_000) {
     await new Promise((resolve) => setTimeout(resolve, 750));
   }
 
-  throw new Error(`Timed out waiting for Cabinet at ${url}`);
+  throw new Error(`Timed out waiting for ${PRODUCT_NAME} at ${url}`);
 }
 
 async function checkHealth(url, timeoutMs = 1200) {
@@ -242,7 +258,7 @@ async function resolveDevAppUrl(timeoutMs = DEV_APP_DISCOVERY_TIMEOUT_MS) {
   }
 
   throw new Error(
-    "Timed out waiting for a local Cabinet dev app. Start `npm run dev` first."
+    `Timed out waiting for a local ${PRODUCT_NAME} dev app. Start \`npm run dev\` first.`
   );
 }
 
@@ -273,6 +289,16 @@ async function startEmbeddedCabinet() {
     CABINET_APP_ORIGIN: appOrigin,
     CABINET_DAEMON_URL: daemonOrigin,
     CABINET_PUBLIC_DAEMON_ORIGIN: daemonWsOrigin,
+    NEXT_PUBLIC_OPTALE_PRODUCT_NAME:
+      process.env.NEXT_PUBLIC_OPTALE_PRODUCT_NAME || PRODUCT_NAME,
+    NEXT_PUBLIC_OPTALE_PRODUCT_SHORT_NAME:
+      process.env.NEXT_PUBLIC_OPTALE_PRODUCT_SHORT_NAME || "Command",
+    OPTALE_DESKTOP_PROFILE: DESKTOP_PROFILE,
+    OPTALE_RUNTIME_MODE: RUNTIME_MODE,
+    NEXT_PUBLIC_OPTALE_DESKTOP_PROFILE:
+      process.env.NEXT_PUBLIC_OPTALE_DESKTOP_PROFILE || DESKTOP_PROFILE,
+    NEXT_PUBLIC_OPTALE_RUNTIME_MODE:
+      process.env.NEXT_PUBLIC_OPTALE_RUNTIME_MODE || RUNTIME_MODE,
   };
 
   const serverEntry = packagedStandalonePath("server.js");
@@ -298,7 +324,7 @@ function configureAutoUpdates() {
 
   try {
     updateElectronApp({
-      repo: "hilash/cabinet",
+      repo: UPDATE_REPO,
       updateInterval: "4 hours",
       notifyUser: false,
     });
@@ -317,7 +343,7 @@ function configureAutoUpdates() {
       state: "checking",
       startedAt: new Date().toISOString(),
       installKind: "electron-macos",
-      message: "Checking for a newer Cabinet desktop release...",
+      message: `Checking for a newer ${PRODUCT_NAME} desktop release...`,
     });
   });
 
@@ -326,7 +352,7 @@ function configureAutoUpdates() {
       state: "available",
       startedAt: new Date().toISOString(),
       installKind: "electron-macos",
-      message: "A new Cabinet desktop release is downloading in the background.",
+      message: `A new ${PRODUCT_NAME} desktop release is downloading in the background.`,
     });
   });
 
@@ -335,7 +361,7 @@ function configureAutoUpdates() {
       state: "idle",
       completedAt: new Date().toISOString(),
       installKind: "electron-macos",
-      message: "Cabinet desktop is up to date.",
+      message: `${PRODUCT_NAME} desktop is up to date.`,
     });
   });
 
@@ -344,7 +370,7 @@ function configureAutoUpdates() {
       state: "failed",
       completedAt: new Date().toISOString(),
       installKind: "electron-macos",
-      message: "Cabinet desktop update failed.",
+      message: `${PRODUCT_NAME} desktop update failed.`,
       error: error instanceof Error ? error.message : String(error),
     });
   });
@@ -354,7 +380,7 @@ function configureAutoUpdates() {
       state: "restart-required",
       completedAt: new Date().toISOString(),
       installKind: "electron-macos",
-      message: "Restart Cabinet to finish applying the desktop update.",
+      message: `Restart ${PRODUCT_NAME} to finish applying the desktop update.`,
     });
 
     const prompt = await dialog.showMessageBox(mainWindow, {
@@ -362,10 +388,10 @@ function configureAutoUpdates() {
       buttons: ["Restart to update", "Later"],
       defaultId: 0,
       cancelId: 1,
-      title: "Cabinet update ready",
-      message: "A new Cabinet desktop release is ready.",
+      title: `${PRODUCT_NAME} update ready`,
+      message: `A new ${PRODUCT_NAME} desktop release is ready.`,
       detail:
-        "Your desktop data stays outside the app bundle, but keeping a copy is still recommended while Cabinet is moving fast.",
+        `Your desktop data stays outside the app bundle, but keeping a copy is still recommended while ${PRODUCT_NAME} is moving fast.`,
     });
 
     if (prompt.response === 0) {
@@ -384,7 +410,7 @@ function cleanupBackends() {
 /**
  * macOS uninstall — removes the .app bundle, caches, preferences, saved
  * application state, web storage, and logs. Does NOT touch user data at
- * `~/Library/Application Support/Cabinet/cabinet-data` (the cabinet itself).
+ * the managed desktop data directory (the cabinet itself).
  *
  * Spawns a detached shell that waits 2s for the app to quit, then deletes
  * the targets and exits. Quitting from inside the running app can't delete
@@ -395,20 +421,18 @@ function macosUninstallApp() {
     return { ok: false, error: "Uninstall is macOS-only." };
   }
   const HOME = app.getPath("home");
-  const APP_NAME = "Cabinet";
-  const BUNDLE_ID = "com.runcabinet.cabinet";
-  // Targets exclude `~/Library/Application Support/Cabinet/` — that's user data.
+  // Targets exclude the app userData directory because that is user data.
   const targets = [
-    `/Applications/${APP_NAME}.app`,
-    `${HOME}/Library/Caches/${APP_NAME}`,
-    `${HOME}/Library/Caches/${BUNDLE_ID}`,
-    `${HOME}/Library/Caches/${BUNDLE_ID}.ShipIt`,
-    `${HOME}/Library/HTTPStorages/${BUNDLE_ID}`,
-    `${HOME}/Library/HTTPStorages/${BUNDLE_ID}.binarycookies`,
-    `${HOME}/Library/WebKit/${BUNDLE_ID}`,
-    `${HOME}/Library/Preferences/${BUNDLE_ID}.plist`,
-    `${HOME}/Library/Saved Application State/${BUNDLE_ID}.savedState`,
-    `${HOME}/Library/Logs/${APP_NAME}`,
+    `/Applications/${PRODUCT_NAME}.app`,
+    `${HOME}/Library/Caches/${PRODUCT_NAME}`,
+    `${HOME}/Library/Caches/${APP_BUNDLE_ID}`,
+    `${HOME}/Library/Caches/${APP_BUNDLE_ID}.ShipIt`,
+    `${HOME}/Library/HTTPStorages/${APP_BUNDLE_ID}`,
+    `${HOME}/Library/HTTPStorages/${APP_BUNDLE_ID}.binarycookies`,
+    `${HOME}/Library/WebKit/${APP_BUNDLE_ID}`,
+    `${HOME}/Library/Preferences/${APP_BUNDLE_ID}.plist`,
+    `${HOME}/Library/Saved Application State/${APP_BUNDLE_ID}.savedState`,
+    `${HOME}/Library/Logs/${PRODUCT_NAME}`,
   ];
   // Build a shell script that sleeps then rm -rfs each target.
   const rmLines = targets
@@ -465,8 +489,8 @@ async function createWindow() {
         await mainWindow.loadURL(nextUrl);
       } catch {
         dialog.showErrorBox(
-          "Cabinet Dev Server Unavailable",
-          `Electron could not reach the local Cabinet dev app.\n\nLast Chromium error: ${errorDescription} (${errorCode})\n\nStart \`npm run dev\` and try again.`
+          `${PRODUCT_NAME} Dev Server Unavailable`,
+          `Electron could not reach the local ${PRODUCT_NAME} dev app.\n\nLast Chromium error: ${errorDescription} (${errorCode})\n\nStart \`npm run dev\` and try again.`
         );
       }
     });

@@ -3,6 +3,8 @@
 import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
+import { OPTALE_PRODUCT } from "@/lib/optale/product";
+
 const subscribeToHydration = () => () => {};
 const getHydratedSnapshot = () => true;
 const getServerHydrationSnapshot = () => false;
@@ -46,7 +48,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-sm mx-auto p-6">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold tracking-[-0.03em]">Optale Observatory</h1>
+          <h1 className="text-2xl font-bold tracking-[-0.03em]">
+            {OPTALE_PRODUCT.name}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Enter password to continue
           </p>
