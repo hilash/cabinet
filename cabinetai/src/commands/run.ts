@@ -389,13 +389,21 @@ async function runCabinet(opts: {
 
   process.on("exit", cleanup);
 
-  process.on("SIGINT", () => {
-    for (const child of children) child.kill("SIGINT");
-  });
+  const forceKill = () => {
+    for (const child of children) {
+      try { child.kill("SIGKILL"); } catch { /* already dead */ }
+    }
+  };
 
-  process.on("SIGTERM", () => {
-    for (const child of children) child.kill("SIGTERM");
-  });
+  const gracefulShutdown = (sig: NodeJS.Signals) => {
+    for (const child of children) {
+      try { child.kill(sig); } catch { /* already dead */ }
+    }
+    setTimeout(forceKill, 5000).unref();
+  };
+
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
   // Wait for either child to exit
   let exited = 0;
