@@ -1,6 +1,11 @@
 import path from "path";
-import fs from "fs/promises";
-import { fileExists, ensureDirectory } from "@/lib/storage/fs-operations";
+import {
+  fileExists,
+  ensureDirectory,
+  listDirectory,
+  readFileContent,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 import { discoverCabinetPaths } from "@/lib/cabinets/discovery";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import { resolveCabinetDir } from "@/lib/cabinets/server-paths";
@@ -62,10 +67,9 @@ export async function createTask(
     updatedAt: new Date().toISOString(),
   };
 
-  await fs.writeFile(
+  await writeFileContent(
     taskFilePath(task.toAgent, full.id, cabinetPath),
-    JSON.stringify(full, null, 2),
-    "utf-8"
+    JSON.stringify(full, null, 2)
   );
 
   return full;
@@ -83,13 +87,13 @@ export async function getTasksForAgent(
   const dir = taskDir(agentSlug, cabinetPath);
   if (!(await fileExists(dir))) return [];
 
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const entries = await listDirectory(dir);
   const tasks: AgentTask[] = [];
 
   for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    if (entry.isDirectory || !entry.name.endsWith(".json")) continue;
     try {
-      const raw = await fs.readFile(path.join(dir, entry.name), "utf-8");
+      const raw = await readFileContent(path.join(dir, entry.name));
       const task: AgentTask = JSON.parse(raw);
       if (!statusFilter || task.status === statusFilter) {
         tasks.push(task);
@@ -121,7 +125,7 @@ export async function getTask(
   if (!(await fileExists(filePath))) return null;
 
   try {
-    const raw = await fs.readFile(filePath, "utf-8");
+    const raw = await readFileContent(filePath);
     return JSON.parse(raw);
   } catch {
     return null;
@@ -162,10 +166,9 @@ export async function updateTask(
     delete updated.completedAt;
   }
 
-  await fs.writeFile(
+  await writeFileContent(
     taskFilePath(agentSlug, taskId, cabinetPath),
-    JSON.stringify(updated, null, 2),
-    "utf-8"
+    JSON.stringify(updated, null, 2)
   );
 
   return updated;
@@ -188,9 +191,9 @@ export async function getAllTasks(
     const agentsDir = path.join(resolveCabinetDir(resolvedCabinetPath), ".agents");
     if (!(await fileExists(agentsDir))) continue;
 
-    const entries = await fs.readdir(agentsDir, { withFileTypes: true });
+    const entries = await listDirectory(agentsDir);
     for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      if (!entry.isDirectory || entry.name.startsWith(".")) continue;
       const tasks = await getTasksForAgent(
         entry.name,
         statusFilter,

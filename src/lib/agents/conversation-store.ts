@@ -1,5 +1,4 @@
 import { createHash } from "crypto";
-import fs from "fs/promises";
 import path from "path";
 import type {
   ConversationArtifact,
@@ -42,11 +41,14 @@ import {
 } from "./conversation-notification-utils";
 import { DATA_DIR, sanitizeFilename, virtualPathFromFs } from "../storage/path-utils";
 import {
+  appendFileContent,
   deleteFileOrDir,
   ensureDirectory,
   fileExists,
   listDirectory,
   readFileContent,
+  rename,
+  stat,
   writeFileContent,
 } from "../storage/fs-operations";
 
@@ -966,7 +968,7 @@ export async function appendConversationTranscript(
   cabinetPath?: string
 ): Promise<void> {
   await ensureDirectory(conversationDir(id, cabinetPath));
-  await fs.appendFile(transcriptPathFs(id, cabinetPath), chunk, "utf-8");
+  await appendFileContent(transcriptPathFs(id, cabinetPath), chunk);
 
   const now = Date.now();
   const lastAt = transcriptEventThrottle.get(id) ?? 0;
@@ -1011,11 +1013,11 @@ export async function sanitizeArtifactCabinetBlocks(
     const resolved = path.resolve(DATA_DIR, relPath);
     if (!resolved.startsWith(dataDirWithSep) && resolved !== DATA_DIR) continue;
     try {
-      const content = await fs.readFile(resolved, "utf8");
+      const content = await readFileContent(resolved);
       if (!CABINET_TRAILER_REGEX.test(content)) continue;
       const stripped = content.replace(CABINET_TRAILER_REGEX, "").replace(/\s+$/, "");
       const trailing = content.endsWith("\n") ? "\n" : "";
-      await fs.writeFile(resolved, stripped + trailing, "utf8");
+      await writeFileContent(resolved, stripped + trailing);
     } catch {
       // File missing or unreadable — skip. This is best-effort cleanup.
     }
@@ -1363,9 +1365,9 @@ export async function cleanupStaleStagingAttachments(
   const pendingDirs: string[] = [path.join(CONVERSATIONS_DIR, "_pending")];
   try {
     // Walk top-level dirs under DATA_DIR to find cabinet scopes.
-    const entries = await fs.readdir(DATA_DIR, { withFileTypes: true });
+    const entries = await listDirectory(DATA_DIR);
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
+      if (!entry.isDirectory) continue;
       if (entry.name === ".agents") continue; // root is already covered
       const cabinetPending = path.join(
         DATA_DIR,
@@ -1382,23 +1384,17 @@ export async function cleanupStaleStagingAttachments(
 
   for (const pendingDir of pendingDirs) {
     if (!(await fileExists(pendingDir))) continue;
-    let entries: import("fs").Dirent[];
-    try {
-      entries = (await fs.readdir(pendingDir, {
-        withFileTypes: true,
-      })) as unknown as import("fs").Dirent[];
-    } catch {
-      continue;
-    }
+    const entries = await listDirectory(pendingDir).catch(() => []);
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
+      if (!entry.isDirectory) continue;
       scanned += 1;
       const entryPath = path.join(pendingDir, entry.name);
       try {
-        const stat = await fs.stat(entryPath);
-        const age = now - stat.mtimeMs;
+        const info = await stat(entryPath);
+        if (!info) continue;
+        const age = now - info.mtime.getTime();
         if (age > maxAgeMs) {
-          await fs.rm(entryPath, { recursive: true, force: true });
+          await deleteFileOrDir(entryPath);
           removed += 1;
         }
       } catch (err) {
@@ -1474,21 +1470,17 @@ export async function moveStagingAttachments(args: {
   try {
     // Fast path: target doesn't exist, rename the whole dir.
     if (!(await fileExists(finalDirFs))) {
-      await fs.rename(stagingDirFs, finalDirFs);
+      await rename(stagingDirFs, finalDirFs);
     } else {
       // Slow path: target exists, move files one by one.
       const entries = await listDirectory(stagingDirFs);
       for (const entry of entries) {
         const from = path.join(stagingDirFs, entry.name);
         const to = path.join(finalDirFs, entry.name);
-        await fs.rename(from, to);
+        await rename(from, to);
       }
       // Drop the now-empty staging dir.
-      try {
-        await fs.rmdir(stagingDirFs);
-      } catch {
-        // ignore
-      }
+      await deleteFileOrDir(stagingDirFs).catch(() => {});
     }
   } catch (err) {
     console.warn(
@@ -1501,12 +1493,7 @@ export async function moveStagingAttachments(args: {
   }
 
   // Clean up the now-empty parent `{cabinet?}/_pending/{uuid}/` wrapper.
-  try {
-    const pendingWrapper = path.dirname(stagingDirFs);
-    await fs.rmdir(pendingWrapper);
-  } catch {
-    // ignore — either non-empty (other files) or already gone
-  }
+  await deleteFileOrDir(path.dirname(stagingDirFs)).catch(() => {});
 
   // Rewrite the virtual paths. The staging segment includes the cabinet
   // prefix (if any) + `.agents/.conversations/_pending/{uuid}/attachments/`
@@ -1770,7 +1757,7 @@ export async function appendEventLog(
     ts: new Date().toISOString(),
     ...event,
   });
-  await fs.appendFile(eventsLogFsPath(dir), `${payload}\n`, "utf-8");
+  await appendFileContent(eventsLogFsPath(dir), `${payload}\n`);
   return seq;
 }
 
