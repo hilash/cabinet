@@ -317,8 +317,10 @@ export function TreeNode({
       const fromPath = e.dataTransfer.getData("text/plain");
       if (!fromPath || fromPath === node.path) return;
 
-      // Don't drop onto own children
-      if (fromPath.startsWith(node.path + "/")) return;
+      // Don't drop a page into one of its own descendants (would be circular).
+      // The previous direction blocked dropping a child onto its parent's
+      // before/after zone — a legitimate way to reach the top level.
+      if (node.path.startsWith(fromPath + "/")) return;
 
       const fromName = fromPath.split("/").pop() || "";
       const nodeParent = node.path.split("/").slice(0, -1).join("/");
