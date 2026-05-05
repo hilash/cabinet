@@ -245,7 +245,10 @@ export async function computeInsertOrder(
       .filter((x) => x.name !== selfName)
       .find((x) => x.name === nextName)?.order;
     if (typeof refreshed === "number") return Math.max(refreshed - ORDER_GAP, 1);
-    return ORDER_GAP;
+    // nextName disappeared between renumber and re-read (e.g. concurrent
+    // delete). Land at 1 so the new item still sorts above whatever the
+    // post-renumber first sibling is — ORDER_GAP would tie with it.
+    return 1;
   }
 
   return ORDER_GAP;
