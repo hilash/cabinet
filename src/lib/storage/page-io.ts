@@ -1,4 +1,3 @@
-import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
 import yaml from "js-yaml";
@@ -12,6 +11,8 @@ import {
   fileExists,
   deleteFileOrDir,
   unlinkSymlink,
+  stat,
+  rename,
 } from "./fs-operations";
 import {
   appendOrder,
@@ -39,8 +40,8 @@ export async function readPage(virtualPath: string): Promise<PageData> {
     filePath = mdPath;
   } else if (await fileExists(resolved)) {
     // Could be a raw file or a directory — check for linked-folder metadata fallback.
-    const stat = await fs.stat(resolved);
-    if (stat.isFile()) {
+    const info = await stat(resolved);
+    if (info?.isFile) {
       filePath = resolved;
     }
   }
@@ -146,8 +147,8 @@ export async function createPage(
 
 export async function deletePage(virtualPath: string): Promise<void> {
   const resolved = resolveContentPath(virtualPath);
-  const stat = await fs.lstat(resolved).catch(() => null);
-  if (stat?.isSymbolicLink()) {
+  const info = await stat(resolved);
+  if (info?.isSymlink) {
     await unlinkSymlink(resolved);
   } else {
     await deleteFileOrDir(resolved);
@@ -175,20 +176,7 @@ export async function movePage(
 
   if (!isReorder) {
     await ensureDirectory(toDir);
-    const fsp = await import("fs/promises");
-    try {
-      await fsp.rename(fromResolved, toResolved);
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === "EXDEV") {
-        // Cross-device move (e.g. linked external cabinet on another mount).
-        // Fall back to recursive copy + delete.
-        await fsp.cp(fromResolved, toResolved, { recursive: true });
-        await fsp.rm(fromResolved, { recursive: true, force: true });
-      } else {
-        throw err;
-      }
-    }
+    await rename(fromResolved, toResolved);
     // Clean stale sidecar entry from source dir.
     await removeSidecarEntry(fromParentVirtual, name).catch(() => {});
   }
@@ -225,8 +213,7 @@ export async function renamePage(
 
   if (fromResolved === toResolved) return virtualPath;
 
-  const fs = await import("fs/promises");
-  await fs.rename(fromResolved, toResolved);
+  await rename(fromResolved, toResolved);
 
   // Update frontmatter title
   const indexMd = path.join(toResolved, "index.md");

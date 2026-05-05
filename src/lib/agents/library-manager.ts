@@ -1,8 +1,13 @@
 import path from "path";
-import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
-import { ensureDirectory, fileExists, readFileContent } from "@/lib/storage/fs-operations";
+import {
+  copyFile,
+  ensureDirectory,
+  fileExists,
+  listDirectory,
+  readFileContent,
+} from "@/lib/storage/fs-operations";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import { getDefaultProviderId } from "./provider-runtime";
@@ -74,7 +79,7 @@ export async function getTemplateRecommendedSkills(
   try {
     const templateDir = await resolveAgentTemplateDir(slug);
     if (!templateDir) return [];
-    const raw = await fs.readFile(path.join(templateDir, "persona.md"), "utf-8");
+    const raw = await readFileContent(path.join(templateDir, "persona.md"));
     const { data } = matter(raw);
     const recommended = data.recommendedSkills;
     if (!Array.isArray(recommended)) return [];
@@ -109,15 +114,15 @@ export function mergeMandatoryAgentSlugs(
 
 async function copyDirRecursive(src: string, dest: string): Promise<void> {
   await ensureDirectory(dest);
-  const entries = await fs.readdir(src, { withFileTypes: true });
+  const entries = await listDirectory(src);
   await Promise.all(
     entries.map(async (entry) => {
       const srcPath = path.join(src, entry.name);
       const destPath = path.join(dest, entry.name);
-      if (entry.isDirectory()) {
+      if (entry.isDirectory) {
         await copyDirRecursive(srcPath, destPath);
-      } else if (entry.isFile()) {
-        await fs.copyFile(srcPath, destPath);
+      } else if (!entry.isSymlink) {
+        await copyFile(srcPath, destPath);
       }
     })
   );

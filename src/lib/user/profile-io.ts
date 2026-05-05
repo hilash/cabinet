@@ -1,6 +1,10 @@
 import path from "path";
-import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  ensureDirectory,
+  readFileContent,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 
 export interface UserProfile {
   name: string;
@@ -26,7 +30,7 @@ const COMPANY_FILE = path.join(CONFIG_DIR, "company.json");
 
 async function readJson<T>(file: string): Promise<T | null> {
   try {
-    const raw = await fs.readFile(file, "utf-8");
+    const raw = await readFileContent(file);
     return JSON.parse(raw) as T;
   } catch {
     return null;
@@ -34,8 +38,8 @@ async function readJson<T>(file: string): Promise<T | null> {
 }
 
 async function writeJson(file: string, data: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(data, null, 2));
+  await ensureDirectory(path.dirname(file));
+  await writeFileContent(file, JSON.stringify(data, null, 2));
 }
 
 interface WorkspaceJsonV2 {

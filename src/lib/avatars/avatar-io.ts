@@ -1,6 +1,11 @@
 import path from "path";
-import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import {
+  deleteFileOrDir,
+  ensureDirectory,
+  readBinary,
+  writeBinary,
+} from "@/lib/storage/fs-operations";
 
 export const ALLOWED_AVATAR_EXT = new Set(["png", "jpg", "jpeg", "svg"]);
 export const MAX_AVATAR_BYTES = 1024 * 1024; // 1 MB
@@ -34,7 +39,7 @@ export async function clearAvatarFiles(
   prefix: string
 ): Promise<void> {
   for (const e of ALLOWED_AVATAR_EXT) {
-    await fs.unlink(
+    await deleteFileOrDir(
       path.join(
         /*turbopackIgnore: true*/ dir,
         /*turbopackIgnore: true*/ `${prefix}.${e}`
@@ -51,7 +56,7 @@ export async function readAvatarFile(
 ): Promise<Buffer | null> {
   if (!ALLOWED_AVATAR_EXT.has(ext)) return null;
   try {
-    return await fs.readFile(
+    return await readBinary(
       path.join(
         /*turbopackIgnore: true*/ dir,
         /*turbopackIgnore: true*/ `${prefix}.${ext}`
@@ -75,10 +80,10 @@ export async function writeAvatarFile(
   if (!ext) {
     return { ok: false, status: 415, error: "Unsupported type" };
   }
-  await fs.mkdir(dir, { recursive: true });
+  await ensureDirectory(dir);
   await clearAvatarFiles(dir, prefix);
   const buf = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(
+  await writeBinary(
     path.join(
       /*turbopackIgnore: true*/ dir,
       /*turbopackIgnore: true*/ `${prefix}.${ext}`

@@ -16,6 +16,11 @@ export async function register(): Promise<void> {
   } catch (err) {
     console.error("instrumentation: loadCabinetEnv failed", err);
   }
+  // Skip global-agent bootstrap in multi-tenant editions: there's no tenant
+  // scope at instrumentation time, so the write would either fail or leak
+  // across tenants. The lazy `readLibraryPersona` fallback in conversation-runner
+  // covers the missing-template case.
+  if (process.env.CABINET_EDITION === "cloud") return;
   try {
     const { ensureGlobalAgents } = await import("./lib/agents/library-manager");
     await ensureGlobalAgents();

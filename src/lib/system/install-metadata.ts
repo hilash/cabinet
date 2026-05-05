@@ -1,4 +1,3 @@
-import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
 import { simpleGit } from "simple-git";
@@ -7,6 +6,11 @@ import {
   DATA_INSTALL_METADATA_PATH,
   ROOT_INSTALL_METADATA_PATH,
 } from "@/lib/storage/path-utils";
+import {
+  ensureDirectory,
+  readFileContent,
+  writeFileContent,
+} from "@/lib/storage/fs-operations";
 import {
   isElectronRuntime,
   PROJECT_ROOT,
@@ -26,7 +30,7 @@ export async function readInstallMetadata(): Promise<InstallMetadata | null> {
 
   for (const candidate of candidates) {
     try {
-      const raw = await fs.readFile(candidate, "utf-8");
+      const raw = await readFileContent(candidate);
       return JSON.parse(raw) as InstallMetadata;
     } catch {
       // try next candidate
@@ -37,12 +41,14 @@ export async function readInstallMetadata(): Promise<InstallMetadata | null> {
 }
 
 export async function writeInstallMetadata(metadata: InstallMetadata): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.mkdir(path.dirname(DATA_INSTALL_METADATA_PATH), { recursive: true });
+  await ensureDirectory(DATA_DIR);
+  await ensureDirectory(path.dirname(DATA_INSTALL_METADATA_PATH));
 
   const payload = JSON.stringify(metadata, null, 2);
-  await fs.writeFile(ROOT_INSTALL_METADATA_PATH, payload, "utf-8");
-  await fs.writeFile(DATA_INSTALL_METADATA_PATH, payload, "utf-8");
+  // ROOT path lives in PROJECT_ROOT and may be read-only (cloud / packaged
+  // builds); failing here shouldn't block the DATA_DIR write.
+  await writeFileContent(ROOT_INSTALL_METADATA_PATH, payload).catch(() => {});
+  await writeFileContent(DATA_INSTALL_METADATA_PATH, payload);
 }
 
 export function detectInstallKind(metadata: InstallMetadata | null): InstallKind {
