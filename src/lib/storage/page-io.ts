@@ -174,6 +174,13 @@ export async function movePage(
   const isReorder = fromResolved === toResolved;
 
   if (!isReorder) {
+    if (await fileExists(toResolved)) {
+      throw new Error(
+        `An item named "${name}" already exists in ${
+          toParentPath ? `"${toParentPath}"` : "the root"
+        }. Rename or remove it first.`
+      );
+    }
     await ensureDirectory(toDir);
     const fsp = await import("fs/promises");
     try {
