@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import matter from "gray-matter";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { listAllPersonas } from "@/lib/agents/persona-manager";
 import { route } from "@/lib/runtime/route-wrapper";
 
@@ -160,9 +160,9 @@ export const GET = route(async () => {
       // any cabinet's .agents dir.
       const isGlobal = persona.scope === "global";
       const workspaceDir = isGlobal
-        ? path.join(DATA_DIR, ".global-agents", persona.slug, "workspace")
+        ? path.join(getDataDir(), ".global-agents", persona.slug, "workspace")
         : path.join(
-            DATA_DIR,
+            getDataDir(),
             persona.cabinetPath && persona.cabinetPath !== "." ? persona.cabinetPath : "",
             ".agents",
             persona.slug,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { readPersona } from "@/lib/agents/persona-manager";
 import { route } from "@/lib/runtime/route-wrapper";
 
@@ -14,7 +14,7 @@ async function scanDir(dir: string, basePath: string): Promise<Array<{ path: str
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
       const fullPath = path.join(dir, entry.name);
-      const relPath = path.relative(DATA_DIR, fullPath);
+      const relPath = path.relative(getDataDir(), fullPath);
       if (entry.isDirectory()) {
         const sub = await scanDir(fullPath, basePath);
         results.push(...sub);
@@ -41,16 +41,16 @@ export const GET = route(async (_req: NextRequest, { params }: RouteParams) => {
   const allFiles: Array<{ path: string; name: string; modified: string }> = [];
 
   // 1. Scan agent's private workspace
-  const workspaceDir = path.join(DATA_DIR, ".agents", slug, "workspace");
+  const workspaceDir = path.join(getDataDir(), ".agents", slug, "workspace");
   const workspaceFiles = await scanDir(workspaceDir, workspaceDir);
   allFiles.push(...workspaceFiles);
 
   // 2. Scan agent's output_dir (KB department folder) if configured
   const outputDir = (persona as unknown as Record<string, unknown>).output_dir as string | undefined;
   if (outputDir) {
-    const resolvedDir = path.resolve(DATA_DIR, outputDir.replace(/^\/data\//, ""));
-    // Safety: must be under DATA_DIR
-    if (resolvedDir.startsWith(DATA_DIR)) {
+    const resolvedDir = path.resolve(getDataDir(), outputDir.replace(/^\/data\//, ""));
+    // Safety: must be under getDataDir()
+    if (resolvedDir.startsWith(getDataDir())) {
       const outputFiles = await scanDir(resolvedDir, resolvedDir);
       allFiles.push(...outputFiles);
     }

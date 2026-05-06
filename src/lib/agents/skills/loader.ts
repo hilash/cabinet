@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import matter from "gray-matter";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import type {
   ListSkillsOptions,
@@ -27,7 +27,7 @@ function cabinetRootSkillsDir(): string {
 }
 
 function cabinetScopedSkillsDir(cabinetPath: string): string {
-  return path.join(DATA_DIR, cabinetPath, ".agents", "skills");
+  return path.join(getDataDir(), cabinetPath, ".agents", "skills");
 }
 
 function systemSkillsDirs(): string[] {

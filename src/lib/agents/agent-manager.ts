@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "child_process";
 import path from "path";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { getOneShotLaunchSpec } from "./provider-runtime";
 
 export interface AgentSession {
@@ -79,7 +79,7 @@ export async function runAgent(
     output: "",
   };
 
-  const cwd = workdir ? path.join(DATA_DIR, workdir) : DATA_DIR;
+  const cwd = workdir ? path.join(getDataDir(), workdir) : getDataDir();
   const launch = getOneShotLaunchSpec({
     providerId,
     prompt,
@@ -129,7 +129,7 @@ async function autoSummarize(session: AgentSession): Promise<void> {
   try {
     // Get recent git diff
     const diffProc = spawn("git", ["diff", "HEAD~1", "--stat"], {
-      cwd: DATA_DIR,
+      cwd: getDataDir(),
       stdio: ["pipe", "pipe", "pipe"],
     });
 

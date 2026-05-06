@@ -1,5 +1,5 @@
 import path from "path";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import {
   readPersona,
   readMemory,
@@ -48,7 +48,7 @@ async function buildHeartbeatContext(slug: string, cabinetPath?: string): Promis
 
   let focusContext = "";
   for (const focusPath of persona.focus) {
-    const indexPath = path.join(DATA_DIR, focusPath, "index.md");
+    const indexPath = path.join(getDataDir(), focusPath, "index.md");
     if (await fileExists(indexPath)) {
       const content = await readFileContent(indexPath);
       focusContext += `\n### ${focusPath}\n${content.slice(0, 500)}...\n`;
@@ -148,7 +148,7 @@ If you did not create or modify any file this heartbeat, still emit exactly one 
 
 Now execute your heartbeat. Check your focus areas, process inbox, review goals, and take action.`;
 
-  const baseCwd = cabinetPath ? path.join(DATA_DIR, cabinetPath) : DATA_DIR;
+  const baseCwd = cabinetPath ? path.join(getDataDir(), cabinetPath) : getDataDir();
   const cwd = persona.workdir === "/data" || persona.workdir === "/"
     ? baseCwd
     : path.join(baseCwd, persona.workdir.replace(/^\/+/, ""));
@@ -304,7 +304,7 @@ async function processHeartbeatOutput(
   // Auto-generate workspace index
   try {
     const fs = await import("fs/promises");
-    const agentsDir = cabinetPath ? path.join(DATA_DIR, cabinetPath, ".agents") : path.join(DATA_DIR, ".agents");
+    const agentsDir = cabinetPath ? path.join(getDataDir(), cabinetPath, ".agents") : path.join(getDataDir(), ".agents");
     const wsDir = path.join(agentsDir, slug, "workspace");
     const stats = await fs.stat(wsDir).catch(() => null);
     if (stats?.isDirectory()) {

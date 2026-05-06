@@ -1,4 +1,4 @@
-import { BACKUP_ROOT, DATA_DIR } from "@/lib/storage/path-utils";
+import { BACKUP_ROOT, getDataDir } from "@/lib/storage/path-utils";
 import { detectInstallState } from "@/lib/system/install-metadata";
 import { fetchLatestReleaseManifest, readBundledReleaseManifest } from "@/lib/system/release-manifest";
 import { compareVersions } from "@/lib/system/version-utils";
@@ -62,7 +62,7 @@ export async function getUpdateCheckResult(): Promise<UpdateCheckResult> {
     updateAvailable,
     canApplyUpdate,
     dirtyAppFiles: installState.dirtyAppFiles,
-    dataDir: DATA_DIR,
+    dataDir: getDataDir(),
     projectRoot: PROJECT_ROOT,
     backupRoot: BACKUP_ROOT,
     instructions: buildInstructions(

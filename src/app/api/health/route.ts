@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { detectInstallKind, readInstallMetadata } from "@/lib/system/install-metadata";
 import { readBundledReleaseManifest } from "@/lib/system/release-manifest";
 import { route } from "@/lib/runtime/route-wrapper";
@@ -15,6 +15,6 @@ export const GET = route(async () => {
     timestamp: new Date().toISOString(),
     version: manifest.version,
     installKind: detectInstallKind(metadata),
-    dataDir: DATA_DIR,
+    dataDir: getDataDir(),
   });
 });

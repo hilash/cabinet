@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 import { route } from "@/lib/runtime/route-wrapper";
 
@@ -42,7 +42,7 @@ Rules:
 
     const result = await runOneShotProviderPrompt({
       prompt,
-      cwd: DATA_DIR,
+      cwd: getDataDir(),
       timeoutMs: 120_000,
     });
 

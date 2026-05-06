@@ -6,7 +6,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
  * directory.
  *
  * In OSS this is never populated; `readTenantIdFromContext()` always returns
- * null and cabinet writes to the install's DATA_DIR directly.
+ * null and cabinet writes to the install's getDataDir() directly.
  *
  * In Cabinet Cloud, every request handler is wrapped with `withTenantContext`
  * (typically by a thin route adapter that reads `x-tenant-id` from

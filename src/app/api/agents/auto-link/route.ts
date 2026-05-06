@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildTree } from "@/lib/storage/tree-builder";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 import type { TreeNode } from "@/types";
 import { route } from "@/lib/runtime/route-wrapper";
@@ -36,7 +36,7 @@ If no pages are relevant, return []. Return ONLY the JSON array, nothing else.`;
 
     const result = await runOneShotProviderPrompt({
       prompt,
-      cwd: DATA_DIR,
+      cwd: getDataDir(),
       timeoutMs: 30_000,
     });
 

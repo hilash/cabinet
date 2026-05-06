@@ -1,10 +1,6 @@
 import fs from "fs";
 import path from "path";
-import {
-  CABINET_INTERNAL_DIR,
-  DATA_DIR,
-  FILE_SCHEMA_STATE_PATH,
-} from "@/lib/storage/path-utils";
+import { CABINET_INTERNAL_DIR, FILE_SCHEMA_STATE_PATH, getDataDir } from "@/lib/storage/path-utils";
 import type { DataMigration, FileSchemaState } from "@/types";
 import { createDataBackupSync } from "./backup";
 
@@ -26,7 +22,7 @@ function writeFileSchemaStateSync(state: FileSchemaState): void {
 }
 
 export function runFileMigrationsSync(): void {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(getDataDir(), { recursive: true });
   fs.mkdirSync(CABINET_INTERNAL_DIR, { recursive: true });
 
   const state = readFileSchemaStateSync();

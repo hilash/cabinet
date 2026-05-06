@@ -1,10 +1,10 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { getDaemonUrl as getConfiguredDaemonUrl } from "@/lib/runtime/runtime-config";
 
-const DAEMON_RUNTIME_DIR = path.join(DATA_DIR, ".agents", ".runtime");
+const DAEMON_RUNTIME_DIR = path.join(getDataDir(), ".agents", ".runtime");
 const DAEMON_TOKEN_PATH = path.join(DAEMON_RUNTIME_DIR, "daemon-token");
 
 let cachedToken: string | null = null;

@@ -1,5 +1,5 @@
 import simpleGit, { SimpleGit } from "simple-git";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { fileExists } from "@/lib/storage/fs-operations";
 import path from "path";
 
@@ -8,15 +8,15 @@ let git: SimpleGit | null = null;
 async function getGit(): Promise<SimpleGit | null> {
   if (git) return git;
 
-  const gitDir = path.join(/*turbopackIgnore: true*/ DATA_DIR, ".git");
+  const gitDir = path.join(/*turbopackIgnore: true*/ getDataDir(), ".git");
   if (await fileExists(gitDir)) {
-    git = simpleGit(DATA_DIR);
+    git = simpleGit(getDataDir());
     return git;
   }
 
   // Initialize git in data dir if not exists
   try {
-    git = simpleGit(DATA_DIR);
+    git = simpleGit(getDataDir());
     await git.init();
     await git.addConfig("user.email", "kb@cabinet.dev");
     await git.addConfig("user.name", "Cabinet");

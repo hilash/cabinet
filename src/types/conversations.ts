@@ -65,7 +65,7 @@ export interface ConversationTurn {
   error?: string;
   mentionedPaths?: string[];
   /**
-   * Composer attachments for this user turn. Virtual paths under DATA_DIR;
+   * Composer attachments for this user turn. Virtual paths under getDataDir();
    * typically `{cabinet?}/.agents/.conversations/{id}/attachments/{file}`.
    */
   attachmentPaths?: string[];
@@ -119,7 +119,7 @@ export interface ConversationMeta {
    * Composer attachments carried on the kickoff (turn-1) user message.
    * Continuation turns store their own attachments on the turn file; this
    * field just backs the synthetic turn-1 render. Virtual paths under
-   * DATA_DIR.
+   * getDataDir().
    */
   attachmentPaths?: string[];
   artifactPaths: string[];

@@ -3,7 +3,7 @@
  * implications follow. See docs/SKILLS_PLAN.md C4 for the full origin model.
  */
 export type SkillOrigin =
-  | "cabinet-scoped" // <DATA_DIR>/<cabinet>/.agents/skills/<key>/
+  | "cabinet-scoped" // <getDataDir()>/<cabinet>/.agents/skills/<key>/
   | "cabinet-root"   // <PROJECT_ROOT>/.agents/skills/<key>/
   | "linked-repo"    // <linked>/.agents/skills/<key>/ (via .repo.yaml; read-only)
   | "system"         // ~/.claude/skills/<key>/ or ~/.agents/skills/<key>/ (host-managed; read-only)
@@ -62,7 +62,7 @@ export interface SkillBundle extends SkillEntry {
 }
 
 export interface ListSkillsOptions {
-  /** When set, walks `<DATA_DIR>/<cabinetPath>/.agents/skills/` for cabinet-scoped skills. */
+  /** When set, walks `<getDataDir()>/<cabinetPath>/.agents/skills/` for cabinet-scoped skills. */
   cabinetPath?: string;
   /** Include host-installed skills from `~/.claude/skills/` and `~/.agents/skills/`. Default: true. */
   includeSystem?: boolean;

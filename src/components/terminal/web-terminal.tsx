@@ -10,7 +10,7 @@ interface WebTerminalProps {
   themeSurface?: "terminal" | "page";
   providerId?: string;
   adapterType?: string;
-  cwd?: string; // DATA_DIR-relative working directory for shell sessions
+  cwd?: string; // getDataDir()-relative working directory for shell sessions
   onClose: () => void;
 }
 

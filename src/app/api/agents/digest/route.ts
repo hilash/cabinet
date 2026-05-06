@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 import { listConversationMetas } from "@/lib/agents/conversation-store";
 import { route } from "@/lib/runtime/route-wrapper";
@@ -12,7 +12,7 @@ export const POST = route(async () => {
     try {
       const gitProc = await new Promise<string>((resolve, reject) => {
         const proc = spawn("git", ["log", "--since=yesterday", "--oneline", "--stat"], {
-          cwd: DATA_DIR,
+          cwd: getDataDir(),
           stdio: ["pipe", "pipe", "pipe"],
         });
         let out = "";
@@ -63,7 +63,7 @@ Keep it under 200 words. Be specific about what changed.`;
 
     const result = await runOneShotProviderPrompt({
       prompt,
-      cwd: DATA_DIR,
+      cwd: getDataDir(),
       timeoutMs: 60_000,
     });
 

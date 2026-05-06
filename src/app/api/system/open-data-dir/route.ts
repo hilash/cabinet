@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import path from "path";
 import { NextResponse } from "next/server";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +23,13 @@ function getOpenCommand(targetPath: string, reveal?: boolean): { command: string
 
 export const POST = route(async (request: Request) => {
   try {
-    let targetPath = DATA_DIR;
+    let targetPath = getDataDir();
 
     // Optional subpath to open a specific item
     const body = await request.json().catch(() => null);
     if (body?.subpath) {
-      const resolved = path.resolve(DATA_DIR, body.subpath);
-      if (!resolved.startsWith(DATA_DIR)) {
+      const resolved = path.resolve(getDataDir(), body.subpath);
+      if (!resolved.startsWith(getDataDir())) {
         return NextResponse.json({ error: "Invalid path" }, { status: 400 });
       }
       targetPath = resolved;

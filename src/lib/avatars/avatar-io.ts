@@ -1,5 +1,5 @@
 import path from "path";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import {
   deleteFileOrDir,
   ensureDirectory,
@@ -25,9 +25,9 @@ export function contentTypeForExt(ext: string): string {
   return "image/jpeg";
 }
 
-/** Ensures `resolved` is inside DATA_DIR; throws otherwise. */
+/** Ensures `resolved` is inside getDataDir(); throws otherwise. */
 export function assertInsideDataDir(resolved: string): void {
-  const root = path.resolve(DATA_DIR);
+  const root = path.resolve(getDataDir());
   if (!resolved.startsWith(root)) {
     throw new Error("Path traversal detected");
   }

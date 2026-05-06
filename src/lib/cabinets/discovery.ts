@@ -5,7 +5,7 @@ import { createTtlCache } from "@/lib/cache/ttl-cache";
 import { CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { cabinetPathFromFs } from "@/lib/cabinets/server-paths";
-import { DATA_DIR, isHiddenEntry } from "@/lib/storage/path-utils";
+import { isHiddenEntry, getDataDir } from "@/lib/storage/path-utils";
 import { fileExists, listDirectory } from "@/lib/storage/fs-operations";
 
 async function walkCabinets(
@@ -37,7 +37,7 @@ export function invalidateCabinetDiscoveryCache() {
 export async function discoverCabinetPaths(): Promise<string[]> {
   return discoveryCache.get("all", async () => {
     const results = [ROOT_CABINET_PATH];
-    await walkCabinets(DATA_DIR, results);
+    await walkCabinets(getDataDir(), results);
     return results;
   });
 }
@@ -65,6 +65,6 @@ function walkCabinetsSync(dir: string, results: string[]): void {
 
 export function discoverCabinetPathsSync(): string[] {
   const results = [ROOT_CABINET_PATH];
-  walkCabinetsSync(DATA_DIR, results);
+  walkCabinetsSync(getDataDir(), results);
   return results;
 }

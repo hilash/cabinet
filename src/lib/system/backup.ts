@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
-import { BACKUP_ROOT, DATA_DIR } from "@/lib/storage/path-utils";
+import { BACKUP_ROOT, getDataDir } from "@/lib/storage/path-utils";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 
 const PROJECT_BACKUP_IGNORES = new Set([
@@ -76,11 +76,11 @@ export async function createDataBackup(
   const backupRoot = path.join(BACKUP_ROOT, `${timestampToken()}-${reason}`);
   const destination = path.join(backupRoot, "data");
   await fs.mkdir(backupRoot, { recursive: true });
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.cp(DATA_DIR, destination, {
+  await fs.mkdir(getDataDir(), { recursive: true });
+  await fs.cp(getDataDir(), destination, {
     recursive: true,
     filter: (src) => {
-      const relative = path.relative(DATA_DIR, src);
+      const relative = path.relative(getDataDir(), src);
       if (!options.includeSkills && isSkillsRelative(relative)) return false;
       return true;
     },
@@ -107,11 +107,11 @@ export function createDataBackupSync(
   const backupRoot = path.join(BACKUP_ROOT, `${timestampToken()}-${reason}`);
   const destination = path.join(backupRoot, "data");
   fsSync.mkdirSync(backupRoot, { recursive: true });
-  fsSync.mkdirSync(DATA_DIR, { recursive: true });
-  fsSync.cpSync(DATA_DIR, destination, {
+  fsSync.mkdirSync(getDataDir(), { recursive: true });
+  fsSync.cpSync(getDataDir(), destination, {
     recursive: true,
     filter: (src) => {
-      const relative = path.relative(DATA_DIR, src);
+      const relative = path.relative(getDataDir(), src);
       if (!options.includeSkills && isSkillsRelative(relative)) return false;
       return true;
     },

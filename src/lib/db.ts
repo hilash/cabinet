@@ -2,14 +2,14 @@ import path from "path";
 import fs from "fs";
 import { createRequire } from "module";
 import type DatabaseConstructor from "better-sqlite3";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { runFileMigrationsSync } from "@/lib/system/file-migrations";
 import { runSqlMigrations } from "@/lib/system/sql-migrations";
 import { ensureBetterSqlite3 } from "@/lib/system/preflight-sqlite";
 
 const localRequire = createRequire(import.meta.url);
 
-const DB_PATH = path.join(DATA_DIR, ".cabinet.db");
+const DB_PATH = path.join(getDataDir(), ".cabinet.db");
 const MIGRATIONS_DIR = path.join(process.cwd(), "server", "migrations");
 
 type DBInstance = DatabaseConstructor.Database;
@@ -31,8 +31,8 @@ function loadDatabaseClass(): typeof DatabaseConstructor {
 export function getDb(): DBInstance {
   if (_db) return _db;
 
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(getDataDir())) {
+    fs.mkdirSync(getDataDir(), { recursive: true });
   }
 
   runFileMigrationsSync();

@@ -1,11 +1,7 @@
 import fsSync from "fs";
 import path from "path";
 import { simpleGit } from "simple-git";
-import {
-  DATA_DIR,
-  DATA_INSTALL_METADATA_PATH,
-  ROOT_INSTALL_METADATA_PATH,
-} from "@/lib/storage/path-utils";
+import { DATA_INSTALL_METADATA_PATH, ROOT_INSTALL_METADATA_PATH, getDataDir } from "@/lib/storage/path-utils";
 import {
   ensureDirectory,
   readFileContent,
@@ -41,12 +37,12 @@ export async function readInstallMetadata(): Promise<InstallMetadata | null> {
 }
 
 export async function writeInstallMetadata(metadata: InstallMetadata): Promise<void> {
-  await ensureDirectory(DATA_DIR);
+  await ensureDirectory(getDataDir());
   await ensureDirectory(path.dirname(DATA_INSTALL_METADATA_PATH));
 
   const payload = JSON.stringify(metadata, null, 2);
   // ROOT path lives in PROJECT_ROOT and may be read-only (cloud / packaged
-  // builds); failing here shouldn't block the DATA_DIR write.
+  // builds); failing here shouldn't block the getDataDir() write.
   await writeFileContent(ROOT_INSTALL_METADATA_PATH, payload).catch(() => {});
   await writeFileContent(DATA_INSTALL_METADATA_PATH, payload);
 }

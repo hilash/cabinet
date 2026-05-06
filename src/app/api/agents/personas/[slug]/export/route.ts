@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import matter from "gray-matter";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { readPersona } from "@/lib/agents/persona-manager";
 import { route } from "@/lib/runtime/route-wrapper";
 
@@ -16,7 +16,7 @@ export const GET = route(async (_req: NextRequest, { params }: RouteParams) => {
   }
 
   // Read the raw agent markdown file
-  const agentFile = path.join(DATA_DIR, ".agents", slug, "persona.md");
+  const agentFile = path.join(getDataDir(), ".agents", slug, "persona.md");
   let agentMd = "";
   try {
     agentMd = await fs.readFile(agentFile, "utf-8");
@@ -28,7 +28,7 @@ export const GET = route(async (_req: NextRequest, { params }: RouteParams) => {
 
   // Read workspace index.md if exists
   let workspaceIndex: string | null = null;
-  const wsIndexPath = path.join(DATA_DIR, ".agents", slug, "workspace", "index.md");
+  const wsIndexPath = path.join(getDataDir(), ".agents", slug, "workspace", "index.md");
   try {
     workspaceIndex = await fs.readFile(wsIndexPath, "utf-8");
   } catch { /* no workspace */ }

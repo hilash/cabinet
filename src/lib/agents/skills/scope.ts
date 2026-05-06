@@ -1,21 +1,21 @@
 import path from "path";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
-import { DATA_DIR, resolveContentPath } from "@/lib/storage/path-utils";
+import { resolveContentPath, getDataDir } from "@/lib/storage/path-utils";
 
 /**
  * Skill scopes are either `"root"` (or undefined) — meaning the cabinet-root
  * skills dir at `<project>/.agents/skills/` — or `"cabinet:<path>"` — meaning
- * the cabinet-scoped skills dir at `<DATA_DIR>/<path>/.agents/skills/`.
+ * the cabinet-scoped skills dir at `<getDataDir()>/<path>/.agents/skills/`.
  *
  * The cabinet-scoped form takes a user-supplied `<path>` from the request
  * body. Without validation, a value like `"cabinet:../../tmp/evil"` would
- * resolve outside `DATA_DIR`. This helper resolves the path through
- * `resolveContentPath`, which enforces the `DATA_DIR` boundary (CLAUDE.md
- * rule 4: "all resolved paths must start with DATA_DIR").
+ * resolve outside `getDataDir()`. This helper resolves the path through
+ * `resolveContentPath`, which enforces the `getDataDir()` boundary (CLAUDE.md
+ * rule 4: "all resolved paths must start with getDataDir()").
  *
  * Throws on:
  *   - any scope that isn't `"root"`, undefined, or `cabinet:<path>`
- *   - any cabinet path that resolves outside `DATA_DIR`
+ *   - any cabinet path that resolves outside `getDataDir()`
  */
 export function resolveSkillsScopeRoot(scope: string | undefined): string {
   if (!scope || scope === "root") {
@@ -28,7 +28,7 @@ export function resolveSkillsScopeRoot(scope: string | undefined): string {
   if (!cabinet || path.isAbsolute(cabinet)) {
     throw new Error(`Invalid cabinet scope: "${scope}".`);
   }
-  // resolveContentPath throws if the resolved path escapes DATA_DIR.
+  // resolveContentPath throws if the resolved path escapes getDataDir().
   const cabinetAbs = resolveContentPath(cabinet);
   return path.join(cabinetAbs, ".agents", "skills");
 }
@@ -57,4 +57,4 @@ export function isValidSkillKey(key: string): boolean {
 
 // Module-level guard: keep the constants reachable so a stray refactor
 // can't silently drop the boundary checks.
-void DATA_DIR;
+void getDataDir();

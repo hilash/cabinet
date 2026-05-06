@@ -1,10 +1,10 @@
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { providerRegistry } from "./provider-registry";
 
-const CONFIG_DIR = path.join(DATA_DIR, ".agents", ".config");
+const CONFIG_DIR = path.join(getDataDir(), ".agents", ".config");
 const PROVIDERS_FILE = path.join(CONFIG_DIR, "providers.json");
 
 export interface ProviderSettings {

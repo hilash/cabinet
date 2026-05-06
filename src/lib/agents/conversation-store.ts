@@ -1367,7 +1367,7 @@ export async function cleanupStaleStagingAttachments(
   // Collect candidate _pending dirs: the root one plus every cabinet's.
   const pendingDirs: string[] = [path.join(conversationsDir(), "_pending")];
   try {
-    // Walk top-level dirs under DATA_DIR to find cabinet scopes.
+    // Walk top-level dirs under getDataDir() to find cabinet scopes.
     const entries = await listDirectory(getDataDir());
     for (const entry of entries) {
       if (!entry.isDirectory) continue;
@@ -1382,7 +1382,7 @@ export async function cleanupStaleStagingAttachments(
       pendingDirs.push(cabinetPending);
     }
   } catch {
-    // ignore — DATA_DIR may not exist in some test envs
+    // ignore — getDataDir() may not exist in some test envs
   }
 
   for (const pendingDir of pendingDirs) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { route } from "@/lib/runtime/route-wrapper";
 
 interface EventLine {
@@ -29,8 +29,8 @@ export const GET = route(async (
 
   const cp = meta.cabinetPath || cabinetPath;
   const logPath = cp
-    ? path.join(DATA_DIR, cp, ".agents", ".conversations", id, "events.log")
-    : path.join(DATA_DIR, ".agents", ".conversations", id, "events.log");
+    ? path.join(getDataDir(), cp, ".agents", ".conversations", id, "events.log")
+    : path.join(getDataDir(), ".agents", ".conversations", id, "events.log");
 
   let events: EventLine[] = [];
   try {

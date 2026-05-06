@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import type { JobConfig, JobRun, JobPostAction } from "@/types/jobs";
 import type { ConversationMeta } from "@/types/conversations";
 import { readPage } from "../storage/page-io";
-import { DATA_DIR } from "../storage/path-utils";
+import { getDataDir } from "../storage/path-utils";
 import {
   defaultAdapterTypeForProvider,
   resolveExecutionProviderId,
@@ -298,7 +298,7 @@ async function buildMentionContext(mentionedPaths: string[]): Promise<string> {
 /**
  * Convert absolute virtual attachment paths to cwd-relative paths the
  * adapter can feed to its `Read` tool. The adapter runs with cwd set to
- * the cabinet dir (or DATA_DIR when there's no cabinet), so we strip the
+ * the cabinet dir (or getDataDir() when there's no cabinet), so we strip the
  * cabinet prefix when present and fall back to absolute paths otherwise.
  */
 function buildAttachmentContext(
@@ -313,7 +313,7 @@ function buildAttachmentContext(
     if (normalizedCabinet && clean.startsWith(`${normalizedCabinet}/`)) {
       return clean.slice(normalizedCabinet.length + 1);
     }
-    // No cabinet (root) — path is already relative to DATA_DIR which is
+    // No cabinet (root) — path is already relative to getDataDir() which is
     // the adapter cwd, so pass through.
     return clean;
   });
@@ -343,10 +343,10 @@ export async function buildManualConversationPrompt(input: {
 }> {
   const persona = await readPersona(input.agentSlug, input.cabinetPath);
   const mentionContext = await buildMentionContext(input.mentionedPaths || []);
-  const baseCwd = input.cabinetPath ? path.join(DATA_DIR, input.cabinetPath) : DATA_DIR;
+  const baseCwd = input.cabinetPath ? path.join(getDataDir(), input.cabinetPath) : getDataDir();
   const cwd =
     persona?.workdir && persona.workdir !== "/data"
-      ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
+      ? `${getDataDir()}/${persona.workdir.replace(/^\/+/, "")}`
       : baseCwd;
 
   // Merge persona's persisted skills with @-mentioned skills so the skill
@@ -427,10 +427,10 @@ export async function buildEditorConversationPrompt(input: {
     new Set([input.pagePath, ...(input.mentionedPaths || [])])
   );
   const mentionContext = await buildMentionContext(combinedMentionedPaths);
-  const baseCwd = input.cabinetPath ? path.join(DATA_DIR, input.cabinetPath) : DATA_DIR;
+  const baseCwd = input.cabinetPath ? path.join(getDataDir(), input.cabinetPath) : getDataDir();
   const cwd =
     persona?.workdir && persona.workdir !== "/data"
-      ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
+      ? `${getDataDir()}/${persona.workdir.replace(/^\/+/, "")}`
       : baseCwd;
 
   const mergedSkillKeys = Array.from(
@@ -864,7 +864,7 @@ async function processPostActions(
     try {
       if (action.action === "git_commit") {
         const simpleGit = (await import("simple-git")).default;
-        const git = simpleGit(DATA_DIR);
+        const git = simpleGit(getDataDir());
         await git.add(".");
         await git.commit(
           substituteTemplateVars(
@@ -886,7 +886,7 @@ export async function startJobConversation(
   const persona = job.agentSlug ? await readPersona(job.agentSlug, job.cabinetPath) : null;
   const defaultProviderId = getDefaultProviderId();
   const jobPrompt = substituteTemplateVars(job.prompt, job);
-  const baseCwd = job.cabinetPath ? path.join(DATA_DIR, job.cabinetPath) : DATA_DIR;
+  const baseCwd = job.cabinetPath ? path.join(getDataDir(), job.cabinetPath) : getDataDir();
   const cwd =
     job.workdir && job.workdir !== "/data" && job.workdir !== "/"
       ? path.join(baseCwd, job.workdir.replace(/^\/+/, ""))
@@ -1402,10 +1402,10 @@ export async function continueConversationRun(
     const legacyPersona = meta.agentSlug
       ? await readPersona(meta.agentSlug, cp)
       : null;
-    const legacyBaseCwd = cp ? path.join(DATA_DIR, cp) : DATA_DIR;
+    const legacyBaseCwd = cp ? path.join(getDataDir(), cp) : getDataDir();
     const legacyCwd =
       legacyPersona?.workdir && legacyPersona.workdir !== "/data"
-        ? `${DATA_DIR}/${legacyPersona.workdir.replace(/^\/+/, "")}`
+        ? `${getDataDir()}/${legacyPersona.workdir.replace(/^\/+/, "")}`
         : legacyBaseCwd;
 
     // 1. Try same-process continue: stdin-inject into the existing PTY.
@@ -1524,10 +1524,10 @@ export async function continueConversationRun(
   const persona = meta.agentSlug
     ? await readPersona(meta.agentSlug, cp)
     : null;
-  const baseCwd = cp ? path.join(DATA_DIR, cp) : DATA_DIR;
+  const baseCwd = cp ? path.join(getDataDir(), cp) : getDataDir();
   const cwd =
     persona?.workdir && persona.workdir !== "/data"
-      ? `${DATA_DIR}/${persona.workdir.replace(/^\/+/, "")}`
+      ? `${getDataDir()}/${persona.workdir.replace(/^\/+/, "")}`
       : baseCwd;
 
   // 4b. Re-mount skills for this turn so newly @-mentioned skills get
@@ -1948,7 +1948,7 @@ export async function compactConversation(
     history,
   ].join("\n");
 
-  const baseCwd = cp ? path.join(DATA_DIR, cp) : DATA_DIR;
+  const baseCwd = cp ? path.join(getDataDir(), cp) : getDataDir();
 
   // Append a pending compaction turn so the UI shows progress.
   const pending = await appendAgentTurn(

@@ -4,7 +4,7 @@ import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 import { resolveCabinetDir } from "@/lib/cabinets/server-paths";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { route } from "@/lib/runtime/route-wrapper";
 
 /**
@@ -227,10 +227,10 @@ export const GET = route(async (
 
   // Resolve the cwd the CLI was spawned with. For cabinet-scoped tasks this
   // is the cabinet's absolute dir (daemon's resolveSessionCwd falls back to
-  // DATA_DIR when no cwd was passed).
+  // getDataDir() when no cwd was passed).
   const cwd = meta.cabinetPath
     ? resolveCabinetDir(meta.cabinetPath)
-    : DATA_DIR;
+    : getDataDir();
 
   // Try session.json's resumeId first — written when the Claude stream-json
   // accumulator caught the session id during a one-shot run.

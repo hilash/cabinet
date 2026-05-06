@@ -5,7 +5,7 @@ import { createTtlCache } from "@/lib/cache/ttl-cache";
 import { CABINET_LINK_META_CANDIDATES, CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import type { TreeNode, GoogleFrontmatter } from "@/types";
-import { DATA_DIR, virtualPathFromFs, isHiddenEntry } from "./path-utils";
+import { getDataDir, virtualPathFromFs, isHiddenEntry } from "./path-utils";
 import { listDirectory, readFileContent, fileExists, realpath } from "./fs-operations";
 import { ORDER_SIDECAR } from "./order-store";
 
@@ -309,14 +309,14 @@ export async function buildTree(showHidden = false): Promise<TreeNode[]> {
 }
 
 async function buildTreeUncached(showHidden: boolean): Promise<TreeNode[]> {
-  const children = await buildTreeRecursive(DATA_DIR, new Set<string>(), showHidden);
-  const rootManifest = await readCabinetManifest(DATA_DIR);
+  const children = await buildTreeRecursive(getDataDir(), new Set<string>(), showHidden);
+  const rootManifest = await readCabinetManifest(getDataDir());
 
   if (Object.keys(rootManifest).length === 0) {
     return children;
   }
 
-  const rootIndexPath = path.join(DATA_DIR, "index.md");
+  const rootIndexPath = path.join(getDataDir(), "index.md");
   const rootFrontmatter = (await fileExists(rootIndexPath))
     ? await readFrontmatter(rootIndexPath)
     : {};

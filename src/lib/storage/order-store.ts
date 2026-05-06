@@ -1,7 +1,7 @@
 import path from "path";
 import matter from "gray-matter";
 import yaml from "js-yaml";
-import { DATA_DIR, resolveContentPath, isHiddenEntry } from "./path-utils";
+import { getDataDir, resolveContentPath, isHiddenEntry } from "./path-utils";
 import {
   readFileContent,
   writeFileContent,
@@ -14,7 +14,7 @@ export const ORDER_SIDECAR = ".cabinet-order.yaml";
 export const ORDER_GAP = 100;
 
 function parentDirAbs(parentVirtualPath: string): string {
-  return parentVirtualPath ? resolveContentPath(parentVirtualPath) : DATA_DIR;
+  return parentVirtualPath ? resolveContentPath(parentVirtualPath) : getDataDir();
 }
 
 async function readSidecar(parentDir: string): Promise<Record<string, number>> {

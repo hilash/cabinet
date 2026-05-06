@@ -3,7 +3,7 @@ import path from "path";
 import {
   CABINET_LINK_META_CANDIDATES,
 } from "@/lib/cabinets/files";
-import { DATA_DIR } from "./path-utils";
+import { getDataDir } from "./path-utils";
 
 export interface DirEntry {
   name: string;
@@ -165,5 +165,5 @@ export async function realpath(absPath: string): Promise<string> {
 }
 
 export async function ensureDataDir(): Promise<void> {
-  await ensureDirectory(DATA_DIR);
+  await ensureDirectory(getDataDir());
 }

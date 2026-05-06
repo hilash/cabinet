@@ -72,7 +72,7 @@ function gitClone(url: string, dest: string, ref?: string): Promise<void> {
 
 function resolveDestRoot(scope: string | undefined): string {
   // Accept "cabinet-root" as a legacy alias for "root"; otherwise delegate
-  // to the shared resolver, which enforces DATA_DIR boundary checks.
+  // to the shared resolver, which enforces getDataDir() boundary checks.
   if (scope === "cabinet-root") return resolveSkillsScopeRoot("root");
   return resolveSkillsScopeRoot(scope);
 }

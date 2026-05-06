@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import {
   GLOBAL_AGENTS_DIR,
@@ -71,8 +71,8 @@ export const POST = route(async (req: NextRequest) => {
     written?.scope === "global"
       ? path.join(GLOBAL_AGENTS_DIR, slug)
       : cabinetPath
-        ? path.join(DATA_DIR, cabinetPath, ".agents", slug)
-        : path.join(DATA_DIR, ".agents", slug);
+        ? path.join(getDataDir(), cabinetPath, ".agents", slug)
+        : path.join(getDataDir(), ".agents", slug);
   await ensureAgentScaffold(agentDir);
 
   await reloadDaemonSchedules().catch(() => {});

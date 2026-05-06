@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { readPersona, writePersona } from "@/lib/agents/persona-manager";
 import { route } from "@/lib/runtime/route-wrapper";
 
@@ -12,10 +12,10 @@ const MAX_BYTES = 1024 * 1024; // 1 MB
 
 function resolveAgentDir(slug: string, cabinetPath: string | undefined): string {
   const base = cabinetPath
-    ? path.join(DATA_DIR, cabinetPath, ".agents", slug)
-    : path.join(DATA_DIR, ".agents", slug);
+    ? path.join(getDataDir(), cabinetPath, ".agents", slug)
+    : path.join(getDataDir(), ".agents", slug);
   const resolved = path.resolve(base);
-  const root = path.resolve(DATA_DIR);
+  const root = path.resolve(getDataDir());
   if (!resolved.startsWith(root)) {
     throw new Error("Path traversal detected");
   }

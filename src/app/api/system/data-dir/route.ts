@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { INSTALL_CONFIG_PATH } from "@/lib/runtime/runtime-config";
 import { route } from "@/lib/runtime/route-wrapper";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /** GET — return the current data directory */
 export const GET = route(async () => {
-  return NextResponse.json({ dataDir: DATA_DIR });
+  return NextResponse.json({ dataDir: getDataDir() });
 });
 
 /** PUT — persist a new data directory (requires restart) */

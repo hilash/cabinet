@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 
 /**
@@ -75,7 +75,7 @@ async function walkRoot(workspace: string, subdir: string): Promise<ScanResult[]
 }
 
 export interface ScanOptions {
-  /** When set, scan only this cabinet (relative path under DATA_DIR). */
+  /** When set, scan only this cabinet (relative path under getDataDir()). */
   cabinetPath?: string;
   /** Linked repo paths to also scan (resolved from `.repo.yaml`). */
   linkedRepos?: string[];
@@ -89,19 +89,19 @@ export interface ScanOptions {
 export async function scanForSkills(opts: ScanOptions = {}): Promise<ScanResult[]> {
   const workspaces: string[] = [];
   if (opts.cabinetPath) {
-    workspaces.push(path.join(DATA_DIR, opts.cabinetPath));
+    workspaces.push(path.join(getDataDir(), opts.cabinetPath));
   } else {
     workspaces.push(PROJECT_ROOT);
-    // Also scan all top-level cabinet dirs under DATA_DIR if no specific cabinet.
+    // Also scan all top-level cabinet dirs under getDataDir() if no specific cabinet.
     try {
-      const entries = await fs.readdir(DATA_DIR, { withFileTypes: true });
+      const entries = await fs.readdir(getDataDir(), { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory() && !entry.name.startsWith(".")) {
-          workspaces.push(path.join(DATA_DIR, entry.name));
+          workspaces.push(path.join(getDataDir(), entry.name));
         }
       }
     } catch {
-      /* DATA_DIR missing — nothing to scan */
+      /* getDataDir() missing — nothing to scan */
     }
   }
   if (opts.linkedRepos) workspaces.push(...opts.linkedRepos);

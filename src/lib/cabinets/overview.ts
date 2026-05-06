@@ -13,10 +13,7 @@ import {
 } from "@/lib/cabinets/server-paths";
 import { cabinetVisibilityModeToDepth } from "@/lib/cabinets/visibility";
 import { fileExists, listDirectory, readFileContent } from "@/lib/storage/fs-operations";
-import {
-  DATA_DIR,
-  isHiddenEntry,
-} from "@/lib/storage/path-utils";
+import { isHiddenEntry, getDataDir } from "@/lib/storage/path-utils";
 import { GLOBAL_AGENTS_DIR } from "@/lib/agents/persona-manager";
 import type {
   CabinetAgentSummary,
@@ -133,12 +130,12 @@ async function findParentCabinetReference(
   const cabinetDir = resolveCabinetDir(cabinetVirtualPath);
   let cursor = path.dirname(cabinetDir);
 
-  while (cursor.startsWith(DATA_DIR)) {
+  while (cursor.startsWith(getDataDir())) {
     if (await fileExists(path.join(cursor, CABINET_MANIFEST_FILE))) {
       return readCabinetReferenceByPath(cabinetPathFromFs(cursor));
     }
 
-    if (cursor === DATA_DIR) break;
+    if (cursor === getDataDir()) break;
     const next = path.dirname(cursor);
     if (next === cursor) break;
     cursor = next;

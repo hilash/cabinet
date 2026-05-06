@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
 import matter from "gray-matter";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { writePersona } from "@/lib/agents/persona-manager";
 import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
 import { route } from "@/lib/runtime/route-wrapper";
@@ -20,7 +20,7 @@ export const POST = route(async (req: NextRequest) => {
     }
 
     let slug = bundle.agent.slug;
-    const agentDir = path.join(DATA_DIR, ".agents", slug);
+    const agentDir = path.join(getDataDir(), ".agents", slug);
     try {
       await fs.access(path.join(agentDir, "persona.md"));
       slug = `${slug}-imported-${Date.now().toString(36).slice(-4)}`;
@@ -48,7 +48,7 @@ export const POST = route(async (req: NextRequest) => {
       body: bundle.agent.body || "",
     });
 
-    const workspaceDir = path.join(DATA_DIR, ".agents", slug, "workspace");
+    const workspaceDir = path.join(getDataDir(), ".agents", slug, "workspace");
     await ensureDir(workspaceDir);
 
     if (bundle.workspaceIndex) {
@@ -58,9 +58,9 @@ export const POST = route(async (req: NextRequest) => {
       await fs.writeFile(path.join(workspaceDir, "index.md"), newWsContent, "utf-8");
     }
 
-    await ensureDir(path.join(DATA_DIR, ".agents", ".memory", slug));
-    await ensureDir(path.join(DATA_DIR, ".agents", slug, "workspace", "reports"));
-    await ensureDir(path.join(DATA_DIR, ".agents", slug, "workspace", "data"));
+    await ensureDir(path.join(getDataDir(), ".agents", ".memory", slug));
+    await ensureDir(path.join(getDataDir(), ".agents", slug, "workspace", "reports"));
+    await ensureDir(path.join(getDataDir(), ".agents", slug, "workspace", "data"));
 
     return NextResponse.json({
       success: true,

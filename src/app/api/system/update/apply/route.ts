@@ -1,7 +1,7 @@
 import path from "path";
 import { spawn } from "child_process";
 import { NextResponse } from "next/server";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { writeUpdateStatus } from "@/lib/system/update-status";
 import { getUpdateCheckResult } from "@/lib/system/update-service";
@@ -63,7 +63,7 @@ export const POST = route(async () => {
       stdio: "ignore",
       env: {
         ...process.env,
-        CABINET_DATA_DIR: DATA_DIR,
+        CABINET_DATA_DIR: getDataDir(),
         CABINET_INSTALL_KIND: "source-managed",
       },
     }
