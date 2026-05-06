@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { ensureDir, findCabinetRoot, slugify } from "./paths.js";
 import {
@@ -121,8 +122,35 @@ export function resolveCabinetRoot(
   };
 }
 
+function refuseBootstrap(label: string, resolved: string): never {
+  // Bootstrapping into HOME or filesystem root scribbles .agents/, .jobs/,
+  // .cabinet-state/, .cabinet, and index.md across the user's most important
+  // directory — and then crashes with ENOTDIR when ensureCabinetHome() tries
+  // to mkdir ~/.cabinet/app on top of the .cabinet manifest file. Refuse
+  // before scaffolding anything.
+  process.stderr.write(
+    `\x1b[31m✗\x1b[0m Refusing to create a cabinet in ${label} (${resolved}).\n` +
+      `  Cabinet would scaffold .agents/, .jobs/, .cabinet-state/, .cabinet, and index.md here.\n\n` +
+      `  Start in an empty directory instead:\n` +
+      `    mkdir my-cabinet && cd my-cabinet && npx cabinetai run\n\n` +
+      `  Or point at a specific empty directory with --data-dir:\n` +
+      `    npx cabinetai run --data-dir <empty-dir>\n`
+  );
+  process.exit(1);
+}
+
+function assertSafeBootstrapTarget(resolved: string): void {
+  if (resolved === path.resolve(os.homedir())) {
+    refuseBootstrap("your home directory", resolved);
+  }
+  if (resolved === path.parse(resolved).root) {
+    refuseBootstrap("the filesystem root", resolved);
+  }
+}
+
 export function bootstrapCabinetAt(targetDir: string): ResolvedCabinetRoot {
   const resolved = path.resolve(targetDir);
+  assertSafeBootstrapTarget(resolved);
   const name = inferCabinetName(resolved);
   scaffoldCabinetDir({
     targetDir: resolved,
