@@ -114,13 +114,20 @@ This makes it possible to attach over CDP and inspect real DOM, network, and scr
 
 ## Cabinetai CLI invariants
 
-The `cabinetai/` and `cli/` packages have a few non-obvious safety rules. Read these before "fixing" anything in their bootstrap path.
+### Where the npx tools live
 
-1. **`cabinetai/src/lib/scaffold.ts::bootstrapCabinetAt()` refuses to scaffold a cabinet when the resolved target is `os.homedir()` or the filesystem root.** Exits 1 with a friendly message recommending an empty subdir or `--data-dir <empty-dir>`. Covers cwd fallthrough, `--data-dir ~`, and `CABINET_DATA_DIR=~`. Closes #59 (PR #71, 2026-05-06).
+Both npm packages ship from this monorepo, not separate repos:
 
-2. **Do NOT "fix" this by relocating `CABINET_HOME`.** Moving it from `~/.cabinet/` to `~/.local/share/cabinetai/` (XDG) or anywhere else makes the historical ENOTDIR crash go away — but the crash was the safety net. Without it, running `cabinetai run` from `~` silently scribbles `.agents/`, `.jobs/`, `.cabinet-state/`, `index.md`, and a `.cabinet` manifest file directly into the user's home directory. PR #60 was closed for exactly this reason. The XDG move is fine as a *convention upgrade*, but it is not a bugfix and must not replace the guard.
+- **`cabinetai/`** — published as [`cabinetai`](https://www.npmjs.com/package/cabinetai). The full CLI: `create`, `run`, `update`, `doctor`, `import`, `list`, `uninstall`, `reset-config`. Built with esbuild from `cabinetai/src/`.
+- **`cli/index.cjs`** — published as [`create-cabinet`](https://www.npmjs.com/package/create-cabinet). A thin wrapper that calls `cabinetai create <dir>` and then `cabinetai run` in the new subdir. Pinned to a matching `cabinetai` version via its `dependencies`.
 
-3. **`create-cabinet` is `cli/index.cjs` in this repo**, not a separate package. Thin wrapper that calls `cabinetai create <dir>` and then `cabinetai run` in the new subdir. It's safe transitively: `cabinetai create` always scaffolds into `cwd/<slug>` and errors on empty slug (so `.`, `..`, `~`, `$HOME` all bounce).
+### Safety rules (read before "fixing" anything in the bootstrap path)
+
+1. **`cabinetai/src/lib/scaffold.ts::bootstrapCabinetAt()` refuses to scaffold a cabinet when the resolved target is `os.homedir()` or the filesystem root.** Exits 1 with a friendly message recommending an empty subdir or `--data-dir <empty-dir>`. Covers cwd fallthrough, `--data-dir ~`, and `CABINET_DATA_DIR=~`. See [#71](https://github.com/hilash/cabinet/pull/71) (closes [#59](https://github.com/hilash/cabinet/issues/59)).
+
+2. **Do NOT "fix" this by relocating `CABINET_HOME`.** That approach was rejected in [#60](https://github.com/hilash/cabinet/pull/60) — read the close comment for the full reasoning. The historical ENOTDIR crash was a safety net; removing it without the guard lets `cabinetai run` from `~` silently scribble `.agents/`, `.jobs/`, `.cabinet-state/`, `index.md`, and a `.cabinet` manifest file directly into the user's home directory.
+
+3. **`create-cabinet` (cli/index.cjs) is safe transitively** — `cabinetai create` always scaffolds into `cwd/<slug>` and errors on empty slug (so `.`, `..`, `~`, `$HOME` all bounce). The post-create `cabinetai run` then runs from the new subdir, never HOME. The guard in #71 is defense-in-depth.
 
 4. **When fixing a crash anywhere in the bootstrap/install path, trace what happens *before* the crash.** If the crash is the only thing stopping a worse silent outcome (HOME pollution, data loss, unrecoverable state), fix the root cause upstream instead of removing the crash.
 
