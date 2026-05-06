@@ -10,6 +10,7 @@ import {
 } from "@/lib/storage/path-utils";
 import { ensureDirectory, fileExists, writeFileContent } from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ async function detectGitMetadata(localPath: string): Promise<{
   }
 }
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   let symlinkCreated = false;
   let targetDir = "";
   let localPath = "";
@@ -188,4 +189,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

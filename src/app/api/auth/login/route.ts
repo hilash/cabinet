@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { route } from "@/lib/runtime/route-wrapper";
 
 const KB_PASSWORD = process.env.KB_PASSWORD || "";
 const AUTH_ENABLED = KB_PASSWORD.length > 0;
@@ -12,7 +13,7 @@ async function hashToken(password: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   if (!AUTH_ENABLED) {
     return NextResponse.json({ ok: true });
   }
@@ -34,4 +35,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ ok: true });
-}
+});

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { conversationEvents } from "@/lib/agents/conversation-events";
 import type { ConversationEvent } from "@/lib/agents/conversation-events";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,7 +11,7 @@ export const runtime = "nodejs";
  * list and /tasks index to auto-refresh on turn appends + task status
  * transitions. Per-conversation listeners still use /[id]/events.
  */
-export async function GET(req: NextRequest) {
+export const GET = route(async (req: NextRequest) => {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -55,4 +56,4 @@ export async function GET(req: NextRequest) {
       "X-Accel-Buffering": "no",
     },
   });
-}
+});

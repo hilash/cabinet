@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
+import { route } from "@/lib/runtime/route-wrapper";
 
-const CONFIG_DIR = path.join(DATA_DIR, ".agents", ".config");
-const WORKSPACE_FILE = path.join(CONFIG_DIR, "workspace.json");
-const COMPANY_FILE = path.join(CONFIG_DIR, "company.json");
+function configDir(): string { return path.join(getDataDir(), ".agents", ".config"); }
+function workspaceFile(): string { return path.join(configDir(), "workspace.json"); }
+function companyFile(): string { return path.join(configDir(), "company.json"); }
 
 async function readJson(file: string): Promise<Record<string, unknown> | null> {
   try {
@@ -16,14 +17,14 @@ async function readJson(file: string): Promise<Record<string, unknown> | null> {
   }
 }
 
-export async function GET() {
+export const GET = route(async () => {
   // Prefer the v2 workspace.json; fall back to legacy company.json.
-  const workspace = await readJson(WORKSPACE_FILE);
+  const workspace = await readJson(workspaceFile());
   if (workspace) {
     return NextResponse.json(workspace);
   }
 
-  const company = await readJson(COMPANY_FILE);
+  const company = await readJson(companyFile());
   if (company) {
     // Synthesize a v2-shaped payload so callers don't need to branch.
     const companyData =
@@ -45,16 +46,16 @@ export async function GET() {
   }
 
   return NextResponse.json({ exists: false });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   const body = await req.json();
 
-  await fs.mkdir(CONFIG_DIR, { recursive: true });
+  await fs.mkdir(configDir(), { recursive: true });
   // Write to the legacy file for backward compatibility with callers that
   // still POST the old shape. The canonical config is managed by the
   // onboarding setup route now.
-  await fs.writeFile(COMPANY_FILE, JSON.stringify(body, null, 2), "utf-8");
+  await fs.writeFile(companyFile(), JSON.stringify(body, null, 2), "utf-8");
 
   return NextResponse.json({ ok: true }, { status: 201 });
-}
+});

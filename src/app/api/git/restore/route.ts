@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { restoreFileFromCommit } from "@/lib/git/git-service";
 import path from "path";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const { hash, pagePath } = await req.json();
     if (!hash || !pagePath) {
@@ -36,4 +37,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -2,7 +2,7 @@ import path from "path";
 import matter from "gray-matter";
 import cron from "node-cron";
 import { createTtlCache } from "@/lib/cache/ttl-cache";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { discoverCabinetPaths } from "@/lib/cabinets/discovery";
 import { normalizeCabinetPath, ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import {
@@ -20,13 +20,12 @@ import type { GoalMetric, AgentType } from "@/types/agents";
 import { getDefaultProviderId } from "./provider-runtime";
 import { resolveEnabledProviderId } from "./provider-settings";
 
-const AGENTS_DIR = path.join(DATA_DIR, ".agents");
-const MEMORY_DIR = path.join(AGENTS_DIR, ".memory");
-const MESSAGES_DIR = path.join(AGENTS_DIR, ".messages");
-const HISTORY_DIR = path.join(AGENTS_DIR, ".history");
+function agentsDir(): string { return path.join(getDataDir(), ".agents"); }
 // Global agents live alongside cabinet data, not inside any cabinet's
 // .agents dir. One persona, one memory, one heartbeat — shared across cabinets.
-export const GLOBAL_AGENTS_DIR = path.join(DATA_DIR, ".global-agents");
+function globalAgentsDir(): string { return path.join(getDataDir(), ".global-agents"); }
+/** @deprecated module-load capture; use {@link globalAgentsDir} for tenant-aware paths */
+export const GLOBAL_AGENTS_DIR = path.join(getDataDir(), ".global-agents");
 
 export type PersonaScope = "global" | "cabinet";
 
@@ -40,22 +39,22 @@ export interface RecommendedSkill {
 }
 
 function resolveAgentsDir(cabinetPath?: string): string {
-  if (cabinetPath) return path.join(DATA_DIR, cabinetPath, ".agents");
-  return AGENTS_DIR;
+  if (cabinetPath) return path.join(getDataDir(), cabinetPath, ".agents");
+  return agentsDir();
 }
 
 async function isGlobalPersona(slug: string): Promise<boolean> {
-  return fileExists(path.join(GLOBAL_AGENTS_DIR, slug, "persona.md"));
+  return fileExists(path.join(globalAgentsDir(), slug, "persona.md"));
 }
 
-// State-path resolver: globals always route to GLOBAL_AGENTS_DIR regardless
+// State-path resolver: globals always route to globalAgentsDir() regardless
 // of which cabinet the call originated from. That's the whole point — one
 // memory dir, one heartbeat counter, shared across cabinets.
 async function resolveAgentsDirForSlug(
   slug: string,
   cabinetPath: string | undefined
 ): Promise<string> {
-  if (await isGlobalPersona(slug)) return GLOBAL_AGENTS_DIR;
+  if (await isGlobalPersona(slug)) return globalAgentsDir();
   const resolved = cabinetPath ?? (await findPersonaCabinetPath(slug));
   return resolveAgentsDir(resolved);
 }
@@ -103,9 +102,9 @@ export function normalizeAgentSlug(slug: string | null | undefined): string {
 export async function findPersonaCabinetPath(slug: string): Promise<string | undefined> {
   const cabinetPaths = await discoverCabinetPaths();
   for (const cp of cabinetPaths) {
-    const agentsDir =
-      cp === ROOT_CABINET_PATH ? AGENTS_DIR : path.join(DATA_DIR, cp, ".agents");
-    const candidate = path.join(agentsDir, slug, "persona.md");
+    const dir =
+      cp === ROOT_CABINET_PATH ? agentsDir() : path.join(getDataDir(), cp, ".agents");
+    const candidate = path.join(dir, slug, "persona.md");
     if (await fileExists(candidate)) {
       return cp === ROOT_CABINET_PATH ? undefined : cp;
     }
@@ -135,13 +134,13 @@ async function findPersonaSource(
       return { scope: "cabinet", agentsDir: dir, cabinetPath: preferredCabinetPath };
     }
   }
-  if (await fileExists(path.join(GLOBAL_AGENTS_DIR, slug, "persona.md"))) {
-    return { scope: "global", agentsDir: GLOBAL_AGENTS_DIR };
+  if (await fileExists(path.join(globalAgentsDir(), slug, "persona.md"))) {
+    return { scope: "global", agentsDir: globalAgentsDir() };
   }
   const cabinetPaths = await discoverCabinetPaths();
   for (const cp of cabinetPaths) {
     const dir =
-      cp === ROOT_CABINET_PATH ? AGENTS_DIR : path.join(DATA_DIR, cp, ".agents");
+      cp === ROOT_CABINET_PATH ? agentsDir() : path.join(getDataDir(), cp, ".agents");
     if (await fileExists(path.join(dir, slug, "persona.md"))) {
       return {
         scope: "cabinet",
@@ -265,11 +264,12 @@ function normalizeAdapterConfig(value: unknown): Record<string, unknown> | undef
 }
 
 export async function initAgentsDir(): Promise<void> {
-  await ensureDirectory(AGENTS_DIR);
-  await ensureDirectory(MEMORY_DIR);
-  await ensureDirectory(MESSAGES_DIR);
-  await ensureDirectory(HISTORY_DIR);
-  await ensureDirectory(GLOBAL_AGENTS_DIR);
+  const ag = agentsDir();
+  await ensureDirectory(ag);
+  await ensureDirectory(path.join(ag, ".memory"));
+  await ensureDirectory(path.join(ag, ".messages"));
+  await ensureDirectory(path.join(ag, ".history"));
+  await ensureDirectory(globalAgentsDir());
 }
 
 async function listPersonasInDir(
@@ -295,7 +295,7 @@ async function listPersonasInDir(
 export async function listGlobalPersonas(): Promise<AgentPersona[]> {
   // No cabinetPath — readPersona will route through findPersonaSource and
   // discover the global tier on its own.
-  return listPersonasInDir(GLOBAL_AGENTS_DIR, undefined);
+  return listPersonasInDir(globalAgentsDir(), undefined);
 }
 
 /**
@@ -418,7 +418,7 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
   };
 
   // Load stats — check agent dir first, then legacy shared dir.
-  // Globals route their legacy dir to GLOBAL_AGENTS_DIR/.memory.
+  // Globals route their legacy dir to globalAgentsDir()/.memory.
   const agentStatsPath = path.join(agentsDir, slug, "memory", "stats.json");
   const legacyStatsPath = path.join(agentsDir, ".memory", slug, "stats.json");
   const statsPath = (await fileExists(agentStatsPath)) ? agentStatsPath : legacyStatsPath;

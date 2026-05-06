@@ -4,6 +4,7 @@ import { resolveContentPath } from "@/lib/storage/path-utils";
 import { ensureDirectory, fileExists } from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
 import fs from "fs/promises";
+import { route } from "@/lib/runtime/route-wrapper";
 
 type RouteParams = { params: Promise<{ path: string[] }> };
 
@@ -31,7 +32,7 @@ function hasExecutableExtension(filename: string): boolean {
   return EXECUTABLE_EXTENSIONS.has(ext);
 }
 
-export async function POST(req: NextRequest, { params }: RouteParams) {
+export const POST = route(async (req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -101,9 +102,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: RouteParams) {
+export const DELETE = route(async (req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -132,4 +133,4 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

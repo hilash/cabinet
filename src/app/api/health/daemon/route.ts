@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDaemonUrl } from "@/lib/runtime/runtime-config";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const res = await fetch(`${getDaemonUrl()}/health`, {
       signal: AbortSignal.timeout(3000),
@@ -14,4 +15,4 @@ export async function GET() {
   } catch {
     return NextResponse.json({ status: "unreachable" }, { status: 502 });
   }
-}
+});

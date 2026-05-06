@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import matter from "gray-matter";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { scaffoldCabinet } from "@/lib/storage/cabinet-scaffold";
 import {
   copyFile,
@@ -18,10 +18,11 @@ import {
 } from "@/lib/agents/library-manager";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 import { getRoomConfig, type RoomType } from "@/lib/onboarding/rooms";
+import { route } from "@/lib/runtime/route-wrapper";
 
-const AGENTS_DIR = path.join(DATA_DIR, ".agents");
-const CONFIG_DIR = path.join(AGENTS_DIR, ".config");
-const CHAT_DIR = path.join(DATA_DIR, ".chat");
+function agentsDir(): string { return path.join(getDataDir(), ".agents"); }
+function configDir(): string { return path.join(agentsDir(), ".config"); }
+function chatDir(): string { return path.join(getDataDir(), ".chat"); }
 
 interface OnboardingRequest {
   homeName?: string;
@@ -58,7 +59,7 @@ async function writeIfMissing(absPath: string, content: string): Promise<void> {
   await writeFileContent(absPath, content);
 }
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const body = (await req.json()) as OnboardingRequest;
     const { answers } = body;
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Save workspace config (v2 shape, forward-compatible with multi-room).
-    await ensureDirectory(CONFIG_DIR);
+    await ensureDirectory(configDir());
     const workspaceConfig = {
       exists: true,
       version: 2,
@@ -102,13 +103,13 @@ export async function POST(req: NextRequest) {
       setupDate: new Date().toISOString(),
     };
     await writeFileContent(
-      path.join(CONFIG_DIR, "workspace.json"),
+      path.join(configDir(), "workspace.json"),
       JSON.stringify(workspaceConfig, null, 2)
     );
 
     // Legacy company.json — keeps old code paths working (config route fallback, etc.)
     await writeFileContent(
-      path.join(CONFIG_DIR, "company.json"),
+      path.join(configDir(), "company.json"),
       JSON.stringify(
         {
           exists: true,
@@ -127,7 +128,7 @@ export async function POST(req: NextRequest) {
     );
 
     // 2. Bootstrap root cabinet structure (cabinet protocol compliance)
-    await scaffoldCabinet(DATA_DIR, {
+    await scaffoldCabinet(getDataDir(), {
       name: workspaceName,
       kind: "root",
       description: answers.description,
@@ -138,20 +139,20 @@ export async function POST(req: NextRequest) {
 
     // 3. Mark onboarding as complete
     await writeFileContent(
-      path.join(CONFIG_DIR, "onboarding-complete.json"),
+      path.join(configDir(), "onboarding-complete.json"),
       JSON.stringify({ completed: true, date: new Date().toISOString() })
     );
 
     // Also write the old-format config so existing config check works
     await writeFileContent(
-      path.join(AGENTS_DIR, ".config.json"),
+      path.join(agentsDir(), ".config.json"),
       JSON.stringify({ exists: true })
     ).catch(() => {});
 
     // 4. Instantiate selected agents from library templates
     for (const slug of selectedAgents) {
       const templateDir = path.join(libraryDir, slug);
-      const targetDir = path.join(AGENTS_DIR, slug);
+      const targetDir = path.join(agentsDir(), slug);
 
       if (!(await fileExists(templateDir))) {
         if (mandatorySlugs.includes(slug)) {
@@ -191,7 +192,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Create chat channels from all agent channel references
-    await ensureDirectory(CHAT_DIR);
+    await ensureDirectory(chatDir());
 
     // Collect all channels referenced by agents + map members
     const channelMembers = new Map<string, Set<string>>();
@@ -200,7 +201,7 @@ export async function POST(req: NextRequest) {
 
     for (const slug of selectedAgents) {
       try {
-        const personaPath = path.join(AGENTS_DIR, slug, "persona.md");
+        const personaPath = path.join(agentsDir(), slug, "persona.md");
         const raw = await readFileContent(personaPath);
         const { data } = matter(raw);
         const agentChannels = (data.channels as string[]) || [];
@@ -253,13 +254,13 @@ export async function POST(req: NextRequest) {
     );
 
     await writeFileContent(
-      path.join(CHAT_DIR, "channels.json"),
+      path.join(chatDir(), "channels.json"),
       JSON.stringify(channels, null, 2)
     );
 
     // Create channel directories
     for (const ch of channels) {
-      const chDir = path.join(CHAT_DIR, ch.slug);
+      const chDir = path.join(chatDir(), ch.slug);
       await ensureDirectory(chDir);
       // Only create files if they don't exist (don't wipe existing messages)
       await writeIfMissing(path.join(chDir, "messages.md"), "");
@@ -271,4 +272,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

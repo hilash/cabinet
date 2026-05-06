@@ -14,6 +14,7 @@ import {
   getProviderUsage,
   updateProviderSettingsWithMigrations,
 } from "@/lib/agents/provider-management";
+import { route } from "@/lib/runtime/route-wrapper";
 
 // Short in-memory cache: the GET response is driven by spawning 8 CLI probes,
 // and the page fires this endpoint on every mount. Cache shared across requests.
@@ -92,7 +93,7 @@ async function buildResponse() {
   };
 }
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const now = Date.now();
     if (cachedResponse && cachedResponse.expiresAt > now) {
@@ -110,9 +111,9 @@ export async function GET() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function PUT(req: Request) {
+export const PUT = route(async (req: Request) => {
   try {
     cachedResponse = null;
     const body = await req.json();
@@ -166,4 +167,4 @@ export async function PUT(req: Request) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

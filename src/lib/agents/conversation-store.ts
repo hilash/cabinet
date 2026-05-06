@@ -39,7 +39,7 @@ import {
   shouldEnqueueConversationNotification,
   shouldEnqueueConversationStart,
 } from "./conversation-notification-utils";
-import { DATA_DIR, sanitizeFilename, virtualPathFromFs } from "../storage/path-utils";
+import { getDataDir, sanitizeFilename, virtualPathFromFs } from "../storage/path-utils";
 import {
   appendFileContent,
   deleteFileOrDir,
@@ -52,11 +52,13 @@ import {
   writeFileContent,
 } from "../storage/fs-operations";
 
-export const CONVERSATIONS_DIR = path.join(DATA_DIR, ".agents", ".conversations");
+function conversationsDir(): string { return path.join(getDataDir(), ".agents", ".conversations"); }
+/** @deprecated module-load capture; use {@link conversationsDir} for tenant-aware paths. */
+export const CONVERSATIONS_DIR = path.join(getDataDir(), ".agents", ".conversations");
 
 function resolveConversationsDir(cabinetPath?: string): string {
-  if (cabinetPath) return path.join(DATA_DIR, cabinetPath, ".agents", ".conversations");
-  return CONVERSATIONS_DIR;
+  if (cabinetPath) return path.join(getDataDir(), cabinetPath, ".agents", ".conversations");
+  return conversationsDir();
 }
 
 // ── In-memory notification queue for conversation start + terminal events ──
@@ -288,7 +290,7 @@ function normalizeSingleArtifactCandidate(raw: string): string | null {
     return candidate.replace(/^\/data\//, "");
   }
 
-  if (candidate.startsWith(DATA_DIR)) {
+  if (candidate.startsWith(getDataDir())) {
     return virtualPathFromFs(candidate);
   }
 
@@ -1007,11 +1009,12 @@ const CABINET_TRAILER_REGEX = /\n*```cabinet\b[\s\S]*?\n```[\s\r\n]*$/i;
 export async function sanitizeArtifactCabinetBlocks(
   artifactPaths: string[]
 ): Promise<void> {
-  const dataDirWithSep = DATA_DIR.endsWith(path.sep) ? DATA_DIR : DATA_DIR + path.sep;
+  const dataDir = getDataDir();
+  const dataDirWithSep = dataDir.endsWith(path.sep) ? dataDir : dataDir + path.sep;
   for (const relPath of artifactPaths) {
     if (!relPath.toLowerCase().endsWith(".md")) continue;
-    const resolved = path.resolve(DATA_DIR, relPath);
-    if (!resolved.startsWith(dataDirWithSep) && resolved !== DATA_DIR) continue;
+    const resolved = path.resolve(dataDir, relPath);
+    if (!resolved.startsWith(dataDirWithSep) && resolved !== dataDir) continue;
     try {
       const content = await readFileContent(resolved);
       if (!CABINET_TRAILER_REGEX.test(content)) continue;
@@ -1362,15 +1365,15 @@ export async function cleanupStaleStagingAttachments(
   let removed = 0;
 
   // Collect candidate _pending dirs: the root one plus every cabinet's.
-  const pendingDirs: string[] = [path.join(CONVERSATIONS_DIR, "_pending")];
+  const pendingDirs: string[] = [path.join(conversationsDir(), "_pending")];
   try {
     // Walk top-level dirs under DATA_DIR to find cabinet scopes.
-    const entries = await listDirectory(DATA_DIR);
+    const entries = await listDirectory(getDataDir());
     for (const entry of entries) {
       if (!entry.isDirectory) continue;
       if (entry.name === ".agents") continue; // root is already covered
       const cabinetPending = path.join(
-        DATA_DIR,
+        getDataDir(),
         entry.name,
         ".agents",
         ".conversations",

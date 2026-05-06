@@ -1,8 +1,8 @@
 import path from "path";
 import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 
-const CONFIG_FILE = path.join(DATA_DIR, ".agents", ".config", "integrations.json");
+function configFile(): string { return path.join(getDataDir(), ".agents", ".config", "integrations.json"); }
 
 interface NotificationConfig {
   notifications: {
@@ -15,7 +15,7 @@ interface NotificationConfig {
 
 async function loadConfig(): Promise<NotificationConfig | null> {
   try {
-    const raw = await fs.readFile(CONFIG_FILE, "utf-8");
+    const raw = await fs.readFile(configFile(), "utf-8");
     return JSON.parse(raw);
   } catch {
     return null;

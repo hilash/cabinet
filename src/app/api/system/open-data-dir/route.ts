@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import path from "path";
 import { NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ function getOpenCommand(targetPath: string, reveal?: boolean): { command: string
   }
 }
 
-export async function POST(request: Request) {
+export const POST = route(async (request: Request) => {
   try {
     let targetPath = DATA_DIR;
 
@@ -60,4 +61,4 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

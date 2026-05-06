@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { readPersona } from "@/lib/agents/persona-manager";
+import { route } from "@/lib/runtime/route-wrapper";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -30,7 +31,7 @@ async function scanDir(dir: string, basePath: string): Promise<Array<{ path: str
   return results;
 }
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export const GET = route(async (_req: NextRequest, { params }: RouteParams) => {
   const { slug } = await params;
   const persona = await readPersona(slug);
   if (!persona) {
@@ -62,4 +63,4 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     files: allFiles,
     outputDir: outputDir || null,
   });
-}
+});

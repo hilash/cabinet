@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { detectInstallKind, readInstallMetadata } from "@/lib/system/install-metadata";
 import { readBundledReleaseManifest } from "@/lib/system/release-manifest";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET() {
+export const GET = route(async () => {
   const [metadata, manifest] = await Promise.all([
     readInstallMetadata(),
     readBundledReleaseManifest(),
@@ -16,4 +17,4 @@ export async function GET() {
     installKind: detectInstallKind(metadata),
     dataDir: DATA_DIR,
   });
-}
+});

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildTree } from "@/lib/storage/tree-builder";
 import { ensureDataDir } from "@/lib/storage/fs-operations";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(request: NextRequest) {
+export const GET = route(async (request: NextRequest) => {
   try {
     await ensureDataDir();
     const showHidden = request.nextUrl.searchParams.get("showHidden") === "1";
@@ -12,4 +13,4 @@ export async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

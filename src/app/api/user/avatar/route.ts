@@ -13,6 +13,7 @@ import {
   USER_AVATAR_PREFIX,
   writeUserProfile,
 } from "@/lib/user/profile-io";
+import { route } from "@/lib/runtime/route-wrapper";
 
 function resolveDir(): string {
   const dir = path.resolve(getUserAvatarDir());
@@ -20,7 +21,7 @@ function resolveDir(): string {
   return dir;
 }
 
-export async function GET(req: NextRequest) {
+export const GET = route(async (req: NextRequest) => {
   const ext = (req.nextUrl.searchParams.get("ext") || "").toLowerCase();
   if (!ALLOWED_AVATAR_EXT.has(ext)) {
     return NextResponse.json({ error: "Invalid extension" }, { status: 400 });
@@ -36,9 +37,9 @@ export async function GET(req: NextRequest) {
       "Cache-Control": "no-cache",
     },
   });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   const form = await req.formData();
   const file = form.get("file");
   if (!file || typeof file === "string") {
@@ -51,11 +52,11 @@ export async function POST(req: NextRequest) {
   }
   await writeUserProfile({ avatar: "custom", avatarExt: result.ext });
   return NextResponse.json({ ok: true, ext: result.ext });
-}
+});
 
-export async function DELETE() {
+export const DELETE = route(async () => {
   const dir = resolveDir();
   await clearAvatarFiles(dir, USER_AVATAR_PREFIX);
   await writeUserProfile({ avatar: "", avatarExt: "" });
   return NextResponse.json({ ok: true });
-}
+});

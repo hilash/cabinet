@@ -3,10 +3,11 @@ import path from "path";
 import yaml from "js-yaml";
 import { NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const raw = await fs.readFile(path.join(DATA_DIR, ".cabinet"), "utf-8");
     const manifest = yaml.load(raw) as Record<string, unknown>;
@@ -14,4 +15,4 @@ export async function GET() {
   } catch {
     return NextResponse.json({ exists: false });
   }
-}
+});

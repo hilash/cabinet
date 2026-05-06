@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readCabinetOverview } from "@/lib/cabinets/overview";
 import { parseCabinetVisibilityMode } from "@/lib/cabinets/visibility";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(request: NextRequest) {
+export const GET = route(async (request: NextRequest) => {
   const cabinetPath = request.nextUrl.searchParams.get("path");
   const visibilityMode = parseCabinetVisibilityMode(
     request.nextUrl.searchParams.get("visibility")
@@ -20,4 +21,4 @@ export async function GET(request: NextRequest) {
     const status = message.includes("not found") ? 404 : 500;
     return NextResponse.json({ error: message }, { status });
   }
-}
+});

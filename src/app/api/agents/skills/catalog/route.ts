@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import matter from "gray-matter";
 import { fetchAuditsBatch, type AuditSummary } from "@/lib/agents/skills/audits";
+import { route } from "@/lib/runtime/route-wrapper";
 
 /**
  * GET /api/agents/skills/catalog
@@ -224,7 +225,7 @@ async function fetchSkillMeta(
   }
 }
 
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = route(async (request: Request) => {
   const url = new URL(request.url);
   const owner = url.searchParams.get("owner") || undefined;
   const repo = url.searchParams.get("repo") || undefined;
@@ -300,4 +301,4 @@ export async function GET(request: Request): Promise<NextResponse> {
   setCached(searchCache, q, enriched, SEARCH_TTL_MS);
 
   return NextResponse.json({ mode: "search", source: "fresh", query: q, skills: enriched });
-}
+});

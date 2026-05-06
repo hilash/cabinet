@@ -1,6 +1,6 @@
 import path from "path";
 import matter from "gray-matter";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import {
   copyFile,
   ensureDirectory,
@@ -15,7 +15,9 @@ import { resolveEnabledProviderId } from "./provider-settings";
 import { GLOBAL_AGENTS_DIR, type AgentPersona, type RecommendedSkill } from "./persona-manager";
 import { ensureAgentScaffold } from "./scaffold";
 
-export const SEEDED_AGENT_LIBRARY_DIR = path.join(DATA_DIR, ".agents", ".library");
+function seededAgentLibraryDir(): string { return path.join(getDataDir(), ".agents", ".library"); }
+/** @deprecated module-load capture; use {@link seededAgentLibraryDir} */
+export const SEEDED_AGENT_LIBRARY_DIR = path.join(getDataDir(), ".agents", ".library");
 export const SOURCE_AGENT_LIBRARY_DIR = path.join(
   PROJECT_ROOT,
   "src",
@@ -44,7 +46,7 @@ export function getMandatoryAgentSlugs(roomType?: RoomType | string): readonly s
 }
 
 export async function resolveAgentLibraryDir(): Promise<string | null> {
-  for (const dir of [SEEDED_AGENT_LIBRARY_DIR, SOURCE_AGENT_LIBRARY_DIR]) {
+  for (const dir of [seededAgentLibraryDir(), SOURCE_AGENT_LIBRARY_DIR]) {
     if (await fileExists(dir)) {
       return dir;
     }

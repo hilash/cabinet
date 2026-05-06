@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { providerRegistry } from "@/lib/agents/provider-registry";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface CachedStatus {
   providers: { id: string; name: string; available: boolean; authenticated: boolean }[];
@@ -10,7 +11,7 @@ let cachedResult: CachedStatus | null = null;
 let cachedAt = 0;
 const CACHE_TTL = 30_000;
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const now = Date.now();
     if (cachedResult && now - cachedAt < CACHE_TTL) {
@@ -43,4 +44,4 @@ export async function GET() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

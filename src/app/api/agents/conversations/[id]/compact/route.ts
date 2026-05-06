@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { compactConversation } from "@/lib/agents/conversation-runner";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST(
+export const POST = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
 
@@ -22,4 +23,4 @@ export async function POST(
   });
 
   return NextResponse.json({ ok: true }, { status: 202 });
-}
+});

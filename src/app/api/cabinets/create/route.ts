@@ -17,6 +17,7 @@ import {
   resolveAgentLibraryDir,
 } from "@/lib/agents/library-manager";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface CreateCabinetRequest {
   name: string;
@@ -25,7 +26,7 @@ interface CreateCabinetRequest {
   selectedAgents?: string[];
 }
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const body = (await req.json()) as CreateCabinetRequest;
     const { name, parentPath = "", description = "", selectedAgents = [] } = body;
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 async function copyDir(src: string, dest: string): Promise<void> {
   await ensureDirectory(dest);

@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs/promises";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { readPersona, writePersona } from "@/lib/agents/persona-manager";
+import { route } from "@/lib/runtime/route-wrapper";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -28,7 +29,7 @@ function extFromMime(mime: string): string | null {
   return null;
 }
 
-export async function GET(req: NextRequest, { params }: RouteParams) {
+export const GET = route(async (req: NextRequest, { params }: RouteParams) => {
   const { slug } = await params;
   const { searchParams } = new URL(req.url);
   const ext = (searchParams.get("ext") || "").toLowerCase();
@@ -57,9 +58,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-}
+});
 
-export async function POST(req: NextRequest, { params }: RouteParams) {
+export const POST = route(async (req: NextRequest, { params }: RouteParams) => {
   const { slug } = await params;
   const form = await req.formData();
   const file = form.get("file");
@@ -99,9 +100,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   await writePersona(slug, { avatar: "custom", avatarExt: ext }, cabinetPath);
 
   return NextResponse.json({ ok: true, ext });
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: RouteParams) {
+export const DELETE = route(async (req: NextRequest, { params }: RouteParams) => {
   const { slug } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinet") || undefined;
 
@@ -112,4 +113,4 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
   // Clearing avatar: pass empty strings so writePersona drops the fields.
   await writePersona(slug, { avatar: "", avatarExt: "" }, cabinetPath);
   return NextResponse.json({ ok: true });
-}
+});

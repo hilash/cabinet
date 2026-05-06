@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST() {
+export const POST = route(async () => {
   const home = process.env.HOME || "~";
 
   try {
@@ -20,4 +21,4 @@ export async function POST() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

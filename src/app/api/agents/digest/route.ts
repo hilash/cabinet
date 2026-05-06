@@ -3,8 +3,9 @@ import { spawn } from "child_process";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 import { listConversationMetas } from "@/lib/agents/conversation-store";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST() {
+export const POST = route(async () => {
   try {
     // Get yesterday's git activity
     let gitLog = "";
@@ -71,4 +72,4 @@ Keep it under 200 words. Be specific about what changed.`;
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readPage, writePage, createPage, deletePage, movePage, renamePage } from "@/lib/storage/page-io";
 import { invalidateTreeCache } from "@/lib/storage/tree-builder";
+import { route } from "@/lib/runtime/route-wrapper";
 import { autoCommit } from "@/lib/git/git-service";
 
 type RouteParams = { params: Promise<{ path: string[] }> };
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export const GET = route(async (_req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -16,9 +17,9 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const status = message.includes("not found") ? 404 : 500;
     return NextResponse.json({ error: message }, { status });
   }
-}
+});
 
-export async function PUT(req: NextRequest, { params }: RouteParams) {
+export const PUT = route(async (req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -30,9 +31,9 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function POST(req: NextRequest, { params }: RouteParams) {
+export const POST = route(async (req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -46,9 +47,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const status = message.includes("already exists") ? 409 : 500;
     return NextResponse.json({ error: message }, { status });
   }
-}
+});
 
-export async function PATCH(req: NextRequest, { params }: RouteParams) {
+export const PATCH = route(async (req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -71,9 +72,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+export const DELETE = route(async (_req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -85,4 +86,4 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

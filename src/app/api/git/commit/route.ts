@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { manualCommit, getStatus } from "@/lib/git/git-service";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const body = await req.json();
     const message = body.message || "Manual commit from KB";
@@ -11,9 +12,9 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const status = await getStatus();
     return NextResponse.json(status);
@@ -21,4 +22,4 @@ export async function GET() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { continueConversationRun } from "@/lib/agents/conversation-runner";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface ContinueBody {
   userMessage?: string;
@@ -23,10 +24,10 @@ interface ContinueBody {
   runtimeMode?: "native" | "terminal";
 }
 
-export async function POST(
+export const POST = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   let body: ContinueBody = {};
   try {
@@ -107,4 +108,4 @@ export async function POST(
   });
 
   return NextResponse.json({ ok: true }, { status: 202 });
-}
+});

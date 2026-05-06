@@ -6,13 +6,14 @@ import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 import { normalizeCabinetPath } from "@/lib/cabinets/paths";
 import { resolveCabinetDir } from "@/lib/cabinets/server-paths";
+import { route } from "@/lib/runtime/route-wrapper";
 
 const LIBRARY_DIR = path.join(PROJECT_ROOT, "src", "lib", "agents", "library");
 
-export async function POST(
+export const POST = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
-) {
+) => {
   const { slug } = await params;
 
   try {
@@ -66,7 +67,7 @@ export async function POST(
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 async function copyDir(src: string, dest: string): Promise<void> {
   await fs.mkdir(dest, { recursive: true });

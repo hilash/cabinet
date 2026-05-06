@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readPage } from "@/lib/storage/page-io";
 import { inferPageTypeFromPath, type PageTypeKind } from "@/lib/ui/page-type-icons";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface PageMetaEntry {
   path: string;
@@ -17,7 +18,7 @@ interface PageMetaEntry {
  * Paths that can't be read fall back to their basename as title + inferred
  * page type from the file extension.
  */
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   let body: { paths?: string[] } = {};
   try {
     body = (await req.json()) as { paths?: string[] };
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   );
 
   return NextResponse.json({ entries });
-}
+});
 
 function basename(p: string): string {
   const cleaned = p.replace(/\/index\.md$/, "").replace(/\.md$/, "");

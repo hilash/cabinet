@@ -7,6 +7,7 @@ import fs from "fs/promises";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { getRunningConversationCounts, drainConversationNotifications } from "@/lib/agents/conversation-store";
+import { route } from "@/lib/runtime/route-wrapper";
 
 async function getDataDirVersion(): Promise<string> {
   try {
@@ -32,7 +33,7 @@ async function getDataDirVersion(): Promise<string> {
  * GET /api/agents/events — Server-Sent Events for real-time Mission Control updates.
  * Pushes agent status, goal progress, and new Slack messages every 3 seconds.
  */
-export async function GET() {
+export const GET = route(async () => {
   const encoder = new TextEncoder();
   let closed = false;
 
@@ -239,4 +240,4 @@ export async function GET() {
       Connection: "keep-alive",
     },
   });
-}
+});

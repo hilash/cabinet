@@ -12,11 +12,12 @@ import type {
   DispatchedAction,
   PendingAction,
 } from "@/types/actions";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(
+export const GET = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
   const meta = await readConversationMeta(id, cabinetPath);
@@ -27,7 +28,7 @@ export async function GET(
     pending: meta.pendingActions || [],
     dispatched: meta.dispatchedActions || [],
   });
-}
+});
 
 interface ActionsPatchBody {
   approve?: string[];
@@ -36,10 +37,10 @@ interface ActionsPatchBody {
   cabinetPath?: string;
 }
 
-export async function POST(
+export const POST = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   let body: ActionsPatchBody = {};
   try {
@@ -138,4 +139,4 @@ export async function POST(
     rejected,
     pending: remaining,
   });
-}
+});

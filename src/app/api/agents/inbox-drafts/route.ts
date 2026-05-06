@@ -8,6 +8,7 @@ import {
 } from "@/lib/agents/human-inbox-drafts";
 import { readCabinetOverview } from "@/lib/cabinets/overview";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
+import { route } from "@/lib/runtime/route-wrapper";
 
 function sortDrafts<T extends { priority: number; updatedAt: string; createdAt: string }>(
   drafts: T[]
@@ -19,7 +20,7 @@ function sortDrafts<T extends { priority: number; updatedAt: string; createdAt: 
   });
 }
 
-export async function GET(req: NextRequest) {
+export const GET = route(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url);
   const cabinetPath = searchParams.get("cabinetPath") || undefined;
   const visibilityMode = (searchParams.get("visibilityMode") || "own") as CabinetVisibilityMode;
@@ -42,9 +43,9 @@ export async function GET(req: NextRequest) {
     : await listAllHumanInboxDrafts();
 
   return NextResponse.json({ drafts });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   const body = await req.json();
 
   if (body.action === "update") {
@@ -95,9 +96,9 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ draft }, { status: 201 });
-}
+});
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = route(async (req: NextRequest) => {
   const body = await req.json().catch(() => null);
   const draftId = body?.draftId;
   const cabinetPath = body?.cabinetPath;
@@ -112,4 +113,4 @@ export async function DELETE(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
-}
+});

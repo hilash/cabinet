@@ -5,8 +5,9 @@ import {
   runAgent,
   getAgentStats,
 } from "@/lib/agents/agent-manager";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const active = getActiveSessions();
     const recent = getRecentSessions();
@@ -16,9 +17,9 @@ export async function GET() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const body = await req.json();
     const { taskTitle, prompt, taskId, workdir, providerId } = body;
@@ -43,4 +44,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

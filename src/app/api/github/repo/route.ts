@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { route } from "@/lib/runtime/route-wrapper";
 
 const GITHUB_API_URL = "https://api.github.com/repos/hilash/cabinet";
 const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const res = await fetch(GITHUB_API_URL, {
       headers: {
@@ -34,4 +35,4 @@ export async function GET() {
       url: GITHUB_REPO_URL,
     });
   }
-}
+});

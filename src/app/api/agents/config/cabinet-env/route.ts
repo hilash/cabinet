@@ -5,6 +5,7 @@ import {
   removeCabinetEnv,
   upsertCabinetEnv,
 } from "@/lib/runtime/cabinet-env";
+import { route } from "@/lib/runtime/route-wrapper";
 
 /**
  * `/api/agents/config/cabinet-env` — read/write API for the `.cabinet.env`
@@ -12,11 +13,11 @@ import {
  * UI. Never returns full values to the client; only `{key, hasValue, lastFour}`.
  */
 
-export async function GET(): Promise<NextResponse> {
+export const GET = route(async () => {
   return NextResponse.json({ entries: getCabinetEnvSnapshot() });
-}
+});
 
-export async function PUT(request: NextRequest): Promise<NextResponse> {
+export const PUT = route(async (request: NextRequest) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -54,9 +55,9 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     );
   }
   return NextResponse.json({ entries: getCabinetEnvSnapshot() });
-}
+});
 
-export async function DELETE(request: NextRequest): Promise<NextResponse> {
+export const DELETE = route(async (request: NextRequest) => {
   const url = new URL(request.url);
   const key = url.searchParams.get("key");
   if (!key || !isValidKey(key)) {
@@ -71,4 +72,4 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     );
   }
   return NextResponse.json({ entries: getCabinetEnvSnapshot() });
-}
+});

@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs/promises";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface EventLine {
   ts?: string;
@@ -14,10 +15,10 @@ interface EventLine {
  * Return the append-only events.log for a conversation as an array of
  * parsed JSON objects. Used by the Logs tab in TaskConversationPage.
  */
-export async function GET(
+export const GET = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
 
@@ -49,4 +50,4 @@ export async function GET(
   }
 
   return NextResponse.json({ events });
-}
+});

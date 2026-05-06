@@ -1,5 +1,5 @@
 import path from "path";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import {
   readFileContent,
   writeFileContent,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/storage/fs-operations";
 import type { GoalMetric } from "@/types/agents";
 
-const MEMORY_DIR = path.join(DATA_DIR, ".agents", ".memory");
+function memoryDir(): string { return path.join(getDataDir(), ".agents", ".memory"); }
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,7 +39,7 @@ export type GoalStatus = "on-track" | "behind" | "critical" | "exceeded";
 // ---------------------------------------------------------------------------
 
 function statePath(slug: string): string {
-  return path.join(MEMORY_DIR, slug, "state.json");
+  return path.join(memoryDir(), slug, "state.json");
 }
 
 async function readState(slug: string): Promise<GoalState> {
@@ -57,7 +57,7 @@ async function readState(slug: string): Promise<GoalState> {
 }
 
 async function writeState(slug: string, state: GoalState): Promise<void> {
-  const dir = path.join(MEMORY_DIR, slug);
+  const dir = path.join(memoryDir(), slug);
   await ensureDirectory(dir);
   await writeFileContent(statePath(slug), JSON.stringify(state, null, 2));
 }

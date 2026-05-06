@@ -13,11 +13,12 @@ import { getRunningConversationCounts } from "@/lib/agents/conversation-store";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 import { defaultAdapterTypeForProvider } from "@/lib/agents/adapters";
 import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
+import { route } from "@/lib/runtime/route-wrapper";
 
 // Initialize heartbeats on first request
 let initialized = false;
 
-export async function GET(req: NextRequest) {
+export const GET = route(async (req: NextRequest) => {
   if (!initialized) {
     await reloadDaemonSchedules().catch(() => {});
     initialized = true;
@@ -40,9 +41,9 @@ export async function GET(req: NextRequest) {
     })),
     activeHeartbeats,
   });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   const body = await req.json();
   const { slug, ...personaData } = body;
   const cabinetPath = normalizeCabinetPath(
@@ -77,4 +78,4 @@ export async function POST(req: NextRequest) {
   await reloadDaemonSchedules().catch(() => {});
 
   return NextResponse.json({ ok: true }, { status: 201 });
-}
+});

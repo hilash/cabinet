@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { CABINET_INTERNAL_DIR } from "@/lib/storage/path-utils";
+import { route } from "@/lib/runtime/route-wrapper";
 
 const ACK_FILE = path.join(CABINET_INTERNAL_DIR, "disclaimer-ack.json");
 
@@ -32,7 +33,7 @@ function writeAck(record: AckRecord): void {
   fs.writeFileSync(ACK_FILE, JSON.stringify(record, null, 2));
 }
 
-export async function GET(req: Request) {
+export const GET = route(async (req: Request) => {
   const url = new URL(req.url);
   const wantedVersion = url.searchParams.get("v") || "";
   const ack = readAck();
@@ -45,9 +46,9 @@ export async function GET(req: Request) {
     version: ack.version,
     acceptedAt: ack.acceptedAt,
   });
-}
+});
 
-export async function POST(req: Request) {
+export const POST = route(async (req: Request) => {
   let body: unknown;
   try {
     body = await req.json();
@@ -73,4 +74,4 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-}
+});

@@ -4,8 +4,9 @@ import {
   createChannel,
   getLatestMessageTime,
 } from "@/lib/chat/chat-io";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const channels = await listChannels();
     // Enrich with latest message time
@@ -18,9 +19,9 @@ export async function GET() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const body = await req.json();
     const { slug, name, members, description } = body;
@@ -39,4 +40,4 @@ export async function POST(req: NextRequest) {
     const status = message.includes("already exists") ? 409 : 500;
     return NextResponse.json({ error: message }, { status });
   }
-}
+});

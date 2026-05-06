@@ -4,10 +4,11 @@ import {
   createProjectSnapshotBackup,
   type BackupOptions,
 } from "@/lib/system/backup";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const body = (await req.json().catch(() => ({}))) as {
       scope?: "data" | "project";
@@ -29,4 +30,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Backup failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

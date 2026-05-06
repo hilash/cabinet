@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDaemonSessionOutput } from "@/lib/agents/daemon-client";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(
+export const GET = route(async (
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   try {
     const { id } = await params;
     const output = await getDaemonSessionOutput(id);
@@ -13,4 +14,4 @@ export async function GET(
     const message = error instanceof Error ? error.message : "Failed to load daemon output";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

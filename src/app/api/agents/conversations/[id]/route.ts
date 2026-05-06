@@ -10,11 +10,12 @@ import { closeDaemonSession, stopDaemonSession } from "@/lib/agents/daemon-clien
 import { startConversationRun } from "@/lib/agents/conversation-runner";
 import { publishConversationEvent } from "@/lib/agents/conversation-events";
 import type { ConversationMeta } from "@/types/conversations";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(
+export const GET = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
   const withTurns = req.nextUrl.searchParams.get("withTurns") === "1";
@@ -25,12 +26,12 @@ export async function GET(
   }
 
   return NextResponse.json(detail);
-}
+});
 
-export async function DELETE(
+export const DELETE = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
   const deleted = await deleteConversation(id, cabinetPath);
@@ -40,7 +41,7 @@ export async function DELETE(
   }
 
   return NextResponse.json({ ok: true });
-}
+});
 
 interface PatchBody {
   action?: string;
@@ -60,10 +61,10 @@ interface PatchBody {
   muted?: boolean;
 }
 
-export async function PATCH(
+export const PATCH = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
 
@@ -185,4 +186,4 @@ export async function PATCH(
   });
 
   return NextResponse.json({ ok: true, meta: nextMeta });
-}
+});

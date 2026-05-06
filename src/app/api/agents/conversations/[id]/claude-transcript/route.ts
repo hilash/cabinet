@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 import { resolveCabinetDir } from "@/lib/cabinets/server-paths";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { route } from "@/lib/runtime/route-wrapper";
 
 /**
  * Reads Claude Code's on-disk session JSONL for a conversation and returns
@@ -203,10 +204,10 @@ async function findJsonlForSession(opts: {
   };
 }
 
-export async function GET(
+export const GET = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
 
@@ -284,4 +285,4 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});

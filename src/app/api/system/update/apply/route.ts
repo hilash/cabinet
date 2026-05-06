@@ -5,10 +5,11 @@ import { DATA_DIR } from "@/lib/storage/path-utils";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import { writeUpdateStatus } from "@/lib/system/update-status";
 import { getUpdateCheckResult } from "@/lib/system/update-service";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export const POST = route(async () => {
   const update = await getUpdateCheckResult();
 
   if (!update.updateAvailable || !update.latest) {
@@ -75,4 +76,4 @@ export async function POST() {
     status: "started",
     targetVersion: update.latest.version,
   });
-}
+});

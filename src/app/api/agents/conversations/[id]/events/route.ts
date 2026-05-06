@@ -2,14 +2,15 @@ import { NextRequest } from "next/server";
 import { conversationEvents } from "@/lib/agents/conversation-events";
 import type { ConversationEvent } from "@/lib/agents/conversation-events";
 import { readEventLog } from "@/lib/agents/conversation-store";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET(
+export const GET = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const encoder = new TextEncoder();
 
@@ -112,4 +113,4 @@ export async function GET(
       "X-Accel-Buffering": "no",
     },
   });
-}
+});

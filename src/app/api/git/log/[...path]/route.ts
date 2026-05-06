@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPageHistory } from "@/lib/git/git-service";
+import { route } from "@/lib/runtime/route-wrapper";
 
 type RouteParams = { params: Promise<{ path: string[] }> };
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export const GET = route(async (_req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -13,4 +14,4 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

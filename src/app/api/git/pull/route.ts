@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { gitPull } from "@/lib/git/git-service";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST() {
+export const POST = route(async () => {
   try {
     const result = await gitPull();
     return NextResponse.json(result);
@@ -9,4 +10,4 @@ export async function POST() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ pulled: false, summary: message }, { status: 500 });
   }
-}
+});

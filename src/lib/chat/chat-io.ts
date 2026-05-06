@@ -1,10 +1,10 @@
 import path from "path";
 import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { getDb } from "@/lib/db";
 
-const CHAT_DIR = path.join(DATA_DIR, ".chat");
-const CHANNELS_FILE = path.join(CHAT_DIR, "channels.json");
+function chatDir(): string { return path.join(getDataDir(), ".chat"); }
+function channelsFile(): string { return path.join(chatDir(), "channels.json"); }
 
 export interface Channel {
   slug: string;
@@ -27,13 +27,13 @@ export interface ChatMessage {
 // --- Channel File I/O ---
 
 async function ensureChatDir(): Promise<void> {
-  await fs.mkdir(CHAT_DIR, { recursive: true });
+  await fs.mkdir(chatDir(), { recursive: true });
 }
 
 export async function listChannels(): Promise<Channel[]> {
   await ensureChatDir();
   try {
-    const raw = await fs.readFile(CHANNELS_FILE, "utf-8");
+    const raw = await fs.readFile(channelsFile(), "utf-8");
     return JSON.parse(raw) as Channel[];
   } catch {
     return [];
@@ -54,7 +54,7 @@ export async function createChannel(channel: Channel): Promise<void> {
   }
 
   channels.push(channel);
-  await fs.writeFile(CHANNELS_FILE, JSON.stringify(channels, null, 2));
+  await fs.writeFile(channelsFile(), JSON.stringify(channels, null, 2));
 }
 
 export async function updateChannel(
@@ -66,7 +66,7 @@ export async function updateChannel(
   if (idx === -1) return null;
 
   channels[idx] = { ...channels[idx], ...updates };
-  await fs.writeFile(CHANNELS_FILE, JSON.stringify(channels, null, 2));
+  await fs.writeFile(channelsFile(), JSON.stringify(channels, null, 2));
   return channels[idx];
 }
 

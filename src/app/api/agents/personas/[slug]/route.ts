@@ -17,10 +17,11 @@ import { getTemplateRecommendedSkills } from "@/lib/agents/library-manager";
 import { startManualHeartbeat } from "@/lib/agents/heartbeat";
 import { updateGoal, getGoalHistory } from "@/lib/agents/goal-manager";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import { route } from "@/lib/runtime/route-wrapper";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
-export async function GET(req: NextRequest, { params }: RouteParams) {
+export const GET = route(async (req: NextRequest, { params }: RouteParams) => {
   const { slug } = await params;
   const { searchParams } = new URL(req.url);
 
@@ -80,9 +81,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const goalHistory = await getGoalHistory(slug);
 
   return NextResponse.json({ persona, memory, inbox, history, goalHistory });
-}
+});
 
-export async function PUT(req: NextRequest, { params }: RouteParams) {
+export const PUT = route(async (req: NextRequest, { params }: RouteParams) => {
   const { slug } = await params;
   const body = await req.json();
   const cabinetPath = typeof body.cabinetPath === "string" ? body.cabinetPath : undefined;
@@ -125,12 +126,12 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   await writePersona(slug, body, cabinetPath);
   await reloadDaemonSchedules().catch(() => {});
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: RouteParams) {
+export const DELETE = route(async (req: NextRequest, { params }: RouteParams) => {
   const { slug } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
   await deletePersona(slug, cabinetPath);
   await reloadDaemonSchedules().catch(() => {});
   return NextResponse.json({ ok: true });
-}
+});

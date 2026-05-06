@@ -4,11 +4,12 @@ import {
   writePersona,
 } from "@/lib/agents/persona-manager";
 import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
+import { route } from "@/lib/runtime/route-wrapper";
 
 /**
  * GET /api/agents/scheduler — Get scheduler status
  */
-export async function GET() {
+export const GET = route(async () => {
   const personas = await listAllPersonas();
   const registered = personas
     .filter((persona) => persona.active && !!persona.heartbeat)
@@ -43,7 +44,7 @@ export async function GET() {
       nextHeartbeat: p.nextHeartbeat,
     })),
   });
-}
+});
 
 /**
  * POST /api/agents/scheduler — Control the scheduler
@@ -51,7 +52,7 @@ export async function GET() {
  * body.slugs?: string[] — specific agents to activate/pause (default: all)
  * body.exclude?: string[] — agents to exclude from bulk operations
  */
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   const body = await req.json();
   const { action, slugs, exclude = [], cabinetPath } = body;
 
@@ -125,4 +126,4 @@ export async function POST(req: NextRequest) {
     default:
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
-}
+});

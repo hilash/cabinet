@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import { resolveContentPath } from "@/lib/storage/path-utils";
 import { fileExists } from "@/lib/storage/fs-operations";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const { path: filePath } = await req.json();
     if (typeof filePath !== "string" || !filePath) {
@@ -25,4 +26,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 import { getPageHistory, getDiff } from "@/lib/git/git-service";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface DiffEntry {
   path: string;
@@ -18,10 +19,10 @@ interface DiffEntry {
  * within the task's time window [startedAt, completedAt] and their diffs.
  * Powers the Diff tab in TaskConversationPage.
  */
-export async function GET(
+export const GET = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id } = await params;
   const cabinetPath = req.nextUrl.searchParams.get("cabinetPath") || undefined;
 
@@ -62,4 +63,4 @@ export async function GET(
   }
 
   return NextResponse.json({ entries });
-}
+});

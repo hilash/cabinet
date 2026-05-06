@@ -7,10 +7,11 @@ import {
 } from "@/lib/agents/task-inbox";
 import { readCabinetOverview } from "@/lib/cabinets/overview";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
+import { route } from "@/lib/runtime/route-wrapper";
 
 // GET /api/agents/tasks?agent=slug&status=pending
 // or GET /api/agents/tasks?all=true  (all tasks across agents)
-export async function GET(req: NextRequest) {
+export const GET = route(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url);
   const agent = searchParams.get("agent");
   const status = searchParams.get("status") as
@@ -56,12 +57,12 @@ export async function GET(req: NextRequest) {
 
   const tasks = await getTasksForAgent(agent, status ?? undefined, cabinetPath);
   return NextResponse.json({ tasks });
-}
+});
 
 // POST /api/agents/tasks
 // Body: { fromAgent, toAgent, title, description, kbRefs?, priority?, channel? }
 // or { action: "update", agent, taskId, status, result? }
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   const body = await req.json();
 
   if (body.action === "update") {
@@ -125,4 +126,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ task });
-}
+});

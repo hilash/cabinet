@@ -9,6 +9,7 @@ import {
   isValidSkillKey,
   resolveSkillsScopeRoot,
 } from "@/lib/agents/skills/scope";
+import { route } from "@/lib/runtime/route-wrapper";
 
 /**
  * POST /api/agents/skills/import
@@ -168,7 +169,7 @@ async function attachToAgents(slugs: string[] | undefined, skillKey: string): Pr
   return updated;
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = route(async (request: Request) => {
   const body = (await request.json().catch(() => ({}))) as ImportRequest;
   if (!body.source) {
     return NextResponse.json({ error: "source is required" }, { status: 400 });
@@ -307,4 +308,4 @@ export async function POST(request: Request): Promise<NextResponse> {
     sourceLocator,
     attachedAgents: attached,
   });
-}
+});

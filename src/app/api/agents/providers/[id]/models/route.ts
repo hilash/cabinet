@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { providerRegistry } from "@/lib/agents/provider-registry";
 import type { ProviderModel } from "@/lib/agents/provider-interface";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface CachedModels {
   models: ProviderModel[];
@@ -10,10 +11,10 @@ interface CachedModels {
 const CACHE_TTL_MS = 60_000;
 const cache = new Map<string, CachedModels>();
 
-export async function GET(
+export const GET = route(async (
   _req: Request,
   ctx: { params: Promise<{ id: string }> }
-): Promise<NextResponse> {
+) => {
   const { id } = await ctx.params;
   const provider = providerRegistry.get(id);
   if (!provider) {
@@ -53,4 +54,4 @@ export async function GET(
     dynamic,
     ttlMs: CACHE_TTL_MS,
   });
-}
+});

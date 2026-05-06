@@ -7,6 +7,7 @@ import {
   isValidSkillKey,
   resolveSkillsScopeRoot,
 } from "@/lib/agents/skills/scope";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface RouteContext {
   params: Promise<{ key: string }>;
@@ -16,7 +17,7 @@ interface BundleRequest {
   scope?: string; // "root" | "cabinet:<path>"  default: "root"
 }
 
-export async function POST(request: Request, context: RouteContext): Promise<NextResponse> {
+export const POST = route(async (request: Request, context: RouteContext) => {
   const { key } = await context.params;
   if (!isValidSkillKey(key)) {
     return NextResponse.json({ error: "invalid skill key" }, { status: 400 });
@@ -62,4 +63,4 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
   });
 
   return NextResponse.json({ ok: true, key, scope, fromOrigin: source.origin });
-}
+});

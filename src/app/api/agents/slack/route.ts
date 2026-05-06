@@ -8,6 +8,7 @@ import {
 import { sendMessage, listPersonas } from "@/lib/agents/persona-manager";
 import { sendNotification, shouldNotify } from "@/lib/agents/notification-service";
 import { runQuickResponse } from "@/lib/agents/heartbeat";
+import { route } from "@/lib/runtime/route-wrapper";
 
 // Track which agents are currently responding (for typing indicator)
 const respondingAgents = new Map<string, { channel: string; since: number }>();
@@ -21,7 +22,7 @@ export function getRespondingAgents(): Map<string, { channel: string; since: num
   return respondingAgents;
 }
 
-export async function GET(req: NextRequest) {
+export const GET = route(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url);
 
   // List channels (always include defaults)
@@ -43,9 +44,9 @@ export async function GET(req: NextRequest) {
 
   const messages = await getRecentMessages(limit);
   return NextResponse.json({ messages });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   const body = await req.json();
   const { channel, agent, type, content, mentions, kbRefs, emoji, displayName, thread } = body;
 
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
-}
+});
 
 /**
  * Extract @agent-slug mentions from message content.

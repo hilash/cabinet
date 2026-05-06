@@ -11,8 +11,9 @@ import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
 import { readCabinetOverview } from "@/lib/cabinets/overview";
 import { findOwningCabinetPathForPage } from "@/lib/cabinets/server-paths";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(req: NextRequest) {
+export const GET = route(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url);
   const agentSlug = searchParams.get("agent") || undefined;
   const pagePath = searchParams.get("pagePath") || undefined;
@@ -76,9 +77,9 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ conversations });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const body = await req.json();
     const source = body.source === "editor" ? "editor" : "manual";
@@ -231,4 +232,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const {
       prompt,
@@ -41,4 +42,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

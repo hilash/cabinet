@@ -5,12 +5,13 @@ import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { writePersona } from "@/lib/agents/persona-manager";
 import { getDefaultProviderId } from "@/lib/agents/provider-runtime";
+import { route } from "@/lib/runtime/route-wrapper";
 
 async function ensureDir(dir: string) {
   try { await fs.mkdir(dir, { recursive: true }); } catch { /* exists */ }
 }
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const bundle = await req.json();
 
@@ -72,4 +73,4 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { route } from "@/lib/runtime/route-wrapper";
 
 /**
  * `/api/agents/config/cli-mcp-servers` — read-only aggregator that surfaces
@@ -230,7 +231,7 @@ async function readCodexServers(): Promise<ProviderResult> {
   return result;
 }
 
-export async function GET(): Promise<NextResponse> {
+export const GET = route(async () => {
   const [claude, codex, gemini] = await Promise.all([
     readClaudeServers(),
     readCodexServers(),
@@ -240,4 +241,4 @@ export async function GET(): Promise<NextResponse> {
     { providers: [claude, codex, gemini] },
     { headers: { "Cache-Control": "no-store" } },
   );
-}
+});

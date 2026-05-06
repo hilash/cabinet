@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
+import { route } from "@/lib/runtime/route-wrapper";
 
-const CONFIG_DIR = path.join(DATA_DIR, ".agents", ".config");
-const INTEGRATIONS_FILE = path.join(CONFIG_DIR, "integrations.json");
+function configDir(): string { return path.join(getDataDir(), ".agents", ".config"); }
+function integrationsFile(): string { return path.join(configDir(), "integrations.json"); }
 
 export interface IntegrationConfig {
   mcp_servers: {
@@ -100,9 +101,9 @@ const DEFAULT_CONFIG: IntegrationConfig = {
   },
 };
 
-export async function GET() {
+export const GET = route(async () => {
   try {
-    const raw = await fs.readFile(INTEGRATIONS_FILE, "utf-8");
+    const raw = await fs.readFile(integrationsFile(), "utf-8");
     const config = JSON.parse(raw);
     // Merge with defaults to ensure all fields exist
     const merged = {
@@ -114,15 +115,15 @@ export async function GET() {
   } catch {
     return NextResponse.json(DEFAULT_CONFIG);
   }
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = route(async (req: NextRequest) => {
   try {
     const body = await req.json();
-    await fs.mkdir(CONFIG_DIR, { recursive: true });
-    await fs.writeFile(INTEGRATIONS_FILE, JSON.stringify(body, null, 2), "utf-8");
+    await fs.mkdir(configDir(), { recursive: true });
+    await fs.writeFile(integrationsFile(), JSON.stringify(body, null, 2), "utf-8");
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-}
+});

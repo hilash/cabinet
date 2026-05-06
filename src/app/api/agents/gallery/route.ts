@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { listAllPersonas } from "@/lib/agents/persona-manager";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface GalleryItem {
   name: string;
@@ -147,7 +148,7 @@ async function fileExists(p: string): Promise<boolean> {
   }
 }
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const personas = await listAllPersonas();
     const allItems: GalleryItem[] = [];
@@ -190,4 +191,4 @@ export async function GET() {
   } catch {
     return NextResponse.json({ items: [] });
   }
-}
+});

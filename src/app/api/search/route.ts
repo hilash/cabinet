@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDaemonUrl, getOrCreateDaemonToken } from "@/lib/agents/daemon-auth";
 import type { SearchResponse } from "../../../../server/search/types";
+import { route } from "@/lib/runtime/route-wrapper";
 
 const DAEMON_HINT = "Search is unavailable. Start the daemon: npm run dev:daemon";
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
+export const GET = route(async (req: NextRequest) => {
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
   const scope = req.nextUrl.searchParams.get("scope") ?? "all";
   const limit = req.nextUrl.searchParams.get("limit") ?? "50";
@@ -48,4 +49,4 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       { status: 503 }
     );
   }
-}
+});

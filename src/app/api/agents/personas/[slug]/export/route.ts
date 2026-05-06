@@ -4,10 +4,11 @@ import fs from "fs/promises";
 import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { readPersona } from "@/lib/agents/persona-manager";
+import { route } from "@/lib/runtime/route-wrapper";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export const GET = route(async (_req: NextRequest, { params }: RouteParams) => {
   const { slug } = await params;
   const persona = await readPersona(slug);
   if (!persona) {
@@ -48,4 +49,4 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       "Content-Disposition": `attachment; filename="${slug}-agent-bundle.json"`,
     },
   });
-}
+});

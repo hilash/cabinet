@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { emit, isAllowedEvent, type EventName, type EventPayload } from "@/lib/telemetry";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface BrowserEvent {
   name: string;
   payload?: EventPayload;
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export const POST = route(async (req: NextRequest) => {
   let body: unknown;
   try {
     body = await req.json();
@@ -27,4 +28,4 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   emit(name as EventName, payload);
   return new NextResponse(null, { status: 202 });
-}
+});

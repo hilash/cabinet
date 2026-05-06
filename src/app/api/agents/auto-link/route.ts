@@ -3,6 +3,7 @@ import { buildTree } from "@/lib/storage/tree-builder";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { runOneShotProviderPrompt } from "@/lib/agents/provider-runtime";
 import type { TreeNode } from "@/types";
+import { route } from "@/lib/runtime/route-wrapper";
 
 function flattenPaths(nodes: TreeNode[]): string[] {
   const paths: string[] = [];
@@ -13,7 +14,7 @@ function flattenPaths(nodes: TreeNode[]): string[] {
   return paths;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const { title, description } = await req.json();
     if (!title) {
@@ -55,4 +56,4 @@ If no pages are relevant, return []. Return ONLY the JSON array, nothing else.`;
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

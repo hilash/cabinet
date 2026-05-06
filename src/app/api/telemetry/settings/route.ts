@@ -1,15 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { invalidateKillSwitchCache, readState, updateState } from "@/lib/telemetry";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(): Promise<NextResponse> {
+export const GET = route(async () => {
   const state = readState();
   return NextResponse.json({
     enabled: state.enabled,
     envDisabled: process.env.CABINET_TELEMETRY_DISABLED === "1",
   });
-}
+});
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export const POST = route(async (req: NextRequest) => {
   let body: unknown;
   try {
     body = await req.json();
@@ -25,4 +26,4 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const next = updateState({ enabled });
   invalidateKillSwitchCache();
   return NextResponse.json({ enabled: next.enabled });
-}
+});

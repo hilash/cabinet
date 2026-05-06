@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 import { getRegistryTemplates } from "@/lib/registry/registry-manifest";
+import { route } from "@/lib/runtime/route-wrapper";
 
 function stripWikiLinks(markdown: string): string {
   // [[path/to/page]] → last segment as plain text
@@ -181,10 +182,10 @@ async function findChildCabinets(basePath: string, rootPath: string): Promise<Ch
   return children;
 }
 
-export async function GET(
+export const GET = route(async (
   _req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
-) {
+) => {
   const { slug } = await params;
 
   const templates = await getRegistryTemplates();
@@ -256,4 +257,4 @@ export async function GET(
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

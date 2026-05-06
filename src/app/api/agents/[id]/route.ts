@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, stopAgent } from "@/lib/agents/agent-manager";
+import { route } from "@/lib/runtime/route-wrapper";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export const GET = route(async (_req: NextRequest, { params }: RouteParams) => {
   try {
     const { id } = await params;
     const session = getSession(id);
@@ -15,9 +16,9 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+export const DELETE = route(async (_req: NextRequest, { params }: RouteParams) => {
   try {
     const { id } = await params;
     const stopped = stopAgent(id);
@@ -26,4 +27,4 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

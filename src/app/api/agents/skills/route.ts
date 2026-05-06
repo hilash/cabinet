@@ -12,6 +12,7 @@ import {
   isValidSkillKey,
   resolveSkillsScopeRoot,
 } from "@/lib/agents/skills/scope";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface CreateRequest {
   key: string;
@@ -22,7 +23,7 @@ interface CreateRequest {
   allowedTools?: string;
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = route(async (request: Request) => {
   const body = (await request.json().catch(() => ({}))) as CreateRequest;
   if (!body.key || !isValidSkillKey(body.key)) {
     return NextResponse.json(
@@ -63,9 +64,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     cabinetPath: cabinetPathFromScope(scope),
   });
   return NextResponse.json({ skill: created }, { status: 201 });
-}
+});
 
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = route(async (request: Request) => {
   const url = new URL(request.url);
   const cabinetPath = url.searchParams.get("cabinet") || undefined;
   const originsParam = url.searchParams.get("origins");
@@ -112,4 +113,4 @@ export async function GET(request: Request): Promise<NextResponse> {
     })),
     entries,
   });
-}
+});

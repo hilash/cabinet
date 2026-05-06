@@ -4,6 +4,7 @@ import { resolveContentPath } from "@/lib/storage/path-utils";
 import { fileExists } from "@/lib/storage/fs-operations";
 import { autoCommit } from "@/lib/git/git-service";
 import fs from "fs/promises";
+import { route } from "@/lib/runtime/route-wrapper";
 
 const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
@@ -43,7 +44,7 @@ const MIME_TYPES: Record<string, string> = {
 
 type RouteParams = { params: Promise<{ path: string[] }> };
 
-export async function GET(req: NextRequest, { params }: RouteParams) {
+export const GET = route(async (req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -112,9 +113,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function PUT(req: NextRequest, { params }: RouteParams) {
+export const PUT = route(async (req: NextRequest, { params }: RouteParams) => {
   try {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
@@ -127,4 +128,4 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -11,6 +11,7 @@ import { downloadRegistryTemplate } from "@/lib/registry/github-fetch";
 import { getRegistryTemplates } from "@/lib/registry/registry-manifest";
 import { CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
 import { emit as emitTelemetry } from "@/lib/telemetry";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface ImportRequest {
   slug: string;
@@ -18,7 +19,7 @@ interface ImportRequest {
   name?: string;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   try {
     const body = (await req.json()) as ImportRequest;
     const { slug, targetPath = "" } = body;
@@ -105,4 +106,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

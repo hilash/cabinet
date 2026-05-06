@@ -3,16 +3,17 @@ import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { INSTALL_CONFIG_PATH } from "@/lib/runtime/runtime-config";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 
 /** GET — return the current data directory */
-export async function GET() {
+export const GET = route(async () => {
   return NextResponse.json({ dataDir: DATA_DIR });
-}
+});
 
 /** PUT — persist a new data directory (requires restart) */
-export async function PUT(req: NextRequest) {
+export const PUT = route(async (req: NextRequest) => {
   try {
     const body = await req.json();
     const newDir = body.dataDir?.trim();
@@ -61,10 +62,10 @@ export async function PUT(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 /** DELETE — remove persisted data dir (revert to default, requires restart) */
-export async function DELETE() {
+export const DELETE = route(async () => {
   try {
     let config: Record<string, unknown> = {};
     try {
@@ -91,4 +92,4 @@ export async function DELETE() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

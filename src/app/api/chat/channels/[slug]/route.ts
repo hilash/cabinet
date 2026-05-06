@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getChannel, getMessages, postMessage, togglePin } from "@/lib/chat/chat-io";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(
+export const GET = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
-) {
+) => {
   const { slug } = await params;
   try {
     const channel = await getChannel(slug);
@@ -22,12 +23,12 @@ export async function GET(
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function POST(
+export const POST = route(async (
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
-) {
+) => {
   const { slug } = await params;
   try {
     const body = await req.json();
@@ -66,4 +67,4 @@ export async function POST(
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

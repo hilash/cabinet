@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { providerRegistry } from "@/lib/agents/provider-registry";
 import { ADAPTER_RUNTIME_PATH } from "@/lib/agents/adapters/utils";
 import { emit as emitTelemetry } from "@/lib/telemetry";
+import { route } from "@/lib/runtime/route-wrapper";
 
 type VerifyStatus =
   | "pass"
@@ -119,10 +120,10 @@ function findVerifyStep(installSteps: Array<{ title: string; command?: string }>
   return lastWithCommand || null;
 }
 
-export async function POST(
+export const POST = route(async (
   _req: Request,
   ctx: { params: Promise<{ id: string }> }
-): Promise<NextResponse<VerifyResult | { error: string }>> {
+) => {
   const { id } = await ctx.params;
   const provider = providerRegistry.get(id);
   if (!provider) {
@@ -166,7 +167,7 @@ export async function POST(
     durationMs,
     hint,
   });
-}
+});
 
 function runShellCommand(command: string): Promise<{
   exitCode: number | null;

@@ -8,12 +8,13 @@ import {
   fetchAuditsForLockEntry,
   parseLockSource,
 } from "@/lib/agents/skills/upstream";
+import { route } from "@/lib/runtime/route-wrapper";
 
 interface RouteContext {
   params: Promise<{ key: string }>;
 }
 
-export async function GET(request: Request, context: RouteContext): Promise<NextResponse> {
+export const GET = route(async (request: Request, context: RouteContext) => {
   const { key } = await context.params;
   const url = new URL(request.url);
   const cabinetPath = url.searchParams.get("cabinet") || undefined;
@@ -32,9 +33,9 @@ export async function GET(request: Request, context: RouteContext): Promise<Next
     ? `${parsedSource.owner}/${parsedSource.repo}/${parsedSource.skill ?? key}`
     : null;
   return NextResponse.json({ skill: bundle, audits, skillsShPath });
-}
+});
 
-export async function PATCH(request: Request, context: RouteContext): Promise<NextResponse> {
+export const PATCH = route(async (request: Request, context: RouteContext) => {
   const { key } = await context.params;
   const url = new URL(request.url);
   const cabinetPath = url.searchParams.get("cabinet") || undefined;
@@ -66,9 +67,9 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Ne
 
   const updated = await readSkill(key, { cabinetPath });
   return NextResponse.json({ skill: updated });
-}
+});
 
-export async function DELETE(request: Request, context: RouteContext): Promise<NextResponse> {
+export const DELETE = route(async (request: Request, context: RouteContext) => {
   const { key } = await context.params;
   const url = new URL(request.url);
   const cabinetPath = url.searchParams.get("cabinet") || undefined;
@@ -84,4 +85,4 @@ export async function DELETE(request: Request, context: RouteContext): Promise<N
   }
   await fs.rm(bundle.path, { recursive: true, force: true });
   return NextResponse.json({ ok: true });
-}
+});

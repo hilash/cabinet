@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
 import yaml from "js-yaml";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import { providerRegistry } from "./provider-registry";
 import {
   normalizeProviderSettings,
@@ -11,7 +11,7 @@ import {
   writeProviderSettings,
 } from "./provider-settings";
 
-const AGENTS_DIR = path.join(DATA_DIR, ".agents");
+function agentsDir(): string { return path.join(getDataDir(), ".agents"); }
 
 export interface ProviderUsageJobRef {
   agentSlug: string;
@@ -99,14 +99,14 @@ function recordJobUsage(
 
 export async function getProviderUsage(): Promise<ProviderUsageMap> {
   const usage: ProviderUsageMap = {};
-  const entries = await fs.readdir(AGENTS_DIR, { withFileTypes: true }).catch(() => []);
+  const entries = await fs.readdir(agentsDir(), { withFileTypes: true }).catch(() => []);
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
 
     if (!entry.isDirectory() && entry.isFile() && entry.name.endsWith(".md")) {
       const slug = entry.name.replace(/\.md$/, "");
-      const personaRaw = await fs.readFile(path.join(AGENTS_DIR, entry.name), "utf8").catch(() => null);
+      const personaRaw = await fs.readFile(path.join(agentsDir(), entry.name), "utf8").catch(() => null);
       if (personaRaw) {
         const parsed = matter(personaRaw);
         if (typeof parsed.data.provider === "string" && parsed.data.provider.trim()) {
@@ -119,7 +119,7 @@ export async function getProviderUsage(): Promise<ProviderUsageMap> {
     if (!entry.isDirectory()) continue;
 
     const slug = entry.name;
-    const personaPath = path.join(AGENTS_DIR, slug, "persona.md");
+    const personaPath = path.join(agentsDir(), slug, "persona.md");
     const personaRaw = await fs.readFile(personaPath, "utf8").catch(() => null);
     if (personaRaw) {
       const parsed = matter(personaRaw);
@@ -128,7 +128,7 @@ export async function getProviderUsage(): Promise<ProviderUsageMap> {
       }
     }
 
-    const jobsDir = path.join(AGENTS_DIR, slug, "jobs");
+    const jobsDir = path.join(agentsDir(), slug, "jobs");
     const jobEntries = await fs.readdir(jobsDir, { withFileTypes: true }).catch(() => []);
     for (const jobEntry of jobEntries) {
       if (!jobEntry.isFile() || !jobEntry.name.endsWith(".yaml")) continue;
@@ -152,13 +152,13 @@ export async function migrateProviderAssignments(
   fromProviderId: string,
   toProviderId: string
 ): Promise<void> {
-  const entries = await fs.readdir(AGENTS_DIR, { withFileTypes: true }).catch(() => []);
+  const entries = await fs.readdir(agentsDir(), { withFileTypes: true }).catch(() => []);
 
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
 
     if (!entry.isDirectory() && entry.isFile() && entry.name.endsWith(".md")) {
-      const personaPath = path.join(AGENTS_DIR, entry.name);
+      const personaPath = path.join(agentsDir(), entry.name);
       const personaRaw = await fs.readFile(personaPath, "utf8").catch(() => null);
       if (personaRaw) {
         const parsed = matter(personaRaw);
@@ -172,7 +172,7 @@ export async function migrateProviderAssignments(
 
     if (!entry.isDirectory()) continue;
 
-    const personaPath = path.join(AGENTS_DIR, entry.name, "persona.md");
+    const personaPath = path.join(agentsDir(), entry.name, "persona.md");
     const personaRaw = await fs.readFile(personaPath, "utf8").catch(() => null);
     if (personaRaw) {
       const parsed = matter(personaRaw);
@@ -182,7 +182,7 @@ export async function migrateProviderAssignments(
       }
     }
 
-    const jobsDir = path.join(AGENTS_DIR, entry.name, "jobs");
+    const jobsDir = path.join(agentsDir(), entry.name, "jobs");
     const jobEntries = await fs.readdir(jobsDir, { withFileTypes: true }).catch(() => []);
     for (const jobEntry of jobEntries) {
       if (!jobEntry.isFile() || !jobEntry.name.endsWith(".yaml")) continue;

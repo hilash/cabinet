@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs/promises";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { getDataDir } from "@/lib/storage/path-utils";
 import {
   readFileContent,
   fileExists,
@@ -9,15 +9,15 @@ import {
 } from "@/lib/storage/fs-operations";
 import type { SlackMessage } from "@/types/agents";
 
-const AGENTS_DIR = path.join(DATA_DIR, ".agents");
-const SLACK_DIR = path.join(AGENTS_DIR, ".slack");
+function agentsDir(): string { return path.join(getDataDir(), ".agents"); }
+function slackDir(): string { return path.join(agentsDir(), ".slack"); }
 
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
 
 export async function initSlackDir(): Promise<void> {
-  await ensureDirectory(SLACK_DIR);
+  await ensureDirectory(slackDir());
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +35,7 @@ export async function postMessage(
     timestamp: new Date().toISOString(),
   };
 
-  const channelFile = path.join(SLACK_DIR, `${full.channel}.jsonl`);
+  const channelFile = path.join(slackDir(), `${full.channel}.jsonl`);
   const line = JSON.stringify(full) + "\n";
   await fs.appendFile(channelFile, line, "utf-8");
 
@@ -50,7 +50,7 @@ export async function getMessages(
   channel: string,
   limit: number = 50
 ): Promise<SlackMessage[]> {
-  const channelFile = path.join(SLACK_DIR, `${channel}.jsonl`);
+  const channelFile = path.join(slackDir(), `${channel}.jsonl`);
   if (!(await fileExists(channelFile))) return [];
 
   const raw = await readFileContent(channelFile);
@@ -103,7 +103,7 @@ export async function getRecentMessages(
 export async function listChannels(): Promise<string[]> {
   await initSlackDir();
 
-  const entries = await listDirectory(SLACK_DIR);
+  const entries = await listDirectory(slackDir());
   return entries
     .filter((e) => !e.isDirectory && e.name.endsWith(".jsonl"))
     .map((e) => e.name.replace(/\.jsonl$/, ""));

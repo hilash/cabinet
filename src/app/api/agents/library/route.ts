@@ -3,8 +3,9 @@ import path from "path";
 import fs from "fs/promises";
 import matter from "gray-matter";
 import { resolveAgentLibraryDir } from "@/lib/agents/library-manager";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET() {
+export const GET = route(async () => {
   try {
     const libraryDir = await resolveAgentLibraryDir();
     if (!libraryDir) {
@@ -39,4 +40,4 @@ export async function GET() {
   } catch {
     return NextResponse.json({ templates: [] });
   }
-}
+});

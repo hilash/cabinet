@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { sendNotification } from "@/lib/agents/notification-service";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function POST() {
+export const POST = route(async () => {
   try {
     const result = await sendNotification({
       title: "Cabinet Test Notification",
@@ -30,4 +31,4 @@ export async function POST() {
       { status: 500 },
     );
   }
-}
+});

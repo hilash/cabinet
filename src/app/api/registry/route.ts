@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getRegistryTemplates } from "@/lib/registry/registry-manifest";
+import { route } from "@/lib/runtime/route-wrapper";
 
-export async function GET(request: Request) {
+export const GET = route(async (request: Request) => {
   const templates = await getRegistryTemplates();
   const { searchParams } = new URL(request.url);
   const limitParam = searchParams.get("limit");
@@ -13,4 +14,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ templates: templates.slice(0, limit) });
   }
   return NextResponse.json({ templates });
-}
+});

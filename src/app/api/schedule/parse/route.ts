@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { route } from "@/lib/runtime/route-wrapper";
 
 const DAY_MAP: Record<string, number> = {
   sunday: 0, sun: 0,
@@ -100,7 +101,7 @@ function regexParse(text: string): { cron: string; description: string } | null 
   return null;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = route(async (req: NextRequest) => {
   const body = await req.json().catch(() => null);
   if (!body?.text || typeof body.text !== "string") {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
@@ -148,4 +149,4 @@ export async function POST(req: NextRequest) {
       { status: 422 }
     );
   }
-}
+});

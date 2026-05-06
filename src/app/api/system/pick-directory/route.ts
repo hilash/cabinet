@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import { NextResponse } from "next/server";
+import { route } from "@/lib/runtime/route-wrapper";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ function getPickerCommand(): { command: string; args: string[] } {
   }
 }
 
-export async function POST() {
+export const POST = route(async () => {
   try {
     const { command, args } = getPickerCommand();
 
@@ -88,4 +89,4 @@ export async function POST() {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
