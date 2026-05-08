@@ -78,6 +78,8 @@ import { cronToHuman } from "@/lib/agents/cron-utils";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { ScheduleCalendar } from "@/components/cabinets/schedule-calendar";
 import { NewRoutineDialog } from "@/components/agents/new-routine-dialog";
+import { HeartbeatDialog } from "@/components/agents/heartbeat-dialog";
+import { Switch } from "@/components/ui/switch";
 import type { JobConfig } from "@/types/jobs";
 import {
   TaskRuntimePicker,
@@ -517,8 +519,8 @@ function TopBar({
           />
           <TooltipContent>
             {persona.active
-              ? "Stop this agent — pauses heartbeat and all scheduled jobs. Manual chats still work."
-              : "Resume this agent — re-enables heartbeat and scheduled jobs."}
+              ? "Pause this agent's heartbeat. Scheduled routines below keep running unless you turn each one off. Manual chats still work."
+              : "Resume this agent's heartbeat."}
           </TooltipContent>
         </Tooltip>
 
@@ -1393,6 +1395,7 @@ function ScheduleSection({
   onRunJob,
   onAddRoutine,
   onEditRoutine,
+  onEditHeartbeat,
   onRunHeartbeat,
   onToggleActive,
   onManage,
@@ -1403,6 +1406,7 @@ function ScheduleSection({
   onRunJob: (id: string) => void;
   onAddRoutine: () => void;
   onEditRoutine: (job: AgentJob) => void;
+  onEditHeartbeat: () => void;
   onRunHeartbeat: () => void;
   onToggleActive: () => void;
   onManage: () => void;
@@ -1423,23 +1427,23 @@ function ScheduleSection({
       <ul className="space-y-0">
         {/* Heartbeat */}
         <li className="flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-md hover:bg-accent/30 transition-colors">
-          <Zap className={cn("h-3.5 w-3.5 shrink-0", persona.active ? "text-amber-500" : "text-muted-foreground/40")} />
-          <span className={cn("flex-1 text-[13px]", !persona.active && "text-muted-foreground/60")}>Heartbeat</span>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {cronToHuman(persona.heartbeat)}
-          </span>
           <button
-            onClick={onToggleActive}
-            className={cn(
-              "text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded transition-colors",
-              persona.active
-                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                : "bg-muted text-muted-foreground"
-            )}
-            title={persona.active ? "Pause heartbeat (stops all scheduled jobs)" : "Resume heartbeat"}
+            type="button"
+            onClick={onEditHeartbeat}
+            className="flex flex-1 items-center gap-3 text-left"
+            title="Edit heartbeat"
           >
-            {persona.active ? "on" : "off"}
+            <Zap className={cn("h-3.5 w-3.5 shrink-0", persona.active ? "text-amber-500" : "text-muted-foreground/40")} />
+            <span className={cn("flex-1 text-[13px]", !persona.active && "text-muted-foreground/60")}>Heartbeat</span>
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {cronToHuman(persona.heartbeat)}
+            </span>
           </button>
+          <Switch
+            checked={persona.active}
+            onCheckedChange={onToggleActive}
+            aria-label={persona.active ? "Pause heartbeat" : "Resume heartbeat"}
+          />
           <Button
             variant="ghost"
             size="icon-sm"
@@ -1469,17 +1473,11 @@ function ScheduleSection({
                 {cronToHuman(job.schedule)}
               </span>
             </button>
-            <button
-              onClick={() => onToggleJob(job.id)}
-              className={cn(
-                "text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded transition-colors",
-                job.enabled
-                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
-              {job.enabled ? "on" : "off"}
-            </button>
+            <Switch
+              checked={job.enabled}
+              onCheckedChange={() => onToggleJob(job.id)}
+              aria-label={job.enabled ? `Disable ${job.name}` : `Enable ${job.name}`}
+            />
             <Button
               variant="ghost"
               size="icon-sm"
@@ -2178,6 +2176,7 @@ export function AgentDetailV2({
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [routineDialogOpen, setRoutineDialogOpen] = useState(false);
   const [routineEditJob, setRoutineEditJob] = useState<JobConfig | null>(null);
+  const [heartbeatDialogOpen, setHeartbeatDialogOpen] = useState(false);
 
   // Schedule handoff — lets the user convert the current composer draft into
   // a recurring routine or heartbeat by opening StartWorkDialog seeded with
@@ -2603,6 +2602,7 @@ export function AgentDetailV2({
                   setRoutineEditJob(job as unknown as JobConfig);
                   setRoutineDialogOpen(true);
                 }}
+                onEditHeartbeat={() => setHeartbeatDialogOpen(true)}
                 onRunHeartbeat={runHeartbeat}
                 onToggleActive={togglingActive ? () => {} : toggleActive}
                 onManage={() => setScheduleOpen(true)}
@@ -2640,6 +2640,23 @@ export function AgentDetailV2({
           onDeleted={() => {
             setRoutineEditJob(null);
             void refresh();
+          }}
+        />
+
+        <HeartbeatDialog
+          open={heartbeatDialogOpen}
+          onOpenChange={setHeartbeatDialogOpen}
+          agent={{
+            slug: persona.slug,
+            name: persona.name,
+            role: persona.role,
+            cabinetPath: persona.cabinetPath || effectiveCabinetPath || "",
+          }}
+          initialHeartbeat={persona.heartbeat}
+          initialActive={persona.active}
+          onSaved={() => void refresh()}
+          onToggledActive={(active) => {
+            setPersona((prev) => (prev ? { ...prev, active } : prev));
           }}
         />
 
