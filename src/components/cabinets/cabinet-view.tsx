@@ -51,7 +51,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
   const [heartbeatDialog, setHeartbeatDialog] = useState<{
     agent: NewRoutineDialogAgent;
     initialHeartbeat?: string;
-    initialActive?: boolean;
+    initialEnabled?: boolean;
     missedRun?: { scheduledAt: string };
   } | null>(null);
 
@@ -199,7 +199,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
           cabinetPath: event.agentRef.cabinetPath || cabinetPath,
         },
         initialHeartbeat: event.agentRef.heartbeat || "0 9 * * 1-5",
-        initialActive: event.agentRef.active,
+        initialEnabled: event.agentRef.heartbeatEnabled !== false,
       });
     }
   }
@@ -370,7 +370,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
         }}
         agent={heartbeatDialog?.agent ?? { slug: "", name: "" }}
         initialHeartbeat={heartbeatDialog?.initialHeartbeat}
-        initialActive={heartbeatDialog?.initialActive}
+        initialEnabled={heartbeatDialog?.initialEnabled}
         missedRun={heartbeatDialog?.missedRun}
         onSaved={() => {
           setHeartbeatDialog(null);

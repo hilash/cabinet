@@ -328,12 +328,13 @@ function blankJobDraft(
 // surrounding view conditionally renders.
 function ToggleAllHeartbeatsButton({
   heartbeatAgents,
-  anyActive,
+  anyEnabled,
   effectiveCabinetPath,
   refreshAgents,
 }: {
   heartbeatAgents: AgentListItem[];
-  anyActive: boolean;
+  /** At least one heartbeat is on (heartbeatEnabled !== false). */
+  anyEnabled: boolean;
   effectiveCabinetPath: string | undefined;
   refreshAgents: () => Promise<void>;
 }) {
@@ -347,7 +348,7 @@ function ToggleAllHeartbeatsButton({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: anyActive ? "stop-all" : "start-all",
+          action: anyEnabled ? "pause-heartbeats" : "resume-heartbeats",
           cabinetPath: effectiveCabinetPath,
         }),
       });
@@ -362,10 +363,10 @@ function ToggleAllHeartbeatsButton({
       onClick={() => void toggleAll()}
       disabled={toggling}
       className="inline-flex h-9 items-center gap-2 rounded-lg border border-border/70 bg-background px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
-      title={anyActive ? "Pause all heartbeats in this cabinet" : "Resume all heartbeats in this cabinet"}
+      title={anyEnabled ? "Pause all heartbeats in this cabinet" : "Resume all heartbeats in this cabinet"}
     >
-      {anyActive ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-      {anyActive ? "Pause all" : "Resume all"}
+      {anyEnabled ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+      {anyEnabled ? "Pause all" : "Resume all"}
     </button>
   );
 }
@@ -493,7 +494,7 @@ export function AgentsWorkspace({
   const [heartbeatDialog, setHeartbeatDialog] = useState<{
     agent: NewRoutineDialogAgent;
     initialHeartbeat?: string;
-    initialActive?: boolean;
+    initialEnabled?: boolean;
   } | null>(null);
   const [cabinetJobs, setCabinetJobs] = useState<CabinetJobSummary[]>([]);
   const [cabinetChildren, setCabinetChildren] = useState<CabinetOverview["children"]>([]);
@@ -666,6 +667,7 @@ export function AgentsWorkspace({
           emoji: a.emoji || "🤖",
           role: a.role || "",
           active: a.active,
+          heartbeatEnabled: a.heartbeatEnabled,
           type: a.type,
           department: a.department,
           heartbeat: a.heartbeat || "",
@@ -1458,19 +1460,19 @@ export function AgentsWorkspace({
 
   async function listToggleHeartbeat(agent: AgentListItem) {
     const cabinetPath = agent.cabinetPath || effectiveCabinetPath;
-    const nextActive = !agent.active;
+    const nextEnabled = agent.heartbeatEnabled === false;
     const res = await fetch(`/api/agents/personas/${agent.slug}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         heartbeat: agent.heartbeat || "",
-        active: nextActive,
+        heartbeatEnabled: nextEnabled,
         cabinetPath,
       }),
     });
     if (!res.ok) return;
     setAgents((prev) =>
-      prev.map((a) => (a.slug === agent.slug ? { ...a, active: nextActive } : a))
+      prev.map((a) => (a.slug === agent.slug ? { ...a, heartbeatEnabled: nextEnabled } : a))
     );
   }
 
@@ -1845,6 +1847,7 @@ export function AgentsWorkspace({
         emoji: a.emoji,
         role: a.role,
         active: a.active,
+        heartbeatEnabled: a.heartbeatEnabled,
         department: a.department,
         type: a.type,
         heartbeat: a.heartbeat,
@@ -3166,7 +3169,7 @@ export function AgentsWorkspace({
                               cabinetPath: agent.cabinetPath || effectiveCabinetPath,
                             },
                             initialHeartbeat: agent.heartbeat || "0 9 * * 1-5",
-                            initialActive: agent.active,
+                            initialEnabled: agent.heartbeatEnabled !== false,
                           });
                         }}
                       />
@@ -3245,7 +3248,7 @@ export function AgentsWorkspace({
                       </div>
                       <ToggleAllHeartbeatsButton
                         heartbeatAgents={agents.filter((a) => !!a.heartbeat)}
-                        anyActive={agents.filter((a) => !!a.heartbeat).some((a) => a.active)}
+                        anyEnabled={agents.filter((a) => !!a.heartbeat).some((a) => a.heartbeatEnabled !== false)}
                         effectiveCabinetPath={effectiveCabinetPath}
                         refreshAgents={refreshAgents}
                       />
@@ -3312,7 +3315,7 @@ export function AgentsWorkspace({
                                         agent.cabinetPath || effectiveCabinetPath,
                                     },
                                     initialHeartbeat: agent.heartbeat!,
-                                    initialActive: agent.active,
+                                    initialEnabled: agent.heartbeatEnabled !== false,
                                   })
                                 }
                                 onRun={() => listRunHeartbeat(agent)}
@@ -3405,7 +3408,7 @@ export function AgentsWorkspace({
                     cabinetPath: agent.cabinetPath || effectiveCabinetPath,
                   },
                   initialHeartbeat: agent.heartbeat || "0 9 * * 1-5",
-                  initialActive: agent.active,
+                  initialEnabled: agent.heartbeatEnabled !== false,
                 });
               }}
             />
@@ -3800,17 +3803,17 @@ export function AgentsWorkspace({
         }}
         agent={heartbeatDialog?.agent ?? { slug: "", name: "" }}
         initialHeartbeat={heartbeatDialog?.initialHeartbeat}
-        initialActive={heartbeatDialog?.initialActive}
+        initialEnabled={heartbeatDialog?.initialEnabled}
         onSaved={() => {
           setHeartbeatDialog(null);
           void refreshAgents();
         }}
-        onToggledActive={(nextActive) => {
+        onToggledEnabled={(nextEnabled) => {
           const targetSlug = heartbeatDialog?.agent.slug;
           if (!targetSlug) return;
           setAgents((prev) =>
             prev.map((a) =>
-              a.slug === targetSlug ? { ...a, active: nextActive } : a
+              a.slug === targetSlug ? { ...a, heartbeatEnabled: nextEnabled } : a
             )
           );
         }}

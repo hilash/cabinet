@@ -58,7 +58,7 @@ export async function GET() {
           // Gather current state
           const personas = await listAllPersonas();
           const registered = personas
-            .filter((persona) => persona.active && !!persona.heartbeat)
+            .filter((persona) => persona.active && persona.heartbeatEnabled && !!persona.heartbeat)
             .map((persona) => persona.slug);
           const runningCounts = await getRunningConversationCounts();
 

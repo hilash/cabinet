@@ -30,27 +30,28 @@ export function HeartbeatDialog({
   onOpenChange,
   agent,
   initialHeartbeat,
-  initialActive,
+  initialEnabled,
   missedRun,
   onSaved,
   onRanNow,
-  onToggledActive,
+  onToggledEnabled,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agent: NewRoutineDialogAgent;
   initialHeartbeat?: string;
-  initialActive?: boolean;
+  /** Heartbeat-specific enable. Independent from the agent's master `active`. */
+  initialEnabled?: boolean;
   missedRun?: { scheduledAt: string };
   onSaved?: () => void;
   onRanNow?: (sessionId: string | null) => void;
-  /** Fired when the user toggles active from inside the dialog without
-   *  saving/closing. Lets the parent update its list without tearing down
-   *  the open dialog. */
-  onToggledActive?: (active: boolean) => void;
+  /** Fired when the user toggles the heartbeat enable from inside the dialog
+   *  without saving/closing. Lets the parent update its list without tearing
+   *  down the open dialog. */
+  onToggledEnabled?: (enabled: boolean) => void;
 }) {
   const [heartbeat, setHeartbeat] = useState(initialHeartbeat || DEFAULT_HEARTBEAT);
-  const [active, setActive] = useState(initialActive ?? true);
+  const [enabled, setEnabled] = useState(initialEnabled ?? true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -59,8 +60,8 @@ export function HeartbeatDialog({
   useEffect(() => {
     if (!open) return;
     setHeartbeat(initialHeartbeat || DEFAULT_HEARTBEAT);
-    setActive(initialActive ?? true);
-  }, [open, initialHeartbeat, initialActive]);
+    setEnabled(initialEnabled ?? true);
+  }, [open, initialHeartbeat, initialEnabled]);
 
   const setSection = useAppStore((s) => s.setSection);
 
@@ -72,7 +73,7 @@ export function HeartbeatDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           heartbeat,
-          active,
+          heartbeatEnabled: enabled,
           cabinetPath: agent.cabinetPath,
         }),
       });
@@ -100,22 +101,22 @@ export function HeartbeatDialog({
     }
   }
 
-  async function toggleActive() {
+  async function toggleEnabled() {
     setToggling(true);
     try {
-      const nextActive = !active;
+      const next = !enabled;
       const res = await fetch(`/api/agents/personas/${agent.slug}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           heartbeat,
-          active: nextActive,
+          heartbeatEnabled: next,
           cabinetPath: agent.cabinetPath,
         }),
       });
       if (!res.ok) return;
-      setActive(nextActive);
-      onToggledActive?.(nextActive);
+      setEnabled(next);
+      onToggledEnabled?.(next);
     } finally {
       setToggling(false);
     }
@@ -169,9 +170,9 @@ export function HeartbeatDialog({
                 size="sm"
                 className="h-9 gap-1.5 text-[12px]"
                 onClick={() => void runNow()}
-                disabled={running || !active}
+                disabled={running || !enabled}
                 title={
-                  active
+                  enabled
                     ? "Run heartbeat now (one-off, outside its schedule)"
                     : "Enable the heartbeat to run it"
                 }
@@ -188,12 +189,12 @@ export function HeartbeatDialog({
                 size="sm"
                 className={cn(
                   "h-9 gap-1.5 text-[12px]",
-                  !active && "text-emerald-600 dark:text-emerald-400"
+                  !enabled && "text-emerald-600 dark:text-emerald-400"
                 )}
-                onClick={() => void toggleActive()}
+                onClick={() => void toggleEnabled()}
                 disabled={toggling}
                 title={
-                  active
+                  enabled
                     ? "Disable the heartbeat — it won't fire on its schedule"
                     : "Enable the heartbeat so it fires on its schedule"
                 }
@@ -203,7 +204,7 @@ export function HeartbeatDialog({
                 ) : (
                   <Power className="h-3.5 w-3.5" />
                 )}
-                {active ? "Disable" : "Enable"}
+                {enabled ? "Disable" : "Enable"}
               </Button>
             </div>
           </div>

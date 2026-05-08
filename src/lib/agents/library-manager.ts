@@ -168,6 +168,7 @@ export async function readLibraryPersona(
     heartbeat: (data.heartbeat as string) || "0 8 * * *",
     budget: (data.budget as number) || 100,
     active: data.active !== false,
+    heartbeatEnabled: data.heartbeatEnabled !== false,
     workdir: (data.workdir as string) || "/data",
     focus: (data.focus as string[]) || [],
     tags: (data.tags as string[]) || [],

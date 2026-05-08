@@ -30,7 +30,6 @@ import {
   Pencil,
   Play,
   Plus,
-  Power,
   Send,
   Share2,
   Sparkles,
@@ -504,26 +503,24 @@ function TopBar({
         <Tooltip>
           <TooltipTrigger
             render={
-              <button
-                type="button"
-                onClick={onToggleActive}
+              <label
                 className={cn(
-                  "inline-flex items-center gap-1.5 h-7 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
+                  "inline-flex items-center gap-2 h-7 rounded-md border px-2.5 text-[12px] font-medium transition-colors cursor-pointer select-none",
                   persona.active
                     ? "border-border hover:bg-accent/40"
                     : "border-dashed border-border/60 text-muted-foreground hover:bg-accent/30"
                 )}
                 style={persona.active ? { color: palette.text } : undefined}
               >
-                <Power className="h-3.5 w-3.5" />
-                {persona.active ? "Active" : "Stopped"}
-              </button>
+                <Switch checked={persona.active} onCheckedChange={onToggleActive} />
+                <span>{persona.active ? "Working" : "Stopped"}</span>
+              </label>
             }
           />
           <TooltipContent>
             {persona.active
-              ? "Pause this agent's heartbeat. Scheduled routines below keep running unless you turn each one off. Manual chats still work."
-              : "Resume this agent's heartbeat."}
+              ? "Stop this agent. Scheduled heartbeat and routines won't fire. Manual chats and any in-flight runs keep working."
+              : "Start this agent. Scheduled heartbeat and routines resume on their own rhythm."}
           </TooltipContent>
         </Tooltip>
 
@@ -1405,7 +1402,7 @@ function ScheduleSection({
   onEditRoutine,
   onEditHeartbeat,
   onRunHeartbeat,
-  onToggleActive,
+  onToggleHeartbeat,
   onManage,
 }: {
   persona: AgentPersona;
@@ -1416,10 +1413,12 @@ function ScheduleSection({
   onEditRoutine: (job: AgentJob) => void;
   onEditHeartbeat: () => void;
   onRunHeartbeat: () => void;
-  onToggleActive: () => void;
+  onToggleHeartbeat: () => void;
   onManage: () => void;
 }) {
   const { t } = useLocale();
+  const heartbeatOn = persona.heartbeatEnabled !== false;
+  const heartbeatEffective = persona.active && heartbeatOn;
 
   return (
     <Section
@@ -1442,16 +1441,16 @@ function ScheduleSection({
             className="flex flex-1 items-center gap-3 text-left"
             title="Edit heartbeat"
           >
-            <Zap className={cn("h-3.5 w-3.5 shrink-0", persona.active ? "text-amber-500" : "text-muted-foreground/40")} />
-            <span className={cn("flex-1 text-[13px]", !persona.active && "text-muted-foreground/60")}>{t("agents:detail.heartbeat")}</span>
+            <Zap className={cn("h-3.5 w-3.5 shrink-0", heartbeatEffective ? "text-amber-500" : "text-muted-foreground/40")} />
+            <span className={cn("flex-1 text-[13px]", !heartbeatEffective && "text-muted-foreground/60")}>{t("agents:detail.heartbeat")}</span>
             <span className="text-[11px] text-muted-foreground tabular-nums">
               {cronToHuman(persona.heartbeat)}
             </span>
           </button>
           <Switch
-            checked={persona.active}
-            onCheckedChange={onToggleActive}
-            aria-label={persona.active ? "Pause heartbeat" : "Resume heartbeat"}
+            checked={heartbeatOn}
+            onCheckedChange={onToggleHeartbeat}
+            aria-label={heartbeatOn ? "Pause heartbeat" : "Resume heartbeat"}
           />
           <Button
             variant="ghost"
@@ -1459,13 +1458,15 @@ function ScheduleSection({
             className="h-7 w-7"
             onClick={onRunHeartbeat}
             title={t("agents:detail.runNow")}
-            disabled={!persona.active}
+            disabled={!heartbeatEffective}
           >
             <Play className="h-3 w-3" />
           </Button>
         </li>
         {/* Jobs */}
-        {jobs.map((job) => (
+        {jobs.map((job) => {
+          const jobEffective = persona.active && job.enabled;
+          return (
           <li
             key={job.id}
             className="flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-md hover:bg-accent/30 transition-colors"
@@ -1476,8 +1477,8 @@ function ScheduleSection({
               className="flex flex-1 items-center gap-3 text-left"
               title={t("agents:detail.editRoutine")}
             >
-              <Briefcase className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="flex-1 text-[13px] truncate">{job.name}</span>
+              <Briefcase className={cn("h-3.5 w-3.5 shrink-0", jobEffective ? "text-muted-foreground" : "text-muted-foreground/50")} />
+              <span className={cn("flex-1 text-[13px] truncate", !jobEffective && "text-muted-foreground/60")}>{job.name}</span>
               <span className="text-[11px] text-muted-foreground tabular-nums">
                 {cronToHuman(job.schedule)}
               </span>
@@ -1497,7 +1498,8 @@ function ScheduleSection({
               <Play className="h-3 w-3" />
             </Button>
           </li>
-        ))}
+          );
+        })}
         {/* Add */}
         <li>
           <button
@@ -2433,6 +2435,20 @@ export function AgentDetailV2({
     refresh();
   }, [slug, refresh, effectiveCabinetPath]);
 
+  const toggleHeartbeat = useCallback(async () => {
+    if (!persona) return;
+    const next = persona.heartbeatEnabled === false;
+    setPersona((prev) => (prev ? { ...prev, heartbeatEnabled: next } : prev));
+    const body: Record<string, unknown> = { heartbeatEnabled: next };
+    if (effectiveCabinetPath) body.cabinetPath = effectiveCabinetPath;
+    await fetch(`/api/agents/personas/${slug}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    refresh();
+  }, [persona, slug, refresh, effectiveCabinetPath]);
+
   const toggleCanDispatch = useCallback(async () => {
     if (!persona) return;
     const current =
@@ -2617,7 +2633,7 @@ export function AgentDetailV2({
                 }}
                 onEditHeartbeat={() => setHeartbeatDialogOpen(true)}
                 onRunHeartbeat={runHeartbeat}
-                onToggleActive={togglingActive ? () => {} : toggleActive}
+                onToggleHeartbeat={toggleHeartbeat}
                 onManage={() => setScheduleOpen(true)}
               />
               <DetailsSection
@@ -2666,10 +2682,10 @@ export function AgentDetailV2({
             cabinetPath: persona.cabinetPath || effectiveCabinetPath || "",
           }}
           initialHeartbeat={persona.heartbeat}
-          initialActive={persona.active}
+          initialEnabled={persona.heartbeatEnabled !== false}
           onSaved={() => void refresh()}
-          onToggledActive={(active) => {
-            setPersona((prev) => (prev ? { ...prev, active } : prev));
+          onToggledEnabled={(heartbeatEnabled) => {
+            setPersona((prev) => (prev ? { ...prev, heartbeatEnabled } : prev));
           }}
         />
 

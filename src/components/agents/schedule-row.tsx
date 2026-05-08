@@ -12,7 +12,13 @@ import { useLocale } from "@/i18n/use-locale";
 
 interface BaseRowProps {
   agent: AgentListItem;
+  /** Visual dim — the row reads as "effectively off". */
   disabled: boolean;
+  /** Switch position — defaults to !disabled so callers that don't split
+   *  effective vs. switch state still work. */
+  switchChecked?: boolean;
+  /** Disable the switch itself (e.g. master is off, can't toggle the child). */
+  switchDisabled?: boolean;
   title: string;
   subtitle: string;
   schedule: string;
@@ -26,6 +32,8 @@ interface BaseRowProps {
 function ScheduleRow({
   agent,
   disabled,
+  switchChecked,
+  switchDisabled = false,
   title,
   subtitle,
   schedule,
@@ -36,6 +44,7 @@ function ScheduleRow({
   onDelete,
 }: BaseRowProps) {
   const { t } = useLocale();
+  const isOn = switchChecked ?? !disabled;
   const [running, setRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -88,9 +97,9 @@ function ScheduleRow({
   }
 
   const actionSlotWidth = onDelete ? "w-[64px]" : "w-[36px]";
-  const toggleLabel = disabled
-    ? toggleVerb === "pause" ? "Resume" : "Enable"
-    : toggleVerb === "pause" ? "Pause" : "Disable";
+  const toggleLabel = isOn
+    ? toggleVerb === "pause" ? "Pause" : "Disable"
+    : toggleVerb === "pause" ? "Resume" : "Enable";
 
   return (
     <div
@@ -198,9 +207,9 @@ function ScheduleRow({
           title={toggleLabel}
         >
           <Switch
-            checked={!disabled}
+            checked={isOn}
             onCheckedChange={() => void handleToggle()}
-            disabled={toggling}
+            disabled={toggling || switchDisabled}
             aria-label={toggleLabel}
           />
         </div>
@@ -225,10 +234,15 @@ export function RoutineRow({
   onDelete: () => void | Promise<void>;
 }) {
   const { t } = useLocale();
+  // Effective off when the agent is stopped or the job is disabled. The Switch
+  // still reflects only the per-job flag, so users can pre-configure routines
+  // even while the agent is stopped — they'll fire when the agent resumes.
+  const effectiveOn = agent.active && job.enabled;
   return (
     <ScheduleRow
       agent={agent}
-      disabled={!job.enabled}
+      disabled={!effectiveOn}
+      switchChecked={job.enabled}
       title={job.name}
       subtitle={agent.name}
       schedule={job.schedule}
@@ -249,12 +263,20 @@ export function HeartbeatRow({
   agent: AgentListItem;
   onEdit: () => void;
   onRun: () => void | Promise<void>;
+  /** Toggles `agent.heartbeatEnabled` only. The master `agent.active`
+   *  switch is gated separately on the agent header / detail page. */
   onToggle: () => void | Promise<void>;
 }) {
+  const heartbeatOn = agent.heartbeatEnabled !== false;
+  const effectiveOn = agent.active && heartbeatOn;
   return (
     <ScheduleRow
       agent={agent}
-      disabled={!agent.active}
+      // Visual dim when *effectively* off (master or per-heartbeat off);
+      // the Switch itself reflects only the per-heartbeat toggle so it stays
+      // editable even while the master is off.
+      disabled={!effectiveOn}
+      switchChecked={heartbeatOn}
       title={agent.name}
       subtitle="Heartbeat"
       schedule={agent.heartbeat || ""}

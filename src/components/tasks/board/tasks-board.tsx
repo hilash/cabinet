@@ -566,7 +566,7 @@ export function TasksBoard({
                     agentName: agent.name,
                     cabinetPath: agent.cabinetPath || cabinetPath,
                     heartbeat: agent.heartbeat || "0 9 * * 1-5",
-                    active: agent.active,
+                    enabled: agent.heartbeatEnabled !== false,
                   });
                 }}
               />

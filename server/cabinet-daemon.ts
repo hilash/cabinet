@@ -1212,6 +1212,10 @@ async function reloadSchedules(): Promise<void> {
     const agentsDir = path.join(cabinet.absDir, ".agents");
 
     // --- Heartbeats from .agents/*/persona.md ---
+    // Also collect active-agent slugs per cabinet so jobs owned by an
+    // inactive (Stopped) agent don't get scheduled. Master switch =
+    // `agent.active`; per-heartbeat enable = `agent.heartbeatEnabled`.
+    const activeAgents = new Set<string>();
     if (fs.existsSync(agentsDir)) {
       let agentEntries: fs.Dirent[];
       try {
@@ -1229,8 +1233,10 @@ async function reloadSchedules(): Promise<void> {
             const rawPersona = fs.readFileSync(personaPath, "utf-8");
             const { data } = matter(rawPersona);
             const active = data.active !== false;
+            const heartbeatEnabled = data.heartbeatEnabled !== false;
             const heartbeat = typeof data.heartbeat === "string" ? data.heartbeat : "";
-            if (active && heartbeat) {
+            if (active) activeAgents.add(entry.name);
+            if (active && heartbeatEnabled && heartbeat) {
               scheduleHeartbeat(entry.name, heartbeat, cabinet.relPath);
               heartbeatCount++;
             }
@@ -1265,7 +1271,13 @@ async function reloadSchedules(): Promise<void> {
             agentSlug: ownerAgent,
             cabinetPath: cabinet.relPath,
           };
-          if (config.id && config.enabled && config.schedule && ownerAgent) {
+          if (
+            config.id &&
+            config.enabled &&
+            config.schedule &&
+            ownerAgent &&
+            activeAgents.has(ownerAgent)
+          ) {
             scheduleJob(config);
             jobCount++;
           }
