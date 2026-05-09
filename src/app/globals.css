@@ -223,6 +223,17 @@ html[data-custom-theme] .tiptap h4 {
   animation: cabinet-tree-blink 1.4s ease-in-out;
 }
 
+/* One-shot ring pulse for the agent header master Switch — fired when a
+   user clicks a locked child Switch to point them at the toggle they need. */
+@keyframes cabinet-master-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  60% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+.cabinet-master-pulse {
+  animation: cabinet-master-pulse 700ms ease-out;
+}
+
 /* Body serif — Source Serif 4, beats theme overrides */
 html[data-custom-theme] .font-body-serif,
 .font-body-serif {

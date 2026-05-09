@@ -465,13 +465,10 @@ function TopBar({
     ? tintFromHex(persona.color)
     : getAgentColor(persona.slug);
 
-  const [pulsing, setPulsing] = useState(false);
-  useEffect(() => {
-    if (pulseToken === 0) return;
-    setPulsing(true);
-    const t = setTimeout(() => setPulsing(false), 700);
-    return () => clearTimeout(t);
-  }, [pulseToken]);
+  // Each new pulseToken bump remounts the wrapper via `key`, restarting the
+  // one-shot CSS animation defined in globals.css (`cabinet-master-pulse`).
+  // No React state needed for the on/off transition.
+  const pulseKey = pulseToken > 0 ? `pulse-${pulseToken}` : "pulse-idle";
 
   return (
     <div className="flex items-center justify-between px-6 pt-4">
@@ -517,12 +514,13 @@ function TopBar({
           <TooltipTrigger
             render={
               <label
+                key={pulseKey}
                 className={cn(
-                  "inline-flex items-center gap-2 h-7 rounded-md border px-2.5 text-[12px] font-medium transition-colors cursor-pointer select-none ring-offset-2 ring-offset-background",
+                  "inline-flex items-center gap-2 h-7 rounded-md border px-2.5 text-[12px] font-medium transition-colors cursor-pointer select-none",
                   persona.active
                     ? "border-border hover:bg-accent/40"
                     : "border-dashed border-border/60 text-muted-foreground hover:bg-accent/30",
-                  pulsing && "ring-2 ring-amber-500 animate-pulse"
+                  pulseToken > 0 && "cabinet-master-pulse"
                 )}
                 style={persona.active ? { color: palette.text } : undefined}
               >

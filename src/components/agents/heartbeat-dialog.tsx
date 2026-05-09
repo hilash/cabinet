@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, ExternalLink, HeartPulse, Loader2, Play, Power, Save } from "lucide-react";
+import { AlertTriangle, ExternalLink, HeartPulse, Loader2, Play, Save } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
@@ -184,28 +185,25 @@ export function HeartbeatDialog({
                 )}
                 Run now
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
+              <label
                 className={cn(
-                  "h-9 gap-1.5 text-[12px]",
-                  !enabled && "text-emerald-600 dark:text-emerald-400"
+                  "inline-flex h-9 cursor-pointer select-none items-center gap-2 rounded-md border border-input px-3 text-[12px] font-medium transition-colors hover:bg-accent/40",
+                  toggling && "opacity-60"
                 )}
-                onClick={() => void toggleEnabled()}
-                disabled={toggling}
                 title={
                   enabled
                     ? "Disable the heartbeat — it won't fire on its schedule"
                     : "Enable the heartbeat so it fires on its schedule"
                 }
               >
-                {toggling ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Power className="h-3.5 w-3.5" />
-                )}
-                {enabled ? "Disable" : "Enable"}
-              </Button>
+                <Switch
+                  checked={enabled}
+                  onCheckedChange={() => void toggleEnabled()}
+                  disabled={toggling}
+                  aria-label={enabled ? "Disable heartbeat" : "Enable heartbeat"}
+                />
+                <span>{enabled ? "On" : "Off"}</span>
+              </label>
             </div>
           </div>
         </DialogHeader>

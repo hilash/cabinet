@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { HeartbeatRow, RoutineRow } from "@/components/agents/schedule-row";
+import { AgentRow } from "@/components/agents/agent-row";
 import {
   appendConversationCabinetPath,
 } from "@/lib/agents/conversation-identity";
@@ -1473,6 +1474,21 @@ export function AgentsWorkspace({
     if (!res.ok) return;
     setAgents((prev) =>
       prev.map((a) => (a.slug === agent.slug ? { ...a, heartbeatEnabled: nextEnabled } : a))
+    );
+  }
+
+  async function listToggleAgentActive(agent: AgentListItem) {
+    const cabinetPath = agent.cabinetPath || effectiveCabinetPath;
+    const res = await fetch(`/api/agents/personas/${agent.slug}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle", cabinetPath }),
+    });
+    if (!res.ok) return;
+    const data = (await res.json().catch(() => null)) as { active?: boolean } | null;
+    const nextActive = data?.active ?? !agent.active;
+    setAgents((prev) =>
+      prev.map((a) => (a.slug === agent.slug ? { ...a, active: nextActive } : a))
     );
   }
 
@@ -2932,16 +2948,16 @@ export function AgentsWorkspace({
                   </div>
                 )}
 
-                {/* Agents grid */}
+                {/* Agents list */}
                 <section className="space-y-4">
                   <div className="space-y-2">
                     <h2 className="text-[24px] font-semibold tracking-tight text-foreground sm:text-[28px]">
                       Meet the team
                     </h2>
                     <p className="max-w-3xl text-[14px] leading-6 text-muted-foreground">
-                      Each card is a specialist. Click one to open its profile
-                      and edit its name, role, and the instructions that shape
-                      how it thinks and works.
+                      Each row is a specialist. Click one to open its profile.
+                      Use the toggle on the right to start or stop an agent
+                      without leaving the page.
                     </p>
                     <p className="text-[12px] text-muted-foreground/80">
                       {orgAgentCount} on the team
@@ -2949,95 +2965,34 @@ export function AgentsWorkspace({
                   </div>
 
                   {!agentsLoaded ? (
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
                       {Array.from({ length: 3 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="flex flex-col gap-3 rounded-xl border border-border/40 bg-card/50 p-4 animate-pulse"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="size-10 shrink-0 rounded-full bg-muted/60" />
-                            <div className="flex-1 space-y-2 pt-1">
-                              <div className="h-3 w-24 rounded bg-muted/60" />
-                              <div className="h-2.5 w-36 rounded bg-muted/40" />
-                            </div>
+                        <li key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+                          <div className="size-7 shrink-0 rounded-full bg-muted/60" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 w-32 rounded bg-muted/60" />
+                            <div className="h-2.5 w-48 rounded bg-muted/40" />
                           </div>
-                          <div className="flex gap-1.5">
-                            <div className="h-4 w-14 rounded-full bg-muted/40" />
-                            <div className="h-4 w-10 rounded-full bg-muted/40" />
-                          </div>
-                        </div>
+                          <div className="h-4 w-7 rounded-full bg-muted/40" />
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   ) : agents.length === 0 ? (
                     <p className="rounded-lg border border-dashed border-border/60 px-3 py-8 text-center text-[12px] text-muted-foreground">
                       No agents yet. Use <span className="font-medium text-foreground">{t("agents:workspace.newAgent")}</span> above to bring one in.
                     </p>
                   ) : (
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {agents.map((agent) => {
-                        const hbCount = agent.heartbeat ? 1 : 0;
-                        const jobCount = agent.jobCount || 0;
-                        return (
-                          <button
-                            key={agent.scopedId ?? (agent.cabinetPath ? `${agent.cabinetPath}::${agent.slug}` : agent.slug)}
-                            type="button"
-                            onClick={() => openAgentSettings(agent.slug)}
-                            className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 text-left transition-colors hover:bg-muted/30"
-                          >
-                            <div className="flex items-start gap-3">
-                              <AgentAvatar agent={agent} shape="circle" size="lg" />
-                              <div className="min-w-0 flex-1">
-                                <h3 className="truncate text-[13px] font-semibold text-foreground">
-                                  {agent.name}
-                                </h3>
-                                {agent.role ? (
-                                  <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
-                                    {agent.role}
-                                  </p>
-                                ) : null}
-                              </div>
-                              <span
-                                className={cn(
-                                  "mt-1.5 inline-flex size-2 shrink-0 rounded-full",
-                                  agent.active
-                                    ? "bg-emerald-500"
-                                    : "bg-muted-foreground/30"
-                                )}
-                                title={agent.active ? "Active" : "Paused"}
-                              />
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                              {agent.scope === "global" ? (
-                                <span
-                                  className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-300"
-                                  title={t("agents:workspace.sharedAcrossCabinets")}
-                                >
-                                  Global
-                                </span>
-                              ) : null}
-                              {hbCount > 0 ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-2 py-0.5">
-                                  <HeartPulse className="size-2.5 text-pink-400" />
-                                  Heartbeat
-                                </span>
-                              ) : null}
-                              {jobCount > 0 ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-2 py-0.5">
-                                  <Clock3 className="size-2.5 text-emerald-400" />
-                                  {jobCount} {jobCount === 1 ? "job" : "jobs"}
-                                </span>
-                              ) : null}
-                              {agent.department ? (
-                                <span className="inline-flex rounded-full bg-muted/40 px-2 py-0.5">
-                                  {startCase(agent.department)}
-                                </span>
-                              ) : null}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
+                      {agents.map((agent) => (
+                        <li key={agent.scopedId ?? (agent.cabinetPath ? `${agent.cabinetPath}::${agent.slug}` : agent.slug)}>
+                          <AgentRow
+                            agent={agent}
+                            onOpen={openAgentSettings}
+                            onToggleActive={listToggleAgentActive}
+                          />
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </section>
 

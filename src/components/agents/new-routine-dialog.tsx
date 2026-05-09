@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Loader2, Play, Power, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Play, Save, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -277,28 +278,25 @@ export function NewRoutineDialog({
                   )}
                   Run now
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <label
                   className={cn(
-                    "h-9 gap-1.5 text-[12px]",
-                    draft?.enabled === false && "text-emerald-600 dark:text-emerald-400"
+                    "inline-flex h-9 cursor-pointer select-none items-center gap-2 rounded-md border border-input px-3 text-[12px] font-medium transition-colors hover:bg-accent/40",
+                    toggling && "opacity-60"
                   )}
-                  onClick={() => void toggleEnabled()}
-                  disabled={toggling}
                   title={
                     draft?.enabled === false
                       ? "Enable this routine so it runs on its schedule"
                       : "Disable this routine — it stays saved but won't fire on its schedule"
                   }
                 >
-                  {toggling ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Power className="h-3.5 w-3.5" />
-                  )}
-                  {draft?.enabled === false ? "Enable" : "Disable"}
-                </Button>
+                  <Switch
+                    checked={draft?.enabled !== false}
+                    onCheckedChange={() => void toggleEnabled()}
+                    disabled={toggling}
+                    aria-label={draft?.enabled === false ? "Enable routine" : "Disable routine"}
+                  />
+                  <span>{draft?.enabled === false ? "Off" : "On"}</span>
+                </label>
                 <Button
                   variant="ghost"
                   size="sm"
