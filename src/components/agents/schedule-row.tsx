@@ -4,11 +4,14 @@ import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Check, Loader2, Play, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
-import { Switch } from "@/components/ui/switch";
+import { LockedSwitch } from "@/components/ui/locked-switch";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import type { AgentListItem } from "@/types/agents";
 import type { JobConfig } from "@/types/jobs";
 import { useLocale } from "@/i18n/use-locale";
+
+const LOCKED_TOOLTIP =
+  "This agent is stopped. Open the agent's page and start it to fire its routines.";
 
 interface BaseRowProps {
   agent: AgentListItem;
@@ -17,8 +20,9 @@ interface BaseRowProps {
   /** Switch position — defaults to !disabled so callers that don't split
    *  effective vs. switch state still work. */
   switchChecked?: boolean;
-  /** Disable the switch itself (e.g. master is off, can't toggle the child). */
-  switchDisabled?: boolean;
+  /** Lock the Switch (master is off — child can't be toggled until master
+   *  is back on). Renders gray + tooltip. */
+  switchLocked?: boolean;
   title: string;
   subtitle: string;
   schedule: string;
@@ -33,7 +37,7 @@ function ScheduleRow({
   agent,
   disabled,
   switchChecked,
-  switchDisabled = false,
+  switchLocked = false,
   title,
   subtitle,
   schedule,
@@ -111,21 +115,26 @@ function ScheduleRow({
         "group relative flex w-full items-center gap-3 px-4 py-2.5 text-left outline-none transition-colors",
         confirming
           ? "bg-red-500/10"
-          : "hover:bg-muted/40 focus-visible:bg-muted/40",
-        disabled && !confirming && "opacity-60"
+          : "hover:bg-muted/40 focus-visible:bg-muted/40"
       )}
     >
       <AgentAvatar
         agent={agent}
         shape="circle"
         size="sm"
-        className={cn(disabled && "saturate-50")}
+        className={cn(disabled && "saturate-50 opacity-60")}
       />
       <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
-        <span className="truncate text-[12.5px] font-semibold text-foreground">
+        <span className={cn(
+          "truncate text-[12.5px] font-semibold",
+          disabled ? "text-muted-foreground/70" : "text-foreground"
+        )}>
           {title}
         </span>
-        <span className="truncate text-[11.5px] text-muted-foreground">
+        <span className={cn(
+          "truncate text-[11.5px]",
+          disabled ? "text-muted-foreground/60" : "text-muted-foreground"
+        )}>
           · {subtitle}
         </span>
       </div>
@@ -197,20 +206,22 @@ function ScheduleRow({
           </div>
         )}
 
-        <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+        <span className={cn(
+          "whitespace-nowrap text-[11px]",
+          disabled ? "text-muted-foreground/60" : "text-muted-foreground"
+        )}>
           {schedule ? cronToHuman(schedule) : ""}
         </span>
         <div
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
-          aria-label={toggleLabel}
-          title={toggleLabel}
         >
-          <Switch
+          <LockedSwitch
             checked={isOn}
             onCheckedChange={() => void handleToggle()}
-            disabled={toggling || switchDisabled}
-            aria-label={toggleLabel}
+            locked={switchLocked}
+            tooltip={LOCKED_TOOLTIP}
+            ariaLabel={toggleLabel}
           />
         </div>
       </div>
@@ -235,14 +246,15 @@ export function RoutineRow({
 }) {
   const { t } = useLocale();
   // Effective off when the agent is stopped or the job is disabled. The Switch
-  // still reflects only the per-job flag, so users can pre-configure routines
-  // even while the agent is stopped — they'll fire when the agent resumes.
+  // is locked while the agent is stopped — the user has to start the agent
+  // before they can toggle children, mirroring the parent/child relationship.
   const effectiveOn = agent.active && job.enabled;
   return (
     <ScheduleRow
       agent={agent}
       disabled={!effectiveOn}
       switchChecked={job.enabled}
+      switchLocked={!agent.active}
       title={job.name}
       subtitle={agent.name}
       schedule={job.schedule}
@@ -273,10 +285,11 @@ export function HeartbeatRow({
     <ScheduleRow
       agent={agent}
       // Visual dim when *effectively* off (master or per-heartbeat off);
-      // the Switch itself reflects only the per-heartbeat toggle so it stays
-      // editable even while the master is off.
+      // the Switch is locked while the agent is stopped (same parent/child
+      // gating used for routines).
       disabled={!effectiveOn}
       switchChecked={heartbeatOn}
+      switchLocked={!agent.active}
       title={agent.name}
       subtitle="Heartbeat"
       schedule={agent.heartbeat || ""}

@@ -79,6 +79,7 @@ import { ScheduleCalendar } from "@/components/cabinets/schedule-calendar";
 import { NewRoutineDialog } from "@/components/agents/new-routine-dialog";
 import { HeartbeatDialog } from "@/components/agents/heartbeat-dialog";
 import { Switch } from "@/components/ui/switch";
+import { LockedSwitch } from "@/components/ui/locked-switch";
 import type { JobConfig } from "@/types/jobs";
 import {
   TaskRuntimePicker,
@@ -444,6 +445,7 @@ function TopBar({
   onToggleCanDispatch,
   onExport,
   onDelete,
+  pulseToken = 0,
 }: {
   persona: AgentPersona;
   status: AgentStatus;
@@ -454,11 +456,22 @@ function TopBar({
   onToggleCanDispatch: () => void;
   onExport: () => void;
   onDelete: () => void;
+  /** Bumped from outside (locked child Switch click) to nudge the user
+   *  toward the master toggle with a brief ring animation. */
+  pulseToken?: number;
 }) {
   const { t } = useLocale();
   const palette = persona.color
     ? tintFromHex(persona.color)
     : getAgentColor(persona.slug);
+
+  const [pulsing, setPulsing] = useState(false);
+  useEffect(() => {
+    if (pulseToken === 0) return;
+    setPulsing(true);
+    const t = setTimeout(() => setPulsing(false), 700);
+    return () => clearTimeout(t);
+  }, [pulseToken]);
 
   return (
     <div className="flex items-center justify-between px-6 pt-4">
@@ -505,10 +518,11 @@ function TopBar({
             render={
               <label
                 className={cn(
-                  "inline-flex items-center gap-2 h-7 rounded-md border px-2.5 text-[12px] font-medium transition-colors cursor-pointer select-none",
+                  "inline-flex items-center gap-2 h-7 rounded-md border px-2.5 text-[12px] font-medium transition-colors cursor-pointer select-none ring-offset-2 ring-offset-background",
                   persona.active
                     ? "border-border hover:bg-accent/40"
-                    : "border-dashed border-border/60 text-muted-foreground hover:bg-accent/30"
+                    : "border-dashed border-border/60 text-muted-foreground hover:bg-accent/30",
+                  pulsing && "ring-2 ring-amber-500 animate-pulse"
                 )}
                 style={persona.active ? { color: palette.text } : undefined}
               >
@@ -1403,6 +1417,7 @@ function ScheduleSection({
   onEditHeartbeat,
   onRunHeartbeat,
   onToggleHeartbeat,
+  onLockedChildClick,
   onManage,
 }: {
   persona: AgentPersona;
@@ -1414,11 +1429,14 @@ function ScheduleSection({
   onEditHeartbeat: () => void;
   onRunHeartbeat: () => void;
   onToggleHeartbeat: () => void;
+  onLockedChildClick?: () => void;
   onManage: () => void;
 }) {
   const { t } = useLocale();
   const heartbeatOn = persona.heartbeatEnabled !== false;
   const heartbeatEffective = persona.active && heartbeatOn;
+  const lockedTooltip =
+    "This agent is stopped. Heartbeat and routines won't fire until you start it.";
 
   return (
     <Section
@@ -1447,10 +1465,13 @@ function ScheduleSection({
               {cronToHuman(persona.heartbeat)}
             </span>
           </button>
-          <Switch
+          <LockedSwitch
             checked={heartbeatOn}
             onCheckedChange={onToggleHeartbeat}
-            aria-label={heartbeatOn ? "Pause heartbeat" : "Resume heartbeat"}
+            locked={!persona.active}
+            onLockedClick={onLockedChildClick}
+            tooltip={lockedTooltip}
+            ariaLabel={heartbeatOn ? "Pause heartbeat" : "Resume heartbeat"}
           />
           <Button
             variant="ghost"
@@ -1483,10 +1504,13 @@ function ScheduleSection({
                 {cronToHuman(job.schedule)}
               </span>
             </button>
-            <Switch
+            <LockedSwitch
               checked={job.enabled}
               onCheckedChange={() => onToggleJob(job.id)}
-              aria-label={job.enabled ? `Disable ${job.name}` : `Enable ${job.name}`}
+              locked={!persona.active}
+              onLockedClick={onLockedChildClick}
+              tooltip={lockedTooltip}
+              ariaLabel={job.enabled ? `Disable ${job.name}` : `Enable ${job.name}`}
             />
             <Button
               variant="ghost"
@@ -2192,6 +2216,11 @@ export function AgentDetailV2({
   const [routineDialogOpen, setRoutineDialogOpen] = useState(false);
   const [routineEditJob, setRoutineEditJob] = useState<JobConfig | null>(null);
   const [heartbeatDialogOpen, setHeartbeatDialogOpen] = useState(false);
+  // Bumped each time a locked child Switch is clicked. The TopBar's master
+  // Switch consumes this to run a brief ring pulse, visually pointing the
+  // user to the toggle they need to flip.
+  const [masterPulseToken, setMasterPulseToken] = useState(0);
+  const pulseMaster = useCallback(() => setMasterPulseToken((n) => n + 1), []);
 
   // Schedule handoff — lets the user convert the current composer draft into
   // a recurring routine or heartbeat by opening StartWorkDialog seeded with
@@ -2577,6 +2606,7 @@ export function AgentDetailV2({
             onToggleCanDispatch={toggleCanDispatch}
             onExport={handleExport}
             onDelete={handleDelete}
+            pulseToken={masterPulseToken}
           />
         </div>
         {scheduleOpen ? (
@@ -2634,6 +2664,7 @@ export function AgentDetailV2({
                 onEditHeartbeat={() => setHeartbeatDialogOpen(true)}
                 onRunHeartbeat={runHeartbeat}
                 onToggleHeartbeat={toggleHeartbeat}
+                onLockedChildClick={pulseMaster}
                 onManage={() => setScheduleOpen(true)}
               />
               <DetailsSection
