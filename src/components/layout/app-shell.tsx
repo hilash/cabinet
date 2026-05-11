@@ -61,6 +61,15 @@ import { SystemToasts } from "@/components/layout/system-toasts";
 // load them on demand to keep the first-paint bundle small. Previously all of
 // these (together ~15k lines of code including AgentsWorkspace and
 // OnboardingWizard) shipped in the home-page chunk.
+const AgentsWorkspaceV2 = dynamic(
+  () =>
+    import("@/components/agents/v2/agents-workspace-v2").then(
+      (m) => m.AgentsWorkspaceV2
+    ),
+  { ssr: false }
+);
+// Legacy V1 — used for the "agent settings" sub-screen (which still lives in
+// the V1 workspace component). Phased out once that path lands in V2.
 const AgentsWorkspace = dynamic(
   () => import("@/components/agents/agents-workspace").then((m) => m.AgentsWorkspace),
   { ssr: false }
@@ -616,10 +625,16 @@ export function AppShell() {
     }
     if (section.type === "agents") {
       return (
-        <AgentsWorkspace
-          selectedScope="all"
-          selectedAgentSlug={null}
+        <AgentsWorkspaceV2
           cabinetPath={section.cabinetPath}
+          tab={section.agentsTab}
+          onTabChange={(next) =>
+            setSection({
+              type: "agents",
+              cabinetPath: section.cabinetPath,
+              agentsTab: next,
+            })
+          }
         />
       );
     }

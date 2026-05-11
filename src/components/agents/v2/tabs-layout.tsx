@@ -1,0 +1,268 @@
+"use client";
+
+import {
+  Calendar as CalendarIcon,
+  Clock3,
+  HeartPulse,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Users,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { DepthDropdown } from "@/components/cabinets/depth-dropdown";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AgentAvatar } from "@/components/agents/agent-avatar";
+import type { CabinetAgentSummary } from "@/types/cabinets";
+import { useAgentsContext } from "./agents-context";
+import { AgentsTab } from "./agents-tab";
+import { RoutinesTab } from "./routines-tab";
+import { HeartbeatsTab } from "./heartbeats-tab";
+import { ScheduleTab } from "./schedule-tab";
+
+export type AgentsTabKey = "agents" | "routines" | "heartbeats" | "schedule";
+
+const TABS: { key: AgentsTabKey; label: string; icon: typeof Users }[] = [
+  { key: "agents", label: "Agents", icon: Users },
+  { key: "routines", label: "Routines", icon: Clock3 },
+  { key: "heartbeats", label: "Heartbeats", icon: HeartPulse },
+  { key: "schedule", label: "Schedule", icon: CalendarIcon },
+];
+
+export function TabsLayout({
+  tab,
+  onTabChange,
+}: {
+  tab: AgentsTabKey;
+  onTabChange: (next: AgentsTabKey) => void;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <TopBar tab={tab} onTabChange={onTabChange} />
+      <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-hidden px-6 pb-8 pt-4">
+        {tab === "agents" && <AgentsTab />}
+        {tab === "routines" && <RoutinesTab />}
+        {tab === "heartbeats" && <HeartbeatsTab />}
+        {tab === "schedule" && <ScheduleTab />}
+      </div>
+    </div>
+  );
+}
+
+function TopBar({
+  tab,
+  onTabChange,
+}: {
+  tab: AgentsTabKey;
+  onTabChange: (next: AgentsTabKey) => void;
+}) {
+  const { loading, refresh, visibilityMode, setVisibilityMode } =
+    useAgentsContext();
+  return (
+    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border/70 bg-background px-4">
+      <h1 className="text-[14px] font-semibold tracking-tight">Team</h1>
+      {loading && (
+        <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+      )}
+      <div className="ml-2 flex items-center gap-2">
+        <TabStrip tab={tab} onTabChange={onTabChange} />
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <DepthDropdown mode={visibilityMode} onChange={setVisibilityMode} />
+        <Divider />
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          title="Refresh"
+          aria-label="Refresh"
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+        >
+          <RefreshCw className="size-3.5" />
+        </button>
+        <NewButton tab={tab} />
+      </div>
+    </header>
+  );
+}
+
+function Divider() {
+  return <div className="h-3.5 w-px bg-border/60" aria-hidden />;
+}
+
+function TabStrip({
+  tab,
+  onTabChange,
+}: {
+  tab: AgentsTabKey;
+  onTabChange: (next: AgentsTabKey) => void;
+}) {
+  const { agents, jobs } = useAgentsContext();
+  const counts: Record<AgentsTabKey, number | undefined> = {
+    agents: agents.length,
+    routines: jobs.length,
+    heartbeats: agents.filter((a) => !!a.heartbeat).length,
+    schedule: undefined,
+  };
+  return (
+    <nav
+      className="flex h-7 items-center rounded-lg border border-border/60 p-0.5"
+      role="tablist"
+    >
+      {TABS.map((t) => {
+        const active = tab === t.key;
+        const Icon = t.icon;
+        const count = counts[t.key];
+        return (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onTabChange(t.key)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Icon className="size-3.5" />
+            {t.label}
+            {typeof count === "number" ? (
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-px text-[9.5px] font-semibold tabular-nums",
+                  active
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-muted/60 text-muted-foreground/80"
+                )}
+              >
+                {count}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function NewButton({ tab }: { tab: AgentsTabKey }) {
+  const {
+    agents,
+    setNewAgentOpen,
+    setRoutineDialog,
+    setHeartbeatDialog,
+    cabinetPath,
+  } = useAgentsContext();
+
+  if (tab === "agents") {
+    return (
+      <button
+        type="button"
+        onClick={() => setNewAgentOpen(true)}
+        className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        <Plus className="size-3.5" />
+        New Agent
+      </button>
+    );
+  }
+
+  if (tab === "routines") {
+    return (
+      <AgentPickerDropdown
+        label="New Routine"
+        agents={agents}
+        onSelect={(agent) =>
+          setRoutineDialog({
+            agent: {
+              slug: agent.slug,
+              name: agent.name,
+              role: agent.role,
+              cabinetPath: agent.cabinetPath || cabinetPath,
+            },
+            isNew: true,
+          })
+        }
+      />
+    );
+  }
+
+  if (tab === "heartbeats") {
+    return (
+      <AgentPickerDropdown
+        label="Configure heartbeat"
+        agents={agents}
+        onSelect={(agent) =>
+          setHeartbeatDialog({
+            agent: {
+              slug: agent.slug,
+              name: agent.name,
+              role: agent.role,
+              cabinetPath: agent.cabinetPath || cabinetPath,
+            },
+            initialHeartbeat: agent.heartbeat || undefined,
+            initialEnabled: agent.heartbeatEnabled !== false,
+          })
+        }
+      />
+    );
+  }
+
+  return null;
+}
+
+function AgentPickerDropdown({
+  label,
+  agents,
+  onSelect,
+}: {
+  label: string;
+  agents: CabinetAgentSummary[];
+  onSelect: (agent: CabinetAgentSummary) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+        disabled={agents.length === 0}
+      >
+        <Plus className="size-3.5" />
+        {label}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-[360px] overflow-y-auto p-1">
+        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Pick an agent
+        </div>
+        {agents
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((agent) => (
+            <DropdownMenuItem
+              key={agent.scopedId}
+              onClick={() => onSelect(agent)}
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px]"
+            >
+              <AgentAvatar agent={agent} shape="circle" size="md" />
+              <span className="flex min-w-0 flex-col leading-tight">
+                <span className="truncate text-[12px] font-medium text-foreground">
+                  {agent.name}
+                </span>
+                {agent.role ? (
+                  <span className="truncate text-[10px] text-muted-foreground">
+                    {agent.role}
+                  </span>
+                ) : null}
+              </span>
+            </DropdownMenuItem>
+          ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

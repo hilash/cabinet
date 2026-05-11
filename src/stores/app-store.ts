@@ -64,6 +64,8 @@ export interface SelectedSection {
   agentScopedId?: string;
   conversationId?: string; // auto-select this conversation on mount
   taskId?: string; // task id when type === "task"
+  /** Sub-tab key when type === "agents" (e.g. "routines", "heartbeats"). */
+  agentsTab?: "agents" | "routines" | "heartbeats" | "schedule";
 }
 
 interface TerminalTab {
