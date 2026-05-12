@@ -7,6 +7,7 @@ import enEditor from "./locales/en/editor.json";
 import enOnboarding from "./locales/en/onboarding.json";
 import enSettings from "./locales/en/settings.json";
 import enSidebar from "./locales/en/sidebar.json";
+import enStatus from "./locales/en/status.json";
 import enTour from "./locales/en/tour.json";
 
 import heCommon from "./locales/he/common.json";
@@ -15,6 +16,7 @@ import heEditor from "./locales/he/editor.json";
 import heOnboarding from "./locales/he/onboarding.json";
 import heSettings from "./locales/he/settings.json";
 import heSidebar from "./locales/he/sidebar.json";
+import heStatus from "./locales/he/status.json";
 import heTour from "./locales/he/tour.json";
 
 export const SUPPORTED_LOCALES = ["en", "he"] as const;
@@ -48,6 +50,7 @@ const resources = {
     onboarding: enOnboarding,
     settings: enSettings,
     sidebar: enSidebar,
+    status: enStatus,
     tour: enTour,
   },
   he: {
@@ -57,6 +60,7 @@ const resources = {
     onboarding: heOnboarding,
     settings: heSettings,
     sidebar: heSidebar,
+    status: heStatus,
     tour: heTour,
   },
 } as const;
@@ -67,7 +71,7 @@ if (!i18n.isInitialized) {
     lng: getInitialLocale(),
     fallbackLng: DEFAULT_LOCALE,
     defaultNS: "common",
-    ns: ["common", "dialogs", "editor", "onboarding", "settings", "sidebar", "tour"],
+    ns: ["common", "dialogs", "editor", "onboarding", "settings", "sidebar", "status", "tour"],
     interpolation: { escapeValue: false },
     returnNull: false,
   });
