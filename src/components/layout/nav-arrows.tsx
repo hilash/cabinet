@@ -3,8 +3,10 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
+import { useLocale } from "@/i18n/use-locale";
 
 export function NavArrows() {
+  const { t } = useLocale();
   const canGoBack = useAppStore((s) => s.canGoBack);
   const canGoForward = useAppStore((s) => s.canGoForward);
   const goBack = useAppStore((s) => s.goBack);
@@ -15,8 +17,8 @@ export function NavArrows() {
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Go back"
-        title="Go back (⌘[)"
+        aria-label={t("common:nav.goBack")}
+        title={`${t("common:nav.goBack")} (⌘[)`}
         className="h-7 w-7 text-muted-foreground/60 hover:text-muted-foreground disabled:opacity-40"
         onClick={goBack}
         disabled={!canGoBack}
@@ -26,8 +28,8 @@ export function NavArrows() {
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Go forward"
-        title="Go forward (⌘])"
+        aria-label={t("common:nav.goForward")}
+        title={`${t("common:nav.goForward")} (⌘])`}
         className="h-7 w-7 text-muted-foreground/60 hover:text-muted-foreground disabled:opacity-40"
         onClick={goForward}
         disabled={!canGoForward}

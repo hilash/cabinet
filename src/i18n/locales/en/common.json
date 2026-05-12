@@ -10,6 +10,10 @@
     "next": "Next",
     "done": "Done"
   },
+  "nav": {
+    "goBack": "Go back",
+    "goForward": "Go forward"
+  },
   "states": {
     "loading": "Loading…",
     "saving": "Saving…",

@@ -10,6 +10,10 @@
     "next": "הבא",
     "done": "סיום"
   },
+  "nav": {
+    "goBack": "חזרה",
+    "goForward": "קדימה"
+  },
   "states": {
     "loading": "טוען…",
     "saving": "שומר…",
