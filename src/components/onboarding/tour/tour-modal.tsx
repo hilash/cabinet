@@ -9,6 +9,7 @@ import { SlideAgents } from "./slide-agents";
 import { SlideTasks } from "./slide-tasks";
 import { TOUR_PALETTE as P } from "./palette";
 import { useLocale } from "@/i18n/use-locale";
+import { DirIcon } from "@/components/ui/dir-icon";
 
 interface TourModalProps {
   open: boolean;
@@ -67,7 +68,7 @@ function TourBody({
   onClose: () => void;
   onLaunchTask: (starterPrompt: string) => void;
 }) {
-  const { t } = useLocale();
+  const { t, dir } = useLocale();
   const [index, setIndex] = useState(0);
   const [viewerRevealed, setViewerRevealed] = useState(false);
 
@@ -96,13 +97,15 @@ function TourBody({
   }, [onLaunchTask, onClose, t]);
 
   useEffect(() => {
+    const forwardKey = dir === "rtl" ? "ArrowLeft" : "ArrowRight";
+    const backKey = dir === "rtl" ? "ArrowRight" : "ArrowLeft";
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
         return;
       }
-      if (e.key === "ArrowRight") {
+      if (e.key === forwardKey) {
         e.preventDefault();
         if (index === SLIDES.length - 1) {
           finish();
@@ -111,14 +114,14 @@ function TourBody({
         }
         return;
       }
-      if (e.key === "ArrowLeft") {
+      if (e.key === backKey) {
         e.preventDefault();
         back();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [index, next, back, finish, onClose]);
+  }, [index, next, back, finish, onClose, dir]);
 
   const isLast = index === SLIDES.length - 1;
   const current = SLIDES[index];
@@ -179,7 +182,7 @@ function TourBody({
               border: `1px solid ${P.border}`,
             }}
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
+            <DirIcon ltr={ArrowLeft} rtl={ArrowRight} className="h-3.5 w-3.5" />
             {t("tour:back")}
           </button>
 
@@ -212,7 +215,11 @@ function TourBody({
             >
               <Sparkles className="h-4 w-4" />
               {t("tour:writeFirstTask")}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              <DirIcon
+                ltr={ArrowRight}
+                rtl={ArrowLeft}
+                className="h-4 w-4 transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5"
+              />
             </button>
           ) : (
             <button
@@ -221,7 +228,7 @@ function TourBody({
               style={{ background: P.text, color: P.paper }}
             >
               {t("tour:next")}
-              <ArrowRight className="h-3.5 w-3.5" />
+              <DirIcon ltr={ArrowRight} rtl={ArrowLeft} className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

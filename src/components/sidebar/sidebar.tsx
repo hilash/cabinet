@@ -155,7 +155,7 @@ export function Sidebar() {
 
   const desktopClass = collapsed ? "w-0 overflow-hidden" : "shrink-0";
   const mobileClass = cn(
-    "fixed left-0 top-0 bottom-0 z-40",
+    "fixed inset-y-0 start-0 z-40",
     collapsed ? "w-0 overflow-hidden" : "w-[280px]"
   );
 
@@ -211,7 +211,7 @@ export function Sidebar() {
               className="h-7 w-7"
               onClick={() => setCollapsed(true)}
             >
-              <PanelLeftClose className="h-4 w-4" />
+              <PanelLeftClose className="h-4 w-4 rtl:rotate-180" />
             </Button>
           </div>
         </div>
@@ -282,7 +282,7 @@ export function Sidebar() {
         </div>
       </aside>
       {!isMobile && !collapsed && (
-        <div className="relative -ml-px h-screen w-px shrink-0 bg-border">
+        <div className="relative -ms-px h-screen w-px shrink-0 bg-border">
           <div
             role="separator"
             aria-orientation="vertical"
@@ -302,11 +302,11 @@ export function Sidebar() {
           title={t("sidebar:expandSidebar")}
           className={cn(
             "absolute top-3 h-7 w-7",
-            isMobile ? "left-3 z-50" : "left-2 z-20"
+            isMobile ? "start-3 z-50" : "start-2 z-20"
           )}
           onClick={() => setCollapsed(false)}
         >
-          <PanelLeft className="h-4 w-4" />
+          <PanelLeft className="h-4 w-4 rtl:rotate-180" />
         </Button>
       )}
     </>

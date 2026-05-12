@@ -298,6 +298,7 @@ function TeamCarousel({
   roomType: RoomType;
   onSelect: (t: RegistryTemplate) => void;
 }) {
+  const { dir } = useLocale();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isPausedRef = useRef(false);
   const positionRef = useRef(0);
@@ -313,20 +314,21 @@ function TeamCarousel({
     if (!el) return;
 
     let animationId: number;
+    const sign = dir === "rtl" ? 1 : -1;
 
     const animate = () => {
       if (!isPausedRef.current) {
         positionRef.current += 1.2;
         const halfWidth = el.scrollWidth / 2;
         if (positionRef.current >= halfWidth) positionRef.current = 0;
-        el.style.transform = `translateX(-${positionRef.current}px)`;
+        el.style.transform = `translateX(${sign * positionRef.current}px)`;
       }
       animationId = requestAnimationFrame(animate);
     };
 
     animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
-  }, []);
+  }, [dir]);
 
   const doubled = [...items, ...items];
 
@@ -552,6 +554,8 @@ function CabinetCreatedScreen({
   roomType: RoomType;
   onContinue: () => void;
 }) {
+  const { dir } = useLocale();
+  const slideOffset = dir === "rtl" ? "translateX(8px)" : "translateX(-8px)";
   const roomConfig = ROOMS[roomType];
   const RoomIcon = roomConfig.icon;
   const [visibleLines, setVisibleLines] = useState(0);
@@ -651,7 +655,7 @@ function CabinetCreatedScreen({
               className="transition-all duration-300"
               style={{
                 opacity: isVisible ? 1 : 0,
-                transform: isVisible ? "translateX(0)" : "translateX(-8px)",
+                transform: isVisible ? "translateX(0)" : slideOffset,
               }}
             >
               {isRoot ? (

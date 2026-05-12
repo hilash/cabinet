@@ -447,17 +447,17 @@ export function TreeNode({
                     toggleExpand(node.path);
                   }
                 }}
-                className="shrink-0 -ml-1 flex items-center justify-center w-3 h-3 rounded hover:bg-accent"
+                className="shrink-0 -ms-1 flex items-center justify-center w-3 h-3 rounded hover:bg-accent"
               >
                 <ChevronRight
                   className={cn(
                     "h-3 w-3 text-muted-foreground/70 transition-transform duration-150",
-                    isExpanded && "rotate-90"
+                    isExpanded ? "rotate-90" : "rtl:rotate-180"
                   )}
                 />
               </span>
             ) : (
-              <span className="w-3 -ml-1 shrink-0" />
+              <span className="w-3 -ms-1 shrink-0" />
             )}
             {node.type === "csv" ? (
               <Table className="h-3.5 w-3.5 shrink-0 text-green-400" />

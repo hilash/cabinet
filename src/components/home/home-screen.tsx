@@ -8,6 +8,7 @@ import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { Download, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import { flattenTree } from "@/lib/tree-utils";
 import { createConversation } from "@/lib/agents/conversation-client";
 import { ComposerInput } from "@/components/composer/composer-input";
@@ -219,6 +220,7 @@ function RegistryCarousel({
   templates: RegistryTemplate[];
   onSelect: (template: RegistryTemplate) => void;
 }) {
+  const { dir } = useLocale();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -229,6 +231,9 @@ function RegistryCarousel({
     let animationId: number;
     let position = 0;
     const speed = 1.2;
+    // In RTL the row reverses, so the marquee scrolls in the opposite
+    // direction to keep items visually emerging from the leading edge.
+    const sign = dir === "rtl" ? 1 : -1;
 
     const animate = () => {
       if (!isPaused) {
@@ -237,14 +242,14 @@ function RegistryCarousel({
         if (position >= halfWidth) {
           position = 0;
         }
-        el.style.transform = `translateX(-${position}px)`;
+        el.style.transform = `translateX(${sign * position}px)`;
       }
       animationId = requestAnimationFrame(animate);
     };
 
     animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
-  }, [isPaused, templates]);
+  }, [isPaused, templates, dir]);
 
   const doubled = [...templates, ...templates];
 

@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
 import { useLocale } from "@/i18n/use-locale";
+import { DirIcon } from "@/components/ui/dir-icon";
 
 export function NavArrows() {
   const { t } = useLocale();
@@ -23,7 +24,7 @@ export function NavArrows() {
         onClick={goBack}
         disabled={!canGoBack}
       >
-        <ArrowLeft className="h-3 w-3" />
+        <DirIcon ltr={ArrowLeft} rtl={ArrowRight} className="h-3 w-3" />
       </Button>
       <Button
         variant="ghost"
@@ -34,7 +35,7 @@ export function NavArrows() {
         onClick={goForward}
         disabled={!canGoForward}
       >
-        <ArrowRight className="h-3 w-3" />
+        <DirIcon ltr={ArrowRight} rtl={ArrowLeft} className="h-3 w-3" />
       </Button>
     </div>
   );
