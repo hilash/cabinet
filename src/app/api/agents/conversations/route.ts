@@ -108,6 +108,10 @@ export async function POST(req: NextRequest) {
       typeof body.cabinetPath === "string" && body.cabinetPath.trim()
         ? body.cabinetPath.trim()
         : undefined;
+    const locale =
+      typeof body.locale === "string" && (body.locale === "en" || body.locale === "he")
+        ? body.locale
+        : undefined;
     if (!userMessage) {
       return NextResponse.json(
         { error: "userMessage is required" },
@@ -129,6 +133,7 @@ export async function POST(req: NextRequest) {
         userMessage,
         mentionedPaths,
         cabinetPath,
+        locale,
       });
       const runtime = normalizeRuntimeOverride(
         { providerId: body.providerId, adapterType: body.adapterType, model: body.model, effort: body.effort, runtimeMode: body.runtimeMode },
@@ -162,6 +167,7 @@ export async function POST(req: NextRequest) {
             mentionedPaths,
             mentionedSkills,
             cabinetPath: editorCabinetPath,
+            locale,
           })
         : await buildManualConversationPrompt({
             agentSlug,
@@ -169,6 +175,7 @@ export async function POST(req: NextRequest) {
             mentionedPaths,
             mentionedSkills,
             cabinetPath,
+            locale,
           });
 
     const conversationCabinetPath =

@@ -108,6 +108,28 @@ function buildCabinetRequirementHeader(): string {
   ].join("\n");
 }
 
+const LOCALE_TO_LANGUAGE: Record<string, string> = {
+  en: "English",
+  he: "Hebrew",
+};
+
+/**
+ * Tells the agent the user's preferred language so chat replies and any
+ * generated note bodies land in the right script. For Hebrew, also instructs
+ * the agent to set frontmatter `dir: rtl` on saved markdown files so the
+ * editor renders the doc RTL on load.
+ */
+function buildLocaleInstructions(locale: string | undefined): string | null {
+  const lang = LOCALE_TO_LANGUAGE[locale ?? "en"];
+  if (!lang || lang === "English") return null;
+  return [
+    `The user's preferred language is ${lang}. Respond in ${lang} unless the`,
+    `user explicitly requests another language. When you create or update`,
+    `markdown notes in ${lang}, set frontmatter \`dir: rtl\` so the editor`,
+    `renders the document right-to-left on load.`,
+  ].join("\n");
+}
+
 async function buildCabinetEpilogueInstructions(options: {
   canDispatch?: boolean;
   cabinetPath?: string;
@@ -347,6 +369,7 @@ export async function buildManualConversationPrompt(input: {
   mentionedPaths?: string[];
   mentionedSkills?: string[];
   cabinetPath?: string;
+  locale?: string;
 }): Promise<{
   prompt: string;
   title: string;
@@ -374,8 +397,11 @@ export async function buildManualConversationPrompt(input: {
   const skillBundles = await resolveDesiredSkills(mergedSkillKeys, input.cabinetPath);
   const skillIndex = buildSkillIndex(skillBundles);
 
+  const localeInstructions = buildLocaleInstructions(input.locale);
+
   const prompt = [
     buildCabinetRequirementHeader(),
+    ...(localeInstructions ? ["", localeInstructions] : []),
     "",
     buildAgentContextHeader(persona, input.agentSlug),
     ...(skillIndex ? ["", skillIndex] : []),
@@ -423,6 +449,7 @@ export async function buildEditorConversationPrompt(input: {
   mentionedPaths?: string[];
   mentionedSkills?: string[];
   cabinetPath?: string;
+  locale?: string;
 }): Promise<{
   prompt: string;
   title: string;
@@ -454,8 +481,11 @@ export async function buildEditorConversationPrompt(input: {
   const skillBundles = await resolveDesiredSkills(mergedSkillKeys, input.cabinetPath);
   const skillIndex = buildSkillIndex(skillBundles);
 
+  const localeInstructions = buildLocaleInstructions(input.locale);
+
   const prompt = [
     buildCabinetRequirementHeader(),
+    ...(localeInstructions ? ["", localeInstructions] : []),
     "",
     buildAgentContextHeader(persona, "editor"),
     ...(skillIndex ? ["", skillIndex] : []),

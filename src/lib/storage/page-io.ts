@@ -89,6 +89,20 @@ export async function readPage(virtualPath: string): Promise<PageData> {
   throw new Error(`Page not found: ${virtualPath}`);
 }
 
+/**
+ * Heuristic: if a doc's text is mostly Hebrew letters, return "rtl". Used to
+ * auto-set frontmatter.dir on agent-generated notes so they render RTL on
+ * load. Examines the first ~600 chars to avoid scanning huge files.
+ */
+function inferDirFromText(content: string): "rtl" | undefined {
+  const sample = content.slice(0, 600);
+  // Hebrew block: U+0590–U+05FF. Stop counting at 600 chars sampled.
+  const hebrewMatches = sample.match(/[֐-׿]/g);
+  const letterMatches = sample.match(/[A-Za-z֐-׿]/g);
+  if (!hebrewMatches || !letterMatches) return undefined;
+  return hebrewMatches.length / letterMatches.length > 0.5 ? "rtl" : undefined;
+}
+
 export async function writePage(
   virtualPath: string,
   content: string,
@@ -111,9 +125,17 @@ export async function writePage(
     filePath = indexPath;
   }
 
+  // Auto-detect RTL when the writer didn't set `dir` explicitly and the
+  // content reads as Hebrew. Saves Hebrew users from manually toggling the
+  // editor RTL button on every agent-generated note.
+  const effectiveFrontmatter: Partial<FrontMatter> =
+    frontmatter.dir === undefined
+      ? { ...frontmatter, dir: inferDirFromText(content) }
+      : frontmatter;
+
   // Strip undefined values — js-yaml cannot serialize them
   const fm = Object.fromEntries(
-    Object.entries({ ...frontmatter, modified: new Date().toISOString() })
+    Object.entries({ ...effectiveFrontmatter, modified: new Date().toISOString() })
       .filter(([, v]) => v !== undefined)
   );
   const output = matter.stringify(content, fm);
