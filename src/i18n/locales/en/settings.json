@@ -1,0 +1,30 @@
+{
+  "language": {
+    "title": "Language",
+    "description": "Changes language and reading direction. Existing pages keep their per-document direction.",
+    "english": "English",
+    "hebrew": "עברית"
+  },
+  "appearance": {
+    "title": "Appearance",
+    "theme": "Theme",
+    "themeDescription": "Choose a theme for the interface.",
+    "matchSystem": "Match system",
+    "matchSystemDescription": "Switch automatically with your OS appearance.",
+    "lightThemes": "Light Themes",
+    "darkThemes": "Dark Themes",
+    "lightVariant": "Light variant",
+    "darkVariant": "Dark variant"
+  },
+  "tabs": {
+    "profile": "Profile",
+    "providers": "Providers",
+    "skills": "Skills",
+    "storage": "Storage",
+    "integrations": "Integrations",
+    "notifications": "Notifications",
+    "appearance": "Appearance",
+    "updates": "Updates",
+    "about": "About"
+  }
+}

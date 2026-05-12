@@ -1,0 +1,19 @@
+{
+  "actions": {
+    "save": "שמירה",
+    "cancel": "ביטול",
+    "delete": "מחיקה",
+    "confirm": "אישור",
+    "close": "סגירה",
+    "open": "פתיחה",
+    "back": "חזרה",
+    "next": "הבא",
+    "done": "סיום"
+  },
+  "states": {
+    "loading": "טוען…",
+    "saving": "שומר…",
+    "saved": "נשמר",
+    "error": "משהו השתבש"
+  }
+}

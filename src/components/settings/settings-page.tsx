@@ -97,6 +97,8 @@ import {
   recordWaitlistStart,
   submitWaitlistEmail,
 } from "@/lib/telemetry/waitlist-client";
+import { useLocale } from "@/i18n/use-locale";
+import type { Locale } from "@/i18n";
 
 interface McpServer {
   name: string;
@@ -217,6 +219,39 @@ const VERIFY_STATUS_META: Record<VerifyStatus, { label: string; tone: string }> 
 function matchesFailedStep(stepTitle: string, failedStepTitle?: string): boolean {
   if (!failedStepTitle) return false;
   return stepTitle.trim().toLowerCase() === failedStepTitle.trim().toLowerCase();
+}
+
+function LanguageSection() {
+  const { locale, setLocale, t } = useLocale();
+  const options: { value: Locale; label: string }[] = [
+    { value: "en", label: t("settings:language.english") },
+    { value: "he", label: t("settings:language.hebrew") },
+  ];
+  return (
+    <div>
+      <h3 className="text-[13px] font-semibold mb-1">{t("settings:language.title")}</h3>
+      <p className="text-[12px] text-muted-foreground mb-4">
+        {t("settings:language.description")}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setLocale(opt.value)}
+            className={cn(
+              "rounded-lg border p-3 text-[13px] transition-colors text-start",
+              locale === opt.value
+                ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                : "border-border hover:border-primary/30",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function SettingsPage() {
@@ -743,6 +778,7 @@ export function SettingsPage() {
           {/* Appearance Tab */}
           {tab === "appearance" && (
             <div className="space-y-6">
+              <LanguageSection />
               <div>
                 <h3 className="text-[13px] font-semibold mb-1">Theme</h3>
                 <p className="text-[12px] text-muted-foreground mb-4">

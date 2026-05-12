@@ -1,0 +1,30 @@
+{
+  "language": {
+    "title": "שפה",
+    "description": "משנה שפה וכיוון קריאה. דפים קיימים שומרים על הכיוון שהוגדר להם.",
+    "english": "English",
+    "hebrew": "עברית"
+  },
+  "appearance": {
+    "title": "מראה",
+    "theme": "ערכת נושא",
+    "themeDescription": "בחר ערכת נושא לממשק.",
+    "matchSystem": "התאם למערכת",
+    "matchSystemDescription": "החלפה אוטומטית בהתאם להגדרות מערכת ההפעלה.",
+    "lightThemes": "ערכות בהירות",
+    "darkThemes": "ערכות כהות",
+    "lightVariant": "גרסה בהירה",
+    "darkVariant": "גרסה כהה"
+  },
+  "tabs": {
+    "profile": "פרופיל",
+    "providers": "ספקים",
+    "skills": "כישורים",
+    "storage": "אחסון",
+    "integrations": "אינטגרציות",
+    "notifications": "התראות",
+    "appearance": "מראה",
+    "updates": "עדכונים",
+    "about": "אודות"
+  }
+}
