@@ -166,6 +166,7 @@ export function KBEditor() {
       attributes: {
         class:
           "focus:outline-none min-h-[calc(100vh-12rem)] px-4 sm:px-8 py-6 max-w-3xl mx-auto",
+        dir: isRtl ? "rtl" : "ltr",
       },
       handleKeyDown: (view, event) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a" && isInTable(view.state)) {
@@ -350,6 +351,17 @@ export function KBEditor() {
 
     setContent();
   }, [editor, content, currentPath, isLoading, renderedPath]);
+
+  // Push frontmatter.dir into the ProseMirror contenteditable element so list
+  // indentation, table cell alignment, and block direction all flip when the
+  // user toggles RTL on the document. editorProps.attributes is read once at
+  // editor creation, so we have to mutate the DOM imperatively here.
+  useEffect(() => {
+    if (!editor) return;
+    const el = editor.view?.dom;
+    if (!el) return;
+    el.setAttribute("dir", isRtl ? "rtl" : "ltr");
+  }, [editor, isRtl]);
 
   const showLoadingOverlay =
     currentPath !== null && (isLoading || renderedPath !== currentPath);
