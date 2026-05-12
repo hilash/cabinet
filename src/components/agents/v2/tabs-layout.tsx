@@ -18,12 +18,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import { useAgentsContext } from "./agents-context";
@@ -49,17 +43,15 @@ export function TabsLayout({
   onTabChange: (next: AgentsTabKey) => void;
 }) {
   return (
-    <TooltipProvider>
-      <div className="flex h-full min-h-0 flex-col">
-        <TopBar tab={tab} onTabChange={onTabChange} />
-        <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-hidden px-6 pb-8 pt-4">
-          {tab === "agents" && <AgentsTab />}
-          {tab === "routines" && <RoutinesTab />}
-          {tab === "heartbeats" && <HeartbeatsTab />}
-          {tab === "schedule" && <ScheduleTab />}
-        </div>
+    <div className="flex h-full min-h-0 flex-col">
+      <TopBar tab={tab} onTabChange={onTabChange} />
+      <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-hidden px-6 pb-8 pt-4">
+        {tab === "agents" && <AgentsTab />}
+        {tab === "routines" && <RoutinesTab />}
+        {tab === "heartbeats" && <HeartbeatsTab />}
+        {tab === "schedule" && <ScheduleTab />}
       </div>
-    </TooltipProvider>
+    </div>
   );
 }
 
@@ -108,12 +100,13 @@ function Divider() {
 /**
  * Master Switch in the top nav. Reflects "is any agent running?". Toggling
  * flips every agent on/off (which also gates their heartbeats and routines
- * via the V2 data model). Always visible on the Team section so users can
- * pause everything regardless of which tab they're on.
+ * via the V2 data model). Always visible on the Team section.
  *
- * Renders a larger-than-default switch inline (not the shared `<Switch>`
- * primitive) so the prominent on/off control reads at a glance from
- * across the room. Wrapped in a Tooltip for the long-form explanation.
+ * Built without base-ui's Tooltip primitive on purpose: the TooltipTrigger
+ * render-prop pattern swallowed the Switch's onCheckedChange (base-ui
+ * merges its own props onto the rendered element, clobbering the Switch's
+ * controlled-value handlers). Hover popover is CSS-only via `peer-hover`
+ * — no JS handlers competing for the same element.
  */
 function MasterToggle() {
   const { agents, toggleAllAgentsActive } = useAgentsContext();
@@ -126,73 +119,72 @@ function MasterToggle() {
       ? "No agents in this team"
       : "Every agent is stopped";
   const actionLine = anyActive
-    ? "Click to stop the whole team — all heartbeats and routines pause."
-    : "Click to start the whole team — heartbeats and routines fire on their schedule.";
+    ? "Click to stop the whole team. All heartbeats and routines will be paused."
+    : "Click to start the whole team. Heartbeats and routines fire on their schedule.";
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          /* Span wrapper carries the tooltip's hover/focus listeners; the
-             Switch.Root inside owns click handling. Rendering Switch.Root
-             directly as the trigger caused base-ui to overwrite its
-             onCheckedChange handler with its own merged props. */
-          <span className="inline-flex">
-            <SwitchPrimitive.Root
-              checked={anyActive}
-              onCheckedChange={() => void toggleAllAgentsActive()}
-              disabled={totalCount === 0}
-              aria-label={anyActive ? "Stop every agent" : "Start every agent"}
-              className={cn(
-                "group/master peer relative inline-flex h-7 w-[5.5rem] shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors outline-none",
-                "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-                "data-[checked]:bg-emerald-500 data-[unchecked]:bg-muted-foreground/30"
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "pointer-events-none absolute inset-y-0 left-2 flex items-center text-[10.5px] font-bold uppercase tracking-wider text-white transition-opacity",
-                  "opacity-0 group-data-[checked]/master:opacity-100"
-                )}
-              >
-                Team on
-              </span>
-              <span
-                aria-hidden
-                className={cn(
-                  "pointer-events-none absolute inset-y-0 right-2 flex items-center text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground/80 transition-opacity",
-                  "opacity-100 group-data-[checked]/master:opacity-0"
-                )}
-              >
-                Team off
-              </span>
-              <SwitchPrimitive.Thumb
-                className={cn(
-                  "pointer-events-none relative z-10 block size-5 rounded-full bg-background shadow-sm ring-0 transition-transform",
-                  "data-[checked]:translate-x-16 data-[unchecked]:translate-x-1"
-                )}
-              />
-            </SwitchPrimitive.Root>
-          </span>
-        }
-      />
-      <TooltipContent
-        side="bottom"
-        variant="themed"
-        className="flex max-w-[280px] flex-col items-start gap-1 p-3 text-left"
+    <div className="relative inline-flex">
+      <SwitchPrimitive.Root
+        checked={anyActive}
+        onCheckedChange={() => void toggleAllAgentsActive()}
+        disabled={totalCount === 0}
+        aria-label={anyActive ? "Stop every agent" : "Start every agent"}
+        className={cn(
+          "peer group/master relative inline-flex h-7 w-[5.5rem] shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors outline-none",
+          "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          "data-[checked]:bg-emerald-500 data-[unchecked]:bg-muted-foreground/30"
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-y-0 left-2 flex items-center text-[10.5px] font-bold uppercase tracking-wider text-white transition-opacity",
+            "opacity-0 group-data-[checked]/master:opacity-100"
+          )}
+        >
+          Team on
+        </span>
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-y-0 right-2 flex items-center text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground/80 transition-opacity",
+            "opacity-100 group-data-[checked]/master:opacity-0"
+          )}
+        >
+          Team off
+        </span>
+        <SwitchPrimitive.Thumb
+          className={cn(
+            "pointer-events-none relative z-10 block size-5 rounded-full bg-background shadow-sm ring-0 transition-transform",
+            "data-[checked]:translate-x-16 data-[unchecked]:translate-x-1"
+          )}
+        />
+      </SwitchPrimitive.Root>
+
+      {/* Pure-CSS hover/focus popover. Shows when the Switch (the peer)
+          is hovered or focused. `pointer-events-none` lets the cursor
+          slide off the popover without re-triggering the Switch behind
+          it; we don't need the popover to be interactive. */}
+      <div
+        role="tooltip"
+        className={cn(
+          "pointer-events-none invisible absolute left-1/2 top-full z-50 mt-2 w-[280px] -translate-x-1/2 rounded-md border border-border bg-popover p-3 text-left text-popover-foreground opacity-0 shadow-md transition-opacity",
+          "peer-hover:visible peer-hover:opacity-100 peer-focus-visible:visible peer-focus-visible:opacity-100"
+        )}
       >
         <p className="text-[12px] font-semibold">
           {anyActive ? "Team is running" : "Team is stopped"}
         </p>
-        <p className="text-[11px] text-muted-foreground">{summaryLine}.</p>
-        <p className="text-[11px] text-muted-foreground">{actionLine}</p>
-        <p className="text-[11px] italic text-muted-foreground/80">
-          Tasks already running won&apos;t be interrupted — only future
-          fires are affected.
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {summaryLine}.
         </p>
-      </TooltipContent>
-    </Tooltip>
+        <p className="mt-1 text-[11px] text-muted-foreground">{actionLine}</p>
+        <p className="mt-2 text-[11px] italic text-muted-foreground/80">
+          Tasks already running won&apos;t stop, only future scheduled
+          runs are affected.
+        </p>
+      </div>
+    </div>
   );
 }
 
