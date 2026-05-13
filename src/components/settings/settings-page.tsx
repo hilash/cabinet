@@ -127,6 +127,7 @@ interface IntegrationConfig {
 type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
 
 function TerminalCommand({ command }: { command: string }) {
+  const { t } = useLocale();
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
@@ -145,7 +146,7 @@ function TerminalCommand({ command }: { command: string }) {
       <button
         onClick={copy}
         className="shrink-0 p-1 rounded transition-colors hover:bg-white/10"
-        title="Copy to clipboard"
+        title={t("settings:common.copyToClipboard")}
       >
         {copied ? (
           <ClipboardCheck className="size-3.5" style={{ color: "#6A9955" }} />
@@ -255,6 +256,7 @@ function LanguageSection() {
 }
 
 export function SettingsPage() {
+  const { t } = useLocale();
   const { showHiddenFiles, setShowHiddenFiles } = useTreeStore();
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("");
@@ -714,7 +716,7 @@ export function SettingsPage() {
       {/* Audit #040: vertical sidebar instead of a 9-tab horizontal strip. */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <nav
-          aria-label="Settings categories"
+          aria-label={t("settings:common.categoriesAriaLabel")}
           className="hidden w-[212px] shrink-0 flex-col gap-3 border-r border-border bg-muted/10 px-2 py-3 md:flex"
         >
           {tabGroups.map((group) => (
@@ -780,9 +782,9 @@ export function SettingsPage() {
             <div className="space-y-6">
               <LanguageSection />
               <div>
-                <h3 className="text-[13px] font-semibold mb-1">Theme</h3>
+                <h3 className="text-[13px] font-semibold mb-1">{t("settings:appearance.theme")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-4">
-                  Choose a theme for the interface.
+                  {t("settings:appearance.themeDescription")}
                 </p>
 
                 <div className="space-y-4">
@@ -809,15 +811,15 @@ export function SettingsPage() {
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[13px] font-semibold">
-                            Match system
+                            {t("settings:appearance.matchSystem")}
                           </span>
                           <span className="text-[11px] text-muted-foreground">
-                            Switch automatically with your OS appearance.
+                            {t("settings:appearance.matchSystemDescription")}
                           </span>
                         </div>
                       </div>
                       <label className="inline-flex items-center gap-2">
-                        <span className="sr-only">Match system</span>
+                        <span className="sr-only">{t("settings:appearance.matchSystem")}</span>
                         <input
                           type="checkbox"
                           checked={themeMode === "system"}
@@ -834,7 +836,7 @@ export function SettingsPage() {
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         <label className="flex flex-col gap-1 text-[11px]">
                           <span className="font-medium text-muted-foreground">
-                            Light variant
+                            {t("settings:appearance.lightVariant")}
                           </span>
                           <select
                             value={themePair.light}
@@ -854,7 +856,7 @@ export function SettingsPage() {
                         </label>
                         <label className="flex flex-col gap-1 text-[11px]">
                           <span className="font-medium text-muted-foreground">
-                            Dark variant
+                            {t("settings:appearance.darkVariant")}
                           </span>
                           <select
                             value={themePair.dark}
@@ -877,7 +879,7 @@ export function SettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">Light Themes</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">{t("settings:appearance.lightThemes")}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {lightThemes.map((t) => (
                         <button
@@ -920,7 +922,7 @@ export function SettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">Dark Themes</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">{t("settings:appearance.darkThemes")}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {darkThemes.map((t) => (
                         <button
@@ -958,7 +960,7 @@ export function SettingsPage() {
               </div>
 
               <div className="border-t border-border pt-6">
-                <h3 className="text-[13px] font-semibold mb-1">Sidebar</h3>
+                <h3 className="text-[13px] font-semibold mb-1">{t("settings:appearance.sidebar")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-4">
                   Configure how files are displayed in the sidebar.
                 </p>
@@ -972,7 +974,7 @@ export function SettingsPage() {
                       className="h-4 w-4 rounded border-border accent-primary"
                     />
                     <div>
-                      <span className="text-[13px] font-medium">Show hidden files</span>
+                      <span className="text-[13px] font-medium">{t("settings:appearance.showHiddenFiles")}</span>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         Display files and folders starting with a dot (e.g. .env, .git)
                       </p>
@@ -996,7 +998,7 @@ export function SettingsPage() {
           {tab === "storage" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[14px] font-semibold mb-1">Data Directory</h3>
+                <h3 className="text-[14px] font-semibold mb-1">{t("settings:storage.dataDirectory")}</h3>
                 <p className="text-[12px] text-muted-foreground">
                   All Knowledge Base content is stored in this directory.
                   Changing the path requires a restart.
@@ -1007,7 +1009,7 @@ export function SettingsPage() {
                 <div className="flex items-center gap-3 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
                   <RotateCw className="h-4 w-4 shrink-0 text-yellow-500" />
                   <div className="flex-1">
-                    <p className="text-[13px] font-medium text-yellow-500">Restart required</p>
+                    <p className="text-[13px] font-medium text-yellow-500">{t("settings:storage.restartRequired")}</p>
                     <p className="text-[12px] text-muted-foreground">
                       The data directory will change after you restart Cabinet.
                     </p>
@@ -1164,7 +1166,7 @@ export function SettingsPage() {
           )}
 
           {tab === "updates" && !update && updateLoading && (
-            <p className="text-[13px] text-muted-foreground">Checking for Cabinet updates...</p>
+            <p className="text-[13px] text-muted-foreground">{t("settings:updates.checking")}</p>
           )}
 
           {/* Providers Tab */}
@@ -1172,7 +1174,7 @@ export function SettingsPage() {
             <>
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-[14px] font-semibold">Agent Providers</h3>
+                  <h3 className="text-[14px] font-semibold">{t("settings:providers.title")}</h3>
                   <a
                     href="/providers-demo"
                     target="_blank"
@@ -1188,7 +1190,7 @@ export function SettingsPage() {
                 </p>
 
                 {loading ? (
-                  <p className="text-[13px] text-muted-foreground">Loading...</p>
+                  <p className="text-[13px] text-muted-foreground">{t("settings:common.loading")}</p>
                 ) : (
                   <div className="space-y-3">
                     <div>
@@ -1203,7 +1205,7 @@ export function SettingsPage() {
                             model: defaultModel || null,
                             effort: defaultEffort || null,
                           }}
-                          label="Default Model"
+                          label={t("settings:providers.defaultModel")}
                         />
                         <RuntimeMatrixPicker
                           providers={providers}
@@ -1284,7 +1286,7 @@ export function SettingsPage() {
                                           "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
                                           isExpanded ? "bg-muted" : ""
                                         )}
-                                        title="Setup guide"
+                                        title={t("settings:providers.setupGuide")}
                                       >
                                         <Info className="size-3" />
                                         Guide
@@ -1568,7 +1570,7 @@ export function SettingsPage() {
               {/* Blurred content preview */}
               <div className="pointer-events-none select-none blur-[2px] opacity-70" aria-hidden="true">
                 <div>
-                  <h3 className="text-[14px] font-semibold mb-1">Notification Channels</h3>
+                  <h3 className="text-[14px] font-semibold mb-1">{t("settings:notifications.channels")}</h3>
                   <p className="text-xs text-muted-foreground mb-4">
                     Configure how you receive alerts when agents need your attention.
                   </p>
@@ -1598,7 +1600,7 @@ export function SettingsPage() {
                 </div>
 
                 <div className="border-t border-border pt-6 mt-6">
-                  <h3 className="text-[14px] font-semibold mb-1">Alert Rules</h3>
+                  <h3 className="text-[14px] font-semibold mb-1">{t("settings:notifications.alertRules")}</h3>
                   <p className="text-xs text-muted-foreground mb-4">
                     Notifications are triggered automatically for these events:
                   </p>
@@ -1614,7 +1616,7 @@ export function SettingsPage() {
                           <p className="text-[12px] font-medium">{rule.event}</p>
                           <p className="text-[10px] text-muted-foreground/60">{rule.desc}</p>
                         </div>
-                        <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Always on</span>
+                        <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">{t("settings:notifications.alwaysOn")}</span>
                       </div>
                     ))}
                   </div>
@@ -1625,7 +1627,7 @@ export function SettingsPage() {
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 bg-background/80 backdrop-blur-sm rounded-xl px-8 py-6 border border-border shadow-lg">
                   <Bell className="h-6 w-6 text-muted-foreground/50" />
-                  <span className="text-[13px] font-semibold">Coming Soon</span>
+                  <span className="text-[13px] font-semibold">{t("settings:notifications.comingSoon")}</span>
                   <p className="text-[12px] text-muted-foreground text-center max-w-[220px]">
                     Browser push, Telegram, Slack, and email notifications.
                   </p>
@@ -1638,7 +1640,7 @@ export function SettingsPage() {
           {tab === "about" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[14px] font-semibold mb-1">Cabinet</h3>
+                <h3 className="text-[14px] font-semibold mb-1">{t("settings:about.cabinet")}</h3>
                 <p className="text-[12px] text-muted-foreground">
                   AI-first self-hosted knowledge base and startup OS.
                 </p>
@@ -1646,11 +1648,11 @@ export function SettingsPage() {
 
               <div className="space-y-3 text-[13px]">
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Version</span>
+                  <span className="text-muted-foreground">{t("settings:about.version")}</span>
                   <span className="font-mono">{pkgVersion}</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Release</span>
+                  <span className="text-muted-foreground">{t("settings:about.release")}</span>
                   <span className="font-mono text-[12px] text-muted-foreground">
                     {releaseJson.version}
                     {releaseJson.channel !== "stable" && (
@@ -1659,11 +1661,11 @@ export function SettingsPage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Framework</span>
+                  <span className="text-muted-foreground">{t("settings:about.framework")}</span>
                   <span>Next.js (App Router)</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Storage</span>
+                  <span className="text-muted-foreground">{t("settings:about.storage")}</span>
                   <span className="font-mono text-[12px] truncate max-w-[300px]" title={dataDir}>{dataDir || "Local filesystem"}</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
@@ -1682,7 +1684,7 @@ export function SettingsPage() {
               </div>
 
               <div className="border-t border-border pt-6">
-                <h3 className="text-[14px] font-semibold mb-1">Privacy</h3>
+                <h3 className="text-[14px] font-semibold mb-1">{t("settings:about.privacy")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-3">
                   Cabinet sends anonymous usage telemetry to help us improve the
                   product. No file contents, paths, prompts, or secrets are collected.
@@ -1705,7 +1707,7 @@ export function SettingsPage() {
                       className="h-4 w-4 rounded border-border accent-primary"
                     />
                     <div>
-                      <span className="text-[13px] font-medium">Anonymous usage telemetry</span>
+                      <span className="text-[13px] font-medium">{t("settings:about.telemetry")}</span>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {telemetryEnvDisabled
                           ? "Disabled by CABINET_TELEMETRY_DISABLED=1 (env var)."
@@ -1747,7 +1749,7 @@ export function SettingsPage() {
                       type="email"
                       inputMode="email"
                       autoComplete="email"
-                      placeholder="you@company.com"
+                      placeholder={t("settings:notifications.emailPlaceholder")}
                       value={cloudEmail}
                       onChange={(e) => handleCloudInput(e.target.value)}
                       disabled={cloudStatus === "submitting"}
@@ -1783,7 +1785,7 @@ export function SettingsPage() {
               </div>
 
               <div className="border-t border-border pt-6">
-                <h3 className="text-[14px] font-semibold mb-1">Connect</h3>
+                <h3 className="text-[14px] font-semibold mb-1">{t("settings:common.connect")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-3">
                   Get help, share feedback, or just say hi.
                 </p>
@@ -1796,7 +1798,7 @@ export function SettingsPage() {
                   >
                     <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
                     Join the Discord
-                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">Recommended</span>
+                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{t("settings:common.recommended")}</span>
                   </a>
                   <a
                     href="mailto:hi@runcabinet.com"
@@ -1960,6 +1962,7 @@ function AvatarPicker({
   onSelect: (id: string) => void;
   onClear: () => void;
 }) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [browseAll, setBrowseAll] = useState(false);
   const [tab, setTab] = useState<AvatarCategory>("silhouettes");
@@ -1997,7 +2000,7 @@ function AvatarPicker({
       <div className="flex flex-wrap items-center gap-2">
         <Input
           type="search"
-          placeholder="Search avatars…"
+          placeholder={t("settings:profile.searchAvatars")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="h-8 max-w-xs text-[12px]"
@@ -2048,7 +2051,7 @@ function AvatarPicker({
             "flex h-12 w-12 items-center justify-center rounded-full border-2 bg-muted text-[10px] text-muted-foreground",
             !selectedId ? "border-foreground" : "border-transparent",
           )}
-          title="Use icon instead"
+          title={t("settings:profile.useIconInstead")}
         >
           None
         </button>
@@ -2096,6 +2099,7 @@ function IconPicker({
   selectedKey: string;
   onSelect: (next: string) => void;
 }) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
 
@@ -2123,7 +2127,7 @@ function IconPicker({
       <div className="flex flex-wrap items-center gap-2">
         <Input
           type="search"
-          placeholder="Search icons…"
+          placeholder={t("settings:profile.searchIcons")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="h-8 max-w-xs text-[12px]"
@@ -2210,6 +2214,7 @@ function hexFromPalette(i: number): string {
 }
 
 function ProfileTab() {
+  const { t } = useLocale();
   const state = useUserProfile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
@@ -2288,7 +2293,7 @@ function ProfileTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="mb-1 text-[13px] font-semibold">Profile</h3>
+        <h3 className="mb-1 text-[13px] font-semibold">{t("settings:profile.title")}</h3>
         <p className="mb-4 text-[12px] text-muted-foreground">
           How you appear in conversations and across the app.
         </p>
@@ -2308,15 +2313,15 @@ function ProfileTab() {
         </div>
 
         <div className="space-y-3">
-          <Field label="Name">
+          <Field label={t("settings:profile.name")}>
             <Input
               value={profile.name}
               onChange={(e) => update({ profile: { name: e.target.value } })}
-              placeholder="Hila"
+              placeholder={t("settings:profile.namePlaceholder")}
               maxLength={60}
             />
           </Field>
-          <Field label="Display name" hint="Shown in conversations. Defaults to Name.">
+          <Field label={t("settings:profile.displayName")} hint="Shown in conversations. Defaults to Name.">
             <Input
               value={profile.displayName || ""}
               onChange={(e) =>
@@ -2326,11 +2331,11 @@ function ProfileTab() {
               maxLength={60}
             />
           </Field>
-          <Field label="Role">
+          <Field label={t("settings:profile.role")}>
             <Input
               value={profile.role || ""}
               onChange={(e) => update({ profile: { role: e.target.value } })}
-              placeholder="Builder"
+              placeholder={t("settings:profile.rolePlaceholder")}
               maxLength={80}
             />
           </Field>
@@ -2342,44 +2347,44 @@ function ProfileTab() {
           decoration. Moved to right after Name/Role so the workspace
           fields are above the fold and visible before the avatar grid. */}
       <div className="border-t border-border pt-5">
-        <h3 className="mb-1 text-[13px] font-semibold">Workspace</h3>
+        <h3 className="mb-1 text-[13px] font-semibold">{t("settings:workspace.title")}</h3>
         <p className="mb-4 text-[12px] text-muted-foreground">
           Captured during onboarding. Agents read these when planning work.
         </p>
         <div className="space-y-3">
-          <Field label="Workspace name">
+          <Field label={t("settings:workspace.name")}>
             <Input
               value={workspace.workspaceName || ""}
               onChange={(e) =>
                 update({ workspace: { workspaceName: e.target.value } })
               }
-              placeholder="My Cabinet"
+              placeholder={t("settings:workspace.namePlaceholder")}
             />
           </Field>
-          <Field label="Description">
+          <Field label={t("settings:workspace.description")}>
             <textarea
               value={workspace.description || ""}
               onChange={(e) =>
                 update({ workspace: { description: e.target.value } })
               }
               className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              placeholder="What do you do?"
+              placeholder={t("settings:workspace.descriptionPlaceholder")}
             />
           </Field>
-          <Field label="Team size">
+          <Field label={t("settings:workspace.teamSize")}>
             <Input
               value={workspace.teamSize || ""}
               onChange={(e) =>
                 update({ workspace: { teamSize: e.target.value } })
               }
-              placeholder="Solo / 2–5 / 6–20 / 20+"
+              placeholder={t("settings:workspace.teamSizePlaceholder")}
             />
           </Field>
         </div>
       </div>
 
       <div>
-        <h4 className="mb-2 text-[12px] font-semibold">Avatar</h4>
+        <h4 className="mb-2 text-[12px] font-semibold">{t("settings:profile.avatar")}</h4>
         <AvatarPicker
           selectedId={profile.avatar}
           onSelect={(id) => update({ profile: { avatar: id, avatarExt: "" } })}
@@ -2421,7 +2426,7 @@ function ProfileTab() {
       </div>
 
       <div>
-        <h4 className="mb-2 text-[12px] font-semibold">Accent color</h4>
+        <h4 className="mb-2 text-[12px] font-semibold">{t("settings:profile.accentColor")}</h4>
         <div className="flex flex-wrap items-center gap-2">
           {AGENT_PALETTE.map((_, i) => {
             const hex = hexFromPalette(i);
@@ -2449,7 +2454,7 @@ function ProfileTab() {
           })}
           <Input
             type="text"
-            placeholder="#hex"
+            placeholder={t("settings:profile.hexPlaceholder")}
             value={profile.color || ""}
             onChange={(e) => update({ profile: { color: e.target.value } })}
             className="ml-2 h-8 w-24 text-xs"
@@ -2472,7 +2477,7 @@ function ProfileTab() {
       </div>
 
       <div>
-        <h4 className="mb-2 text-[12px] font-semibold">Fallback icon</h4>
+        <h4 className="mb-2 text-[12px] font-semibold">{t("settings:profile.fallbackIcon")}</h4>
         <IconPicker
           selectedKey={profile.iconKey || ""}
           onSelect={(key) => update({ profile: { iconKey: key } })}
