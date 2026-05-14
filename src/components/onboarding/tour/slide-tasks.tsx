@@ -1,10 +1,14 @@
 "use client";
 
 import { ArrowRight, Music, AtSign } from "lucide-react";
+import { Trans } from "react-i18next";
 import { MockupSidebar } from "./mockup-sidebar";
 import { TOUR_PALETTE as P } from "./palette";
 import { useLocale } from "@/i18n/use-locale";
 
+// English song titles — intentional creative content for the demo, not
+// translated. They feel like song titles in any locale because they're
+// poetic English phrases.
 const SONG_TITLES = [
   "Neon Dreams",
   "Paper Moons",
@@ -18,10 +22,9 @@ const SONG_TITLES = [
   "Halfway Home",
 ];
 
-const TYPED_COMMAND = "Run 10 tasks, each writing a song, save to @Songs/";
-
 export function SlideTasks() {
   const { t } = useLocale();
+  const TYPED_COMMAND = t("slideTasks:typedCommand");
   return (
     <div className="grid h-full grid-cols-[minmax(360px,420px)_1fr] gap-10 lg:gap-14 items-center">
       <div className="h-[440px] w-full">
@@ -163,7 +166,7 @@ export function SlideTasks() {
               <AtSign className="h-2.5 w-2.5" style={{ color: P.accent }} />
               <span>{t("tour:savingTo")}</span>
               <span className="font-mono font-semibold" style={{ color: P.text }}>
-                Songs/
+                {t("slideTasks:savingFolder")}
               </span>
             </div>
           </div>
@@ -182,7 +185,7 @@ export function SlideTasks() {
             animationDelay: "60ms",
           }}
         >
-          03 &middot; TASKS
+          {t("slideTasks:slideNum")}
         </span>
         <h2
           className="font-logo text-4xl italic tracking-tight opacity-0 lg:text-5xl"
@@ -192,7 +195,10 @@ export function SlideTasks() {
             animationDelay: "180ms",
           }}
         >
-          Ready to <span style={{ color: P.accent }}>start</span>?
+          <Trans
+            i18nKey="slideTasks:headlineSentence"
+            components={{ accent: <span style={{ color: P.accent }} /> }}
+          />
         </h2>
         <p
           className="font-body-serif text-base leading-relaxed opacity-0 lg:text-lg"
@@ -202,10 +208,9 @@ export function SlideTasks() {
             animationDelay: "320ms",
           }}
         >
-          Write a task. Run one, run ten, schedule them forever.
-          Mention pages with{" "}
-          <span className="font-mono" style={{ color: P.accent }}>@</span>,
-          save output wherever you want. You&apos;re the director now.
+          {t("slideTasks:paragraphPrefix")}
+          <span className="font-mono" style={{ color: P.accent }}>@</span>
+          {t("slideTasks:paragraphSuffix")}
         </p>
       </div>
     </div>

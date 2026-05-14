@@ -1,17 +1,17 @@
 "use client";
 
 import { Brain, Heart, Calendar, Search, PenLine, FolderTree } from "lucide-react";
+import { Trans } from "react-i18next";
 import { MockupSidebar } from "./mockup-sidebar";
 import { TOUR_PALETTE as P } from "./palette";
 import { useLocale } from "@/i18n/use-locale";
 
-const OTHER_AGENTS = [
-  { name: "Writer", icon: PenLine, tone: "#6B8CC4" },
-  { name: "Organizer", icon: FolderTree, tone: "#9678BA" },
-];
-
 export function SlideAgents() {
   const { t } = useLocale();
+  const OTHER_AGENTS = [
+    { name: t("slideAgents:otherWriter"), icon: PenLine, tone: "#6B8CC4" },
+    { name: t("slideAgents:otherOrganizer"), icon: FolderTree, tone: "#9678BA" },
+  ];
   return (
     <div className="grid h-full grid-cols-[minmax(260px,320px)_1fr] gap-10 lg:gap-14 items-center">
       <div className="h-[440px] w-full">
@@ -37,7 +37,7 @@ export function SlideAgents() {
                     className="ml-auto text-[9px]"
                     style={{ color: P.textTertiary }}
                   >
-                    idle
+                    {t("slideAgents:idle")}
                   </span>
                 </div>
               );
@@ -73,13 +73,13 @@ export function SlideAgents() {
                     className="text-[12px] font-semibold"
                     style={{ color: P.text }}
                   >
-                    Research Analyst
+                    {t("slideAgents:researchAnalyst")}
                   </span>
                   <span
                     className="text-[10px]"
                     style={{ color: P.textTertiary }}
                   >
-                    Claude · Sonnet 4.6
+                    {t("slideAgents:modelLine")}
                   </span>
                 </div>
                 <div className="ml-auto flex items-center gap-1">
@@ -100,7 +100,7 @@ export function SlideAgents() {
                     className="text-[9px] font-medium"
                     style={{ color: "#4A8E6B" }}
                   >
-                    live
+                    {t("slideAgents:live")}
                   </span>
                 </div>
               </div>
@@ -111,7 +111,7 @@ export function SlideAgents() {
                 icon={Brain}
                 iconColor={P.accent}
                 label={t("slideAgents:persona")}
-                body="&ldquo;Rigorous analyst. Cites sources. Flags conflicting claims.&rdquo;"
+                body={t("slideAgents:personaBody")}
                 delay="2500ms"
               />
 
@@ -121,7 +121,7 @@ export function SlideAgents() {
                 icon={Heart}
                 iconColor="#C26B6B"
                 label={t("slideAgents:heartbeat")}
-                body="Scans @Market Research every 15 min"
+                body={t("slideAgents:heartbeatBody")}
                 delay="2900ms"
               />
 
@@ -131,7 +131,7 @@ export function SlideAgents() {
                 icon={Calendar}
                 iconColor="#8B7FB5"
                 label={t("slideAgents:jobs")}
-                body="Mon 9:00 · Weekly competitor digest"
+                body={t("slideAgents:jobsBody")}
                 delay="3300ms"
               />
             </div>
@@ -151,7 +151,7 @@ export function SlideAgents() {
             animationDelay: "60ms",
           }}
         >
-          02 &middot; AGENTS
+          {t("slideAgents:slideNum")}
         </span>
         <h2
           className="font-logo text-4xl italic tracking-tight opacity-0 lg:text-5xl"
@@ -161,7 +161,11 @@ export function SlideAgents() {
             animationDelay: "180ms",
           }}
         >
-          Your <span style={{ color: P.accent }}>{t("slideAgents:aiTeam")}</span>.
+          <Trans
+            i18nKey="slideAgents:aiTeamSentence"
+            defaults="Your <accent>AI team</accent>."
+            components={{ accent: <span style={{ color: P.accent }} /> }}
+          />
         </h2>
         <p
           className="font-body-serif text-base leading-relaxed opacity-0 lg:text-lg"
@@ -171,9 +175,13 @@ export function SlideAgents() {
             animationDelay: "320ms",
           }}
         >
-          Each agent has a <span className="font-medium" style={{ color: P.text }}>persona</span>, its own{" "}
-          <span className="font-medium" style={{ color: P.text }}>schedule</span>, and a{" "}
-          <span className="font-medium" style={{ color: P.text }}>memory</span>. Your AI agents get the work done, 24/7. Go be human — they&apos;ll handle the rest.
+          {t("slideAgents:paragraphPrefix")}
+          <span className="font-medium" style={{ color: P.text }}>{t("slideAgents:personaWord")}</span>
+          {t("slideAgents:paragraphMiddle")}
+          <span className="font-medium" style={{ color: P.text }}>{t("slideAgents:scheduleWord")}</span>
+          {t("slideAgents:paragraphMiddle2")}
+          <span className="font-medium" style={{ color: P.text }}>{t("slideAgents:memoryWord")}</span>
+          {t("slideAgents:paragraphSuffix")}
         </p>
       </div>
     </div>
