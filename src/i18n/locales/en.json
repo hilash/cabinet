@@ -508,7 +508,18 @@
     "comingSoon": "Coming soon",
     "deleteSkill": "Delete skill",
     "skillsOffered": "Skills offered:",
-    "allAgents": "All agents"
+    "allAgents": "All agents",
+    "noTranscript": "No transcript found",
+    "noDiff": "No diff available.",
+    "headsUp": "Heads up:",
+    "back": "Back",
+    "editYourAvatar": "Edit your avatar",
+    "openFullTaskViewer": "Open full task viewer",
+    "close": "Close",
+    "copyToClipboard": "Copy to clipboard",
+    "starOnGithub": "Star Cabinet on GitHub",
+    "helpMoreFind": "Help more people find the community",
+    "joinDiscord": "Join the Discord"
   },
   "dataLocations": {
     "title": "Where your data lives",

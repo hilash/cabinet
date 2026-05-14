@@ -508,7 +508,18 @@
     "comingSoon": "בקרוב",
     "deleteSkill": "מחיקת כישור",
     "skillsOffered": "כישורים מוצעים:",
-    "allAgents": "כל הסוכנים"
+    "allAgents": "כל הסוכנים",
+    "noTranscript": "לא נמצא תמלול",
+    "noDiff": "אין diff זמין.",
+    "headsUp": "שימו לב:",
+    "back": "חזרה",
+    "editYourAvatar": "עריכת האווטאר שלך",
+    "openFullTaskViewer": "פתיחת מציג המשימה המלא",
+    "close": "סגירה",
+    "copyToClipboard": "העתקה ללוח",
+    "starOnGithub": "הוספת כוכב ל-Cabinet ב-GitHub",
+    "helpMoreFind": "עזרו ליותר אנשים למצוא את הקהילה",
+    "joinDiscord": "הצטרפות לדיסקורד"
   },
   "dataLocations": {
     "title": "איפה הנתונים שלך חיים",

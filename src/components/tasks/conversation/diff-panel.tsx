@@ -8,6 +8,7 @@ import {
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 interface DiffCommit {
   hash: string;
@@ -35,6 +36,7 @@ function directory(p: string): string {
 }
 
 function DiffPre({ diff }: { diff: string }) {
+  const { t } = useLocale();
   const lines = diff.split("\n");
   return (
     <pre className="max-h-[50vh] overflow-auto rounded-md bg-muted/40 p-3 font-mono text-[11.5px] leading-relaxed">
@@ -61,6 +63,7 @@ function DiffPre({ diff }: { diff: string }) {
 
 /* eslint-disable react-hooks/static-components */
 function ArtifactBlock({ entry }: { entry: DiffEntry }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(entry.commits.length <= 2);
   const kind = inferPageTypeFromPath(entry.path);
   const Icon = pageTypeIcon(kind);
@@ -106,7 +109,7 @@ function ArtifactBlock({ entry }: { entry: DiffEntry }) {
               {commit.diff ? (
                 <DiffPre diff={commit.diff} />
               ) : (
-                <p className="text-[11.5px] text-muted-foreground">No diff available.</p>
+                <p className="text-[11.5px] text-muted-foreground">{t("tinyExtras:noDiff")}</p>
               )}
             </div>
           ))}
@@ -125,6 +128,7 @@ export function DiffPanel({
   taskId: string;
   cabinetPath?: string;
 }) {
+  const { t } = useLocale();
   const [entries, setEntries] = useState<DiffEntry[] | null>(null);
 
   useEffect(() => {

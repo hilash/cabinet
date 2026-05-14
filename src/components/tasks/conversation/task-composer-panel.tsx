@@ -21,6 +21,7 @@ import { useComposerAttachments } from "@/components/composer/use-composer-attac
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { cn } from "@/lib/utils";
 import type { ConversationRuntimeOverride } from "@/types/conversations";
+import { useLocale } from "@/i18n/use-locale";
 
 interface PageTreeNode {
   path?: string;
@@ -113,6 +114,7 @@ export function TaskComposerPanel({
   onScheduleHandoff,
   agent,
 }: TaskComposerPanelProps) {
+  const { t } = useLocale();
   // We don't seed with initialRuntime directly — that way, when the parent
   // re-renders with fresh meta (SSE → fetchTask), the displayed runtime
   // stays in sync until the user explicitly picks one. When they pick, that
@@ -298,7 +300,7 @@ export function TaskComposerPanel({
         <div className="mb-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400">
           <Terminal className="size-3 mt-[2px] shrink-0" />
           <span>
-            <strong>Heads up:</strong> mid-session skill mentions in terminal
+            <strong>{t("tinyExtras:headsUp")}</strong> mid-session skill mentions in terminal
             mode reach the model via prompt text only — not as live{" "}
             <code className="text-[10px]">/skill</code> commands. New tasks
             (non-terminal) get the full mount.

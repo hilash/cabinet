@@ -259,6 +259,7 @@ function getAlwaysCheckedForRoom(roomType: RoomType): Set<string> {
 type PreMadeTeam = StarterTeam;
 
 function TerminalCommand({ command }: { command: string }) {
+  const { t } = useLocale();
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
@@ -277,7 +278,7 @@ function TerminalCommand({ command }: { command: string }) {
       <button
         onClick={copy}
         className="shrink-0 p-1 rounded transition-colors hover:bg-white/10"
-        title="Copy to clipboard"
+        title={t("tinyExtras:copyToClipboard")}
       >
         {copied ? (
           <ClipboardCheck className="size-3.5" style={{ color: "#6A9955" }} />
@@ -2836,8 +2837,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           <Star className="size-5 fill-current" style={{ color: WEB.accent }} />
                         </span>
                         <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Star Cabinet on GitHub</span>
-                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Help more people find the community</span>
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>{t("tinyExtras:starOnGithub")}</span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>{t("tinyExtras:helpMoreFind")}</span>
                         </span>
                       </span>
                       <span className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex" style={{ background: WEB.bgWarm, color: WEB.accent }}>
@@ -2861,7 +2862,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           <DiscordIcon className="size-5" style={{ color: "#5865F2" }} />
                         </span>
                         <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Join the Discord</span>
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>{t("tinyExtras:joinDiscord")}</span>
                           <span className="text-sm" style={{ color: WEB.textSecondary }}>Chat with the people building Cabinet</span>
                         </span>
                       </span>

@@ -24,6 +24,7 @@ import {
 import { UserAvatar } from "@/components/layout/user-avatar";
 import { EditUserAvatarDialog } from "@/components/settings/edit-user-avatar-dialog";
 import type { UserProfile } from "@/lib/user/profile-io";
+import { useLocale } from "@/i18n/use-locale";
 
 export type TurnBlockAgent = AgentAvatarInput & { name?: string };
 export type TurnBlockUser = Pick<
@@ -47,6 +48,7 @@ function subscribeToTick(onChange: () => void) {
 }
 
 function RelativeTime({ iso }: { iso: string }) {
+  const { t } = useLocale();
   const tick = useSyncExternalStore(
     subscribeToTick,
     () => Math.floor(Date.now() / 30_000),
@@ -200,6 +202,7 @@ export function TurnBlock({
   user?: TurnBlockUser | null;
   returnContext?: SelectedSection;
 }) {
+  const { t } = useLocale();
   const isUser = turn.role === "user";
   const totalTokens = turn.tokens
     ? turn.tokens.input + turn.tokens.output + (turn.tokens.cache ?? 0)
@@ -216,7 +219,7 @@ export function TurnBlock({
         <button
           type="button"
           onClick={() => setAvatarEditorOpen(true)}
-          title="Edit your avatar"
+          title={t("tinyExtras:editYourAvatar")}
           className="mt-0.5 shrink-0 rounded-full transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {user ? (

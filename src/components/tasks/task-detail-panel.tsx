@@ -8,12 +8,14 @@ import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { useProviderIcon } from "@/hooks/use-provider-icons";
 import { formatEffortName } from "@/lib/agents/runtime-options";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import type {
   ConversationMeta,
   ConversationStatus,
 } from "@/types/conversations";
 
 function StatusDot({ status }: { status: ConversationStatus }) {
+  const { t } = useLocale();
   if (status === "running") {
     return <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>;
   }
@@ -95,6 +97,7 @@ function buildRuntimeLabel(
 }
 
 export function TaskDetailPanel() {
+  const { t } = useLocale();
   const conversation = useAppStore((s) => s.taskPanelConversation);
   const setTaskPanelConversation = useAppStore((s) => s.setTaskPanelConversation);
   const setSection = useAppStore((s) => s.setSection);
@@ -175,7 +178,7 @@ export function TaskDetailPanel() {
           size="sm"
           className="h-7 gap-1 shrink-0 px-2 text-[11px] text-muted-foreground"
           onClick={openFullPage}
-          title="Open full task viewer"
+          title={t("tinyExtras:openFullTaskViewer")}
         >
           <ArrowUpRight className="size-3.5" />
         </Button>
