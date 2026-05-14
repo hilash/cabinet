@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import type { ConversationMeta } from "@/types/conversations";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Per-run "Skills offered" footer.
@@ -15,6 +16,7 @@ import type { ConversationMeta } from "@/types/conversations";
  * the operator's act of attaching a skill IS the trust signal.
  */
 export function SkillsOfferedFooter({ meta }: { meta: ConversationMeta }) {
+  const { t } = useLocale();
   const config = (meta.adapterConfig || {}) as { skills?: string[] };
   const offered = config.skills ?? [];
 
@@ -25,7 +27,7 @@ export function SkillsOfferedFooter({ meta }: { meta: ConversationMeta }) {
       <div className="flex items-start gap-2 text-muted-foreground">
         <Sparkles className="size-3 mt-0.5 shrink-0" />
         <div>
-          <span className="font-medium">Skills offered:</span>{" "}
+          <span className="font-medium">{t("tinyExtras:skillsOffered")}</span>{" "}
           {offered.map((key, i) => (
             <span key={key}>
               {i > 0 && ", "}

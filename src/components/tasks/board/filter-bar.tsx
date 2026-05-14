@@ -13,6 +13,7 @@ import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
 import { AgentAvatar, hasAgentAvatarImage } from "@/components/agents/agent-avatar";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { ConversationMeta } from "@/types/conversations";
+import { useLocale } from "@/i18n/use-locale";
 
 export type TriggerFilter = "all" | "manual" | "job" | "heartbeat";
 
@@ -39,6 +40,7 @@ export function TriggerChip({
   count?: React.ReactNode;
   title?: string;
 }) {
+  const { t } = useLocale();
   return (
     <button
       type="button"
@@ -88,6 +90,7 @@ export function AgentFilterDropdown({
   onAgentChange: (slug: string | null) => void;
   className?: string;
 }) {
+  const { t } = useLocale();
   if (agents.length === 0) return null;
   const selected = agentFilter
     ? agents.find((a) => a.slug === agentFilter) ?? null
@@ -131,7 +134,7 @@ export function AgentFilterDropdown({
         >
           <span className="flex items-center gap-2">
             <Users className="size-3.5 text-muted-foreground" />
-            <span className="text-[12.5px]">All agents</span>
+            <span className="text-[12.5px]">{t("tinyExtras:allAgents")}</span>
           </span>
           {agentFilter === null && <Check className="size-3.5 text-primary" />}
         </DropdownMenuItem>

@@ -20,6 +20,7 @@ import type {
   SkillOrigin,
 } from "@/lib/agents/skills/types";
 import type { AuditSummary } from "@/lib/agents/skills/audits";
+import { useLocale } from "@/i18n/use-locale";
 
 const ORIGIN_LABEL: Record<SkillOrigin, string> = {
   "cabinet-scoped": "Cabinet (scoped)",
@@ -38,6 +39,7 @@ function SafetyCheck({
   okLabel: string;
   warnLabel: string;
 }) {
+  const { t } = useLocale();
   return (
     <div
       className={cn(
@@ -63,6 +65,7 @@ interface SkillDetailProps {
 }
 
 export function SkillDetail({ skillKey, cabinetPath, onClose }: SkillDetailProps) {
+  const { t } = useLocale();
   const [bundle, setBundle] = useState<SkillBundle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,7 +200,7 @@ export function SkillDetail({ skillKey, cabinetPath, onClose }: SkillDetailProps
                 variant="ghost"
                 size="sm"
                 onClick={handleDelete}
-                aria-label="Delete skill"
+                aria-label={t("tinyExtras:deleteSkill")}
               >
                 <Trash2 className="size-3.5" />
               </Button>

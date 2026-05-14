@@ -3,6 +3,7 @@
 import { ArrowRight, Music, AtSign } from "lucide-react";
 import { MockupSidebar } from "./mockup-sidebar";
 import { TOUR_PALETTE as P } from "./palette";
+import { useLocale } from "@/i18n/use-locale";
 
 const SONG_TITLES = [
   "Neon Dreams",
@@ -20,6 +21,7 @@ const SONG_TITLES = [
 const TYPED_COMMAND = "Run 10 tasks, each writing a song, save to @Songs/";
 
 export function SlideTasks() {
+  const { t } = useLocale();
   return (
     <div className="grid h-full grid-cols-[minmax(360px,420px)_1fr] gap-10 lg:gap-14 items-center">
       <div className="h-[440px] w-full">

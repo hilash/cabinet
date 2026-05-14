@@ -3,6 +3,7 @@
 import { type CSSProperties, type ReactNode } from "react";
 import { Archive, BookOpen, Users, SquareKanban, ChevronDown } from "lucide-react";
 import { TOUR_PALETTE as P } from "./palette";
+import { useLocale } from "@/i18n/use-locale";
 
 export type MockupTab = "data" | "agents" | "tasks";
 
@@ -70,6 +71,7 @@ export function MockupSidebar({
   headerBadge = "+1",
   viewTransitionName,
 }: MockupSidebarProps) {
+  const { t } = useLocale();
   const rootStyle: CSSProperties = {
     color: P.text,
     ...(viewTransitionName ? { viewTransitionName } : {}),
@@ -122,7 +124,7 @@ export function MockupSidebar({
       {!hideTabs && (
         <div
           role="tablist"
-          aria-label="Cabinet drawers"
+          aria-label={t("treeView:drawersAriaLabel")}
           className="mx-[9px] grid grid-cols-3 gap-1 rounded-b-lg p-1 pt-2"
           style={{
             background: "rgba(243, 237, 228, 0.7)",

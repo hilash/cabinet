@@ -500,6 +500,16 @@
   "daemonHealth": {
     "dismiss": "סגירה"
   },
+  "tinyExtras": {
+    "light": "בהיר",
+    "home": "בית",
+    "workspaceGallery": "גלריית מרחבי עבודה",
+    "savingTo": "נשמר אל",
+    "comingSoon": "בקרוב",
+    "deleteSkill": "מחיקת כישור",
+    "skillsOffered": "כישורים מוצעים:",
+    "allAgents": "כל הסוכנים"
+  },
   "dataLocations": {
     "title": "איפה הנתונים שלך חיים",
     "whyThisMatters": "למה זה חשוב",

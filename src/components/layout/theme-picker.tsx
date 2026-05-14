@@ -6,6 +6,7 @@ import { Moon, Sun, Check, Palette } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import {
   THEMES,
   applyTheme,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/themes";
 
 export function ThemePicker() {
+  const { t } = useLocale();
   const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeCustomTheme, setActiveCustomTheme] = useState<string | null>(null);
@@ -114,7 +116,7 @@ export function ThemePicker() {
             )}
           >
             <Sun className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 text-left">Light</span>
+            <span className="flex-1 text-left">{t("tinyExtras:light")}</span>
             {!activeCustomTheme && theme === "light" && (
               <Check className="h-3 w-3 text-primary shrink-0" />
             )}

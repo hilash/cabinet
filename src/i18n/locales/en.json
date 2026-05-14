@@ -500,6 +500,16 @@
   "daemonHealth": {
     "dismiss": "Dismiss"
   },
+  "tinyExtras": {
+    "light": "Light",
+    "home": "Home",
+    "workspaceGallery": "Workspace Gallery",
+    "savingTo": "Saving to",
+    "comingSoon": "Coming soon",
+    "deleteSkill": "Delete skill",
+    "skillsOffered": "Skills offered:",
+    "allAgents": "All agents"
+  },
   "dataLocations": {
     "title": "Where your data lives",
     "whyThisMatters": "Why this matters",

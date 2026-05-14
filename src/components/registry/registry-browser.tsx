@@ -764,7 +764,7 @@ function DetailView({
                 {/* Agents section */}
                 {allAgents.length > 0 && (
                   <section>
-                    <SectionLabel>Agents</SectionLabel>
+                    <SectionLabel>{t("registry:agents")}</SectionLabel>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {allAgents.map((agent, i) => (
                         <RegistryAgentCard key={`${agent.slug}-${i}`} agent={agent} />
