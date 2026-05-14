@@ -20,12 +20,14 @@ import {
 } from "lucide-react";
 import { MockupSidebar } from "@/components/onboarding/tour/mockup-sidebar";
 import { TOUR_PALETTE as P } from "@/components/onboarding/tour/palette";
+import { useLocale } from "@/i18n/use-locale";
 
 const stage: React.CSSProperties = {
   background: P.paperWarm,
 };
 
 function Stage({ children }: { children: React.ReactNode }) {
+  const { t } = useLocale();
   return (
     <div className="flex h-full w-full items-center justify-center p-6" style={stage}>
       {children}
@@ -522,30 +524,31 @@ function KbdChip({ children, delay }: { children: React.ReactNode; delay: number
 }
 
 export function ShortcutsVisual() {
+  const { t } = useLocale();
   return (
     <Stage>
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <KbdChip delay={100}>⌘⌥T</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Add to Inbox</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:addToInbox")}</span>
         </div>
         <div className="flex items-center gap-2">
           <KbdChip delay={200}>⌘⌥R</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Run task now</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:runTaskNow")}</span>
         </div>
         <div className="flex items-center gap-2">
           <KbdChip delay={300}>⌘K</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Search</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:search")}</span>
         </div>
         <div className="flex items-center gap-2">
           <KbdChip delay={400}>⌘⌥A</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>AI panel</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:aiPanel")}</span>
         </div>
         <div className="flex items-center gap-2">
           <KbdChip delay={500}>⌘1</KbdChip>
           <KbdChip delay={580}>⌘2</KbdChip>
           <KbdChip delay={660}>⌘3</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Drawers</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:drawers")}</span>
         </div>
       </div>
     </Stage>

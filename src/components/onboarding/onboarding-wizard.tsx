@@ -2129,7 +2129,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         setStep(STEP_ROOM_SETUP);
                       }
                     }}
-                    placeholder="Jane"
+                    placeholder={t("tinyExtras:namePlaceholder")}
                     style={inputStyle}
                     autoFocus
                   />
@@ -2863,7 +2863,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         </span>
                         <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
                           <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>{t("tinyExtras:joinDiscord")}</span>
-                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Chat with the people building Cabinet</span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>{t("tinyExtras:chatWithBuilders")}</span>
                         </span>
                       </span>
                       <span className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex" style={{ background: "#D8D4F7", color: "#5865F2" }}>
@@ -2884,7 +2884,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           <Cloud className="size-5" style={{ color: WEB.accent }} />
                         </span>
                         <div className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Join the Cabinet Cloud waitlist</span>
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>{t("tinyExtras:joinWaitlist")}</span>
                           <span className="text-sm" style={{ color: WEB.textSecondary }}>Connect from anywhere. Your AI team works 24/7.</span>
                         </div>
                       </div>
@@ -2912,7 +2912,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                             type="email"
                             inputMode="email"
                             autoComplete="email"
-                            placeholder="you@company.com"
+                            placeholder={t("tinyExtras:emailPlaceholder")}
                             value={cloudEmail}
                             onChange={(e) => handleCloudInput(e.target.value)}
                             disabled={cloudStatus === "submitting"}
@@ -3144,13 +3144,13 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <input
                     type="checkbox"
                     name="disclaimer-accept"
-                    aria-label="I have read and I accept"
+                    aria-label={t("breakingChanges:iAccept")}
                     checked={disclaimerAccepted}
                     onChange={(e) => setDisclaimerAccepted(e.target.checked)}
                     className="mt-0.5 size-4 shrink-0 rounded"
                     style={{ borderColor: WEB.border, accentColor: WEB.accent }}
                   />
-                  <span>I understand and want to continue.</span>
+                  <span>{t("breakingChangesPlus:iUnderstand")}</span>
                 </label>
                 <p
                   className="text-[11px]"

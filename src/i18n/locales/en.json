@@ -519,7 +519,16 @@
     "copyToClipboard": "Copy to clipboard",
     "starOnGithub": "Star Cabinet on GitHub",
     "helpMoreFind": "Help more people find the community",
-    "joinDiscord": "Join the Discord"
+    "joinDiscord": "Join the Discord",
+    "chatWithBuilders": "Chat with the people building Cabinet",
+    "joinWaitlist": "Join the Cabinet Cloud waitlist",
+    "emailPlaceholder": "you@company.com",
+    "namePlaceholder": "Jane",
+    "addToInbox": "Add to Inbox",
+    "runTaskNow": "Run task now",
+    "search": "Search",
+    "aiPanel": "AI panel",
+    "drawers": "Drawers"
   },
   "dataLocations": {
     "title": "Where your data lives",

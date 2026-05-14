@@ -42,7 +42,7 @@ export function DepthDropdown({
         aria-label={`Cabinet scope: ${current.label}. Click to change.`}
       >
         {!compact && <FolderTree className="size-3.5" />}
-        <span className="sr-only">Cabinet scope: </span>
+        <span className="sr-only">{t("cabinetsExtras:cabinetScope")} </span>
         <span className="tabular-nums">{current.shortLabel}</span>
         <ChevronDown className="size-3 opacity-60" />
       </DropdownMenuTrigger>

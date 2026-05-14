@@ -1112,7 +1112,7 @@ export function TaskConversationPage({
           <Link
             href="/"
             className="inline-flex size-7 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
-            title="Back"
+            title={t("tasks:conversation.back")}
           >
             <ArrowLeft className="size-3.5" />
           </Link>

@@ -519,7 +519,16 @@
     "copyToClipboard": "העתקה ללוח",
     "starOnGithub": "הוספת כוכב ל-Cabinet ב-GitHub",
     "helpMoreFind": "עזרו ליותר אנשים למצוא את הקהילה",
-    "joinDiscord": "הצטרפות לדיסקורד"
+    "joinDiscord": "הצטרפות לדיסקורד",
+    "chatWithBuilders": "צ׳אט עם האנשים שבונים את Cabinet",
+    "joinWaitlist": "הצטרפו לרשימת ההמתנה של Cabinet Cloud",
+    "emailPlaceholder": "you@company.com",
+    "namePlaceholder": "הילה",
+    "addToInbox": "הוספה לתיבה",
+    "runTaskNow": "הפעלת משימה עכשיו",
+    "search": "חיפוש",
+    "aiPanel": "חלונית AI",
+    "drawers": "מגירות"
   },
   "dataLocations": {
     "title": "איפה הנתונים שלך חיים",
