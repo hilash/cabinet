@@ -7,6 +7,7 @@ import { LockedSwitch } from "@/components/ui/locked-switch";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import type { CabinetAgentSummary } from "@/types/cabinets";
+import { useLocale } from "@/i18n/use-locale";
 import { useAgentsContext } from "./agents-context";
 import { FilterChip, ListShell } from "./list-shell";
 import {
@@ -181,6 +182,7 @@ function HeartbeatRow({
   onToggle: () => void;
   onOpen: () => void;
 }) {
+  const { t } = useLocale();
   const enabled = agent.heartbeatEnabled !== false;
   const firing = agent.active && enabled;
   const locked = !agent.active;
@@ -245,7 +247,7 @@ function HeartbeatRow({
           checked={enabled}
           onCheckedChange={onToggle}
           locked={locked}
-          tooltip="This agent is stopped. Start it on the Agents tab to enable the heartbeat."
+          tooltip={t("agents:workspace.lockedHeartbeatTip")}
           ariaLabel={
             enabled ? `Pause ${agent.name} heartbeat` : `Resume ${agent.name} heartbeat`
           }

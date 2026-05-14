@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import type { CabinetAgentSummary } from "@/types/cabinets";
+import { useLocale } from "@/i18n/use-locale";
 import { useAgentsContext } from "./agents-context";
 import { AgentsTab } from "./agents-tab";
 import { RoutinesTab } from "./routines-tab";
@@ -62,6 +63,7 @@ function TopBar({
   tab: AgentsTabKey;
   onTabChange: (next: AgentsTabKey) => void;
 }) {
+  const { t } = useLocale();
   const { loading, refresh, visibilityMode, setVisibilityMode } =
     useAgentsContext();
   return (
@@ -79,8 +81,8 @@ function TopBar({
         <button
           type="button"
           onClick={() => void refresh()}
-          title="Refresh"
-          aria-label="Refresh"
+          title={t("agents:workspace.refresh")}
+          aria-label={t("agents:workspace.refresh")}
           className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
         >
           <RefreshCw className="size-3.5" />
@@ -250,6 +252,7 @@ function TabStrip({
 }
 
 function NewButton({ tab }: { tab: AgentsTabKey }) {
+  const { t } = useLocale();
   const {
     agents,
     setNewAgentOpen,
@@ -266,7 +269,7 @@ function NewButton({ tab }: { tab: AgentsTabKey }) {
         className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
       >
         <Plus className="size-3.5" />
-        New Agent
+        {t("agents:workspace.newAgent")}
       </button>
     );
   }
@@ -274,7 +277,7 @@ function NewButton({ tab }: { tab: AgentsTabKey }) {
   if (tab === "routines") {
     return (
       <AgentPickerDropdown
-        label="New Routine"
+        label={t("agents:workspace.newRoutine")}
         agents={agents}
         onSelect={(agent) =>
           setRoutineDialog({
@@ -294,7 +297,7 @@ function NewButton({ tab }: { tab: AgentsTabKey }) {
   if (tab === "heartbeats") {
     return (
       <AgentPickerDropdown
-        label="Configure heartbeat"
+        label={t("agents:workspace.configureHeartbeat")}
         agents={agents}
         onSelect={(agent) =>
           setHeartbeatDialog({
@@ -324,6 +327,7 @@ function AgentPickerDropdown({
   agents: CabinetAgentSummary[];
   onSelect: (agent: CabinetAgentSummary) => void;
 }) {
+  const { t } = useLocale();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -335,7 +339,7 @@ function AgentPickerDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-[360px] overflow-y-auto p-1">
         <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Pick an agent
+          {t("agents:workspace.pickAnAgent")}
         </div>
         {agents
           .slice()

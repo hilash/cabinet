@@ -10,7 +10,10 @@
       "departmentLead": "Department Lead",
       "provider": "Provider",
       "runtime": "Runtime",
-      "promptPlaceholder": "You are a marketing agent for…"
+      "promptPlaceholder": "You are a marketing agent for…",
+      "addAgentTitle": "Add an agent to your team",
+      "addAgentDescription": "Pick a specialist from the library. You can edit its name, role, and instructions after it's added.",
+      "searchLibraryPlaceholder": "Search the library"
     },
     "metric": {
       "name": "Metric name",
@@ -47,7 +50,17 @@
       "sharedAcrossCabinets": "Shared across all cabinets",
       "expandSchedule": "Expand schedule",
       "heartbeatsOnAgentPage": "Heartbeats are configured on each agent's page",
-      "exitFullscreen": "Exit fullscreen"
+      "exitFullscreen": "Exit fullscreen",
+      "refresh": "Refresh",
+      "editHeartbeat": "Edit heartbeat",
+      "newRoutine": "New Routine",
+      "configureHeartbeat": "Configure heartbeat",
+      "openOrgChart": "Open org chart",
+      "orgChart": "Org chart",
+      "pickAnAgent": "Pick an agent",
+      "dismiss": "Dismiss",
+      "lockedHeartbeatTip": "This agent is stopped. Start it on the Agents tab to enable the heartbeat.",
+      "lockedRoutineTip": "This agent is stopped. Start it on the Agents tab to enable its routines."
     },
     "detail": {
       "clickToTurnOff": "Click to turn off.",
@@ -258,7 +271,72 @@
     "keyboard": "Keyboard",
     "skills": "Skills",
     "apiKeys": "API keys",
-    "mcpServers": "MCP servers"
+    "mcpServers": "MCP servers",
+    "title": "Help",
+    "howTo": "How To",
+    "heading": "Learn how Cabinet works",
+    "subheading": "Short demos, walkthroughs, and previews for getting the most out of Cabinet.",
+    "ctaWatchTour": "Watch the tour",
+    "ctaWatchDemo": "Watch the demo",
+    "ctaCheatSheet": "Open cheat sheet",
+    "ctaComingSoon": "Coming soon",
+    "discordHeading": "Didn't find what you're looking for?",
+    "discordSubheading": "We're in the Discord — come say hi, ask questions, share what you're building.",
+    "discordCta": "Join the Discord",
+    "items": {
+      "tour": {
+        "title": "Meet your <accent>Cabinet</accent>.",
+        "description": "Your AI team. Your knowledge base. One place."
+      },
+      "agents": {
+        "title": "Your <accent>AI team</accent>.",
+        "description": "Hire leads and specialists. Group them into departments. Let them dispatch work to each other."
+      },
+      "tasks": {
+        "title": "The <accent>task board</accent>.",
+        "description": "Kanban, list, and schedule views. Filter by agent or status. Pick a runtime per task."
+      },
+      "knowledge": {
+        "title": "Your <accent>knowledge base</accent>.",
+        "description": "Markdown, CSV, PDF, code, notebooks, mermaid, images, audio — everything renders inline. Your data stays on your machine; it's yours, not ours."
+      },
+      "cabinets": {
+        "title": "A team of <accent>AI teams</accent>.",
+        "description": "Cabinets nest inside cabinets. Each one is its own AI team with its own data, agents, and visibility scope — and they can collaborate up and down the tree."
+      },
+      "routines": {
+        "title": "<accent>Routines</accent> & schedules.",
+        "description": "Run a task daily at 9am, weekly on Friday, or once next Monday. Cron, calendar, or natural language."
+      },
+      "conversations": {
+        "title": "Conversations & <accent>approvals</accent>.",
+        "description": "Agents propose actions — launch a task, schedule a job — and you approve before anything runs."
+      },
+      "themes": {
+        "title": "Make it <accent>yours</accent>.",
+        "description": "Pick from a curated set of light and dark themes — Paper, Slate, Claude, Ink, and more."
+      },
+      "providers": {
+        "title": "<accent>BYOAI</accent> — bring your own AI.",
+        "description": "Claude, GPT, Gemini, Grok, Codex, Cursor — bring whichever providers you already pay for. Pick a default, or override per task."
+      },
+      "shortcuts": {
+        "title": "<accent>Keyboard</accent> shortcuts.",
+        "description": "Every Cabinet shortcut on one searchable card. Press ? from anywhere to reopen it. Filter by name or key — passes for navigation, editing, tasks, panels, and slash commands."
+      },
+      "skills": {
+        "title": "<accent>Skills</accent> for your agents.",
+        "description": "Installable Agent Skills — playbooks the model pulls in for a task. Install from GitHub or skills.sh, attach to a persona, or @-mention one in any composer for a single run."
+      },
+      "apiKeysItem": {
+        "title": "<accent>API keys</accent> for your tools.",
+        "description": "Plug in your OpenAI, Anthropic, or GitHub account once — every agent and skill in Cabinet will use it. You pay your own bills, use your own quota, no middleman."
+      },
+      "integrations": {
+        "title": "<accent>MCP servers</accent> & integrations.",
+        "description": "MCP servers, Slack, Telegram, Gmail, and Calendar OAuth — connect once and Cabinet handles the tokens. Coming soon."
+      }
+    }
   },
   "keyboardShortcuts": {
     "title": "Keyboard shortcuts",
@@ -355,6 +433,33 @@
   "agentList": {
     "agentLibrary": "Agent Library",
     "newAgent": "New Agent"
+  },
+  "helpVisuals": {
+    "cabinet": "Cabinet",
+    "yourTeam": "Your team",
+    "lead": "Lead",
+    "specialist": "Specialist",
+    "tasks": "Tasks",
+    "todo": "Todo",
+    "doing": "Doing",
+    "done": "Done",
+    "anythingGoes": "Anything goes",
+    "marketing": "Marketing",
+    "product": "Product",
+    "research": "Research",
+    "design": "Design",
+    "routines": "Routines",
+    "dailyReview": "Daily review",
+    "weeklyDigest": "Weekly digest",
+    "conversation": "Conversation",
+    "userQuery": "Plan a 2-week Thailand trip…",
+    "agentReply": "I'll dispatch the librarian and editor.",
+    "pendingAction": "Pending action",
+    "approve": "Approve",
+    "decline": "Decline",
+    "themes": "Themes",
+    "providers": "Providers",
+    "comingSoon": "Coming soon"
   },
   "agentLive": {
     "dismiss": "Dismiss",
@@ -944,6 +1049,7 @@
     "next": "Next",
     "writeFirstTask": "Write your first task",
     "goToSlide": "Go to slide {{n}}",
-    "starterTask": "Let's talk through my goals and what I want to achieve here, then capture it in a new About page."
+    "starterTask": "Let's talk through my goals and what I want to achieve here, then capture it in a new About page.",
+    "savingTo": "Saving to "
   }
 }

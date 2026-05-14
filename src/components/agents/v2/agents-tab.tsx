@@ -5,6 +5,7 @@ import { Network } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { startCase } from "@/components/cabinets/cabinet-utils";
 import type { CabinetJobSummary } from "@/types/cabinets";
+import { useLocale } from "@/i18n/use-locale";
 import { useAgentsContext } from "./agents-context";
 import { FilterChip, ListShell } from "./list-shell";
 import {
@@ -15,6 +16,7 @@ import {
 import { AgentRow } from "./agent-row";
 
 export function AgentsTab() {
+  const { t } = useLocale();
   const { loading, agents, jobs, toggleAgentActive, setOrgChartOpen } =
     useAgentsContext();
   const setSection = useAppStore((s) => s.setSection);
@@ -125,11 +127,11 @@ export function AgentsTab() {
         <button
           type="button"
           onClick={() => setOrgChartOpen(true)}
-          title="Open org chart"
+          title={t("agents:workspace.openOrgChart")}
           className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
         >
           <Network className="size-3.5" />
-          Org chart
+          {t("agents:workspace.orgChart")}
         </button>
       }
       loading={loading}

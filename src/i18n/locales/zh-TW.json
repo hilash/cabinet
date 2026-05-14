@@ -10,7 +10,10 @@
       "departmentLead": "部門主管",
       "provider": "服務商",
       "runtime": "執行環境",
-      "promptPlaceholder": "你是一位行銷代理……"
+      "promptPlaceholder": "你是一位行銷代理……",
+      "addAgentTitle": "把一個智慧代理加入你的團隊",
+      "addAgentDescription": "從庫中挑選一位專員。新增後你可以編輯它的名字、角色和指令。",
+      "searchLibraryPlaceholder": "搜尋庫"
     },
     "metric": {
       "name": "指標名稱",
@@ -47,7 +50,16 @@
       "sharedAcrossCabinets": "在所有凱比內特間共用",
       "expandSchedule": "展開排程",
       "heartbeatsOnAgentPage": "心跳在每個智慧代理的頁面上設定",
-      "exitFullscreen": "離開全螢幕"
+      "exitFullscreen": "離開全螢幕",
+      "refresh": "重新整理",
+      "editHeartbeat": "編輯心跳",
+      "newRoutine": "新增例行任務",
+      "configureHeartbeat": "設定心跳",
+      "openOrgChart": "開啟組織圖",
+      "pickAnAgent": "挑選一個智慧代理",
+      "dismiss": "關閉",
+      "lockedHeartbeatTip": "該智慧代理已停止。請在「智慧代理」分頁中啟動它,才能啟用心跳。",
+      "lockedRoutineTip": "該智慧代理已停止。請在「智慧代理」分頁中啟動它,才能啟用它的例行任務。"
     },
     "detail": {
       "clickToTurnOff": "點擊以關閉。",
@@ -258,7 +270,72 @@
     "keyboard": "鍵盤",
     "skills": "技能",
     "apiKeys": "API 金鑰",
-    "mcpServers": "MCP 伺服器"
+    "mcpServers": "MCP 伺服器",
+    "title": "說明",
+    "howTo": "操作指南",
+    "heading": "了解凱比內特如何運作",
+    "subheading": "簡短的示範、導覽和預覽,讓你充分發揮凱比內特的價值。",
+    "ctaWatchTour": "觀看導覽",
+    "ctaWatchDemo": "觀看示範",
+    "ctaCheatSheet": "開啟備忘單",
+    "ctaComingSoon": "即將推出",
+    "discordHeading": "沒找到你想要的?",
+    "discordSubheading": "我們在 Discord — 來打個招呼,提問題,分享你正在做什麼。",
+    "discordCta": "加入 Discord",
+    "items": {
+      "tour": {
+        "title": "認識你的 <accent>凱比內特</accent>。",
+        "description": "你的 AI 團隊。你的知識庫。一站搞定。"
+      },
+      "agents": {
+        "title": "你的 <accent>AI 團隊</accent>。",
+        "description": "雇用主管和專員,把他們分到部門裡,讓他們彼此分派工作。"
+      },
+      "tasks": {
+        "title": "<accent>任務面板</accent>。",
+        "description": "看板、清單和排程三種檢視。依智慧代理或狀態篩選。為每個任務挑選執行環境。"
+      },
+      "knowledge": {
+        "title": "你的 <accent>知識庫</accent>。",
+        "description": "Markdown、CSV、PDF、程式碼、Notebook、Mermaid、影像、音訊 — 一切都行內呈現。你的資料始終在你的電腦上,屬於你,不屬於我們。"
+      },
+      "cabinets": {
+        "title": "由 <accent>AI 團隊</accent> 組成的團隊。",
+        "description": "凱比內特可以巢狀。每一層都是一個獨立的 AI 團隊,有自己的資料、智慧代理和可見範圍 — 而且它們能沿著樹上下協作。"
+      },
+      "routines": {
+        "title": "<accent>例行任務</accent> 與排程。",
+        "description": "讓任務每天上午 9 點跑、每週五跑,或下週一只跑一次。Cron、行事曆或自然語言都行。"
+      },
+      "conversations": {
+        "title": "對話與 <accent>核准</accent>。",
+        "description": "智慧代理提出動作 — 啟動一個任務、安排一個 job — 在任何東西實際執行之前,先由你核准。"
+      },
+      "themes": {
+        "title": "把它變成 <accent>你的</accent>。",
+        "description": "從一組精選的淺色與深色主題裡挑選 — Paper、Slate、Claude、Ink 等等。"
+      },
+      "providers": {
+        "title": "<accent>BYOAI</accent> — 自帶你的 AI。",
+        "description": "Claude、GPT、Gemini、Grok、Codex、Cursor — 你已經付費的服務商,都帶過來。設預設,或按任務覆寫。"
+      },
+      "shortcuts": {
+        "title": "<accent>鍵盤</accent> 快速鍵。",
+        "description": "凱比內特的每一個快速鍵,放在一張可搜尋的卡片裡。任何地方按 ? 重新開啟。依名稱或按鍵篩選 — 涵蓋導覽、編輯、任務、面板和斜線指令。"
+      },
+      "skills": {
+        "title": "為你的智慧代理準備 <accent>技能</accent>。",
+        "description": "可安裝的智慧代理技能 — 模型在執行任務時會取用的劇本。從 GitHub 或 skills.sh 安裝,掛到某個角色上,或在任意輸入框 @ 提及來單次使用。"
+      },
+      "apiKeysItem": {
+        "title": "為你的工具設定 <accent>API 金鑰</accent>。",
+        "description": "把你的 OpenAI、Anthropic 或 GitHub 帳戶連進來一次 — 凱比內特裡所有的智慧代理和技能都會用它。你付自己的帳單,用自己的配額,中間沒有中介。"
+      },
+      "integrations": {
+        "title": "<accent>MCP 伺服器</accent> 與整合。",
+        "description": "MCP 伺服器、Slack、Telegram、Gmail 和 Calendar OAuth — 連一次,凱比內特幫你管 token。即將推出。"
+      }
+    }
   },
   "keyboardShortcuts": {
     "title": "鍵盤快速鍵",
@@ -944,6 +1021,34 @@
     "next": "下一步",
     "writeFirstTask": "寫下你的第一個任務",
     "goToSlide": "前往投影片 {{n}}",
-    "starterTask": "我們來聊聊我的目標和我想在這裡實現什麼,然後把它記錄到一個新的「關於」頁面中。"
+    "starterTask": "我們來聊聊我的目標和我想在這裡實現什麼,然後把它記錄到一個新的「關於」頁面中。",
+    "savingTo": "正在儲存到 "
+  },
+  "helpVisuals": {
+    "cabinet": "凱比內特",
+    "yourTeam": "你的團隊",
+    "lead": "主管",
+    "specialist": "專員",
+    "tasks": "任務",
+    "todo": "待辦",
+    "doing": "進行中",
+    "done": "已完成",
+    "anythingGoes": "什麼都行",
+    "marketing": "行銷",
+    "product": "產品",
+    "research": "研究",
+    "design": "設計",
+    "routines": "例行任務",
+    "dailyReview": "每日回顧",
+    "weeklyDigest": "每週摘要",
+    "conversation": "對話",
+    "userQuery": "幫我規劃一次為期兩週的泰國之旅……",
+    "agentReply": "我會派遣圖書管理員和編輯過去。",
+    "pendingAction": "待處理動作",
+    "approve": "核准",
+    "decline": "拒絕",
+    "themes": "主題",
+    "providers": "服務商",
+    "comingSoon": "即將推出"
   }
 }

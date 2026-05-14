@@ -10,6 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useAppStore } from "@/stores/app-store";
+import { useLocale } from "@/i18n/use-locale";
 
 interface AgentTemplate {
   slug: string;
@@ -37,6 +38,7 @@ export function NewAgentDialog({
   cabinetPath: string;
   onAdded: () => void | Promise<void>;
 }) {
+  const { t } = useLocale();
   const setSection = useAppStore((s) => s.setSection);
   const [templates, setTemplates] = useState<AgentTemplate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,10 +112,9 @@ export function NewAgentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[80vh] sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Add an agent to your team</DialogTitle>
+          <DialogTitle>{t("agents:dialog.addAgentTitle")}</DialogTitle>
           <DialogDescription>
-            Pick a specialist from the library. You can edit its name, role,
-            and instructions after it&apos;s added.
+            {t("agents:dialog.addAgentDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -122,7 +123,7 @@ export function NewAgentDialog({
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search the library"
+              placeholder={t("agents:dialog.searchLibraryPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="h-8 w-full rounded-md border border-border/70 bg-background pl-8 pr-3 text-[12.5px] outline-none placeholder:text-muted-foreground focus:border-ring"

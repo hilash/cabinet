@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { Switch } from "@/components/ui/switch";
 import { startCase } from "@/components/cabinets/cabinet-utils";
+import { useLocale } from "@/i18n/use-locale";
 import type { AgentListItem } from "@/types/agents";
 
 /**
@@ -22,6 +23,7 @@ export function AgentRow({
   onOpen: (slug: string) => void;
   onToggleActive: (agent: AgentListItem) => void | Promise<void>;
 }) {
+  const { t } = useLocale();
   const [toggling, setToggling] = useState(false);
 
   async function handleToggle() {
@@ -96,7 +98,7 @@ export function AgentRow({
         {agent.scope === "global" ? (
           <span
             className="hidden whitespace-nowrap rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] text-violet-300 sm:inline-flex"
-            title="Shared across all cabinets"
+            title={t("agents:workspace.sharedAcrossCabinets")}
           >
             Global
           </span>

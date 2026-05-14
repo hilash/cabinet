@@ -10,7 +10,10 @@
       "departmentLead": "部门主管",
       "provider": "服务商",
       "runtime": "运行时",
-      "promptPlaceholder": "你是一位营销智能体……"
+      "promptPlaceholder": "你是一位营销智能体……",
+      "addAgentTitle": "把一个智能体加入你的团队",
+      "addAgentDescription": "从库中挑选一位专员。添加后你可以编辑它的名字、角色和指令。",
+      "searchLibraryPlaceholder": "搜索库"
     },
     "metric": {
       "name": "指标名称",
@@ -47,7 +50,16 @@
       "sharedAcrossCabinets": "在所有凯比内特间共享",
       "expandSchedule": "展开计划",
       "heartbeatsOnAgentPage": "心跳在每个智能体的页面上配置",
-      "exitFullscreen": "退出全屏"
+      "exitFullscreen": "退出全屏",
+      "refresh": "刷新",
+      "editHeartbeat": "编辑心跳",
+      "newRoutine": "新建例行任务",
+      "configureHeartbeat": "配置心跳",
+      "openOrgChart": "打开组织图",
+      "pickAnAgent": "挑选一个智能体",
+      "dismiss": "关闭",
+      "lockedHeartbeatTip": "该智能体已停止。请在「智能体」标签页中启动它,才能启用心跳。",
+      "lockedRoutineTip": "该智能体已停止。请在「智能体」标签页中启动它,才能启用它的例行任务。"
     },
     "detail": {
       "clickToTurnOff": "点击以关闭。",
@@ -258,7 +270,72 @@
     "keyboard": "键盘",
     "skills": "技能",
     "apiKeys": "API 密钥",
-    "mcpServers": "MCP 服务器"
+    "mcpServers": "MCP 服务器",
+    "title": "帮助",
+    "howTo": "操作指南",
+    "heading": "了解凯比内特如何工作",
+    "subheading": "简短的演示、走查和预览,助你充分发挥凯比内特的全部价值。",
+    "ctaWatchTour": "观看导览",
+    "ctaWatchDemo": "观看演示",
+    "ctaCheatSheet": "打开备忘单",
+    "ctaComingSoon": "即将推出",
+    "discordHeading": "没找到你想要的?",
+    "discordSubheading": "我们在 Discord — 来打个招呼,提问题,分享你正在做什么。",
+    "discordCta": "加入 Discord",
+    "items": {
+      "tour": {
+        "title": "认识你的 <accent>凯比内特</accent>。",
+        "description": "你的 AI 团队。你的知识库。一站搞定。"
+      },
+      "agents": {
+        "title": "你的 <accent>AI 团队</accent>。",
+        "description": "雇佣主管和专员,把他们分到部门里,让他们彼此分派工作。"
+      },
+      "tasks": {
+        "title": "<accent>任务面板</accent>。",
+        "description": "看板、列表和日程三种视图。按智能体或状态筛选。为每个任务挑选运行时。"
+      },
+      "knowledge": {
+        "title": "你的 <accent>知识库</accent>。",
+        "description": "Markdown、CSV、PDF、代码、Notebook、Mermaid、图像、音频 — 一切都内联渲染。你的数据始终在你的电脑上,属于你,不属于我们。"
+      },
+      "cabinets": {
+        "title": "一支由 <accent>AI 团队</accent> 组成的团队。",
+        "description": "凯比内特可以嵌套。每一层都是一个独立的 AI 团队,有自己的数据、智能体和可见范围 — 而且它们能沿着树上下协作。"
+      },
+      "routines": {
+        "title": "<accent>例行任务</accent> 与计划。",
+        "description": "让任务每天上午 9 点跑、每周五跑,或下周一只跑一次。Cron、日历或自然语言都行。"
+      },
+      "conversations": {
+        "title": "对话与 <accent>批准</accent>。",
+        "description": "智能体提出动作 — 启动一个任务、安排一个 job — 在任何东西真正运行之前,先由你批准。"
+      },
+      "themes": {
+        "title": "把它变成 <accent>你的</accent>。",
+        "description": "从一组精选的浅色与深色主题里挑选 — Paper、Slate、Claude、Ink 等等。"
+      },
+      "providers": {
+        "title": "<accent>BYOAI</accent> — 自带你的 AI。",
+        "description": "Claude、GPT、Gemini、Grok、Codex、Cursor — 你已经付费的服务商,都带过来。设默认,或按任务覆盖。"
+      },
+      "shortcuts": {
+        "title": "<accent>键盘</accent> 快捷键。",
+        "description": "凯比内特的每一个快捷键,放在一张可搜索的卡片里。任何地方按 ? 重新打开。按名称或按键筛选 — 涵盖导航、编辑、任务、面板和斜杠命令。"
+      },
+      "skills": {
+        "title": "为你的智能体准备 <accent>技能</accent>。",
+        "description": "可安装的智能体技能 — 模型在执行任务时会取用的剧本。从 GitHub 或 skills.sh 安装,挂到某个角色上,或在任意输入框 @ 提及来单次使用。"
+      },
+      "apiKeysItem": {
+        "title": "为你的工具配置 <accent>API 密钥</accent>。",
+        "description": "把你的 OpenAI、Anthropic 或 GitHub 账户接进来一次 — 凯比内特里所有的智能体和技能都会用它。你付自己的账单,用自己的配额,中间没有中介。"
+      },
+      "integrations": {
+        "title": "<accent>MCP 服务器</accent> 与集成。",
+        "description": "MCP 服务器、Slack、Telegram、Gmail 和 Calendar OAuth — 连一次,凯比内特帮你管 token。即将推出。"
+      }
+    }
   },
   "keyboardShortcuts": {
     "title": "键盘快捷键",
@@ -944,6 +1021,34 @@
     "next": "下一步",
     "writeFirstTask": "写下你的第一个任务",
     "goToSlide": "前往幻灯片 {{n}}",
-    "starterTask": "我们来聊聊我的目标和我想在这里实现什么,然后把它记录到一个新的「关于」页面里。"
+    "starterTask": "我们来聊聊我的目标和我想在这里实现什么,然后把它记录到一个新的「关于」页面里。",
+    "savingTo": "正在保存到 "
+  },
+  "helpVisuals": {
+    "cabinet": "凯比内特",
+    "yourTeam": "你的团队",
+    "lead": "主管",
+    "specialist": "专员",
+    "tasks": "任务",
+    "todo": "待办",
+    "doing": "进行中",
+    "done": "已完成",
+    "anythingGoes": "什么都行",
+    "marketing": "营销",
+    "product": "产品",
+    "research": "研究",
+    "design": "设计",
+    "routines": "例行任务",
+    "dailyReview": "每日回顾",
+    "weeklyDigest": "每周摘要",
+    "conversation": "对话",
+    "userQuery": "帮我规划一次为期两周的泰国之旅……",
+    "agentReply": "我会派遣图书管理员和编辑去。",
+    "pendingAction": "待处理动作",
+    "approve": "批准",
+    "decline": "拒绝",
+    "themes": "主题",
+    "providers": "服务商",
+    "comingSoon": "即将推出"
   }
 }

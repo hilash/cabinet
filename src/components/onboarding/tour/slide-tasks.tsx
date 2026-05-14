@@ -161,7 +161,7 @@ export function SlideTasks() {
               }}
             >
               <AtSign className="h-2.5 w-2.5" style={{ color: P.accent }} />
-              <span>Saving to </span>
+              <span>{t("tour:savingTo")}</span>
               <span className="font-mono font-semibold" style={{ color: P.text }}>
                 Songs/
               </span>

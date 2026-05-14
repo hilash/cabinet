@@ -8,6 +8,7 @@ import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
 import type { JobConfig } from "@/types/jobs";
+import { useLocale } from "@/i18n/use-locale";
 import { useAgentsContext } from "./agents-context";
 import { FilterChip, ListShell } from "./list-shell";
 import {
@@ -198,6 +199,7 @@ function RoutineRow({
   onToggle: () => void;
   onOpen: () => void;
 }) {
+  const { t } = useLocale();
   const masterOn = owner?.active ?? false;
   const firing = masterOn && job.enabled;
   const locked = !masterOn;
@@ -268,7 +270,7 @@ function RoutineRow({
           checked={job.enabled}
           onCheckedChange={onToggle}
           locked={locked}
-          tooltip="This agent is stopped. Start it on the Agents tab to enable its routines."
+          tooltip={t("agents:workspace.lockedRoutineTip")}
           ariaLabel={
             job.enabled
               ? `Disable routine ${job.name}`

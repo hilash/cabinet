@@ -1455,7 +1455,7 @@ function ScheduleSection({
             type="button"
             onClick={onEditHeartbeat}
             className="flex flex-1 items-center gap-3 text-left"
-            title="Edit heartbeat"
+            title={t("agents:workspace.editHeartbeat")}
           >
             <Zap className={cn("h-3.5 w-3.5 shrink-0", heartbeatEffective ? "text-amber-500" : "text-muted-foreground/40")} />
             <span className={cn("flex-1 text-[13px]", !heartbeatEffective && "text-muted-foreground/60")}>{t("agents:detail.heartbeat")}</span>

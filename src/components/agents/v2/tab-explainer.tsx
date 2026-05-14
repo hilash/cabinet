@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 const STORAGE_PREFIX = "cabinet.agents.explainer.";
 
@@ -54,6 +55,7 @@ export function ExplainerCard({
   state: ExplainerState;
   children: ReactNode;
 }) {
+  const { t } = useLocale();
   if (state.open !== true) return null;
   return (
     <div
@@ -65,8 +67,8 @@ export function ExplainerCard({
       <button
         type="button"
         onClick={state.dismiss}
-        aria-label="Dismiss"
-        title="Dismiss"
+        aria-label={t("agents:workspace.dismiss")}
+        title={t("agents:workspace.dismiss")}
         className="absolute right-1.5 top-1.5 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted/40 hover:text-foreground"
       >
         <X className="size-3.5" />
