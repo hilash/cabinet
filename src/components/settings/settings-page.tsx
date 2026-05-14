@@ -98,7 +98,8 @@ import {
   submitWaitlistEmail,
 } from "@/lib/telemetry/waitlist-client";
 import { useLocale } from "@/i18n/use-locale";
-import type { Locale } from "@/i18n";
+import { REQUESTABLE_LOCALES, type Locale } from "@/i18n";
+import { submitLanguageRequest } from "@/lib/telemetry/language-request-client";
 
 interface McpServer {
   name: string;
@@ -224,10 +225,64 @@ function matchesFailedStep(stepTitle: string, failedStepTitle?: string): boolean
 
 function LanguageSection() {
   const { locale, setLocale, t } = useLocale();
-  const options: { value: Locale; label: string }[] = [
+  const [requesting, setRequesting] = useState<string | null>(null);
+  const [requested, setRequested] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(REQUESTED_LOCALES_KEY);
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  const supported: { value: Locale; label: string }[] = [
     { value: "en", label: t("settings:language.english") },
     { value: "he", label: t("settings:language.hebrew") },
   ];
+
+  const requestLanguage = async (code: string, label: string) => {
+    if (requesting === code || requested.has(code)) return;
+    setRequesting(code);
+    const result = await submitLanguageRequest({
+      requestedLocale: code,
+      localeLabel: label,
+      currentLocale: locale,
+      appVersion: pkgVersion,
+    });
+    setRequesting(null);
+    if (result.ok) {
+      const next = new Set(requested);
+      next.add(code);
+      setRequested(next);
+      try {
+        window.localStorage.setItem(
+          REQUESTED_LOCALES_KEY,
+          JSON.stringify([...next]),
+        );
+      } catch {
+        /* ignore localStorage failures */
+      }
+      window.dispatchEvent(
+        new CustomEvent("cabinet:toast", {
+          detail: {
+            kind: "success",
+            message: t("settings:language.requestSubmitted", { language: label }),
+          },
+        }),
+      );
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("cabinet:toast", {
+          detail: {
+            kind: "error",
+            message: t("settings:language.requestFailed"),
+          },
+        }),
+      );
+    }
+  };
+
   return (
     <div>
       <h3 className="text-[13px] font-semibold mb-1">{t("settings:language.title")}</h3>
@@ -235,7 +290,7 @@ function LanguageSection() {
         {t("settings:language.description")}
       </p>
       <div className="grid grid-cols-2 gap-2">
-        {options.map((opt) => (
+        {supported.map((opt) => (
           <button
             key={opt.value}
             type="button"
@@ -251,9 +306,54 @@ function LanguageSection() {
           </button>
         ))}
       </div>
+
+      <div className="mt-5">
+        <div className="flex items-baseline justify-between mb-1.5">
+          <h4 className="text-[12px] font-semibold text-muted-foreground">
+            {t("settings:language.moreLanguages")}
+          </h4>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+            {t("settings:language.comingSoon")}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground/80 mb-3">
+          {t("settings:language.moreLanguagesHint")}
+        </p>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-1">
+          {REQUESTABLE_LOCALES.map((opt) => {
+            const isRequesting = requesting === opt.code;
+            const isRequested = requested.has(opt.code);
+            return (
+              <button
+                key={opt.code}
+                type="button"
+                onClick={() => requestLanguage(opt.code, opt.label)}
+                disabled={isRequesting || isRequested}
+                title={isRequested
+                  ? t("settings:language.requestSubmitted", { language: opt.label })
+                  : opt.englishName}
+                dir={opt.dir}
+                className={cn(
+                  "rounded border border-dashed px-1.5 py-1 text-[11px] leading-tight text-start truncate transition-colors",
+                  "border-border/60 text-muted-foreground/70",
+                  isRequested
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 cursor-default"
+                    : isRequesting
+                    ? "opacity-60 cursor-wait"
+                    : "hover:border-primary/30 hover:text-foreground hover:bg-accent/40 cursor-pointer",
+                )}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
+
+const REQUESTED_LOCALES_KEY = "cabinet-requested-locales";
 
 export function SettingsPage() {
   const { t } = useLocale();
@@ -780,7 +880,6 @@ export function SettingsPage() {
           {/* Appearance Tab */}
           {tab === "appearance" && (
             <div className="space-y-6">
-              <LanguageSection />
               <div>
                 <h3 className="text-[13px] font-semibold mb-1">{t("settings:appearance.theme")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-4">
@@ -990,6 +1089,10 @@ export function SettingsPage() {
                       : "Ctrl+Shift+."}
                   </kbd>
                 </label>
+              </div>
+
+              <div className="border-t border-border pt-6">
+                <LanguageSection />
               </div>
             </div>
           )}

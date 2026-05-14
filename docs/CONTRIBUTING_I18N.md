@@ -87,6 +87,14 @@ trend down.
 
 ## Adding a new locale
 
+**TL;DR — to add Spanish:**
+
+1. `cp src/i18n/locales/en.json src/i18n/locales/es.json`
+2. Translate every value
+3. Add 3 lines in `src/i18n/index.ts` (`import es`, `SUPPORTED_LOCALES`, `LOCALE_LABELS`)
+4. Add a row in `formatters.ts` BCP47 map
+5. Add a row in settings-page `LanguageSection` options
+
 End-to-end (e.g. Spanish):
 
 1. Copy `src/i18n/locales/en.json` → `es.json`. Translate every value.

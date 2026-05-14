@@ -721,7 +721,12 @@
       "title": "שפה",
       "description": "משנה שפה וכיוון קריאה. דפים קיימים שומרים על הכיוון שהוגדר להם.",
       "english": "English",
-      "hebrew": "עברית"
+      "hebrew": "עברית",
+      "moreLanguages": "שפות נוספות",
+      "moreLanguagesHint": "לחצו על שפה כדי להגיד לנו שתרצו את Cabinet בה — נתעדף את המבוקשות ביותר.",
+      "comingSoon": "בקרוב",
+      "requestSubmitted": "תודה! רשמנו את הבקשה שלכם ל-{{language}}. נתעדף את השפות המבוקשות ביותר.",
+      "requestFailed": "לא הצלחנו להגיע לשרת. נסו שוב בעוד רגע."
     },
     "appearance": {
       "title": "מראה",

@@ -721,7 +721,12 @@
       "title": "Language",
       "description": "Changes language and reading direction. Existing pages keep their per-document direction.",
       "english": "English",
-      "hebrew": "עברית"
+      "hebrew": "עברית",
+      "moreLanguages": "More languages",
+      "moreLanguagesHint": "Click any to tell us you'd like Cabinet in that language — we'll prioritize the most-requested ones.",
+      "comingSoon": "Coming soon",
+      "requestSubmitted": "Thanks! We've noted your request for {{language}}. We'll prioritize the most-asked languages.",
+      "requestFailed": "Couldn't reach the server. Please try again in a moment."
     },
     "appearance": {
       "title": "Appearance",
