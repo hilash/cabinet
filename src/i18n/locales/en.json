@@ -1050,6 +1050,9 @@
     "writeFirstTask": "Write your first task",
     "goToSlide": "Go to slide {{n}}",
     "starterTask": "Let's talk through my goals and what I want to achieve here, then capture it in a new About page.",
-    "savingTo": "Saving to "
+    "savingTo": "Saving to ",
+    "introTitle": "Meet your <accent>Cabinet</accent>.",
+    "introSubtitle": "Your AI team. Your knowledge base. One place.",
+    "cabinetTitle": "Cabinet"
   }
 }

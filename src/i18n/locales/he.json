@@ -1022,7 +1022,10 @@
     "writeFirstTask": "כתבו את המשימה הראשונה שלכם",
     "goToSlide": "מעבר לשקופית {{n}}",
     "starterTask": "בואו נדבר על המטרות שלי ועל מה שאני רוצה להשיג כאן, ואז נתעד את זה בדף ׳אודות׳ חדש.",
-    "savingTo": "שמירה ל-"
+    "savingTo": "שמירה ל-",
+    "introTitle": "הכירו את ה-<accent>Cabinet</accent> שלכם.",
+    "introSubtitle": "צוות ה-AI שלכם. בסיס הידע שלכם. מקום אחד.",
+    "cabinetTitle": "Cabinet"
   },
   "helpVisuals": {
     "cabinet": "Cabinet",

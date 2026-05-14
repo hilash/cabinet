@@ -1022,7 +1022,10 @@
     "writeFirstTask": "写下你的第一个任务",
     "goToSlide": "前往幻灯片 {{n}}",
     "starterTask": "我们来聊聊我的目标和我想在这里实现什么,然后把它记录到一个新的「关于」页面里。",
-    "savingTo": "正在保存到 "
+    "savingTo": "正在保存到 ",
+    "introTitle": "认识你的 <accent>凯比内特</accent>。",
+    "introSubtitle": "你的 AI 团队。你的知识库。一站搞定。",
+    "cabinetTitle": "凯比内特"
   },
   "helpVisuals": {
     "cabinet": "凯比内特",

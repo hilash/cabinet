@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Archive } from "lucide-react";
+import { Trans } from "react-i18next";
+import { useLocale } from "@/i18n/use-locale";
 import { MockupSidebar } from "./mockup-sidebar";
 import { TOUR_PALETTE as P } from "./palette";
 
@@ -39,10 +41,11 @@ const NARROW_WIDTH = 160;
 const FULL_WIDTH = 300;
 
 export function SlideIntro() {
+  const { t } = useLocale();
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
-    const t = window.setTimeout(() => setExpanded(true), EXPAND_TRIGGER_DELAY);
-    return () => window.clearTimeout(t);
+    const id = window.setTimeout(() => setExpanded(true), EXPAND_TRIGGER_DELAY);
+    return () => window.clearTimeout(id);
   }, []);
 
   return (
@@ -56,7 +59,10 @@ export function SlideIntro() {
             animationDelay: `${COPY_H1_DELAY}ms`,
           }}
         >
-          Meet your <span style={{ color: P.accent }}>Cabinet</span>.
+          <Trans
+            i18nKey="tour:introTitle"
+            components={{ accent: <span style={{ color: P.accent }} /> }}
+          />
         </h2>
         <p
           className="font-body-serif text-lg leading-relaxed opacity-0 lg:text-xl"
@@ -66,7 +72,7 @@ export function SlideIntro() {
             animationDelay: `${COPY_SUB_DELAY}ms`,
           }}
         >
-          Your AI team. Your knowledge base. One place.
+          {t("tour:introSubtitle")}
         </p>
       </div>
 
@@ -106,7 +112,7 @@ export function SlideIntro() {
         >
           <MockupSidebar
             activeTab={null}
-            title="Cabinet"
+            title={t("tour:cabinetTitle")}
             titleDelay={TITLE_REVEAL_DELAY}
             headerBadge=""
             hideBody
