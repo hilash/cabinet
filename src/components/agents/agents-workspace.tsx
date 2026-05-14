@@ -94,6 +94,7 @@ import {
   getDefaultAdapterTypeForProviderInfo,
   resolveAdapterTypeForProvider,
 } from "@/lib/agents/adapter-options";
+import { useLocale } from "@/i18n/use-locale";
 
 type MainPanelMode = "composer" | "conversation" | "settings";
 type SettingsTarget = "directory" | string | null;
@@ -378,6 +379,7 @@ export function AgentsWorkspace({
   selectedScope?: "all" | "agent";
   cabinetPath?: string;
 }) {
+  const { t } = useLocale();
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
 
@@ -1866,7 +1868,7 @@ export function AgentsWorkspace({
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-          <h3 className="text-[15px] font-semibold">Your Team Org Chart</h3>
+          <h3 className="text-[15px] font-semibold">{t("agents:workspace.orgChart")}</h3>
           <div className="flex flex-wrap items-center gap-1.5">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5">
               <span className="text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -2218,7 +2220,7 @@ export function AgentsWorkspace({
               <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                   <div className="flex items-center justify-between gap-3 pr-10">
-                    <DialogTitle>Job Details</DialogTitle>
+                    <DialogTitle>{t("agents:workspace.jobDetails")}</DialogTitle>
                     <Button
                       variant="outline"
                       size="sm"
@@ -2375,7 +2377,7 @@ export function AgentsWorkspace({
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Department</div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{t("agents:dialog.department")}</div>
                       <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
                         {settingsPersona.department || "Not set"}
                       </div>
@@ -2387,13 +2389,13 @@ export function AgentsWorkspace({
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Heartbeat</div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{t("agents:workspace.heartbeat")}</div>
                       <div className="min-w-0 break-words text-[12px] leading-tight text-foreground line-clamp-2">
                         {settingsPersona.heartbeat ? cronToHuman(settingsPersona.heartbeat) : "Not set"}
                       </div>
                     </div>
                     <div className="overflow-hidden rounded-lg bg-muted/60 px-3 py-2">
-                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Workspace</div>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{t("agents:workspace.workspace")}</div>
                       <div className="min-w-0 break-all font-mono text-[12px] leading-tight text-foreground line-clamp-2">
                         {settingsPersona.workspace || "Not set"}
                       </div>
@@ -2404,7 +2406,7 @@ export function AgentsWorkspace({
                 <Dialog open={settingsEditorOpen} onOpenChange={handleSettingsEditorOpenChange}>
                   <DialogContent className="sm:max-w-5xl">
                     <DialogHeader className="gap-1">
-                      <DialogTitle>Edit Agent</DialogTitle>
+                      <DialogTitle>{t("agents:workspace.editAgent")}</DialogTitle>
                       <DialogDescription>
                         Review the live agent, make your changes here, and save when you are ready.
                       </DialogDescription>
@@ -2454,7 +2456,7 @@ export function AgentsWorkspace({
                               value={settingsEditorBody}
                               onChange={(event) => setSettingsEditorBody(event.target.value)}
                               className="h-[60vh] w-full resize-none rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-                              placeholder="Write markdown for this agent's instructions."
+                              placeholder={t("agents:workspace.instructionsPlaceholder")}
                             />
                           ) : (
                             <div className="h-[60vh] overflow-auto rounded-lg bg-muted/60 px-3 py-3">
@@ -2497,7 +2499,7 @@ export function AgentsWorkspace({
                             />
                           </label>
                           <div className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <span>Heartbeat</span>
+                            <span>{t("agents:workspace.heartbeat")}</span>
                             <SchedulePicker
                               value={settingsEditorDraft.heartbeat || "0 */4 * * *"}
                               onChange={(cron) =>
@@ -2506,7 +2508,7 @@ export function AgentsWorkspace({
                             />
                           </div>
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <span>Department</span>
+                            <span>{t("agents:dialog.department")}</span>
                             <input
                               value={settingsEditorDraft.department || ""}
                               onChange={(event) =>
@@ -2526,7 +2528,7 @@ export function AgentsWorkspace({
                             />
                           </label>
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <span>Provider</span>
+                            <span>{t("agents:dialog.provider")}</span>
                             <select
                               value={settingsEditorDraft.provider || defaultProvider}
                               onChange={(event) =>
@@ -2552,7 +2554,7 @@ export function AgentsWorkspace({
                           </label>
                           {settingsEditorAdapterOptions.length > 0 ? (
                             <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                              <span>Runtime</span>
+                              <span>{t("agents:dialog.runtime")}</span>
                               <select
                                 value={
                                   settingsEditorDraft.adapterType ||
@@ -2580,7 +2582,7 @@ export function AgentsWorkspace({
                             </label>
                           ) : null}
                           <label className="space-y-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                            <span>Workspace</span>
+                            <span>{t("agents:workspace.workspace")}</span>
                             <input
                               value={settingsEditorDraft.workspace || ""}
                               onChange={(event) =>
@@ -2590,7 +2592,7 @@ export function AgentsWorkspace({
                             />
                           </label>
                           <div className="space-y-2 text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                            <span>Avatar</span>
+                            <span>{t("agents:workspace.avatar")}</span>
                             <div className="flex flex-wrap gap-2">
                               {AGENT_EMOJI_OPTIONS.map((emoji) => (
                                 <button
@@ -2648,7 +2650,7 @@ export function AgentsWorkspace({
                   {/* Left: Instructions (read-only, scrollable) */}
                   <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border">
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                      <h4 className="text-[13px] font-semibold">Instructions</h4>
+                      <h4 className="text-[13px] font-semibold">{t("agents:workspace.instructions")}</h4>
                       <Button
                         variant="outline"
                         size="sm"
@@ -2682,7 +2684,7 @@ export function AgentsWorkspace({
                   {/* Right: Jobs */}
                   <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border">
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                      <h4 className="text-[13px] font-semibold" title="Per-agent recurring prompts">
+                      <h4 className="text-[13px] font-semibold" title={t("agents:workspace.perAgentPrompts")}>
                         Jobs
                       </h4>
                       <Button
@@ -2729,7 +2731,7 @@ export function AgentsWorkspace({
                                   onClick={() => void runJob(job.id)}
                                   disabled={runningJobId === job.id}
                                   className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-primary"
-                                  title="Run now"
+                                  title={t("agents:workspace.runNow")}
                                 >
                                   {runningJobId === job.id ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -2752,7 +2754,7 @@ export function AgentsWorkspace({
                                   onClick={() => void deleteJob(job.id)}
                                   disabled={deletingJobId === job.id}
                                   className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
-                                  title="Delete"
+                                  title={t("agents:workspace.delete")}
                                 >
                                   {deletingJobId === job.id ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -2828,7 +2830,7 @@ export function AgentsWorkspace({
                   onClick={() => setOrgChartOpen(true)}
                   disabled={agents.length === 0}
                   // Audit #021: title disambiguates "what does this open"
-                  title="View this team as an org chart (opens fullscreen)"
+                  title={t("agents:workspace.viewOrgChart")}
                 >
                   <Network className="size-3.5" />
                   Org chart
@@ -2880,8 +2882,8 @@ export function AgentsWorkspace({
                     <button
                       type="button"
                       onClick={dismissIntro}
-                      title="Hide this intro"
-                      aria-label="Hide this intro"
+                      title={t("agents:workspace.hideIntro")}
+                      aria-label={t("agents:workspace.hideIntro")}
                       className="absolute right-0 top-1 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <X className="size-4" />
@@ -2966,7 +2968,7 @@ export function AgentsWorkspace({
                     </div>
                   ) : agents.length === 0 ? (
                     <p className="rounded-lg border border-dashed border-border/60 px-3 py-8 text-center text-[12px] text-muted-foreground">
-                      No agents yet. Use <span className="font-medium text-foreground">New Agent</span> above to bring one in.
+                      No agents yet. Use <span className="font-medium text-foreground">{t("agents:workspace.newAgent")}</span> above to bring one in.
                     </p>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -3006,7 +3008,7 @@ export function AgentsWorkspace({
                               {agent.scope === "global" ? (
                                 <span
                                   className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-300"
-                                  title="Shared across all cabinets"
+                                  title={t("agents:workspace.sharedAcrossCabinets")}
                                 >
                                   Global
                                 </span>
@@ -3043,7 +3045,7 @@ export function AgentsWorkspace({
                       Routines & heartbeats
                     </h2>
                     <p className="max-w-3xl text-[14px] leading-6 text-muted-foreground">
-                      <span className="font-semibold text-foreground">Routines</span>{" "}
+                      <span className="font-semibold text-foreground">{t("agents:workspace.routines")}</span>{" "}
                       are scheduled jobs — things you want an agent to do every
                       day or every hour. Write the prompt once, pick a schedule,
                       and the agent runs it on its own. Think: "every weekday at
@@ -3119,7 +3121,7 @@ export function AgentsWorkspace({
                         size="sm"
                         className="h-8 gap-1.5 text-[11px]"
                         onClick={() => setScheduleFullscreen(true)}
-                        title="Expand schedule"
+                        title={t("agents:workspace.expandSchedule")}
                       >
                         <Maximize2 className="h-3.5 w-3.5" />
                         Expand
@@ -3253,7 +3255,7 @@ export function AgentsWorkspace({
                             "inline-flex h-9 items-center gap-2 rounded-lg border border-border/70 bg-background px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-50"
                           )}
                           disabled={agents.length === 0}
-                          title="Heartbeats are configured on each agent's page"
+                          title={t("agents:workspace.heartbeatsOnAgentPage")}
                         >
                           <HeartPulse className="size-3.5 text-pink-400" />
                           Configure heartbeat
@@ -3360,7 +3362,7 @@ export function AgentsWorkspace({
               variant="ghost"
               size="icon-sm"
               onClick={() => setScheduleFullscreen(false)}
-              title="Exit fullscreen"
+              title={t("agents:workspace.exitFullscreen")}
             >
               <Minimize2 className="h-3.5 w-3.5" />
             </Button>
@@ -3465,7 +3467,7 @@ export function AgentsWorkspace({
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <Library className="h-4 w-4" />
-                  <DialogTitle>Browse Agent Library</DialogTitle>
+                  <DialogTitle>{t("agents:workspace.browseLibrary")}</DialogTitle>
                 </div>
                 <DialogDescription>
                   Bring in a predefined agent, or open a custom editor and make your own.
@@ -3551,7 +3553,7 @@ export function AgentsWorkspace({
       <Dialog open={customAgentDialogOpen} onOpenChange={handleCustomAgentDialogOpenChange}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader className="gap-1">
-            <DialogTitle>Edit your own agent</DialogTitle>
+            <DialogTitle>{t("agents:workspace.editYourOwn")}</DialogTitle>
             <DialogDescription>
               Create a custom agent from scratch, then fine-tune it in the same popup flow.
             </DialogDescription>
@@ -3582,7 +3584,7 @@ export function AgentsWorkspace({
                     })
                   }
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                  placeholder="Editor"
+                  placeholder={t("agents:workspace.editorPlaceholder")}
                 />
               </label>
               <label className="space-y-1 text-[11px] text-muted-foreground">
@@ -3607,11 +3609,11 @@ export function AgentsWorkspace({
                     setNewAgentDraft({ ...newAgentDraft, role: event.target.value })
                   }
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                  placeholder="Product writing agent"
+                  placeholder={t("agents:workspace.productAgentPlaceholder")}
                 />
               </label>
               <div className="space-y-1 text-[11px] text-muted-foreground">
-                <span>Heartbeat</span>
+                <span>{t("agents:workspace.heartbeat")}</span>
                 <SchedulePicker
                   value={newAgentDraft.heartbeat || "0 */4 * * *"}
                   onChange={(cron) =>
@@ -3623,7 +3625,7 @@ export function AgentsWorkspace({
                 />
               </div>
               <label className="space-y-1 text-[11px] text-muted-foreground">
-                <span>Department</span>
+                <span>{t("agents:dialog.department")}</span>
                 <input
                   value={newAgentDraft.department}
                   onChange={(event) =>
@@ -3646,7 +3648,7 @@ export function AgentsWorkspace({
                 />
               </label>
               <label className="space-y-1 text-[11px] text-muted-foreground">
-                <span>Provider</span>
+                <span>{t("agents:dialog.provider")}</span>
                 <select
                   value={newAgentDraft.provider}
                   onChange={(event) =>
@@ -3672,7 +3674,7 @@ export function AgentsWorkspace({
               </label>
               {newAgentAdapterOptions.length > 0 ? (
                 <label className="space-y-1 text-[11px] text-muted-foreground">
-                  <span>Runtime</span>
+                  <span>{t("agents:dialog.runtime")}</span>
                   <select
                     value={
                       newAgentDraft.adapterType ||
@@ -3700,7 +3702,7 @@ export function AgentsWorkspace({
                 </label>
               ) : null}
               <label className="space-y-1 text-[11px] text-muted-foreground md:col-span-2">
-                <span>Workspace</span>
+                <span>{t("agents:workspace.workspace")}</span>
                 <input
                   value={newAgentDraft.workspace}
                   onChange={(event) =>
@@ -3714,7 +3716,7 @@ export function AgentsWorkspace({
                 />
               </label>
               <div className="space-y-2 text-[11px] text-muted-foreground md:col-span-2">
-                <span>Avatar</span>
+                <span>{t("agents:workspace.avatar")}</span>
                 <div className="flex flex-wrap gap-2">
                   {AGENT_EMOJI_OPTIONS.map((emoji) => (
                     <button
@@ -3739,14 +3741,14 @@ export function AgentsWorkspace({
                 </div>
               </div>
               <label className="space-y-1 text-[11px] text-muted-foreground md:col-span-2">
-                <span>Instructions</span>
+                <span>{t("agents:workspace.instructions")}</span>
                 <textarea
                   value={newAgentDraft.body}
                   onChange={(event) =>
                     setNewAgentDraft({ ...newAgentDraft, body: event.target.value })
                   }
                   className="min-h-[240px] w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
-                  placeholder="Define how this agent should work inside Cabinet and the KB."
+                  placeholder={t("agents:workspace.instructionsBodyPlaceholder")}
                 />
               </label>
             </div>
