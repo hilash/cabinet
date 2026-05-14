@@ -741,7 +741,7 @@ function AvatarEditorPopover({
           </div>
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Color</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{t("agents:detail.color")}</p>
             <div className="flex flex-wrap gap-1.5 items-center">
               {COLOR_PRESETS.map((hex) => (
                 <button
@@ -773,7 +773,7 @@ function AvatarEditorPopover({
       ) : (
         <div className="p-3 space-y-3">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Preset</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{t("agents:detail.preset")}</p>
             <div className="grid grid-cols-8 gap-1 max-h-56 overflow-y-auto pr-1">
               {AVATAR_PRESETS.map((preset) => {
                 const isSelected = persona.avatar === preset.id;
@@ -1601,38 +1601,38 @@ function DetailsSection({
       )}
       <div className="grid grid-cols-6 gap-x-3 gap-y-3">
         <Field
-          label="Display name"
+          label={t("agents:detail.displayName")}
           value={persona.displayName || persona.name}
           className="col-span-3"
           onSave={(v) => onSaveField("displayName", v)}
         />
         <Field
-          label="Role"
+          label={t("agents:detail.role")}
           value={persona.role}
           className="col-span-3"
           onSave={(v) => onSaveField("role", v)}
         />
         <Field
-          label="Department"
+          label={t("agents:detail.department")}
           value={persona.department}
           className="col-span-2"
           onSave={(v) => onSaveField("department", v)}
         />
         <Field
-          label="Type"
+          label={t("agents:detail.type")}
           value={persona.type}
           className="col-span-2"
           onSave={(v) => onSaveField("type", v)}
         />
         <Field
-          label="Workspace"
+          label={t("agents:detail.workspace")}
           value={persona.workspace || "/"}
           className="col-span-2"
           mono
           onSave={(v) => onSaveField("workspace", v)}
         />
         <Field
-          label="Tags"
+          label={t("agents:detail.tags")}
           value={persona.tags.join(", ")}
           className="col-span-4"
           onSave={(v) => onSaveField("tags", v)}
@@ -2017,6 +2017,7 @@ function PersonaEditor({
   persona: AgentPersona;
   onSave: (body: string) => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -2124,7 +2125,7 @@ function PersonaEditor({
               Unsaved changes
             </span>
           ) : savedAt ? (
-            <span className="text-[11px] text-muted-foreground">Saved</span>
+            <span className="text-[11px] text-muted-foreground">{t("agents:detail.saved")}</span>
           ) : null}
           {dirty && (
             <Button

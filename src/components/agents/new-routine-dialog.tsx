@@ -17,6 +17,7 @@ import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { useAppStore } from "@/stores/app-store";
 import { resolveAdapterTypeForProvider } from "@/lib/agents/adapter-options";
 import type { JobConfig } from "@/types/jobs";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Shape of the target agent for a routine dialog. We only need identity +
@@ -70,6 +71,7 @@ export function NewRoutineDialog({
    *  scheduled-but-missing-conversation flow). */
   missedRun?: { scheduledAt: string };
 }) {
+  const { t } = useLocale();
   const providers = useAppStore((s) => s.providers);
   const defaultProviderId = useAppStore((s) => s.defaultProviderId);
   const fallbackProvider =
@@ -266,7 +268,7 @@ export function NewRoutineDialog({
                   className="h-9 gap-1.5 text-[12px]"
                   onClick={() => void runNow()}
                   disabled={running}
-                  title="Run this routine now (one-off, outside its schedule)"
+                  title={t("agents:routine.runNowTitle")}
                 >
                   {running ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -303,7 +305,7 @@ export function NewRoutineDialog({
                   className="h-9 gap-1.5 text-[12px] text-destructive hover:text-destructive"
                   onClick={() => void remove()}
                   disabled={deleting}
-                  title="Delete this routine permanently"
+                  title={t("agents:routine.deletePermanently")}
                 >
                   {deleting ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -333,12 +335,12 @@ export function NewRoutineDialog({
                     )
                   }
                   className="h-[55vh] w-full resize-none rounded-lg bg-muted/60 px-3.5 py-3 text-[14px] leading-6 text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-                  placeholder="What should this routine do? e.g. Summarize yesterday's activity…"
+                  placeholder={t("agents:routine.promptPlaceholder")}
                 />
               </div>
               <div className="grid content-start gap-3 sm:grid-cols-2">
                 <label className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                  <span>Job name</span>
+                  <span>{t("agents:routine.jobName")}</span>
                   <input
                     value={draft.name}
                     onChange={(event) =>
@@ -360,11 +362,11 @@ export function NewRoutineDialog({
                       })
                     }
                     className="w-full rounded-lg bg-muted/60 px-3 py-2.5 text-[14px] font-normal normal-case tracking-normal text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-                    placeholder="Weekly strategy digest"
+                    placeholder={t("agents:routine.jobNamePlaceholder")}
                   />
                 </label>
                 <label className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                  <span>Job id</span>
+                  <span>{t("agents:routine.jobId")}</span>
                   <input
                     value={draft.id}
                     disabled={isEdit}
@@ -378,7 +380,7 @@ export function NewRoutineDialog({
                   />
                 </label>
                 <div className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                  <span>Schedule</span>
+                  <span>{t("agents:routine.schedule")}</span>
                   <SchedulePicker
                     value={draft.schedule || "0 9 * * 1-5"}
                     onChange={(cron) =>
@@ -389,7 +391,7 @@ export function NewRoutineDialog({
                   />
                 </div>
                 <div className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                  <span>Model</span>
+                  <span>{t("agents:routine.model")}</span>
                   <TaskRuntimePicker
                     value={{
                       providerId: draft.provider,
@@ -454,7 +456,7 @@ export function NewRoutineDialog({
                     }
                     className="size-4"
                   />
-                  <span>Enabled</span>
+                  <span>{t("agents:routine.enabled")}</span>
                 </label>
               </div>
             </div>

@@ -77,7 +77,75 @@
       "recommendedForRole": "Recommended for this role — click to attach",
       "promise": "Promise",
       "saved": "Saved"
+    },
+    "missionControl": {
+      "gallery": "Gallery",
+      "newAgent": "New Agent",
+      "allGoals": "All Goals",
+      "noGoals": "No agents have goals configured.",
+      "fromScratch": "From Scratch",
+      "describeIt": "Describe It",
+      "import": "Import",
+      "closeDialog": "Close dialog",
+      "describeYourAgent": "Describe Your Agent",
+      "describePlaceholder": "I need an agent that monitors Hacker News for GPU-related posts and writes thoughtful comments linking to our blog posts…"
+    },
+    "pulseStrip": {
+      "agents": "Agents",
+      "running": "Running",
+      "goals": "Goals",
+      "alerts": "Alerts",
+      "cost": "Cost",
+      "runningPlays": "Running Plays",
+      "noRunning": "No agents currently running.",
+      "costBreakdown": "Cost Breakdown",
+      "noUsage": "No API usage yet.",
+      "totalEstimated": "Total estimated"
+    },
+    "routine": {
+      "runNowTitle": "Run this routine now (one-off, outside its schedule)",
+      "deletePermanently": "Delete this routine permanently",
+      "promptPlaceholder": "What should this routine do? e.g. Summarize yesterday's activity…",
+      "jobName": "Job name",
+      "jobNamePlaceholder": "Weekly strategy digest",
+      "jobId": "Job id",
+      "schedule": "Schedule",
+      "model": "Model",
+      "enabled": "Enabled"
     }
+  },
+  "registry": {
+    "loading": "Loading from registry…",
+    "readyToImport": "Ready to import this cabinet?",
+    "organization": "Organization",
+    "agents": "Agents",
+    "scheduledJobs": "Scheduled Jobs",
+    "about": "About",
+    "cabinetName": "Cabinet name",
+    "cabinetNamePlaceholder": "Cabinet name…",
+    "searchPlaceholder": "Search cabinets…",
+    "noResults": "No cabinets match your search."
+  },
+  "tasksBoard": {
+    "title": "Tasks",
+    "manualTooltip": "Manual — tasks you launched directly",
+    "jobsTooltip": "Jobs — scheduled recurring runs",
+    "heartbeatTooltip": "Heartbeat — self-directed agent runs",
+    "clearSelection": "Clear selection (Esc)",
+    "createTask": "Create a new task",
+    "moreNewTypes": "More new item types",
+    "newTask": "New Task",
+    "newRoutine": "New Routine"
+  },
+  "dataLocations": {
+    "title": "Where your data lives",
+    "whyThisMatters": "Why this matters",
+    "location": "Location",
+    "contains": "Contains",
+    "network": "Network",
+    "revealInFinder": "Reveal in file manager",
+    "stored": "Stored",
+    "resetOnboarding": "Reset onboarding"
   },
   "common": {
     "actions": {

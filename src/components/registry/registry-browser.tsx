@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { useTreeStore } from "@/stores/tree-store";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
+import { useLocale } from "@/i18n/use-locale";
 
 /* ─── Parchment palette ─── */
 const P = {
@@ -519,6 +520,7 @@ function DetailView({
   onBack: () => void;
   onImported?: (template: RegistryTemplate, importedName: string) => void;
 }) {
+  const { t } = useLocale();
   const [detail, setDetail] = useState<RegistryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -653,7 +655,7 @@ function DetailView({
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin" style={{ color: P.textTertiary }} />
-              <span className="ml-3 text-sm" style={{ color: P.textTertiary }}>Loading from registry...</span>
+              <span className="ml-3 text-sm" style={{ color: P.textTertiary }}>{t("registry:loading")}</span>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-20">
@@ -738,7 +740,7 @@ function DetailView({
                   style={{ borderColor: `${P.accent}55`, backgroundColor: P.accentBgSubtle }}
                 >
                   <div>
-                    <p className="font-semibold" style={{ color: P.textPrimary }}>Ready to import this cabinet?</p>
+                    <p className="font-semibold" style={{ color: P.textPrimary }}>{t("registry:readyToImport")}</p>
                     <p className="text-sm mt-1" style={{ color: P.textSecondary }}>
                       All {detail.stats.totalAgents} agents and {detail.stats.totalJobs} jobs will be set up automatically.
                     </p>
@@ -755,7 +757,7 @@ function DetailView({
 
                 {/* Organization section */}
                 <section>
-                  <SectionLabel>Organization</SectionLabel>
+                  <SectionLabel>{t("registry:organization")}</SectionLabel>
                   <OrgChart detail={detail} />
                 </section>
 
@@ -774,7 +776,7 @@ function DetailView({
                 {/* Jobs section */}
                 {allJobs.length > 0 && (
                   <section>
-                    <SectionLabel>Scheduled Jobs</SectionLabel>
+                    <SectionLabel>{t("registry:scheduledJobs")}</SectionLabel>
                     <div
                       className="rounded-xl border divide-y overflow-hidden"
                       style={{ borderColor: P.border, backgroundColor: P.bgCard }}
@@ -789,7 +791,7 @@ function DetailView({
                 {/* Readme */}
                 {detail.readmeHtml && (
                   <section>
-                    <SectionLabel>About</SectionLabel>
+                    <SectionLabel>{t("registry:about")}</SectionLabel>
                     <div
                       className="rounded-xl border p-6"
                       style={{ borderColor: P.border, backgroundColor: P.bgCard }}
@@ -832,11 +834,11 @@ function DetailView({
               </div>
             )}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Cabinet name</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("registry:cabinetName")}</label>
               <Input
                 value={importName}
                 onChange={(e) => setImportName(e.target.value)}
-                placeholder="Cabinet name..."
+                placeholder={t("registry:cabinetNamePlaceholder")}
               />
               <p className="text-[11px] text-muted-foreground/70">
                 Cabinet names can&apos;t be renamed later (for now). Choose wisely.
@@ -874,6 +876,7 @@ export function RegistryBrowser({
 }: {
   onImported?: (template: RegistryTemplate, importedName: string) => void;
 } = {}) {
+  const { t } = useLocale();
   const [templates, setTemplates] = useState<RegistryTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -1006,7 +1009,7 @@ export function RegistryBrowser({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search cabinets..."
+              placeholder={t("registry:searchPlaceholder")}
               className="w-full rounded-lg border pl-9 pr-4 py-2.5 text-sm outline-none transition-colors"
               style={{
                 borderColor: P.border,
@@ -1052,7 +1055,7 @@ export function RegistryBrowser({
               ))}
               {filtered.length === 0 && (
                 <div className="py-12 text-center">
-                  <p style={{ color: P.textTertiary }}>No cabinets match your search.</p>
+                  <p style={{ color: P.textTertiary }}>{t("registry:noResults")}</p>
                 </div>
               )}
             </div>

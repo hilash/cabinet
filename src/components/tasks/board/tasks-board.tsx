@@ -62,6 +62,7 @@ import { useAppStore } from "@/stores/app-store";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { TaskMeta } from "@/types/tasks";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Entry point for the Task Board.
@@ -78,6 +79,7 @@ export function TasksBoard({
   visibilityMode?: CabinetVisibilityMode;
   standalone?: boolean;
 }) {
+  const { t } = useLocale();
   // Visibility depth is owned by the board (so the in-board segmented
   // control can change it) but seeded from the caller / the cabinet's
   // per-path store so sidebar + board share the same default.
@@ -257,7 +259,7 @@ export function TasksBoard({
             <ArrowLeft className="size-4" />
           </Link>
         )}
-        <h1 className="text-[14px] font-semibold tracking-tight">Tasks</h1>
+        <h1 className="text-[14px] font-semibold tracking-tight">{t("tasksBoard:title")}</h1>
         {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
         <div className="ml-4 flex items-center gap-2">
           <ViewToggle value={view} onChange={setView} />
@@ -306,7 +308,7 @@ export function TasksBoard({
               onClick={() => setTriggerFilter("manual")}
               icon={<Bot className="size-3" />}
               tone="sky"
-              title="Manual — tasks you launched directly"
+              title={t("tasksBoard:manualTooltip")}
             >
               Manual
             </TriggerChip>
@@ -315,7 +317,7 @@ export function TasksBoard({
               onClick={() => setTriggerFilter("job")}
               icon={<Clock3 className="size-3" />}
               tone="emerald"
-              title="Jobs — scheduled recurring runs"
+              title={t("tasksBoard:jobsTooltip")}
             >
               Jobs
             </TriggerChip>
@@ -324,7 +326,7 @@ export function TasksBoard({
               onClick={() => setTriggerFilter("heartbeat")}
               icon={<HeartPulse className="size-3" />}
               tone="pink"
-              title="Heartbeat — self-directed agent runs"
+              title={t("tasksBoard:heartbeatTooltip")}
             >
               Heartbeat
             </TriggerChip>
@@ -367,7 +369,7 @@ export function TasksBoard({
                   type="button"
                   onClick={clearSelection}
                   className="rounded px-1 text-[10.5px] text-sky-700 hover:bg-sky-500/20 dark:text-sky-300"
-                  title="Clear selection (Esc)"
+                  title={t("tasksBoard:clearSelection")}
                 >
                   Clear
                 </button>
@@ -647,13 +649,14 @@ function NewWorkButton({
 }: {
   onCreate: (mode: StartWorkMode) => void;
 }) {
+  const { t } = useLocale();
   return (
     <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md shadow-sm ring-1 ring-primary/20">
       <button
         type="button"
         onClick={() => onCreate("now")}
         className="inline-flex items-center gap-1.5 bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        title="Create a new task"
+        title={t("tasksBoard:createTask")}
       >
         <Plus className="size-3.5" />
         New Task
@@ -662,8 +665,8 @@ function NewWorkButton({
       <DropdownMenu>
         <DropdownMenuTrigger
           className="inline-flex items-center bg-primary px-1.5 text-primary-foreground transition-colors hover:bg-primary/90"
-          title="More new item types"
-          aria-label="More new item types"
+          title={t("tasksBoard:moreNewTypes")}
+          aria-label={t("tasksBoard:moreNewTypes")}
         >
           <ChevronDown className="size-3.5" />
         </DropdownMenuTrigger>
@@ -674,7 +677,7 @@ function NewWorkButton({
           >
             <Zap className="mt-0.5 size-3.5 text-foreground/70" />
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium">New Task</span>
+              <span className="text-[13px] font-medium">{t("tasksBoard:newTask")}</span>
               <span className="text-[11px] text-muted-foreground">
                 Run once, right now
               </span>
@@ -686,7 +689,7 @@ function NewWorkButton({
           >
             <Repeat className="mt-0.5 size-3.5 text-indigo-500" />
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium">New Routine</span>
+              <span className="text-[13px] font-medium">{t("tasksBoard:newRoutine")}</span>
               <span className="text-[11px] text-muted-foreground">
                 Run this prompt on a schedule
               </span>

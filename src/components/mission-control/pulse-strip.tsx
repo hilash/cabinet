@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import {
   Bot,
   Play,
@@ -155,6 +156,7 @@ function PulsePopover({
 }
 
 export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick, onAgentClick }: PulseStripProps) {
+  const { t } = useLocale();
   const goalStatus = metrics.totalGoals === 0 ? "ok" :
     metrics.goalsOnTrack / metrics.totalGoals >= 0.7 ? "ok" :
     metrics.goalsOnTrack / metrics.totalGoals >= 0.4 ? "warning" : "critical";
@@ -318,13 +320,13 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
 
       {/* Running plays popover */}
       {showRunning && (
-        <PulsePopover title="Running Plays" icon={Play} onClose={() => setShowRunning(false)}>
+        <PulsePopover title={t("agents:pulseStrip.runningPlays")} icon={Play} onClose={() => setShowRunning(false)}>
           {loadingPanel ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
             </div>
           ) : runningAgents.length === 0 ? (
-            <p className="text-[12px] text-muted-foreground/50 py-2">No agents currently running.</p>
+            <p className="text-[12px] text-muted-foreground/50 py-2">{t("agents:pulseStrip.noRunning")}</p>
           ) : (
             <div className="space-y-2">
               {runningAgents.map((a) => (
@@ -350,14 +352,14 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
 
       {/* Cost breakdown popover */}
       {showCost && (
-        <PulsePopover title="Cost Breakdown" icon={DollarSign} onClose={() => setShowCost(false)}>
+        <PulsePopover title={t("agents:pulseStrip.costBreakdown")} icon={DollarSign} onClose={() => setShowCost(false)}>
           {loadingPanel ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
             </div>
           ) : costBreakdown.length === 0 ? (
             <div className="py-2">
-              <p className="text-[12px] text-muted-foreground/50">No API usage yet.</p>
+              <p className="text-[12px] text-muted-foreground/50">{t("agents:pulseStrip.noUsage")}</p>
               <p className="text-[10px] text-muted-foreground/40 mt-1">
                 Cost is estimated at ~$0.15 per heartbeat/play execution.
               </p>
@@ -392,7 +394,7 @@ export function PulseStrip({ metrics, onAlertClick, onGoalClick, onPlaybookClick
                 );
               })}
               <div className="flex items-center justify-between pt-2 border-t border-border/30 text-[12px] font-medium">
-                <span>Total estimated</span>
+                <span>{t("agents:pulseStrip.totalEstimated")}</span>
                 <span className="tabular-nums">${costBreakdown.reduce((s, e) => s + e.cost, 0).toFixed(2)}</span>
               </div>
             </div>

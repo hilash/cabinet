@@ -77,7 +77,75 @@
       "recommendedForRole": "מומלץ לתפקיד הזה — לחיצה לצירוף",
       "promise": "הבטחה",
       "saved": "נשמר"
+    },
+    "missionControl": {
+      "gallery": "גלריה",
+      "newAgent": "סוכן חדש",
+      "allGoals": "כל המטרות",
+      "noGoals": "לאף סוכן לא הוגדרו מטרות.",
+      "fromScratch": "מאפס",
+      "describeIt": "תיאור",
+      "import": "ייבוא",
+      "closeDialog": "סגירת הדיאלוג",
+      "describeYourAgent": "תיאור הסוכן שלך",
+      "describePlaceholder": "אני צריך סוכן שעוקב אחרי Hacker News אחרי פוסטים שקשורים ל-GPU וכותב תגובות מועילות עם קישורים לפוסטי הבלוג שלנו…"
+    },
+    "pulseStrip": {
+      "agents": "סוכנים",
+      "running": "פועלים",
+      "goals": "מטרות",
+      "alerts": "התראות",
+      "cost": "עלות",
+      "runningPlays": "ריצות פעילות",
+      "noRunning": "אין סוכנים פעילים כרגע.",
+      "costBreakdown": "פירוט עלויות",
+      "noUsage": "אין עדיין שימוש ב-API.",
+      "totalEstimated": "סך הכל משוער"
+    },
+    "routine": {
+      "runNowTitle": "הפעלת השגרה עכשיו (חד-פעמית, מחוץ ללוח הזמנים)",
+      "deletePermanently": "מחיקת השגרה לצמיתות",
+      "promptPlaceholder": "מה השגרה הזו צריכה לעשות? למשל: סיכום פעילות אתמול…",
+      "jobName": "שם משימה",
+      "jobNamePlaceholder": "סיכום אסטרטגי שבועי",
+      "jobId": "מזהה משימה",
+      "schedule": "לוח זמנים",
+      "model": "מודל",
+      "enabled": "מופעל"
     }
+  },
+  "registry": {
+    "loading": "טוען מהמאגר…",
+    "readyToImport": "מוכן לייבא את הארונית הזו?",
+    "organization": "ארגון",
+    "agents": "סוכנים",
+    "scheduledJobs": "משימות מתוזמנות",
+    "about": "אודות",
+    "cabinetName": "שם הארונית",
+    "cabinetNamePlaceholder": "שם הארונית…",
+    "searchPlaceholder": "חיפוש ארוניות…",
+    "noResults": "לא נמצאו ארוניות מתאימות."
+  },
+  "tasksBoard": {
+    "title": "משימות",
+    "manualTooltip": "ידני — משימות שהפעלת ישירות",
+    "jobsTooltip": "Jobs — ריצות מתוזמנות חוזרות",
+    "heartbeatTooltip": "פעימה — ריצות סוכן עצמאיות",
+    "clearSelection": "ניקוי בחירה (Esc)",
+    "createTask": "יצירת משימה חדשה",
+    "moreNewTypes": "סוגי פריטים חדשים נוספים",
+    "newTask": "משימה חדשה",
+    "newRoutine": "שגרה חדשה"
+  },
+  "dataLocations": {
+    "title": "איפה הנתונים שלך חיים",
+    "whyThisMatters": "למה זה חשוב",
+    "location": "מיקום",
+    "contains": "מכיל",
+    "network": "רשת",
+    "revealInFinder": "הצגה במנהל הקבצים",
+    "stored": "נשמר",
+    "resetOnboarding": "איפוס ההכשרה"
   },
   "common": {
     "actions": {
