@@ -735,8 +735,32 @@
       "renameWarning": "凯比内特名称之后无法重命名(暂时如此)。请慎重选择。"
     },
     "quickActions": {
-      "shuffle": "显示不同建议"
-    }
+      "shuffle": "显示不同建议",
+      "launch10Songs": "并行启动 10 个写歌编辑",
+      "dailyReview9am": "每天上午 9 点的每日回顾",
+      "weeklyReview": "下周一做每周回顾",
+      "thailandTrip": "帮我规划泰国之旅",
+      "physicsApp": "给我做一个物理学习应用",
+      "summariseRecent": "总结我最近的工作",
+      "recruiterReply": "起草一封猎头回复",
+      "mapArticles": "梳理文章之间的关联",
+      "physicsCourse": "搭建 6 个模块的物理课程",
+      "shortStory": "为短篇小说写一个大纲",
+      "hourlyStandup": "每小时一次的站会提醒",
+      "researchPhone": "帮我研究下一台手机",
+      "translateToSpanish": "把这个凯比内特翻译成西班牙语",
+      "refactorNotes": "整理我的笔记系统",
+      "birthdayParty": "策划一场生日派对",
+      "boardUpdate": "起草一份董事会更新",
+      "customerInterviews": "模拟 5 场用户访谈"
+    },
+    "goodMorning": "早上好",
+    "goodAfternoon": "下午好",
+    "goodEvening": "晚上好",
+    "greetingWithName": "{{greeting}},{{name}}。",
+    "greetingNoName": "{{greeting}}。",
+    "composerPlaceholder": "我想创建……",
+    "composerDaemonDown": "智能体守护进程已离线 — 重启后才能发送"
   },
   "onboarding": {
     "intro": {
@@ -912,7 +936,10 @@
     "resetWidth": "双击重置宽度",
     "refreshedNoChanges": "已刷新 — 无变化。",
     "refreshedWithChanges": "已刷新 — 新增 {{added}},移除 {{removed}}。",
-    "refreshFailed": "刷新失败。"
+    "refreshFailed": "刷新失败。",
+    "drawerData": "数据",
+    "drawerAgents": "智能体",
+    "drawerTasks": "任务"
   },
   "status": {
     "bar": {
@@ -983,12 +1010,41 @@
       "discordSubtitle": "支持与反馈",
       "github": "在 GitHub 上贡献",
       "githubSubtitle": "源代码、问题、PR",
-      "ifUseful": "如果你觉得它有用"
+      "ifUseful": "如果你觉得它有用",
+      "label": "帮助"
     },
     "common": {
       "dismiss": "关闭",
       "close": "关闭",
       "openSettings": "打开设置以查看已安装的更新"
+    },
+    "git2": {
+      "allCommitted": "全部已提交",
+      "uncommittedFile": "{{count}} 个未提交的文件",
+      "uncommittedFiles": "{{count}} 个未提交的文件",
+      "uncommittedFilesAria": "{{count}} 个未提交的文件 — 点击查看列表",
+      "uncommittedFileTip": "点击查看未提交的文件",
+      "uncommittedFilesTip": "点击查看未提交的文件",
+      "uncommittedFilesHeading": "{{count}} 个未提交的文件",
+      "uncommittedFilesHeadingPlural": "{{count}} 个未提交的文件",
+      "truncatedHint": "仅显示前 {{count}} 个文件 — 运行 `git status` 查看完整列表。",
+      "commitDefault": "更新 {{count}} 个文件",
+      "commitDefaultPlural": "更新 {{count}} 个文件",
+      "committing": "正在提交……",
+      "commit": "提交",
+      "commitFailed": "提交失败",
+      "sync": "同步",
+      "syncTitle": "从 GitHub 拉取最新并刷新",
+      "syncTitleWithLast": "从 GitHub 拉取最新并刷新。上次同步:{{when}}。",
+      "syncAriaLabel": "从 GitHub 拉取最新变更并刷新",
+      "syncAriaLabelWithLast": "从 GitHub 拉取最新变更并刷新。上次同步:{{when}}。",
+      "terminal": "终端",
+      "openTerminal": "打开终端",
+      "newTerminalTab": "新建终端标签页"
+    },
+    "update2": {
+      "updateAvailable": "{{version}} 版本可用",
+      "updateAvailableTip": "凯比内特 {{version}} 可用"
     }
   },
   "tasks": {

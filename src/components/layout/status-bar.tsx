@@ -820,10 +820,10 @@ export function StatusBar() {
           <button
             onClick={() => setSection({ type: "settings" })}
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-blue-500 hover:bg-muted hover:text-foreground transition-colors"
-            title={`Cabinet ${update.latest.version} is available`}
+            title={t("status:update2.updateAvailableTip", { version: update.latest.version })}
           >
             <CloudDownload className="h-3 w-3" />
-            Update {update.latest.version} available
+            {t("status:update2.updateAvailable", { version: update.latest.version })}
           </button>
         )}
         {/* Audit #015: clickable so users can see *what* is uncommitted
@@ -835,21 +835,29 @@ export function StatusBar() {
             type="button"
             onClick={() => uncommitted > 0 && setShowUncommittedPopup((v) => !v)}
             disabled={uncommitted === 0}
-            // Audit #006: pluralize properly (was "1 uncommitted files" before).
             aria-label={
               uncommitted > 0
-                ? `${uncommitted} uncommitted ${uncommitted === 1 ? "file" : "files"} — click to see the list`
-                : "All committed"
+                ? t("status:git2.uncommittedFilesAria", {
+                    count: uncommitted,
+                    plural: uncommitted === 1 ? "" : "s",
+                  })
+                : t("status:git2.allCommitted")
             }
             title={
               uncommitted > 0
-                ? `Click to see uncommitted ${uncommitted === 1 ? "file" : "files"}`
-                : "All committed"
+                ? uncommitted === 1
+                  ? t("status:git2.uncommittedFileTip")
+                  : t("status:git2.uncommittedFilesTip")
+                : t("status:git2.allCommitted")
             }
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-current"
           >
             <GitBranch className="h-3 w-3" />
-            {uncommitted > 0 ? `${uncommitted} uncommitted` : "All committed"}
+            {uncommitted > 0
+              ? uncommitted === 1
+                ? t("status:git2.uncommittedFile", { count: uncommitted })
+                : t("status:git2.uncommittedFiles", { count: uncommitted })
+              : t("status:git2.allCommitted")}
           </button>
           {showUncommittedPopup && uncommitted > 0 && (
             <div className="absolute bottom-full left-0 mb-2 z-50 w-80 rounded-lg border border-border bg-background p-2 shadow-lg">
@@ -972,28 +980,28 @@ export function StatusBar() {
             disabled={pulling}
             aria-label={
               lastSyncedLabel
-                ? `Pull latest changes from GitHub and refresh. Last synced ${lastSyncedLabel}.`
-                : "Pull latest changes from GitHub and refresh"
+                ? t("status:git2.syncAriaLabelWithLast", { when: lastSyncedLabel })
+                : t("status:git2.syncAriaLabel")
             }
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
             title={
               lastSyncedLabel
-                ? `Pull latest from GitHub & refresh. Last synced ${lastSyncedLabel}.`
-                : "Pull latest from GitHub & refresh"
+                ? t("status:git2.syncTitleWithLast", { when: lastSyncedLabel })
+                : t("status:git2.syncTitle")
             }
           >
             <RefreshCw className={`h-3 w-3 ${pulling ? "animate-spin" : ""}`} />
-            Sync
+            {t("status:git2.sync")}
           </button>
         )}
         <button
           onClick={toggleTerminal}
-          aria-label={terminalOpen ? "New terminal tab" : "Open terminal"}
-          title={terminalOpen ? "New terminal tab" : "Open terminal"}
+          aria-label={terminalOpen ? t("status:git2.newTerminalTab") : t("status:git2.openTerminal")}
+          title={terminalOpen ? t("status:git2.newTerminalTab") : t("status:git2.openTerminal")}
           className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 ${terminalOpen ? "text-primary" : ""}`}
         >
           <Terminal className="h-3 w-3" />
-          Terminal
+          {t("status:git2.terminal")}
         </button>
       </div>
       {/* Audit #018: status-bar carries live state on the left (status pill,
@@ -1012,7 +1020,7 @@ export function StatusBar() {
         >
           <HelpCircle className="h-3.5 w-3.5" />
           <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            Help
+            {t("status:help.label")}
           </span>
           {displayStars !== null && (
             <span

@@ -41,6 +41,8 @@ import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
 import { TiltCard } from "@/components/ui/tilt-card";
 
 type QuickAction = {
+  /** Key under `home:quickActions.*` for the visible button label. */
+  labelKey: string;
   label: string;
   prompt: string;
   // For delegation chips: ordered list of preferred dispatcher slugs. The
@@ -58,95 +60,112 @@ const LEAD_FALLBACKS = ["ceo", "cto", "pm"];
 
 const QUICK_ACTIONS: QuickAction[] = [
   {
+    labelKey: "launch10Songs",
     label: "Launch 10 song-writing editors",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Launch 10 LAUNCH_TASKs to the editor in parallel. Each one writes a short song from the perspective of a different Harry Potter character (Harry, Hermione, Ron, Dumbledore, Snape, Hagrid, Luna, Draco, Neville, McGonagall). Save each as its own page under @Songs. Use effort=low.",
   },
   {
+    labelKey: "dailyReview9am",
     label: "Daily review at 9am",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Schedule a SCHEDULE_JOB on the editor with cron `0 9 * * *` — every day at 9am, write a short daily review of yesterday and what's on today, and append it to @Daily Review.",
   },
   {
+    labelKey: "weeklyReview",
     label: "Weekly review next Monday",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Schedule a SCHEDULE_TASK on the assistant for next Monday 09:00 — review what I worked on this past week by inspecting recently-modified files in this cabinet, then write @Weekly Review and a @Tasks for Next Week list.",
   },
   {
+    labelKey: "thailandTrip",
     label: "Plan my Thailand trip",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Plan a 2-week Thailand trip. Dispatch a LAUNCH_TASK to the librarian (effort=high) to research itinerary, places to stay, and food spots, and a LAUNCH_TASK to the editor (effort=medium) to compile the findings into one @Thailand Trip page with a day-by-day schedule and a rough budget.",
   },
   {
+    labelKey: "physicsApp",
     label: "Build me a physics study app",
     prompt:
       "Create an interactive webapp inside this cabinet so I can study physics for beginners. Include clear explanations, simple animations where useful, and quick checks for understanding.",
   },
   {
+    labelKey: "summariseRecent",
     label: "Summarise my recent work",
     prompt:
       "Read the most recently modified pages in this cabinet and write a concise summary of what I've been working on. Group by theme, note any open threads, and save the result as @Recent Work Summary.",
   },
   {
+    labelKey: "recruiterReply",
     label: "Draft a recruiter reply",
     prompt:
       "Write a polite, direct reply to a recruiter outreach message. Ask the key qualifying questions (role, comp range, company stage, remote policy) without committing to anything. Keep it under 100 words.",
   },
   {
+    labelKey: "mapArticles",
     label: "Map article connections",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Pipeline of two LAUNCH_TASKs: first dispatch the librarian to identify the articles in this cabinet and map connections between their ideas, people, and concepts. Then dispatch the editor to build an interactive webapp that visualises that graph.",
   },
   {
+    labelKey: "physicsCourse",
     label: "Spin up a 6-module physics course",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Plan a beginner physics curriculum across 6 modules (motion, forces, energy, waves, electricity, light). Dispatch one LAUNCH_TASK per module to the editor (effort=high) to build an interactive lesson page. Save them under @Physics 101.",
   },
   {
+    labelKey: "shortStory",
     label: "Outline a short story",
     prompt:
       "Outline a 5-chapter short story with a clear arc, a protagonist, and a twist in chapter 4. Save it as @Story Outline. Don't write the prose yet — just chapter titles and 3–4 beats each.",
   },
   {
+    labelKey: "hourlyStandup",
     label: "Hourly stand-up nudge",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Schedule a SCHEDULE_JOB on the assistant with cron `0 9-18 * * 1-5` — every weekday hour from 9am–6pm, ask me what I'm working on right now and append the answer to @Hourly Log.",
   },
   {
+    labelKey: "researchPhone",
     label: "Research my next phone",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Dispatch the librarian to research the current top-3 flagship phones for someone who values battery life and camera. Compile the comparison into @Phone Research with a recommendation and the trade-offs.",
   },
   {
+    labelKey: "translateToSpanish",
     label: "Translate this cabinet to Spanish",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Read every page in this cabinet and dispatch a LAUNCH_TASK per page to the editor (effort=low) to write a Spanish translation. Save each under @Translations/<original page name>.",
   },
   {
+    labelKey: "refactorNotes",
     label: "Refactor my note-taking system",
     prompt:
       "Audit the structure of this cabinet — folders, naming, orphans, duplicates. Propose a cleaner structure as @Note System Audit with concrete moves (don't apply them yet).",
   },
   {
+    labelKey: "birthdayParty",
     label: "Plan a birthday party",
     prompt:
       "Plan a birthday party for 12 adults at home. Output @Party Plan with: theme suggestions (3 options), shopping list, day-of timeline, and a music vibe.",
   },
   {
+    labelKey: "boardUpdate",
     label: "Draft a board update",
     prompt:
       "Write a concise monthly board update. Cover: traction, shipped, missed, asks. Pull anything I've worked on this month from recently-modified pages. Save as @Board Update.",
   },
   {
+    labelKey: "customerInterviews",
     label: "Simulate 5 customer interviews",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
@@ -154,11 +173,11 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
-function getGreeting(): string {
+function getGreetingKey(): "goodMorning" | "goodAfternoon" | "goodEvening" {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "goodMorning";
+  if (hour < 17) return "goodAfternoon";
+  return "goodEvening";
 }
 
 function CabinetCard({
@@ -609,8 +628,10 @@ export function HomeScreen() {
     }
   };
 
-  const greeting = getGreeting();
-  const headline = userName ? `${greeting}, ${userName}.` : `${greeting}.`;
+  const greeting = t(`home:${getGreetingKey()}`);
+  const headline = userName
+    ? t("home:greetingWithName", { greeting, name: userName })
+    : t("home:greetingNoName", { greeting });
 
   // Daemon owns agent execution — if it's confirmed down (≥2 missed polls)
   // disable the prompt and surface why, instead of letting the user fire a
@@ -618,8 +639,8 @@ export function HomeScreen() {
   const daemonLevel = useHealthStore(selectDaemonLevel);
   const daemonDown = daemonLevel === "down";
   const composerPlaceholder = daemonDown
-    ? "Agent daemon offline — restart to send"
-    : "I want to create...";
+    ? t("home:composerDaemonDown")
+    : t("home:composerPlaceholder");
 
   return (
     <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
@@ -684,7 +705,7 @@ export function HomeScreen() {
               const disabled = composer.submitting || quickRunning || daemonDown;
               return (
                 <button
-                  key={`${chipShuffle}-${action.label}`}
+                  key={`${chipShuffle}-${action.labelKey}`}
                   onClick={() => void runQuickAction(action)}
                   disabled={disabled}
                   title={action.prompt}
@@ -703,7 +724,7 @@ export function HomeScreen() {
                     disabled && "opacity-50 cursor-not-allowed"
                   )}
                 >
-                  {action.label}
+                  {t(`home:quickActions.${action.labelKey}`, { defaultValue: action.label })}
                 </button>
               );
             })}

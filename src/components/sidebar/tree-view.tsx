@@ -502,8 +502,8 @@ export function TreeView() {
                 {([
                   {
                     id: "data" as DrawerId,
-                    label: "Data",
-                    addLabel: "New Page",
+                    label: t("sidebar:drawerData") || "Data",
+                    addLabel: t("sidebar:newPage"),
                     icon: BookOpen,
                     addIcon: FilePlus,
                     onOpen: () => {
@@ -532,8 +532,8 @@ export function TreeView() {
                   },
                   {
                     id: "agents" as DrawerId,
-                    label: "Agents",
-                    addLabel: "New Agent",
+                    label: t("sidebar:drawerAgents") || "Agents",
+                    addLabel: t("sidebar:newAgent"),
                     icon: Users,
                     addIcon: UserPlus,
                     onOpen: () =>
@@ -555,8 +555,8 @@ export function TreeView() {
                   },
                   {
                     id: "tasks" as DrawerId,
-                    label: "Tasks",
-                    addLabel: "New Task",
+                    label: t("sidebar:drawerTasks") || "Tasks",
+                    addLabel: t("sidebar:newTask"),
                     icon: SquareKanban,
                     addIcon: ListPlus,
                     onOpen: () =>

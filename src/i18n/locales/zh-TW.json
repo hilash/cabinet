@@ -735,8 +735,32 @@
       "renameWarning": "凱比內特名稱之後無法重新命名(目前如此)。請慎重選擇。"
     },
     "quickActions": {
-      "shuffle": "顯示不同建議"
-    }
+      "shuffle": "顯示不同建議",
+      "launch10Songs": "並行啟動 10 個寫歌編輯",
+      "dailyReview9am": "每天上午 9 點的每日回顧",
+      "weeklyReview": "下週一做每週回顧",
+      "thailandTrip": "幫我規劃泰國之旅",
+      "physicsApp": "幫我做一個物理學習應用",
+      "summariseRecent": "總結我最近的工作",
+      "recruiterReply": "草擬一封獵頭回覆",
+      "mapArticles": "梳理文章之間的關聯",
+      "physicsCourse": "建立 6 個模組的物理課程",
+      "shortStory": "為短篇小說寫一個大綱",
+      "hourlyStandup": "每小時一次的站立會議提醒",
+      "researchPhone": "幫我研究下一支手機",
+      "translateToSpanish": "把這個凱比內特翻譯成西班牙文",
+      "refactorNotes": "整理我的筆記系統",
+      "birthdayParty": "規劃一場生日派對",
+      "boardUpdate": "草擬一份董事會更新",
+      "customerInterviews": "模擬 5 場使用者訪談"
+    },
+    "goodMorning": "早安",
+    "goodAfternoon": "午安",
+    "goodEvening": "晚安",
+    "greetingWithName": "{{greeting}},{{name}}。",
+    "greetingNoName": "{{greeting}}。",
+    "composerPlaceholder": "我想建立……",
+    "composerDaemonDown": "智慧代理守護程式離線 — 請重新啟動才能傳送"
   },
   "onboarding": {
     "intro": {
@@ -912,7 +936,10 @@
     "resetWidth": "雙擊重設寬度",
     "refreshedNoChanges": "已重新整理 — 無變更。",
     "refreshedWithChanges": "已重新整理 — 新增 {{added}},移除 {{removed}}。",
-    "refreshFailed": "重新整理失敗。"
+    "refreshFailed": "重新整理失敗。",
+    "drawerData": "資料",
+    "drawerAgents": "智慧代理",
+    "drawerTasks": "任務"
   },
   "status": {
     "bar": {
@@ -983,12 +1010,41 @@
       "discordSubtitle": "支援與回饋",
       "github": "在 GitHub 上貢獻",
       "githubSubtitle": "原始碼、議題、PR",
-      "ifUseful": "如果你覺得它有用"
+      "ifUseful": "如果你覺得它有用",
+      "label": "說明"
     },
     "common": {
       "dismiss": "關閉",
       "close": "關閉",
       "openSettings": "開啟設定以查看已安裝的更新"
+    },
+    "git2": {
+      "allCommitted": "全部已提交",
+      "uncommittedFile": "{{count}} 個未提交的檔案",
+      "uncommittedFiles": "{{count}} 個未提交的檔案",
+      "uncommittedFilesAria": "{{count}} 個未提交的檔案 — 點擊查看列表",
+      "uncommittedFileTip": "點擊查看未提交的檔案",
+      "uncommittedFilesTip": "點擊查看未提交的檔案",
+      "uncommittedFilesHeading": "{{count}} 個未提交的檔案",
+      "uncommittedFilesHeadingPlural": "{{count}} 個未提交的檔案",
+      "truncatedHint": "僅顯示前 {{count}} 個檔案 — 執行 `git status` 查看完整列表。",
+      "commitDefault": "更新 {{count}} 個檔案",
+      "commitDefaultPlural": "更新 {{count}} 個檔案",
+      "committing": "正在提交……",
+      "commit": "提交",
+      "commitFailed": "提交失敗",
+      "sync": "同步",
+      "syncTitle": "從 GitHub 拉取最新並重新整理",
+      "syncTitleWithLast": "從 GitHub 拉取最新並重新整理。上次同步:{{when}}。",
+      "syncAriaLabel": "從 GitHub 拉取最新變更並重新整理",
+      "syncAriaLabelWithLast": "從 GitHub 拉取最新變更並重新整理。上次同步:{{when}}。",
+      "terminal": "終端機",
+      "openTerminal": "開啟終端機",
+      "newTerminalTab": "新增終端機分頁"
+    },
+    "update2": {
+      "updateAvailable": "{{version}} 版本可用",
+      "updateAvailableTip": "凱比內特 {{version}} 可用"
     }
   },
   "tasks": {

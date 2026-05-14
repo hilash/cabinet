@@ -763,8 +763,32 @@
       "renameWarning": "Cabinet names can't be renamed later (for now). Choose wisely."
     },
     "quickActions": {
-      "shuffle": "Show different suggestions"
-    }
+      "shuffle": "Show different suggestions",
+      "launch10Songs": "Launch 10 song-writing editors",
+      "dailyReview9am": "Daily review at 9am",
+      "weeklyReview": "Weekly review next Monday",
+      "thailandTrip": "Plan my Thailand trip",
+      "physicsApp": "Build me a physics study app",
+      "summariseRecent": "Summarise my recent work",
+      "recruiterReply": "Draft a recruiter reply",
+      "mapArticles": "Map article connections",
+      "physicsCourse": "Spin up a 6-module physics course",
+      "shortStory": "Outline a short story",
+      "hourlyStandup": "Hourly stand-up nudge",
+      "researchPhone": "Research my next phone",
+      "translateToSpanish": "Translate this cabinet to Spanish",
+      "refactorNotes": "Refactor my note-taking system",
+      "birthdayParty": "Plan a birthday party",
+      "boardUpdate": "Draft a board update",
+      "customerInterviews": "Simulate 5 customer interviews"
+    },
+    "goodMorning": "Good morning",
+    "goodAfternoon": "Good afternoon",
+    "goodEvening": "Good evening",
+    "greetingWithName": "{{greeting}}, {{name}}.",
+    "greetingNoName": "{{greeting}}.",
+    "composerPlaceholder": "I want to create...",
+    "composerDaemonDown": "Agent daemon offline — restart to send"
   },
   "onboarding": {
     "intro": {
@@ -931,6 +955,9 @@
     "agents": "Agents",
     "tasks": "Tasks",
     "missions": "Missions",
+    "drawerData": "Data",
+    "drawerAgents": "Agents",
+    "drawerTasks": "Tasks",
     "goHome": "Go to home",
     "refresh": "Refresh sidebar",
     "refreshDescription": "Refresh sidebar (re-read data folder)",
@@ -1011,7 +1038,36 @@
       "discordSubtitle": "Support and feedback",
       "github": "Contribute on GitHub",
       "githubSubtitle": "Source, issues, PRs",
-      "ifUseful": "If you find it useful"
+      "ifUseful": "If you find it useful",
+      "label": "Help"
+    },
+    "git2": {
+      "allCommitted": "All committed",
+      "uncommittedFile": "{{count}} uncommitted file",
+      "uncommittedFiles": "{{count}} uncommitted files",
+      "uncommittedFilesAria": "{{count}} uncommitted file{{plural}} — click to see the list",
+      "uncommittedFileTip": "Click to see uncommitted file",
+      "uncommittedFilesTip": "Click to see uncommitted files",
+      "uncommittedFilesHeading": "{{count}} uncommitted file",
+      "uncommittedFilesHeadingPlural": "{{count}} uncommitted files",
+      "truncatedHint": "Only the first {{count}} files shown — run `git status` for the full list.",
+      "commitDefault": "Update {{count}} file",
+      "commitDefaultPlural": "Update {{count}} files",
+      "committing": "Committing…",
+      "commit": "Commit",
+      "commitFailed": "Commit failed",
+      "sync": "Sync",
+      "syncTitle": "Pull latest from GitHub & refresh",
+      "syncTitleWithLast": "Pull latest from GitHub & refresh. Last synced {{when}}.",
+      "syncAriaLabel": "Pull latest changes from GitHub and refresh",
+      "syncAriaLabelWithLast": "Pull latest changes from GitHub and refresh. Last synced {{when}}.",
+      "terminal": "Terminal",
+      "openTerminal": "Open terminal",
+      "newTerminalTab": "New terminal tab"
+    },
+    "update2": {
+      "updateAvailable": "Update {{version}} available",
+      "updateAvailableTip": "Cabinet {{version}} is available"
     },
     "common": {
       "dismiss": "Dismiss",

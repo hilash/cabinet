@@ -735,8 +735,32 @@
       "renameWarning": "אי אפשר לשנות את שם הארונית מאוחר יותר (לעת עתה). בחרו בקפידה."
     },
     "quickActions": {
-      "shuffle": "הצג הצעות אחרות"
-    }
+      "shuffle": "הצג הצעות אחרות",
+      "launch10Songs": "השיקו 10 עורכי שירים",
+      "dailyReview9am": "סקירה יומית בתשע בבוקר",
+      "weeklyReview": "סקירה שבועית ביום שני הבא",
+      "thailandTrip": "תכננו לי טיול לתאילנד",
+      "physicsApp": "בנו לי אפליקציית לימוד פיזיקה",
+      "summariseRecent": "סכמו את העבודה האחרונה שלי",
+      "recruiterReply": "נסחו תשובה למגייסת",
+      "mapArticles": "מפו קשרים בין מאמרים",
+      "physicsCourse": "צרו קורס פיזיקה ב-6 מודולים",
+      "shortStory": "תכננו סיפור קצר",
+      "hourlyStandup": "תזכורת עמדה כל שעה",
+      "researchPhone": "חקרו לי את הסמארטפון הבא",
+      "translateToSpanish": "תרגמו את ה-Cabinet הזה לספרדית",
+      "refactorNotes": "סדרו את שיטת הרישום שלי",
+      "birthdayParty": "תכננו מסיבת יום הולדת",
+      "boardUpdate": "נסחו עדכון לבורד",
+      "customerInterviews": "סמלצו 5 ראיונות עם לקוחות"
+    },
+    "goodMorning": "בוקר טוב",
+    "goodAfternoon": "צהריים טובים",
+    "goodEvening": "ערב טוב",
+    "greetingWithName": "{{greeting}}, {{name}}.",
+    "greetingNoName": "{{greeting}}.",
+    "composerPlaceholder": "אני רוצה ליצור...",
+    "composerDaemonDown": "ה-daemon של הסוכנים לא פעיל — הפעילו מחדש כדי לשלוח"
   },
   "onboarding": {
     "intro": {
@@ -912,7 +936,10 @@
     "resetWidth": "לחיצה כפולה לאיפוס הרוחב",
     "refreshedNoChanges": "רוענן — אין שינויים.",
     "refreshedWithChanges": "רוענן — {{added}} נוספו, {{removed}} הוסרו.",
-    "refreshFailed": "הרענון נכשל."
+    "refreshFailed": "הרענון נכשל.",
+    "drawerData": "נתונים",
+    "drawerAgents": "סוכנים",
+    "drawerTasks": "משימות"
   },
   "status": {
     "bar": {
@@ -983,12 +1010,41 @@
       "discordSubtitle": "תמיכה ומשוב",
       "github": "תרומה ב-GitHub",
       "githubSubtitle": "קוד מקור, issues, PRs",
-      "ifUseful": "אם זה שימושי"
+      "ifUseful": "אם זה שימושי",
+      "label": "עזרה"
     },
     "common": {
       "dismiss": "סגירה",
       "close": "סגירה",
       "openSettings": "פתיחת ההגדרות לסקירת העדכון המותקן"
+    },
+    "git2": {
+      "allCommitted": "הכל מקומיט",
+      "uncommittedFile": "{{count}} קובץ ללא commit",
+      "uncommittedFiles": "{{count}} קבצים ללא commit",
+      "uncommittedFilesAria": "{{count}} קבצים ללא commit — לחצו לרשימה",
+      "uncommittedFileTip": "לחצו לראות את הקובץ שלא קומיט",
+      "uncommittedFilesTip": "לחצו לראות את הקבצים שלא קומיטו",
+      "uncommittedFilesHeading": "{{count}} קובץ ללא commit",
+      "uncommittedFilesHeadingPlural": "{{count}} קבצים ללא commit",
+      "truncatedHint": "מוצגים רק {{count}} הראשונים — הריצו `git status` לרשימה המלאה.",
+      "commitDefault": "עדכון של {{count}} קובץ",
+      "commitDefaultPlural": "עדכון של {{count}} קבצים",
+      "committing": "מקומיט…",
+      "commit": "Commit",
+      "commitFailed": "ה-commit נכשל",
+      "sync": "סנכרון",
+      "syncTitle": "משוך מ-GitHub ורענן",
+      "syncTitleWithLast": "משוך מ-GitHub ורענן. סונכרן לאחרונה {{when}}.",
+      "syncAriaLabel": "משוך שינויים אחרונים מ-GitHub ורענן",
+      "syncAriaLabelWithLast": "משוך שינויים אחרונים מ-GitHub ורענן. סונכרן לאחרונה {{when}}.",
+      "terminal": "טרמינל",
+      "openTerminal": "פתח טרמינל",
+      "newTerminalTab": "טאב טרמינל חדש"
+    },
+    "update2": {
+      "updateAvailable": "עדכון {{version}} זמין",
+      "updateAvailableTip": "Cabinet {{version}} זמין"
     }
   },
   "tasks": {
