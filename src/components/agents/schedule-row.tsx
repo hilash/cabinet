@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Check, Loader2, Play, Power, Trash2, X } from "lucide-react";
+import { Check, Loader2, Play, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
+import { Switch } from "@/components/ui/switch";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import type { AgentListItem } from "@/types/agents";
 import type { JobConfig } from "@/types/jobs";
@@ -51,8 +52,7 @@ function ScheduleRow({
     }
   }
 
-  async function handleToggle(e: MouseEvent) {
-    e.stopPropagation();
+  async function handleToggle() {
     if (toggling) return;
     setToggling(true);
     try {
@@ -87,7 +87,10 @@ function ScheduleRow({
     }
   }
 
-  const actionSlotWidth = onDelete ? "w-[92px]" : "w-[64px]";
+  const actionSlotWidth = onDelete ? "w-[64px]" : "w-[36px]";
+  const toggleLabel = disabled
+    ? toggleVerb === "pause" ? "Resume" : "Enable"
+    : toggleVerb === "pause" ? "Pause" : "Disable";
 
   return (
     <div
@@ -168,25 +171,6 @@ function ScheduleRow({
                 <Play className="size-3.5" />
               )}
             </button>
-            <button
-              type="button"
-              onClick={handleToggle}
-              disabled={toggling}
-              className={cn(
-                "inline-flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-muted focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 disabled:opacity-60",
-                disabled
-                  ? "text-muted-foreground hover:text-emerald-500"
-                  : "text-emerald-500 hover:text-muted-foreground"
-              )}
-              aria-label={disabled ? (toggleVerb === "pause" ? "Resume" : "Enable") : (toggleVerb === "pause" ? "Pause" : "Disable")}
-              title={disabled ? (toggleVerb === "pause" ? "Resume" : "Enable") : (toggleVerb === "pause" ? "Pause" : "Disable")}
-            >
-              {toggling ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Power className="size-3.5" />
-              )}
-            </button>
             {onDelete ? (
               <button
                 type="button"
@@ -207,14 +191,19 @@ function ScheduleRow({
         <span className="whitespace-nowrap text-[11px] text-muted-foreground">
           {schedule ? cronToHuman(schedule) : ""}
         </span>
-        <span
-          className={cn(
-            "size-1.5 rounded-full",
-            disabled ? "bg-muted-foreground/40" : "bg-emerald-500"
-          )}
-          aria-label={disabled ? "Disabled" : "Active"}
-          title={disabled ? "Disabled" : "Active"}
-        />
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+        >
+          <Switch
+            checked={!disabled}
+            onCheckedChange={() => void handleToggle()}
+            disabled={toggling}
+            aria-label={toggleLabel}
+          />
+        </div>
       </div>
     </div>
   );
