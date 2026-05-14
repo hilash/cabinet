@@ -163,6 +163,33 @@
     "cancelDelete": "ביטול מחיקה",
     "runNow": "הפעל עכשיו"
   },
+  "apiKeys": {
+    "addKey": "הוספת מפתח",
+    "edit": "עריכה",
+    "remove": "הסרה",
+    "newApiKey": "מפתח API חדש"
+  },
+  "updateSummary": {
+    "cabinetUpdates": "עדכוני Cabinet"
+  },
+  "editIdentity": {
+    "title": "עריכת סוכן",
+    "displayName": "שם תצוגה",
+    "color": "צבע",
+    "hexPlaceholder": "#hex"
+  },
+  "cabinetScheduler": {
+    "startAll": "הפעלת כל הסוכנים",
+    "startAllSubtitle": "הפעלת פעימות ומשימות cron",
+    "stopAll": "עצירת כל הסוכנים",
+    "stopAllSubtitle": "השהיית פעימות ומשימות cron"
+  },
+  "skillLibrary": {
+    "readOnly": "קריאה בלבד — לא ניתן לעריכה מ-Cabinet",
+    "noUpstream": "נכתב ישירות בארונית זו — אין מקור git רשום",
+    "executableWarning": "החבילה כוללת סקריפטים בני-ביצוע — סקרו לפני אישור",
+    "skills": "כישורים"
+  },
   "embedPopover": {
     "placeholder": "הדביקו קישור (YouTube, X, Vimeo, Loom, TikTok, Facebook, Instagram, Spotify, או כל URL)",
     "notValidUrl": "לא URL תקין",

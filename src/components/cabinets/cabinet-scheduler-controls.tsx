@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Loader2, Play, RefreshCw, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CabinetAgentSummary } from "@/types/cabinets";
+import { useLocale } from "@/i18n/use-locale";
 
 export function CabinetSchedulerControls({
   cabinetPath,
@@ -14,6 +15,7 @@ export function CabinetSchedulerControls({
   ownAgents: CabinetAgentSummary[];
   onRefresh: () => void;
 }) {
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -135,8 +137,8 @@ export function CabinetSchedulerControls({
               >
                 <Play className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Start all agents</p>
-                  <p className="text-[11px] text-muted-foreground">Activate heartbeats and cron jobs</p>
+                  <p className="text-sm font-medium text-foreground">{t("cabinetScheduler:startAll")}</p>
+                  <p className="text-[11px] text-muted-foreground">{t("cabinetScheduler:startAllSubtitle")}</p>
                 </div>
               </button>
             ) : null}
@@ -149,8 +151,8 @@ export function CabinetSchedulerControls({
               >
                 <Square className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Stop all agents</p>
-                  <p className="text-[11px] text-muted-foreground">Pause heartbeats and cron jobs</p>
+                  <p className="text-sm font-medium text-foreground">{t("cabinetScheduler:stopAll")}</p>
+                  <p className="text-[11px] text-muted-foreground">{t("cabinetScheduler:stopAllSubtitle")}</p>
                 </div>
               </button>
             ) : null}

@@ -163,6 +163,33 @@
     "cancelDelete": "Cancel delete",
     "runNow": "Run now"
   },
+  "apiKeys": {
+    "addKey": "Add key",
+    "edit": "Edit",
+    "remove": "Remove",
+    "newApiKey": "New API key"
+  },
+  "updateSummary": {
+    "cabinetUpdates": "Cabinet Updates"
+  },
+  "editIdentity": {
+    "title": "Edit agent",
+    "displayName": "Display name",
+    "color": "Color",
+    "hexPlaceholder": "#hex"
+  },
+  "cabinetScheduler": {
+    "startAll": "Start all agents",
+    "startAllSubtitle": "Activate heartbeats and cron jobs",
+    "stopAll": "Stop all agents",
+    "stopAllSubtitle": "Pause heartbeats and cron jobs"
+  },
+  "skillLibrary": {
+    "readOnly": "Read-only — cannot edit from Cabinet",
+    "noUpstream": "Authored directly in this cabinet — no upstream git source recorded",
+    "executableWarning": "Bundle includes executable scripts — review before approving",
+    "skills": "Skills"
+  },
   "embedPopover": {
     "placeholder": "Paste a link (YouTube, X, Vimeo, Loom, TikTok, Facebook, Instagram, Spotify, or any URL)",
     "notValidUrl": "Not a valid URL",

@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import type { SkillEntry, SkillOrigin } from "@/lib/agents/skills/types";
 import { SkillAddDialog } from "./skill-add-dialog";
 import { SkillDetail } from "./skill-detail";
+import { useLocale } from "@/i18n/use-locale";
 
 interface ScanResult {
   path: string;
@@ -101,6 +102,7 @@ function SkillCard({
   /** When provided, the card becomes a button that opens the skill detail dialog. */
   onOpen?: (key: string) => void;
 }) {
+  const { t } = useLocale();
   const pluginLabel = pluginBadgeLabel(skill);
   const inner = (
     <div className="bg-card border border-border rounded-lg p-4 flex flex-col gap-2 hover:border-primary/30 transition-colors">
@@ -128,7 +130,7 @@ function SkillCard({
             {!skill.editable && (
               <Lock
                 className="size-3 text-muted-foreground"
-                aria-label="Read-only — cannot edit from Cabinet"
+                aria-label={t("skillLibrary:readOnly")}
               />
             )}
           </div>
@@ -162,7 +164,7 @@ function SkillCard({
         {!skill.upstream && (
           <span
             className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
-            title="Authored directly in this cabinet — no upstream git source recorded"
+            title={t("skillLibrary:noUpstream")}
           >
             Custom
           </span>
@@ -170,7 +172,7 @@ function SkillCard({
         {skill.trustLevel === "scripts_executables" && (
           <div
             className="flex items-center gap-1 text-[10px] text-amber-500"
-            title="Bundle includes executable scripts — review before approving"
+            title={t("skillLibrary:executableWarning")}
           >
             <ShieldAlert className="size-3" />
             scripts
@@ -241,6 +243,7 @@ interface SkillLibraryProps {
 }
 
 export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
+  const { t } = useLocale();
   const [entries, setEntries] = useState<SkillEntryWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [systemOpen, setSystemOpen] = useState(false);
@@ -353,7 +356,7 @@ export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
       <div className="border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Library className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Skills</h2>
+          <h2 className="text-sm font-semibold">{t("skillLibrary:skills")}</h2>
           <span className="text-xs text-muted-foreground">({managed.length})</span>
         </div>
         <div className="flex items-center gap-1">

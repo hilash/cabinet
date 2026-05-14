@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, CloudDownload, FolderOpen, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UpdateCheckResult } from "@/types";
+import { useLocale } from "@/i18n/use-locale";
 
 export interface CreateBackupOptions {
   includeEnvKeys?: boolean;
@@ -49,6 +50,7 @@ export function UpdateSummary({
   onCreateBackup,
   onOpenDataDir,
 }: UpdateSummaryProps) {
+  const { t } = useLocale();
   const state = update.updateStatus.state;
   const [includeEnvKeys, setIncludeEnvKeys] = useState(false);
   const [includeSkills, setIncludeSkills] = useState(false);
@@ -59,7 +61,7 @@ export function UpdateSummary({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <CloudDownload className="h-4 w-4" />
-            <h3 className="text-sm font-semibold">Cabinet Updates</h3>
+            <h3 className="text-sm font-semibold">{t("updateSummary:cabinetUpdates")}</h3>
           </div>
           <p className="text-xs text-muted-foreground">
             Current {update.current.version}
