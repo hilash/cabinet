@@ -170,7 +170,29 @@
     "newApiKey": "מפתח API חדש"
   },
   "updateSummary": {
-    "cabinetUpdates": "עדכוני Cabinet"
+    "cabinetUpdates": "עדכוני Cabinet",
+    "dataDirectory": "ספריית נתונים"
+  },
+  "kanban": {
+    "stopAllInLane": "עצירת כל המשימות הפעילות במסלול זה",
+    "restartAllInLane": "הפעלה מחדש של כל המשימות במסלול זה",
+    "newTask": "משימה חדשה",
+    "collapseColumn": "כיווץ עמודה"
+  },
+  "terminalTabs": {
+    "newTab": "טאב טרמינל חדש",
+    "closeTab": "סגירת טרמינל"
+  },
+  "newTaskButton": {
+    "createNew": "יצירה חדשה…",
+    "newTask": "משימה חדשה",
+    "newRoutine": "שגרה חדשה"
+  },
+  "schedulingFields": {
+    "jobNamePlaceholder": "סיכום אסטרטגי שבועי",
+    "schedule": "לוח זמנים",
+    "jobId": "מזהה משימה",
+    "enabled": "מופעל — לרוץ בלוח זמנים זה"
   },
   "editIdentity": {
     "title": "עריכת סוכן",

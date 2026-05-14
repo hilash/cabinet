@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "./web-terminal";
 import { useCallback, useRef, useState } from "react";
+import { useLocale } from "@/i18n/use-locale";
 
 export function TerminalTabs() {
+  const { t } = useLocale();
   const {
     terminalTabs,
     activeTerminalTab,
@@ -144,8 +146,8 @@ export function TerminalTabs() {
         size="icon"
         className="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
         onClick={() => addTerminalTab()}
-        aria-label="New terminal tab"
-        title="New terminal tab"
+        aria-label={t("terminalTabs:newTab")}
+        title={t("terminalTabs:newTab")}
       >
         <Plus className="h-3 w-3" />
       </Button>
@@ -167,8 +169,8 @@ export function TerminalTabs() {
         size="icon"
         className="h-6 w-6 text-muted-foreground hover:text-foreground"
         onClick={closeTerminal}
-        aria-label="Close terminal"
-        title="Close terminal"
+        aria-label={t("terminalTabs:closeTab")}
+        title={t("terminalTabs:closeTab")}
       >
         <X className="h-3 w-3" />
       </Button>

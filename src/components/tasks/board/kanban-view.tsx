@@ -28,6 +28,7 @@ import type { LaneKey } from "./lane-rules";
 import { TaskCard } from "./task-card";
 import { CARD_DROP_PREFIX, laneDropId } from "./dnd-keys";
 import { usePersistentState } from "./use-persistent-state";
+import { useLocale } from "@/i18n/use-locale";
 
 interface LaneDef {
   key: LaneKey;
@@ -61,6 +62,7 @@ function LaneHeader({
   onKillAll?: () => void;
   onRestartAll?: () => void;
 }) {
+  const { t } = useLocale();
   const LaneIcon = lane.icon;
   return (
     <div className="flex w-full items-center gap-2 px-3 py-2 text-left">
@@ -80,7 +82,7 @@ function LaneHeader({
           type="button"
           onClick={onKillAll}
           className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
-          title="Stop all running tasks in this lane"
+          title={t("kanban:stopAllInLane")}
         >
           <Square className="size-2.5" />
           Kill
@@ -91,7 +93,7 @@ function LaneHeader({
           type="button"
           onClick={onRestartAll}
           className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
-          title="Restart all tasks in this lane"
+          title={t("kanban:restartAllInLane")}
         >
           <RotateCcw className="size-2.5" />
           Restart
@@ -102,7 +104,7 @@ function LaneHeader({
           type="button"
           onClick={onAddTask}
           className="ml-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title="New task"
+          title={t("kanban:newTask")}
         >
           <Plus className="size-3.5" />
         </button>
@@ -112,7 +114,7 @@ function LaneHeader({
           type="button"
           onClick={onCollapse}
           className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title="Collapse column"
+          title={t("kanban:collapseColumn")}
         >
           <ChevronLeft className="size-3.5" />
         </button>
@@ -238,6 +240,7 @@ export function KanbanView({
   onRefresh?: () => Promise<void> | void;
   density?: "compact" | "comfortable";
 }) {
+  const { t } = useLocale();
   // Persisted set of collapsed lane keys. Audit #035: Archive used to be
   // collapsed by default, hiding "what the team did overnight" behind a
   // narrow vertical rail on first open. Now the default is empty (all

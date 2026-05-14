@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Shared "+ ▾" create button used in nav bars outside the Tasks board (KB
@@ -41,6 +42,7 @@ import { Button } from "@/components/ui/button";
  * dismissed the composer (audit #130).
  */
 export function NewTaskButton() {
+  const { t } = useLocale();
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
   const setTaskPanelConversation = useAppStore(
@@ -138,8 +140,8 @@ export function NewTaskButton() {
       <DropdownMenu>
         <DropdownMenuTrigger
           className="inline-flex h-7 items-center gap-1 rounded-md border border-border/70 bg-card/60 px-2 text-foreground/80 transition-colors hover:bg-accent hover:text-foreground hover:border-border data-[popup-open]:bg-accent data-[popup-open]:text-foreground"
-          title="Create new..."
-          aria-label="Create new..."
+          title={t("newTaskButton:createNew")}
+          aria-label={t("newTaskButton:createNew")}
         >
           <Plus className="size-3.5" />
           <span className="text-[12px] font-medium">New</span>
@@ -170,7 +172,7 @@ export function NewTaskButton() {
           >
             <Zap className="mt-0.5 size-3.5 text-foreground/70" />
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium">New task</span>
+              <span className="text-[13px] font-medium">{t("newTaskButton:newTask")}</span>
               <span className="text-[11px] text-muted-foreground">
                 Run once, right now
               </span>
@@ -182,7 +184,7 @@ export function NewTaskButton() {
           >
             <Repeat className="mt-0.5 size-3.5 text-indigo-500" />
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium">New routine</span>
+              <span className="text-[13px] font-medium">{t("newTaskButton:newRoutine")}</span>
               <span className="text-[11px] text-muted-foreground">
                 Run this prompt on a schedule
               </span>

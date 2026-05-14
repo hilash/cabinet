@@ -170,7 +170,29 @@
     "newApiKey": "New API key"
   },
   "updateSummary": {
-    "cabinetUpdates": "Cabinet Updates"
+    "cabinetUpdates": "Cabinet Updates",
+    "dataDirectory": "Data directory"
+  },
+  "kanban": {
+    "stopAllInLane": "Stop all running tasks in this lane",
+    "restartAllInLane": "Restart all tasks in this lane",
+    "newTask": "New task",
+    "collapseColumn": "Collapse column"
+  },
+  "terminalTabs": {
+    "newTab": "New terminal tab",
+    "closeTab": "Close terminal"
+  },
+  "newTaskButton": {
+    "createNew": "Create new…",
+    "newTask": "New task",
+    "newRoutine": "New routine"
+  },
+  "schedulingFields": {
+    "jobNamePlaceholder": "Weekly strategy digest",
+    "schedule": "Schedule",
+    "jobId": "Job id",
+    "enabled": "Enabled — run on this schedule"
   },
   "editIdentity": {
     "title": "Edit agent",

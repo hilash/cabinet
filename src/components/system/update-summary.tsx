@@ -76,7 +76,7 @@ export function UpdateSummary({
 
       <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
         <div className="rounded-lg border border-border/70 bg-background/60 p-3">
-          <p className="font-medium text-foreground">Data directory</p>
+          <p className="font-medium text-foreground">{t("updateSummary:dataDirectory")}</p>
           <p className="mt-1 break-all font-mono text-[11px]">{update.dataDir}</p>
         </div>
         <div className="rounded-lg border border-border/70 bg-background/60 p-3">
