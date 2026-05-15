@@ -442,7 +442,8 @@
     "paragraphMiddle2": " משלו, ויש לו ",
     "memoryWord": "זיכרון",
     "paragraphSuffix": ". סוכני ה-AI שלכם עושים את העבודה, 24/7. תתעסקו בלהיות בני אדם — הם יטפלו בשאר.",
-    "aiTeamSentence": "ה-<accent>צוות AI</accent> שלכם."
+    "aiTeamSentence": "ה-<accent>צוות AI</accent> שלכם.",
+    "modelLine": "Claude · Sonnet 4.6"
   },
   "startWork": {
     "close": "סגירה",
