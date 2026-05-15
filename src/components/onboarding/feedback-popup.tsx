@@ -191,7 +191,16 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
     };
   }, [githubStars]);
 
-  const copy = COPY[trigger];
+  // Translated copy lookup — falls through to the English baseline in COPY
+  // if no key exists. Keeps the dashboard receiving English by default; the
+  // user sees the active locale.
+  const copy = {
+    lead: t(`feedback:copy${trigger}Lead`, { defaultValue: COPY[trigger].lead }),
+    q1: t(`feedback:copy${trigger}Q1`, { defaultValue: COPY[trigger].q1 }),
+    q1Hint: t(`feedback:copy${trigger}Q1Hint`, { defaultValue: COPY[trigger].q1Hint }),
+    q2: t(`feedback:copy${trigger}Q2`, { defaultValue: COPY[trigger].q2 }),
+    q2Hint: t(`feedback:copy${trigger}Q2Hint`, { defaultValue: COPY[trigger].q2Hint }),
+  };
 
   const submit = async () => {
     if (rating < 1) return;
@@ -309,7 +318,7 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
 
         <div className="mb-4">
           <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground/70 mb-1">
-            Quick check-in from Hila
+            {t("feedback:header")}
           </div>
           <p className="text-[12.5px] text-muted-foreground leading-relaxed">
             {copy.lead}
@@ -319,7 +328,7 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
             <label className="block text-[12px] font-medium mb-2">
-              How&apos;s it going so far?
+              {t("feedback:howGoing")}
             </label>
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
@@ -327,7 +336,7 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
                   key={n}
                   type="button"
                   onClick={() => setRating(n)}
-                  aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                  aria-label={n === 1 ? t("feedback:starsCount", { n }) : t("feedback:starsCountPlural", { n })}
                   className={cn(
                     "rounded-md p-1 transition-colors",
                     n <= rating
@@ -348,7 +357,7 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
               status-bar chip. */}
           <div className="flex flex-col items-end gap-2">
             <span className="text-[12px] font-medium text-muted-foreground">
-              Like Cabinet?
+              {t("feedback:likeCabinet")}
             </span>
             <a
               href={GITHUB_REPO_URL}
@@ -356,15 +365,15 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
               rel="noreferrer"
               title={
                 displayStars === null
-                  ? "Star Cabinet on GitHub — if it's useful to you, a star really helps"
-                  : `${formatGithubStars(displayStars)} GitHub stars — click to add yours`
+                  ? t("feedback:starTooltipUnknown")
+                  : t("feedback:starTooltipWithCount", { count: formatGithubStars(displayStars) })
               }
               className="relative inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/15 hover:border-amber-500/50"
             >
               {starsExploding && <StarExplosion />}
               <Star className="h-3 w-3 fill-current" />
               <span className="tabular-nums">
-                {displayStars === null ? "Star" : formatGithubStars(displayStars)}
+                {displayStars === null ? t("feedback:starLabel") : formatGithubStars(displayStars)}
               </span>
             </a>
           </div>
@@ -406,9 +415,9 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
 
         <div className="mb-4">
           <label className="block text-[12px] font-medium mb-1">
-            What&apos;s your background?{" "}
+            {t("feedback:backgroundLabel")}{" "}
             <span className="text-muted-foreground/70 font-normal">
-              (optional)
+              {t("feedback:optional")}
             </span>
           </label>
           <input
@@ -431,13 +440,13 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
             rel="noreferrer"
             className="text-[11.5px] text-muted-foreground hover:text-foreground"
           >
-            Want to talk directly, or hang with other Cabinet members?
+            {t("feedback:discordCta")}
             {" "}
             <span className="underline">{t("feedback:joinDiscord")}</span> →
           </a>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={dismiss} disabled={submitting}>
-              Maybe later
+              {t("feedback:maybeLater")}
             </Button>
             <Button
               size="sm"
@@ -445,7 +454,7 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
               disabled={submitting || rating < 1}
             >
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-              Send
+              {t("feedback:send")}
             </Button>
           </div>
         </div>
