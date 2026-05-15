@@ -498,7 +498,23 @@ export function AIPanel() {
   };
 
   return (
-    <div className="w-[480px] min-w-[420px] border-l border-border bg-background flex flex-col">
+    <>
+      {/* Mobile scrim — full-screen overlay backdrop */}
+      <div
+        className="md:hidden fixed inset-0 z-40 bg-black/40"
+        onClick={close}
+        aria-hidden="true"
+      />
+      <div
+        className={cn(
+          "bg-background flex flex-col",
+          // Desktop: fixed-width side panel docked to the right
+          "md:w-[480px] md:min-w-[420px] md:border-l md:border-border md:relative md:inset-auto",
+          // Mobile: full-screen overlay
+          "max-md:fixed max-md:inset-0 max-md:z-50",
+          "max-md:pb-[max(env(safe-area-inset-bottom),0px)]"
+        )}
+      >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
@@ -843,6 +859,7 @@ export function AIPanel() {
           }
         />
       </div>
-    </div>
+      </div>
+    </>
   );
 }

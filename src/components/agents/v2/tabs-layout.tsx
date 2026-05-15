@@ -46,7 +46,7 @@ export function TabsLayout({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <TopBar tab={tab} onTabChange={onTabChange} />
-      <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-hidden px-6 pb-8 pt-4">
+      <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-x-hidden overflow-y-auto px-4 pb-8 pt-4 sm:px-6">
         {tab === "agents" && <AgentsTab />}
         {tab === "routines" && <RoutinesTab />}
         {tab === "heartbeats" && <HeartbeatsTab />}
@@ -67,27 +67,29 @@ function TopBar({
   const { loading, refresh, visibilityMode, setVisibilityMode } =
     useAgentsContext();
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border/70 bg-background px-4">
-      <h1 className="text-[14px] font-semibold tracking-tight">Team</h1>
-      {loading && (
-        <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-      )}
-      <div className="ml-2 flex items-center gap-2">
+    <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/70 bg-background px-4 py-2 md:h-12 md:flex-nowrap md:py-0">
+      <div className="flex items-center gap-2">
+        <h1 className="text-[14px] font-semibold tracking-tight">Team</h1>
+        {loading && (
+          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+        )}
+      </div>
+      <div className="order-3 w-full overflow-x-auto md:order-2 md:ml-2 md:w-auto md:overflow-visible">
         <TabStrip tab={tab} onTabChange={onTabChange} />
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="order-2 ml-auto flex items-center gap-2 md:order-3">
         <DepthDropdown mode={visibilityMode} onChange={setVisibilityMode} />
-        <Divider />
+        <Divider className="hidden md:block" />
         <button
           type="button"
           onClick={() => void refresh()}
           title={t("agents:workspace.refresh")}
           aria-label={t("agents:workspace.refresh")}
-          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+          className="hidden md:inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
         >
           <RefreshCw className="size-3.5" />
         </button>
-        <Divider />
+        <Divider className="hidden md:block" />
         <MasterToggle />
         <NewButton tab={tab} />
       </div>
@@ -95,8 +97,8 @@ function TopBar({
   );
 }
 
-function Divider() {
-  return <div className="h-3.5 w-px bg-border/60" aria-hidden />;
+function Divider({ className }: { className?: string }) {
+  return <div className={cn("h-3.5 w-px bg-border/60", className)} aria-hidden />;
 }
 
 /**

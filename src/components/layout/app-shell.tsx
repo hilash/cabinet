@@ -56,6 +56,8 @@ import type { CabinetAgentSummary } from "@/types/cabinets";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
 import { SystemToasts } from "@/components/layout/system-toasts";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 // Section components are only rendered when the user navigates to them —
 // load them on demand to keep the first-paint bundle small. Previously all of
@@ -144,6 +146,7 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 
 export function AppShell() {
   useGlobalHotkeys();
+  const isMobile = useIsMobile();
   const loadTree = useTreeStore((s) => s.loadTree);
   const nodes = useTreeStore((s) => s.nodes);
   const selectedPath = useTreeStore((s) => s.selectedPath);
@@ -839,17 +842,18 @@ export function AppShell() {
       />
       <Sidebar />
       <div
-        className="flex-1 flex flex-col overflow-hidden"
+        className="flex-1 flex flex-col overflow-hidden max-md:pb-[calc(56px+env(safe-area-inset-bottom))]"
         style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '2.25rem' : '0px' } as React.CSSProperties}
       >
         <DaemonHealthBanner />
-        <NarrowViewportHint />
+        {!isMobile && <NarrowViewportHint />}
         <main className="flex-1 flex flex-col overflow-hidden">
           {renderContent()}
         </main>
         {terminalOpen && terminalPosition === "bottom" && <TerminalTabs />}
-        <StatusBar />
+        {!isMobile && <StatusBar />}
       </div>
+      <MobileBottomNav />
       {terminalOpen && terminalPosition === "right" && <TerminalTabs />}
       {taskPanelConversation && <TaskDetailPanel />}
       {!aiPanelCollapsed && <AIPanel />}

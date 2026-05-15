@@ -294,16 +294,13 @@ export function Sidebar() {
           />
         </div>
       )}
-      {collapsed && (
+      {collapsed && !isMobile && (
         <Button
           variant="ghost"
           size="icon"
           aria-label={t("sidebar:expandSidebar")}
           title={t("sidebar:expandSidebar")}
-          className={cn(
-            "absolute top-3 h-7 w-7",
-            isMobile ? "start-3 z-50" : "start-2 z-20"
-          )}
+          className="absolute top-3 start-2 z-20 h-7 w-7"
           onClick={() => setCollapsed(false)}
         >
           <PanelLeft className="h-4 w-4 rtl:rotate-180" />

@@ -374,7 +374,7 @@ export function KanbanView({
   }
 
   return (
-    <div className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-4">
+    <div className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-4 snap-x snap-mandatory md:snap-none">
       {LANES.map((lane) => {
         const allItems = byLane[lane.key];
         const isArchive = lane.key === "archive";
@@ -398,8 +398,8 @@ export function KanbanView({
             key={lane.key}
             lane={lane.key}
             className={cn(
-              "flex min-h-0 shrink-0 flex-col rounded-lg border border-border/60 bg-muted/20",
-              collapsed ? "w-12" : "w-[280px]"
+              "flex min-h-0 shrink-0 flex-col rounded-lg border border-border/60 bg-muted/20 snap-start",
+              collapsed ? "w-12" : "w-[85vw] max-w-[280px] md:w-[280px]"
             )}
           >
             {collapsed ? (
