@@ -141,7 +141,7 @@ export function NewTaskButton() {
       <DropdownMenu>
         {/* Split button: the primary half opens the AI Editor drawer; the
             chevron half opens the create menu (page / task / routine). */}
-        <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md border border-border/70 bg-card/60 text-foreground/80">
+        <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md">
           <button
             type="button"
             onClick={() =>
@@ -157,13 +157,14 @@ export function NewTaskButton() {
             }
             title={t("common:aiPanel.open")}
             aria-label={t("common:aiPanel.open")}
-            className="inline-flex items-center gap-1.5 px-3 transition-colors hover:bg-accent hover:text-foreground"
+            className="inline-flex items-center gap-1.5 bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <MessageCircle className="size-4" />
-            <span className="text-[12px] font-medium">New Chat</span>
+            <MessageCircle className="size-3.5" />
+            <span>New Chat</span>
           </button>
+          <div className="w-px bg-primary-foreground/20" aria-hidden />
           <DropdownMenuTrigger
-            className="inline-flex items-center border-l border-border/70 px-1.5 transition-colors hover:bg-accent hover:text-foreground data-[popup-open]:bg-accent data-[popup-open]:text-foreground"
+            className="inline-flex items-center bg-primary pl-1.5 pr-1 text-primary-foreground transition-colors hover:bg-primary/90 data-[popup-open]:bg-primary/90"
             title={t("newTaskButton:createNew")}
             aria-label={t("newTaskButton:createNew")}
           >

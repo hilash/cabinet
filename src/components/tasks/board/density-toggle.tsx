@@ -20,7 +20,7 @@ export function DensityToggle({
       type="button"
       onClick={() => onChange(other)}
       className={cn(
-        "inline-flex h-7 items-center gap-1 rounded-md border border-border/60 px-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+        "inline-flex h-7 items-center gap-1 rounded-md px-2 text-muted-foreground/60 hover:bg-muted/60 hover:text-foreground"
       )}
       title={value === "compact" ? "Switch to comfortable rows" : "Switch to compact rows"}
     >

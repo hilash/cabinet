@@ -266,7 +266,11 @@ export function TasksBoard({
         {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
         <div className="flex items-center gap-2 md:ms-2">
           <ViewToggle value={view} onChange={setView} />
-          <DensityToggle value={density} onChange={setDensity} />
+          {/* Density only affects kanban/list rows — the schedule grid
+              ignores it, so don't surface a no-op control there. */}
+          {view !== "schedule" && (
+            <DensityToggle value={density} onChange={setDensity} />
+          )}
         </div>
 
         {/* right-side: depth, trigger, selection */}
@@ -621,11 +625,11 @@ function NewWorkButton({
 }) {
   const { t } = useLocale();
   return (
-    <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md shadow-sm ring-1 ring-primary/20">
+    <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md">
       <button
         type="button"
         onClick={() => onCreate("now")}
-        className="inline-flex items-center gap-1.5 bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        className="inline-flex items-center gap-1.5 bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         title={t("tasksBoard:createTask")}
       >
         <Plus className="size-3.5" />

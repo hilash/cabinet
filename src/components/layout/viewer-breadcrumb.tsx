@@ -60,7 +60,7 @@ export function ViewerBreadcrumb({
             <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
             {isLast ? (
               <span
-                className="truncate text-[15px] font-semibold text-foreground"
+                className="truncate text-[14px] font-semibold tracking-tight text-foreground"
                 title={leafTitle}
               >
                 {leafTitle}
