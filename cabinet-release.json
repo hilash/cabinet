@@ -2,11 +2,29 @@
   "manifestVersion": 1,
   "version": "0.4.3",
   "channel": "stable",
-  "releaseDate": "2026-04-30T18:39:34.504Z",
+  "releaseDate": "2026-05-05T07:48:12.537Z",
   "gitTag": "v0.4.3",
   "repositoryUrl": "https://github.com/hilash/cabinet",
   "releaseNotesUrl": "https://github.com/hilash/cabinet/releases/tag/v0.4.3",
   "sourceTarballUrl": "https://github.com/hilash/cabinet/archive/refs/tags/v0.4.3.tar.gz",
+  "appBundles": {
+    "darwin-arm64": {
+      "assetName": "cabinet-app-darwin-arm64-v0.4.3.tgz",
+      "url": "https://github.com/hilash/cabinet/releases/download/v0.4.3/cabinet-app-darwin-arm64-v0.4.3.tgz"
+    },
+    "darwin-x64": {
+      "assetName": "cabinet-app-darwin-x64-v0.4.3.tgz",
+      "url": "https://github.com/hilash/cabinet/releases/download/v0.4.3/cabinet-app-darwin-x64-v0.4.3.tgz"
+    },
+    "linux-arm64": {
+      "assetName": "cabinet-app-linux-arm64-v0.4.3.tgz",
+      "url": "https://github.com/hilash/cabinet/releases/download/v0.4.3/cabinet-app-linux-arm64-v0.4.3.tgz"
+    },
+    "linux-x64": {
+      "assetName": "cabinet-app-linux-x64-v0.4.3.tgz",
+      "url": "https://github.com/hilash/cabinet/releases/download/v0.4.3/cabinet-app-linux-x64-v0.4.3.tgz"
+    }
+  },
   "npmPackage": "create-cabinet",
   "createCabinetVersion": "0.4.3",
   "cabinetaiPackage": "cabinetai",

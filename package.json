@@ -10,6 +10,7 @@
     "dev:all": "npm run dev & npm run dev:daemon",
     "debug:chrome": "bash scripts/launch-chrome-debug.sh",
     "build": "next build",
+    "postbuild": "node scripts/prepare-standalone-runtime.mjs",
     "electron:prep": "node scripts/prepare-electron-package.mjs",
     "release:manifest": "node scripts/generate-release-manifest.mjs",
     "start": "npm run start:next & npm run start:daemon",
