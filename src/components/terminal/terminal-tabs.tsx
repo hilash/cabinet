@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "./web-terminal";
 import { useCallback, useRef, useState } from "react";
+import { useLocale } from "@/i18n/use-locale";
 
 export function TerminalTabs() {
+  const { t, dir } = useLocale();
   const {
     terminalTabs,
     activeTerminalTab,
@@ -89,8 +91,16 @@ export function TerminalTabs() {
       const startX = e.clientX;
       const startWidth = width;
 
+      // In RTL the panel docks on the screen's left, so its resize handle
+      // is on the right (inner) edge — dragging toward the content (rightward,
+      // clientX increasing) must *grow* the panel, so flip the delta sign.
+      const dirSign = dir === "rtl" ? -1 : 1;
+
       const onMouseMove = (e: MouseEvent) => {
-        const newWidth = Math.max(250, Math.min(window.innerWidth * 0.5, startWidth + (startX - e.clientX)));
+        const newWidth = Math.max(
+          250,
+          Math.min(window.innerWidth * 0.5, startWidth + dirSign * (startX - e.clientX))
+        );
         setWidth(newWidth);
       };
 
@@ -106,7 +116,7 @@ export function TerminalTabs() {
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
-    [width]
+    [width, dir]
   );
 
   if (terminalTabs.length === 0) return null;
@@ -142,10 +152,10 @@ export function TerminalTabs() {
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
+        className="h-6 w-6 ms-1 text-muted-foreground hover:text-foreground"
         onClick={() => addTerminalTab()}
-        aria-label="New terminal tab"
-        title="New terminal tab"
+        aria-label={t("terminalTabs:newTab")}
+        title={t("terminalTabs:newTab")}
       >
         <Plus className="h-3 w-3" />
       </Button>
@@ -167,8 +177,8 @@ export function TerminalTabs() {
         size="icon"
         className="h-6 w-6 text-muted-foreground hover:text-foreground"
         onClick={closeTerminal}
-        aria-label="Close terminal"
-        title="Close terminal"
+        aria-label={t("terminalTabs:closeTab")}
+        title={t("terminalTabs:closeTab")}
       >
         <X className="h-3 w-3" />
       </Button>
@@ -197,7 +207,7 @@ export function TerminalTabs() {
   if (terminalPosition === "right") {
     return (
       <div
-        className="flex flex-row h-full border-l border-border/70 bg-background shrink-0"
+        className="flex flex-row h-full border-s border-border/70 bg-background shrink-0"
         style={{ width: `${width}px` }}
       >
         {/* Audit #046: left-edge resize handle. Bumped from 1.5px to a
@@ -206,7 +216,7 @@ export function TerminalTabs() {
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize terminal panel"
+          aria-label={t("terminalTabsPlus:resize")}
           tabIndex={0}
           className="flex items-center justify-center w-1 cursor-col-resize hover:bg-primary/20 transition-colors group shrink-0 hover:w-1.5"
           onMouseDown={handleHorizontalMouseDown}
@@ -233,7 +243,7 @@ export function TerminalTabs() {
       <div
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Resize terminal panel"
+        aria-label={t("terminalTabsPlus:resize")}
         tabIndex={0}
         className="flex items-center justify-center h-1 cursor-row-resize hover:bg-primary/20 transition-colors group hover:h-1.5"
         onMouseDown={handleVerticalMouseDown}

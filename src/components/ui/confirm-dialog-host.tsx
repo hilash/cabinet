@@ -6,12 +6,14 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CONFIRM_EVENT, type ConfirmEventDetail } from "@/lib/ui/confirm";
+import { useLocale } from "@/i18n/use-locale";
 
 interface ActiveDialog extends ConfirmEventDetail {
   key: string;
 }
 
 export function ConfirmDialogHost() {
+  const { t } = useLocale();
   const [active, setActive] = useState<ActiveDialog | null>(null);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function ConfirmDialogHost() {
         <Dialog.Backdrop className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <Dialog.Popup
           className={cn(
-            "fixed left-1/2 top-1/2 z-[90] -translate-x-1/2 -translate-y-1/2",
+            "fixed inset-0 z-[90] m-auto h-fit",
             "w-[min(420px,calc(100%-2rem))] rounded-xl bg-background p-5 ring-1 ring-foreground/10 shadow-2xl outline-none",
             "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
           )}
@@ -67,7 +69,7 @@ export function ConfirmDialogHost() {
           </div>
           <div className="mt-5 flex items-center justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => resolve(false)}>
-              {active.cancelText ?? "Cancel"}
+              {active.cancelText ?? t("common:actions.cancel")}
             </Button>
             <Button
               size="sm"
@@ -75,7 +77,7 @@ export function ConfirmDialogHost() {
               onClick={() => resolve(true)}
               autoFocus
             >
-              {active.confirmText ?? "Confirm"}
+              {active.confirmText ?? t("common:actions.confirm")}
             </Button>
           </div>
         </Dialog.Popup>

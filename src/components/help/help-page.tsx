@@ -33,6 +33,8 @@ import { buildThemesDemo } from "./demos/themes-demo";
 import { buildShortcutsDemo } from "./demos/shortcuts-demo";
 import { buildSkillsDemo } from "./demos/skills-demo";
 import { buildApiKeysDemo } from "./demos/api-keys-demo";
+import { useLocale } from "@/i18n/use-locale";
+import { Trans } from "react-i18next";
 
 type DemoId =
   | "ai-team"
@@ -68,133 +70,96 @@ interface HelpItem {
   action: HelpAction;
 }
 
-const HELP_ITEMS: HelpItem[] = [
+/** Render a localized item title with a single accent-colored span.
+ *  The translation string is expected to contain `<accent>...</accent>`
+ *  around the highlighted word(s); other text is rendered as-is. */
+function ItemTitle({ id }: { id: string }) {
+  return (
+    <Trans
+      i18nKey={`helpPage:items.${id}.title`}
+      components={{ accent: <span style={{ color: P.accent }} /> }}
+    />
+  );
+}
+
+function getHelpItems(t: (k: string) => string): HelpItem[] { return [
   {
     id: "tour",
-    title: (
-      <>
-        Meet your <span style={{ color: P.accent }}>Cabinet</span>.
-      </>
-    ),
-    description: "Your AI team. Your knowledge base. One place.",
-    cta: "Watch the tour",
+    title: <ItemTitle id="tour" />,
+    description: t("helpPage:items.tour.description"),
+    cta: t("helpPage:ctaWatchTour"),
     visual: <CabinetVisual />,
     action: { kind: "tour" },
   },
   {
     id: "agents",
-    title: (
-      <>
-        Your <span style={{ color: P.accent }}>AI team</span>.
-      </>
-    ),
-    description:
-      "Hire leads and specialists. Group them into departments. Let them dispatch work to each other.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="agents" />,
+    description: t("helpPage:items.agents.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <AgentsVisual />,
     action: { kind: "demo", demoId: "ai-team" },
   },
   {
     id: "tasks",
-    title: (
-      <>
-        The <span style={{ color: P.accent }}>task board</span>.
-      </>
-    ),
-    description:
-      "Kanban, list, and schedule views. Filter by agent or status. Pick a runtime per task.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="tasks" />,
+    description: t("helpPage:items.tasks.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <TasksVisual />,
     action: { kind: "demo", demoId: "task-board" },
   },
   {
     id: "knowledge",
-    title: (
-      <>
-        Your <span style={{ color: P.accent }}>knowledge base</span>.
-      </>
-    ),
-    description:
-      "Markdown, CSV, PDF, code, notebooks, mermaid, images, audio — everything renders inline. Your data stays on your machine; it's yours, not ours.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="knowledge" />,
+    description: t("helpPage:items.knowledge.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <KnowledgeVisual />,
     action: { kind: "demo", demoId: "knowledge" },
   },
   {
     id: "cabinets",
-    title: (
-      <>
-        A team of <span style={{ color: P.accent }}>AI teams</span>.
-      </>
-    ),
-    description:
-      "Cabinets nest inside cabinets. Each one is its own AI team with its own data, agents, and visibility scope — and they can collaborate up and down the tree.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="cabinets" />,
+    description: t("helpPage:items.cabinets.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <CabinetsVisual />,
     action: { kind: "demo", demoId: "cabinets" },
   },
   {
     id: "routines",
-    title: (
-      <>
-        <span style={{ color: P.accent }}>Routines</span> & schedules.
-      </>
-    ),
-    description:
-      "Run a task daily at 9am, weekly on Friday, or once next Monday. Cron, calendar, or natural language.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="routines" />,
+    description: t("helpPage:items.routines.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <RoutinesVisual />,
     action: { kind: "demo", demoId: "routines" },
   },
   {
     id: "conversations",
-    title: (
-      <>
-        Conversations & <span style={{ color: P.accent }}>approvals</span>.
-      </>
-    ),
-    description:
-      "Agents propose actions — launch a task, schedule a job — and you approve before anything runs.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="conversations" />,
+    description: t("helpPage:items.conversations.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <ConversationsVisual />,
     action: { kind: "demo", demoId: "conversations" },
   },
   {
     id: "themes",
-    title: (
-      <>
-        Make it <span style={{ color: P.accent }}>yours</span>.
-      </>
-    ),
-    description:
-      "Pick from a curated set of light and dark themes — Paper, Slate, Claude, Ink, and more.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="themes" />,
+    description: t("helpPage:items.themes.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <ThemesVisual />,
     action: { kind: "demo", demoId: "themes" },
   },
   {
     id: "providers",
-    title: (
-      <>
-        <span style={{ color: P.accent }}>BYOAI</span> — bring your own AI.
-      </>
-    ),
-    description:
-      "Claude, GPT, Gemini, Grok, Codex, Cursor — bring whichever providers you already pay for. Pick a default, or override per task.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="providers" />,
+    description: t("helpPage:items.providers.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <ProvidersVisual />,
     action: { kind: "demo", demoId: "byoai" },
   },
   {
     id: "shortcuts",
-    title: (
-      <>
-        <span style={{ color: P.accent }}>Keyboard</span> shortcuts.
-      </>
-    ),
-    description:
-      "Every Cabinet shortcut on one searchable card. Press ? from anywhere to reopen it. Filter by name or key — passes for navigation, editing, tasks, panels, and slash commands.",
-    cta: "Open cheat sheet",
+    title: <ItemTitle id="shortcuts" />,
+    description: t("helpPage:items.shortcuts.description"),
+    cta: t("helpPage:ctaCheatSheet"),
     visual: <ShortcutsVisual />,
     // Audit #053 review: opens the searchable cheat-sheet modal directly
     // instead of the older slideshow demo. Same surface as the `?` hotkey.
@@ -202,44 +167,29 @@ const HELP_ITEMS: HelpItem[] = [
   },
   {
     id: "skills",
-    title: (
-      <>
-        <span style={{ color: P.accent }}>Skills</span> for your agents.
-      </>
-    ),
-    description:
-      "Installable Agent Skills — playbooks the model pulls in for a task. Install from GitHub or skills.sh, attach to a persona, or @-mention one in any composer for a single run.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="skills" />,
+    description: t("helpPage:items.skills.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <SkillsVisual />,
     action: { kind: "demo", demoId: "skills" },
   },
   {
     id: "api-keys",
-    title: (
-      <>
-        <span style={{ color: P.accent }}>API keys</span> for your tools.
-      </>
-    ),
-    description:
-      "Plug in your OpenAI, Anthropic, or GitHub account once — every agent and skill in Cabinet will use it. You pay your own bills, use your own quota, no middleman.",
-    cta: "Watch the demo",
+    title: <ItemTitle id="apiKeysItem" />,
+    description: t("helpPage:items.apiKeysItem.description"),
+    cta: t("helpPage:ctaWatchDemo"),
     visual: <IntegrationsVisual />,
     action: { kind: "demo", demoId: "api-keys" },
   },
   {
     id: "integrations",
-    title: (
-      <>
-        <span style={{ color: P.accent }}>MCP servers</span> & integrations.
-      </>
-    ),
-    description:
-      "MCP servers, Slack, Telegram, Gmail, and Calendar OAuth — connect once and Cabinet handles the tokens. Coming soon.",
-    cta: "Coming soon",
+    title: <ItemTitle id="integrations" />,
+    description: t("helpPage:items.integrations.description"),
+    cta: t("helpPage:ctaComingSoon"),
     visual: <IntegrationsVisual />,
     action: { kind: "soon" },
   },
-];
+]; }
 
 function HelpCard({
   item,
@@ -341,6 +291,8 @@ function HelpCard({
 }
 
 export function HelpPage() {
+  const { t } = useLocale();
+  const HELP_ITEMS = getHelpItems(t);
   const [activeDemo, setActiveDemo] = useState<DemoConfig | null>(null);
 
   const launchDemo = (demoId: DemoId) => {
@@ -398,7 +350,7 @@ export function HelpPage() {
       >
         <div className="flex items-center gap-2">
           <HelpCircle className="h-4 w-4" />
-          <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Help</h2>
+          <h2 className="text-[15px] font-semibold tracking-[-0.02em]">{t("helpPage:title")}</h2>
         </div>
       </div>
 
@@ -406,13 +358,13 @@ export function HelpPage() {
         <div className="mx-auto w-full max-w-5xl px-6 py-10">
           <div className="mb-10">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              How To
+              {t("helpPage:howTo")}
             </p>
             <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.02em] text-foreground">
-              Learn how Cabinet works
+              {t("helpPage:heading")}
             </h1>
             <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-              Short demos, walkthroughs, and previews for getting the most out of Cabinet.
+              {t("helpPage:subheading")}
             </p>
           </div>
 
@@ -431,10 +383,10 @@ export function HelpPage() {
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
-                  Didn&apos;t find what you&apos;re looking for?
+                  {t("helpPage:discordHeading")}
                 </h3>
                 <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-                  We&apos;re in the Discord — come say hi, ask questions, share what you&apos;re building.
+                  {t("helpPage:discordSubheading")}
                 </p>
               </div>
               <a
@@ -444,7 +396,7 @@ export function HelpPage() {
                 className="inline-flex flex-shrink-0 items-center gap-2 rounded-full border border-[#5865F2]/25 bg-[#5865F2]/10 px-4 py-2 text-[12.5px] font-semibold text-[#5865F2] transition-all hover:-translate-y-px hover:border-[#5865F2]/40 hover:bg-[#5865F2]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2"
               >
                 <MessageCircle className="h-4 w-4" />
-                Join the Discord
+                {t("helpPage:discordCta")}
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
             </div>

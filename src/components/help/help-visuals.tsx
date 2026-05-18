@@ -20,12 +20,14 @@ import {
 } from "lucide-react";
 import { MockupSidebar } from "@/components/onboarding/tour/mockup-sidebar";
 import { TOUR_PALETTE as P } from "@/components/onboarding/tour/palette";
+import { useLocale } from "@/i18n/use-locale";
 
 const stage: React.CSSProperties = {
   background: P.paperWarm,
 };
 
 function Stage({ children }: { children: React.ReactNode }) {
+  const { t } = useLocale();
   return (
     <div className="flex h-full w-full items-center justify-center p-6" style={stage}>
       {children}
@@ -51,10 +53,11 @@ function CardChrome({ children, width = 280 }: { children: React.ReactNode; widt
 
 /** Cabinet sidebar mockup — reused for the intro / Meet-your-Cabinet card. */
 export function CabinetVisual() {
+  const { t } = useLocale();
   return (
     <Stage>
       <div style={{ width: 280 }}>
-        <MockupSidebar activeTab={null} title="Cabinet" headerBadge="" hideBody />
+        <MockupSidebar activeTab={null} title={t("helpVisuals:cabinet")} headerBadge="" hideBody />
       </div>
     </Stage>
   );
@@ -62,10 +65,11 @@ export function CabinetVisual() {
 
 /** Agents — three stacked agent rows + a tiny org chip. */
 export function AgentsVisual() {
+  const { t } = useLocale();
   const rows: { icon: typeof Users; name: string; role: string; tint: string }[] = [
-    { icon: Users, name: "PM", role: "Lead", tint: "#E8C896" },
-    { icon: Users, name: "Editor", role: "Specialist", tint: "#D9B98A" },
-    { icon: Users, name: "Librarian", role: "Specialist", tint: "#C9A87A" },
+    { icon: Users, name: "PM", role: t("helpVisuals:lead"), tint: "#E8C896" },
+    { icon: Users, name: "Editor", role: t("helpVisuals:specialist"), tint: "#D9B98A" },
+    { icon: Users, name: "Librarian", role: t("helpVisuals:specialist"), tint: "#C9A87A" },
   ];
   return (
     <Stage>
@@ -74,7 +78,7 @@ export function AgentsVisual() {
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" style={{ color: P.accent }} />
             <span className="text-[11px] font-semibold tracking-wide" style={{ color: P.text }}>
-              Your team
+              {t("helpVisuals:yourTeam")}
             </span>
           </div>
         </div>
@@ -107,10 +111,11 @@ export function AgentsVisual() {
 
 /** Task board — 3 mini kanban columns with task chips. */
 export function TasksVisual() {
+  const { t } = useLocale();
   const columns: { label: string; cards: number; done?: boolean }[] = [
-    { label: "Todo", cards: 3 },
-    { label: "Doing", cards: 2 },
-    { label: "Done", cards: 2, done: true },
+    { label: t("helpVisuals:todo"), cards: 3 },
+    { label: t("helpVisuals:doing"), cards: 2 },
+    { label: t("helpVisuals:done"), cards: 2, done: true },
   ];
   return (
     <Stage>
@@ -118,7 +123,7 @@ export function TasksVisual() {
         <div className="flex items-center gap-2 px-3 pt-3 pb-2">
           <SquareKanban className="h-4 w-4" style={{ color: P.accent }} />
           <span className="text-[11px] font-semibold tracking-wide" style={{ color: P.text }}>
-            Tasks
+            {t("helpVisuals:tasks")}
           </span>
         </div>
         <div className="grid grid-cols-3 gap-1.5 p-2">
@@ -171,6 +176,7 @@ export function TasksVisual() {
 
 /** Knowledge base — grid of file-type chips. */
 export function KnowledgeVisual() {
+  const { t } = useLocale();
   const types: { icon: typeof FileText; label: string }[] = [
     { icon: FileText, label: "MD" },
     { icon: FileSpreadsheet, label: "CSV" },
@@ -185,7 +191,7 @@ export function KnowledgeVisual() {
         <div className="flex items-center gap-2 px-3 pt-3 pb-2">
           <BookOpen className="h-4 w-4" style={{ color: P.accent }} />
           <span className="text-[11px] font-semibold tracking-wide" style={{ color: P.text }}>
-            Anything goes
+            {t("helpVisuals:anythingGoes")}
           </span>
         </div>
         <div className="grid grid-cols-3 gap-1.5 p-2 pb-3">
@@ -209,16 +215,17 @@ export function KnowledgeVisual() {
 
 /** Cabinets — nested hierarchy. */
 export function CabinetsVisual() {
+  const { t } = useLocale();
   return (
     <Stage>
       <div className="flex flex-col gap-2" style={{ width: 280 }}>
-        <CabinetRow label="Cabinet" emphasis />
-        <div className="ml-5 space-y-1.5">
-          <CabinetRow label="Marketing" sub />
-          <CabinetRow label="Product" sub />
-          <div className="ml-5 space-y-1.5">
-            <CabinetRow label="Research" muted />
-            <CabinetRow label="Design" muted />
+        <CabinetRow label={t("helpVisuals:cabinet")} emphasis />
+        <div className="ms-5 space-y-1.5">
+          <CabinetRow label={t("helpVisuals:marketing")} sub />
+          <CabinetRow label={t("helpVisuals:product")} sub />
+          <div className="ms-5 space-y-1.5">
+            <CabinetRow label={t("helpVisuals:research")} muted />
+            <CabinetRow label={t("helpVisuals:design")} muted />
           </div>
         </div>
       </div>
@@ -258,6 +265,7 @@ function CabinetRow({
 
 /** Routines — calendar week + cron entries. */
 export function RoutinesVisual() {
+  const { t } = useLocale();
   const days = ["M", "T", "W", "T", "F", "S", "S"];
   const active = new Set([0, 2, 4]);
   return (
@@ -266,7 +274,7 @@ export function RoutinesVisual() {
         <div className="flex items-center gap-2 px-3 pt-3 pb-2">
           <Calendar className="h-4 w-4" style={{ color: P.accent }} />
           <span className="text-[11px] font-semibold tracking-wide" style={{ color: P.text }}>
-            Routines
+            {t("helpVisuals:routines")}
           </span>
         </div>
         <div className="grid grid-cols-7 gap-1 px-3 pb-2">
@@ -291,8 +299,8 @@ export function RoutinesVisual() {
         </div>
         <div className="space-y-1 px-3 pb-3">
           {[
-            { cron: "0 9 * * *", label: "Daily review" },
-            { cron: "0 18 * * 5", label: "Weekly digest" },
+            { cron: "0 9 * * *", label: t("helpVisuals:dailyReview") },
+            { cron: "0 18 * * 5", label: t("helpVisuals:weeklyDigest") },
           ].map((r) => (
             <div
               key={r.cron}
@@ -318,35 +326,36 @@ export function RoutinesVisual() {
 
 /** Conversations & approvals — chat bubble + pending action pill. */
 export function ConversationsVisual() {
+  const { t } = useLocale();
   return (
     <Stage>
       <CardChrome width={280}>
         <div className="flex items-center gap-2 px-3 pt-3 pb-2">
           <MessageCircle className="h-4 w-4" style={{ color: P.accent }} />
           <span className="text-[11px] font-semibold tracking-wide" style={{ color: P.text }}>
-            Conversation
+            {t("helpVisuals:conversation")}
           </span>
         </div>
         <div className="space-y-2 px-3 pb-3">
           <div
-            className="rounded-lg rounded-bl-sm px-3 py-2 text-[10px] leading-relaxed"
+            className="rounded-lg rounded-es-sm px-3 py-2 text-[10px] leading-relaxed"
             style={{
               background: P.paperWarm,
               color: P.textSecondary,
               border: `1px solid ${P.borderLight}`,
             }}
           >
-            Plan a 2-week Thailand trip…
+            {t("helpVisuals:userQuery")}
           </div>
           <div
-            className="ml-4 rounded-lg rounded-br-sm px-3 py-2 text-[10px] leading-relaxed"
+            className="ms-4 rounded-lg rounded-ee-sm px-3 py-2 text-[10px] leading-relaxed"
             style={{
               background: P.accentBg,
               color: P.text,
               border: `1px solid ${P.borderLight}`,
             }}
           >
-            I&apos;ll dispatch the librarian and editor.
+            {t("helpVisuals:agentReply")}
           </div>
 
           <div
@@ -356,7 +365,7 @@ export function ConversationsVisual() {
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="h-3 w-3" style={{ color: P.iconAmber }} />
               <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: P.textSecondary }}>
-                Pending action
+                {t("helpVisuals:pendingAction")}
               </span>
             </div>
             <div className="flex items-center gap-1">
@@ -364,7 +373,7 @@ export function ConversationsVisual() {
                 className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold"
                 style={{ background: P.accent, color: P.paper }}
               >
-                Approve
+                {t("helpVisuals:approve")}
               </span>
               <span
                 className="rounded-full px-1.5 py-0.5 text-[8px] font-semibold"
@@ -374,7 +383,7 @@ export function ConversationsVisual() {
                   border: `1px solid ${P.borderLight}`,
                 }}
               >
-                Decline
+                {t("helpVisuals:decline")}
               </span>
             </div>
           </div>
@@ -386,6 +395,9 @@ export function ConversationsVisual() {
 
 /** Themes — color swatches. */
 export function ThemesVisual() {
+  const { t } = useLocale();
+  // Theme names are intentionally NOT translated — they're product nouns
+  // (Paper, Slate, Claude, Ink…) that map to the actual theme picker.
   const swatches: { name: string; bg: string; fg: string; selected?: boolean }[] = [
     { name: "Paper", bg: "#FAF6F1", fg: "#3B2F2F", selected: true },
     { name: "Slate", bg: "#1E2530", fg: "#E2E8F0" },
@@ -400,7 +412,7 @@ export function ThemesVisual() {
         <div className="flex items-center gap-2 px-3 pt-3 pb-2">
           <Palette className="h-4 w-4" style={{ color: P.accent }} />
           <span className="text-[11px] font-semibold tracking-wide" style={{ color: P.text }}>
-            Themes
+            {t("helpVisuals:themes")}
           </span>
         </div>
         <div className="grid grid-cols-3 gap-1.5 p-3 pt-2">
@@ -430,6 +442,7 @@ export function ThemesVisual() {
 
 /** Providers — stacked provider chips. */
 export function ProvidersVisual() {
+  const { t } = useLocale();
   const providers = ["Claude", "GPT-4", "Gemini", "Grok", "Codex"];
   return (
     <Stage>
@@ -437,7 +450,7 @@ export function ProvidersVisual() {
         <div className="flex items-center gap-2 px-3 pt-3 pb-2">
           <Cpu className="h-4 w-4" style={{ color: P.accent }} />
           <span className="text-[11px] font-semibold tracking-wide" style={{ color: P.text }}>
-            Providers
+            {t("helpVisuals:providers")}
           </span>
         </div>
         <div className="space-y-1.5 px-3 pb-3">
@@ -467,6 +480,7 @@ export function ProvidersVisual() {
 
 /** Coming-soon placeholder — used for Skills and Integrations. */
 export function ComingSoonVisual({ icon: Icon }: { icon: typeof Sparkles }) {
+  const { t } = useLocale();
   return (
     <Stage>
       <div
@@ -487,7 +501,7 @@ export function ComingSoonVisual({ icon: Icon }: { icon: typeof Sparkles }) {
           className="text-[10px] font-semibold uppercase tracking-[0.22em]"
           style={{ color: P.textTertiary }}
         >
-          Coming soon
+          {t("helpVisuals:comingSoon")}
         </span>
       </div>
     </Stage>
@@ -522,30 +536,31 @@ function KbdChip({ children, delay }: { children: React.ReactNode; delay: number
 }
 
 export function ShortcutsVisual() {
+  const { t } = useLocale();
   return (
     <Stage>
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <KbdChip delay={100}>⌘⌥T</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Add to Inbox</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:addToInbox")}</span>
         </div>
         <div className="flex items-center gap-2">
           <KbdChip delay={200}>⌘⌥R</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Run task now</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:runTaskNow")}</span>
         </div>
         <div className="flex items-center gap-2">
           <KbdChip delay={300}>⌘K</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Search</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:search")}</span>
         </div>
         <div className="flex items-center gap-2">
           <KbdChip delay={400}>⌘⌥A</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>AI panel</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:aiPanel")}</span>
         </div>
         <div className="flex items-center gap-2">
           <KbdChip delay={500}>⌘1</KbdChip>
           <KbdChip delay={580}>⌘2</KbdChip>
           <KbdChip delay={660}>⌘3</KbdChip>
-          <span className="text-[10px]" style={{ color: P.textTertiary }}>Drawers</span>
+          <span className="text-[10px]" style={{ color: P.textTertiary }}>{t("tinyExtras:drawers")}</span>
         </div>
       </div>
     </Stage>

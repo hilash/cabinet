@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Archive,
-  ArrowLeft,
   Check,
   CheckCircle2,
   Circle,
@@ -32,6 +31,7 @@ import { TerminalExitedView } from "@/components/terminal/terminal-exited-view";
 import { ClaudeTranscriptView } from "@/components/tasks/conversation/claude-transcript-view";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
 import { confirmDialog } from "@/lib/ui/confirm";
+import { useLocale } from "@/i18n/use-locale";
 import {
   closeConversation,
   deleteConversation,
@@ -134,6 +134,7 @@ function StatusActionButton({
   onMarkDone: () => void;
   onRetry: () => void;
 }) {
+  const { t } = useLocale();
   if (status === "done") {
     return (
       <span className="inline-flex h-9 items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/15 px-3 text-[12px] font-semibold text-emerald-300">
@@ -150,7 +151,7 @@ function StatusActionButton({
         disabled={busy}
         onClick={onRetry}
         className="inline-flex h-9 items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/15 px-3 text-[12px] font-semibold text-rose-300 transition-colors hover:bg-rose-500/25 hover:text-rose-200 disabled:opacity-50"
-        title="Restart this task from the original prompt"
+        title={t("tasks:conversation.restartFromOriginal")}
       >
         <RotateCcw className="size-4" />
         Retry
@@ -191,7 +192,7 @@ function StatusActionButton({
       disabled={busy}
       onClick={onMarkDone}
       className="inline-flex h-9 items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 text-[12px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 hover:text-emerald-200 disabled:opacity-50"
-      title="Mark this task as done"
+      title={t("tasks:conversation.markAsDone")}
     >
       <Check className="size-4" />
       Mark done
@@ -330,6 +331,14 @@ export interface TaskConversationPageProps {
    * into the full task view rather than the outer list.
    */
   returnContext?: import("@/stores/app-store").SelectedSection;
+  /**
+   * Fires whenever the live task status changes (and with `null` on
+   * unmount). Lets a compact-embed host (e.g. TaskDetailPanel) drive chrome
+   * — like the Stop button — off the SSE-fresh status instead of a stale
+   * store snapshot taken when the panel opened. `"awaiting-input"` is its
+   * own TaskStatus, so `"running"` already means the model is generating.
+   */
+  onLiveStatusChange?: (status: TaskStatus | null) => void;
 }
 
 export function TaskConversationPage({
@@ -337,7 +346,9 @@ export function TaskConversationPage({
   variant = "full",
   readOnly = false,
   returnContext,
+  onLiveStatusChange,
 }: TaskConversationPageProps) {
+  const { t } = useLocale();
   const isDemo = taskId === "demo";
   const isCompact = variant === "compact";
   const [task, setTask] = useState<Task | null>(isDemo ? MOCK_TASK : null);
@@ -350,10 +361,40 @@ export function TaskConversationPage({
   const [retryNonce, setRetryNonce] = useState(0);
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
+  // The summary block collapses to a single ellipsised row once the user
+  // scrolls into any tab's content, and auto-expands back at the top.
+  const [summaryCollapsed, setSummaryCollapsed] = useState(false);
   const [wrapUpDismissed, setWrapUpDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Callback ref on the panel root: scroll doesn't bubble, so we listen in
+  // the capture phase to catch scrolling inside any tab's content. A
+  // callback ref (not useEffect) so the listener attaches exactly when the
+  // root mounts — the component early-returns null until the task loads,
+  // so an effect would bind before the node exists and never rebind.
+  const scrollCleanupRef = useRef<(() => void) | null>(null);
+  const setPanelRoot = useCallback((node: HTMLDivElement | null) => {
+    scrollCleanupRef.current?.();
+    scrollCleanupRef.current = null;
+    if (!node) return;
+    let raf = 0;
+    const onScroll = (e: Event) => {
+      const tgt = e.target as HTMLElement | null;
+      if (!tgt || typeof tgt.scrollTop !== "number") return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setSummaryCollapsed(tgt.scrollTop > 24);
+      });
+    };
+    node.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    scrollCleanupRef.current = () => {
+      node.removeEventListener("scroll", onScroll, { capture: true });
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Terminal-mode viewer tabs: Terminal (xterm stream) vs Details
   // (structured prompt/result/artifacts cards via ConversationResultView).
@@ -604,6 +645,20 @@ export function TaskConversationPage({
       es.close();
     };
   }, [isDemo, taskId]);
+
+  // Surface SSE-fresh status to a compact-embed host (TaskDetailPanel) so
+  // chrome like the Stop button reacts to live runs, not the stale store
+  // snapshot. Ref-held callback keeps this off the effect deps.
+  const liveStatusCbRef = useRef(onLiveStatusChange);
+  liveStatusCbRef.current = onLiveStatusChange;
+  const liveStatus = task?.meta.status ?? null;
+  useEffect(() => {
+    if (liveStatus === null) return;
+    liveStatusCbRef.current?.(liveStatus);
+  }, [liveStatus]);
+  useEffect(() => {
+    return () => liveStatusCbRef.current?.(null);
+  }, []);
 
   // Cleanup demo settle timer
   useEffect(() => {
@@ -939,7 +994,7 @@ export function TaskConversationPage({
         <div className="shrink-0 bg-zinc-950 px-2 pt-2">
           <div
             role="tablist"
-            aria-label="Task view"
+            aria-label={t("tasks:conversation.viewAriaLabel")}
             className={cn(
               "relative z-10 grid gap-1 -mb-px text-[12px] font-medium",
               isClaudeProvider ? "grid-cols-3" : "grid-cols-2"
@@ -958,7 +1013,7 @@ export function TaskConversationPage({
               )}
             >
               <Terminal className="size-3.5" />
-              <span>Terminal</span>
+              <span>{t("tasks:conversation.terminal")}</span>
             </button>
             {isClaudeProvider ? (
               <button
@@ -972,10 +1027,10 @@ export function TaskConversationPage({
                     ? "border-zinc-800 bg-background text-foreground"
                     : "border-transparent bg-zinc-900/40 text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200"
                 )}
-                title="Claude Code native session JSONL"
+                title={t("tasks:conversation.transcriptTitle")}
               >
                 <ScrollText className="size-3.5" />
-                <span>Transcript</span>
+                <span>{t("tasks:conversation.transcript")}</span>
               </button>
             ) : null}
             <button
@@ -991,7 +1046,7 @@ export function TaskConversationPage({
               )}
             >
               <Sparkles className="size-3.5" />
-              <span>Details</span>
+              <span>{t("tasks:conversation.details")}</span>
               {detail?.artifacts?.length ? (
                 <span className="rounded-full bg-emerald-500/20 px-1.5 py-px text-[9.5px] font-semibold text-emerald-300">
                   {detail.artifacts.length}
@@ -1004,19 +1059,12 @@ export function TaskConversationPage({
         {showTranscript ? (
           <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
             <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/70 bg-muted/30 px-3">
-              <Link
-                href="/"
-                className="inline-flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title="Back"
-              >
-                <ArrowLeft className="size-3.5" />
-              </Link>
               <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium">
                 {task?.meta.title ?? "Loading…"}
               </h1>
               <span
                 className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
-                title="Reads ~/.claude/projects/<slug>/<session>.jsonl"
+                title={t("tasks:conversation.transcriptHint")}
               >
                 claude-code
               </span>
@@ -1039,13 +1087,6 @@ export function TaskConversationPage({
         ) : showDetails ? (
           <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
             <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/70 bg-muted/30 px-3">
-              <Link
-                href="/"
-                className="inline-flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title="Back"
-              >
-                <ArrowLeft className="size-3.5" />
-              </Link>
               <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium">
                 {task?.meta.title ?? "Loading…"}
               </h1>
@@ -1066,7 +1107,7 @@ export function TaskConversationPage({
                 />
               )}
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
               {!task || (detailLoading && !detail) ? (
                 <div className="flex h-full items-center justify-center text-muted-foreground">
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -1106,13 +1147,6 @@ export function TaskConversationPage({
         <>
         {/* Thin top strip */}
         <header className="flex h-10 shrink-0 items-center gap-2 border-t border-zinc-800 border-b border-b-zinc-800 bg-zinc-900 px-3">
-          <Link
-            href="/"
-            className="inline-flex size-7 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
-            title="Back"
-          >
-            <ArrowLeft className="size-3.5" />
-          </Link>
           <Terminal className="size-3.5 shrink-0 text-emerald-400" />
           <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-100">
             {task?.meta.title ??
@@ -1179,7 +1213,7 @@ export function TaskConversationPage({
             onClick={copyPrompt}
             disabled={!terminalPrompt}
             className="inline-flex size-7 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-40"
-            title="Copy original prompt"
+            title={t("tasks:conversation.copyPrompt")}
           >
             <Copy className="size-3.5" />
           </button>
@@ -1202,7 +1236,7 @@ export function TaskConversationPage({
                   setBusy(false);
                 }
               }}
-              title="Gracefully close the CLI (writes /exit to the PTY)"
+              title={t("tasks:conversation.gracefulExit")}
             >
               <CheckCircle2 className="size-3.5" />
               Done
@@ -1225,7 +1259,7 @@ export function TaskConversationPage({
                   setBusy(false);
                 }
               }}
-              title="Send SIGTERM to the running PTY process"
+              title={t("tasks:conversation.sendSigterm")}
             >
               <Square className="size-3 fill-current" />
               Stop
@@ -1242,8 +1276,8 @@ export function TaskConversationPage({
           <DropdownMenu>
             <DropdownMenuTrigger
               className="inline-flex size-9 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
-              title="More actions"
-              aria-label="More actions"
+              title={t("tasks:conversation.moreActions")}
+              aria-label={t("tasks:conversation.moreActions")}
             >
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
@@ -1319,21 +1353,21 @@ export function TaskConversationPage({
   if (!task) return null;
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
+    <div
+      ref={setPanelRoot}
+      className="flex h-full flex-col bg-background text-foreground"
+    >
       {/* Top bar (hidden in compact variant) */}
       {!isCompact ? (
-      <header className="flex items-center gap-3 border-b border-border/70 px-6 py-3">
-        <Link
-          href="/"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-        </Link>
+      <header
+        className="flex items-center gap-3 border-b border-border/70 px-6 py-3 transition-[padding] duration-200"
+        style={{ paddingInlineStart: `calc(1.5rem + var(--sidebar-toggle-offset, 0px))` }}
+      >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {isTerminalMode && (
               <span
-                title="Running in terminal (PTY) mode"
+                title={t("tasks:conversation.ptyMode")}
                 className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400"
               >
                 <Terminal className="size-3" />
@@ -1391,7 +1425,7 @@ export function TaskConversationPage({
             className="h-8 gap-1.5 text-[11px]"
             disabled={busy || isDemo || task.turns.length < 2}
             onClick={handleCompact}
-            title="Collapse prior turns into a digest to free context window"
+            title={t("tasks:conversation.compactContext")}
           >
             <RefreshCw className="size-3.5" />
             Compact
@@ -1405,8 +1439,8 @@ export function TaskConversationPage({
           <DropdownMenu>
             <DropdownMenuTrigger
               className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title="More actions"
-              aria-label="More actions"
+              title={t("tasks:conversation.moreActions")}
+              aria-label={t("tasks:conversation.moreActions")}
             >
               <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
@@ -1440,62 +1474,99 @@ export function TaskConversationPage({
       </header>
       ) : null}
 
-      {/* Summary */}
-      <div className="border-b border-border/70 bg-muted/20 px-6 py-3">
-        <div className="flex items-start gap-2">
-          <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Summary
-          </span>
-          {editingSummary ? (
-            <div className="flex-1 space-y-2">
-              <textarea
-                className="w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-[13px] outline-none"
-                rows={2}
-                value={summaryDraft}
-                onChange={(e) => setSummaryDraft(e.target.value)}
-                autoFocus
-              />
-              <div className="flex justify-end gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-[11px]"
-                  onClick={() => {
-                    setSummaryDraft(task.meta.summary ?? "");
-                    setEditingSummary(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-6 px-2 text-[11px]"
-                  onClick={handleSummarySave}
-                  disabled={busy}
-                >
-                  Save
-                </Button>
-              </div>
+      {/* Summary — eases down to a single ellipsised row on scroll. */}
+      {(() => {
+        const collapsed = summaryCollapsed && !editingSummary;
+        const ease =
+          "duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
+        return (
+          <div
+            className={cn(
+              "border-b border-border/70 bg-muted/20 px-6 transition-[padding]",
+              ease,
+              collapsed ? "py-1.5" : "py-3"
+            )}
+          >
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Summary
+              </span>
+              {editingSummary ? (
+                <div className="flex-1 space-y-2">
+                  <textarea
+                    className="w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-[13px] outline-none"
+                    rows={2}
+                    value={summaryDraft}
+                    onChange={(e) => setSummaryDraft(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => {
+                        setSummaryDraft(task.meta.summary ?? "");
+                        setEditingSummary(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={handleSummarySave}
+                      disabled={busy}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p
+                    dir="auto"
+                    className={cn(
+                      "min-w-0 flex-1 overflow-hidden text-[13px] text-foreground/80 transition-[max-height]",
+                      ease,
+                      collapsed
+                        ? "max-h-[1.25rem] truncate"
+                        : "max-h-[24rem] whitespace-normal leading-relaxed"
+                    )}
+                  >
+                    {task.meta.summary || (
+                      <span className="text-muted-foreground/70">
+                        {t("tasks:conversation.noSummary")}
+                      </span>
+                    )}
+                  </p>
+                  {/* Pencil eases its width/opacity away when collapsed
+                      instead of vanishing. */}
+                  <div
+                    className={cn(
+                      "shrink-0 overflow-hidden transition-[max-width,opacity]",
+                      ease,
+                      collapsed
+                        ? "pointer-events-none max-w-0 opacity-0"
+                        : "max-w-8 opacity-100"
+                    )}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 shrink-0 p-0 text-muted-foreground"
+                      onClick={startEditingSummary}
+                      tabIndex={collapsed ? -1 : 0}
+                    >
+                      <Pencil className="size-3" />
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
-          ) : (
-            <>
-              <p className="flex-1 text-[13px] leading-relaxed text-foreground/80">
-                {task.meta.summary || (
-                  <span className="text-muted-foreground/70">No summary yet.</span>
-                )}
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 shrink-0 p-0 text-muted-foreground"
-                onClick={startEditingSummary}
-              >
-                <Pencil className="size-3" />
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+          </div>
+        );
+      })()}
 
       {/* Tabs + content */}
       <Tabs defaultValue="chat" className="flex flex-1 min-h-0 flex-col gap-0">
@@ -1541,17 +1612,18 @@ export function TaskConversationPage({
                     {task.meta.status === "idle" ? (
                       <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-2 text-[11px] text-zinc-400">
                         <CheckCircle2 className="size-3 text-emerald-500" />
-                        <span>Session ended — type to continue in the same terminal.</span>
+                        <span>{t("tasks:conversation.sessionEnded")}</span>
                       </div>
                     ) : task.meta.status === "running" ? (
                       <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-2 text-[11px] text-zinc-400">
                         <Loader2 className="size-3 animate-spin text-emerald-500" />
-                        <span>Terminal live. Your next prompt queues after this turn finishes.</span>
+                        <span>{t("tasks:conversation.terminalLive")}</span>
                       </div>
                     ) : null}
                     <div className="[&_textarea]:bg-zinc-900 [&_textarea]:text-zinc-100 [&_textarea]:placeholder:text-zinc-500 [&_textarea]:border-zinc-800 [&_*]:!text-zinc-100">
                       <TaskComposerPanel
                         awaitingInput={task.meta.status === "awaiting-input"}
+                        compact={isCompact}
                         cabinetPath={task.meta.cabinetPath}
                         conversationId={task.meta.id}
                         onSend={handleSend}
@@ -1578,7 +1650,7 @@ export function TaskConversationPage({
             </div>
           ) : (
           <>
-          <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto">
+          <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             {tokenPct >= 80 && task.meta.status !== "done" && !readOnly ? (
               <div className="mx-auto mx-6 my-4 max-w-3xl">
                 <div
@@ -1650,6 +1722,7 @@ export function TaskConversationPage({
               <div className="mx-auto w-full max-w-3xl">
                 <TaskComposerPanel
                   awaitingInput={task.meta.status === "awaiting-input"}
+                  compact={isCompact}
                   cabinetPath={task.meta.cabinetPath}
                   conversationId={task.meta.id}
                   onSend={handleSend}
@@ -1679,7 +1752,7 @@ export function TaskConversationPage({
           value="artifacts"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             <div className="mx-auto max-w-3xl">
               <ArtifactsList turns={task.turns} returnContext={returnContext} />
             </div>
@@ -1690,7 +1763,7 @@ export function TaskConversationPage({
           value="diff"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             <div className="mx-auto max-w-3xl">
               {isDemo ? (
                 <p className="px-6 py-12 text-center text-sm text-muted-foreground">
@@ -1707,7 +1780,7 @@ export function TaskConversationPage({
           value="logs"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             <div className="mx-auto max-w-3xl">
               {isDemo ? (
                 <p className="px-6 py-12 text-center text-sm text-muted-foreground">

@@ -23,6 +23,9 @@ export function startWatcher(
 ): FSWatcher {
   const watcher = chokidar.watch(DATA_DIR, {
     ignoreInitial: true,
+    // Symlinked cabinet roots are part of the indexed tree (see walkDataDir);
+    // follow them so live add/change/remove inside linked roots reindex too.
+    followSymlinks: true,
     ignored: (p: string) => {
       const rel = p.slice(DATA_DIR.length).replace(/^\//, "");
       if (!rel) return false;
@@ -71,6 +74,37 @@ export function startWatcher(
   watcher.on("add", (p) => schedule(p, "add"));
   watcher.on("change", (p) => schedule(p, "change"));
   watcher.on("unlink", (p) => schedule(p, "remove"));
+
+  // EMFILE / ENOSPC fire when the kernel runs out of file descriptors / inotify
+  // watches. Without this handler, every error becomes an unhandled rejection
+  // and chokidar keeps retrying — flooding the log with thousands of identical
+  // traces. We log once, close the watcher, and leave the daemon up. Live
+  // updates stop, but search/UI still work; the user sees a clear next step.
+  let watcherFailed = false;
+  watcher.on("error", (err: unknown) => {
+    if (watcherFailed) return;
+    watcherFailed = true;
+    const code = (err as NodeJS.ErrnoException)?.code;
+    const msg = err instanceof Error ? err.message : String(err);
+    if (code === "EMFILE" || code === "ENOSPC") {
+      console.warn(
+        `[search-watcher] disabled: ${code} (file watch limit exhausted on ${DATA_DIR}).\n` +
+          `  Live updates are off. Search results still work but won't auto-refresh.\n` +
+          `  Cabinet uses chokidar v5, which opens one OS handle per directory, so\n` +
+          `  large trees can exhaust the limit even with ulimit -n raised.\n` +
+          `  Fix options:\n` +
+          `    1. Pick a smaller cabinet directory:  cabinetai run --data-dir ~/Documents/Cabinet\n` +
+          `    2. Forget the current binding:        cabinetai reset-config\n` +
+          `    3. Raise the descriptor limit:        ulimit -n 65536  (macOS/Linux)\n` +
+          `    4. Linux only: bump inotify watches: sudo sysctl fs.inotify.max_user_watches=524288`
+      );
+    } else {
+      console.warn(`[search-watcher] disabled: ${code ?? "error"} — ${msg}`);
+    }
+    void watcher.close().catch(() => {
+      /* already closing */
+    });
+  });
 
   return watcher;
 }

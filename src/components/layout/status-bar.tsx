@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight, HelpCircle, AlertTriangle, XCircle, CircleDot, Loader2, Terminal } from "lucide-react";
+import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, HelpCircle, AlertTriangle, XCircle, CircleDot, Loader2, Terminal, PanelRight, Heart } from "lucide-react";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
-import { useAIPanelStore } from "@/stores/ai-panel-store";
 import {
   selectAppLevel,
   selectDaemonLevel,
@@ -14,15 +13,15 @@ import {
 } from "@/stores/health-store";
 import { useGithubStatsStore } from "@/stores/github-stats-store";
 import { StarExplosion, formatGithubStars } from "@/components/layout/star-explosion";
-import { createConversation } from "@/lib/agents/conversation-client";
-import {
-  TaskRuntimePicker,
-  type TaskRuntimeSelection,
-} from "@/components/composer/task-runtime-picker";
+import { useTaskRail } from "@/components/tasks/rail/task-rail-context";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
+import { useLocale } from "@/i18n/use-locale";
+import { useUserProfile } from "@/hooks/use-user-profile";
+import type { TFunction } from "i18next";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
+const CABINET_INVITE_URL = "https://runcabinet.com";
 
 // Audit #094: each "Not installed" provider row needs a one-click path to
 // the canonical install instructions. Mapped by the provider id used by
@@ -52,18 +51,38 @@ function installUrlForProvider(id: string): string {
   );
 }
 
-function describeUncommittedStatus(s: "M" | "?" | "A" | "D" | "R"): string {
+// Word counter for the open page. The editor stores the page body as
+// markdown, so we strip markdown syntax that shouldn't count as prose
+// (code fences, inline code, link/image URLs, emphasis markers, raw HTML)
+// before splitting on whitespace. Frontmatter lives on a separate field,
+// so it isn't in `content`.
+function countWords(content: string): number {
+  if (!content) return 0;
+  let text = content.replace(/```[\s\S]*?```/g, " ");
+  text = text.replace(/`[^`]*`/g, " ");
+  text = text.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
+  text = text.replace(/<[^>]+>/g, " ");
+  text = text.replace(/[#*_~>`]/g, " ");
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).length;
+}
+
+function describeUncommittedStatus(
+  s: "M" | "?" | "A" | "D" | "R",
+  t: TFunction,
+): string {
   switch (s) {
     case "M":
-      return "Modified";
+      return t("status:git.statusModified");
     case "?":
-      return "New";
+      return t("status:git.statusNew");
     case "A":
-      return "Added";
+      return t("status:git.statusAdded");
     case "D":
-      return "Deleted";
+      return t("status:git.statusDeleted");
     case "R":
-      return "Renamed";
+      return t("status:git.statusRenamed");
   }
 }
 
@@ -97,15 +116,15 @@ function GitHubIcon({ className }: { className?: string }) {
 // Audit #092: surface the last successful health check in the popover so
 // users can see how stale "Running"/"Down" actually is. "5s ago" is fine,
 // "11m ago" should make a green pill suspect.
-function formatRelativeAgo(ts: number | null, now: number): string {
-  if (!ts) return "never";
+function formatRelativeAgo(ts: number | null, now: number, t: TFunction): string {
+  if (!ts) return t("status:save.savedNever");
   const sec = Math.max(0, Math.round((now - ts) / 1000));
-  if (sec < 5) return "just now";
-  if (sec < 60) return `${sec}s ago`;
+  if (sec < 5) return t("status:save.savedJustNow");
+  if (sec < 60) return t("status:save.savedAgoSeconds", { n: sec });
   const min = Math.round(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return t("status:save.savedAgoMinutes", { n: min });
   const hr = Math.round(min / 60);
-  return `${hr}h ago`;
+  return t("status:save.savedAgoHours", { n: hr });
 }
 
 
@@ -113,21 +132,60 @@ function formatRelativeAgo(ts: number | null, now: number): string {
 // state. Returns short tokens (s/m/h) with "just now" for the first 5
 // seconds. Updated on a 10s tick by the StatusBar; the indicator never
 // claims more precision than it can deliver.
-function formatRelativeSavedAgo(ts: number, now: number): string {
+function formatRelativeSavedAgo(ts: number, now: number, t: TFunction): string {
   const diffSec = Math.max(0, Math.floor((now - ts) / 1000));
-  if (diffSec < 5) return "just now";
-  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffSec < 5) return t("status:save.savedJustNow");
+  if (diffSec < 60) return t("status:save.savedAgoSeconds", { n: diffSec });
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return t("status:save.savedAgoMinutes", { n: diffMin });
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffHr < 24) return t("status:save.savedAgoHours", { n: diffHr });
   const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay}d ago`;
+  return t("status:save.savedAgoDays", { n: diffDay });
 }
 
 export function StatusBar() {
+  const { t } = useLocale();
+  const profileState = useUserProfile();
+  // First name only — a warm, personal "thanks" beats a sterile
+  // "link copied". Falls back to a localized "friend" when the profile
+  // hasn't loaded or the user never set a name.
+  const shareName = useMemo(() => {
+    const p = profileState.status === "ready" ? profileState.data.profile : null;
+    const full = (p?.displayName || p?.name || "").trim();
+    return full.split(/\s+/)[0] || t("status:help.friend");
+  }, [profileState, t]);
+  const shareCabinet = useCallback(() => {
+    void navigator.clipboard
+      ?.writeText(CABINET_INVITE_URL)
+      .then(() => {
+        window.dispatchEvent(
+          new CustomEvent("cabinet:toast", {
+            detail: {
+              kind: "success",
+              message: t("status:help.shareCopied", { name: shareName }),
+            },
+          })
+        );
+      })
+      .catch(() => {
+        window.dispatchEvent(
+          new CustomEvent("cabinet:toast", {
+            detail: { kind: "error", message: t("status:help.shareFailed") },
+          })
+        );
+      });
+  }, [t, shareName]);
   const { saveStatus, currentPath, isDirty, lastSavedAt } = useEditorStore();
   const retrySave = useEditorStore((s) => s.save);
+  const editorContent = useEditorStore((s) => s.content);
+  const editorLoadStatus = useEditorStore((s) => s.loadStatus);
+  const wordCount = useMemo(() => countWords(editorContent), [editorContent]);
+  // Only meaningful for the markdown editor surface — viewers (PDF, CSV,
+  // image, media, office) never populate the editor store's content, so
+  // the count would always read 0 there. loadStatus === "ok" means a
+  // markdown page actually loaded.
+  const showWordCount = !!currentPath && editorLoadStatus === "ok";
 
   // Audit #018: rerender every 10s so the relative timestamp ticks. The
   // indicator only mounts when a page is open, so this isn't a global cost.
@@ -140,60 +198,19 @@ export function StatusBar() {
   // Reference savedTick so the relative label re-renders on the interval.
   const savedAgoLabel = useMemo(() => {
     if (!lastSavedAt) return null;
-    return formatRelativeSavedAgo(lastSavedAt, Date.now());
+    return formatRelativeSavedAgo(lastSavedAt, Date.now(), t);
     // savedTick is intentionally a dependency: bumping it forces a re-render
     // so the relative label updates without recomputing on every parent
     // re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastSavedAt, savedTick]);
   const loadTree = useTreeStore((s) => s.loadTree);
-  const selectedPath = useTreeStore((s) => s.selectedPath);
-  const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
-  const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
   const terminalOpen = useAppStore((s) => s.terminalOpen);
   const toggleTerminal = useAppStore((s) => s.toggleTerminal);
-  const { open, addEditorSession } = useAIPanelStore();
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiSubmitting, setAiSubmitting] = useState(false);
-  const [aiRuntime, setAiRuntime] = useState<TaskRuntimeSelection>({});
-
-  const showAIPill = section.type === "page" && !!selectedPath;
-
-  const handleAISubmit = async () => {
-    if (!aiPrompt.trim() || !selectedPath || aiSubmitting) return;
-    const message = aiPrompt.trim();
-    setAiPrompt("");
-    setAiSubmitting(true);
-    setAiPanelCollapsed(false);
-    open();
-    try {
-      try {
-        const data = await createConversation({
-          source: "editor",
-          pagePath: selectedPath,
-          userMessage: message,
-          mentionedPaths: [],
-          ...aiRuntime,
-        });
-        const conversation = data.conversation as { id: string; title: string };
-        addEditorSession({
-          id: conversation.id,
-          sessionId: conversation.id,
-          pagePath: selectedPath,
-          userMessage: message,
-          prompt: conversation.title,
-          timestamp: Date.now(),
-          status: "running",
-          reconnect: true,
-        });
-      } catch {
-        // Preserve the previous fire-and-forget behavior for the status bar action.
-      }
-    } finally {
-      setAiSubmitting(false);
-    }
-  };
+  const taskRailOpen = useAppStore((s) => s.taskRailOpen);
+  const toggleTaskRail = useAppStore((s) => s.toggleTaskRail);
+  const { runningCount, flash: taskRailFlash } = useTaskRail();
   const [isGitRepo, setIsGitRepo] = useState(false);
   // Audit #049: track when the last successful pull completed so the Sync
   // button's tooltip can answer "did the team's overnight work land?"
@@ -207,7 +224,7 @@ export function StatusBar() {
   }, [lastSyncedAt]);
   const lastSyncedLabel = useMemo(() => {
     if (!lastSyncedAt) return null;
-    return formatRelativeSavedAgo(lastSyncedAt, Date.now());
+    return formatRelativeSavedAgo(lastSyncedAt, Date.now(), t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastSyncedAt, syncTick]);
   const [uncommitted, setUncommitted] = useState(0);
@@ -421,48 +438,9 @@ export function StatusBar() {
        [diagnostics | tools | brand] rather than seven flat items. */
     <footer
       role="contentinfo"
-      aria-label="Status bar"
+      aria-label={t("status:bar.ariaLabel")}
       className="relative flex items-center justify-between px-3 py-1 border-t border-border text-[11px] text-muted-foreground/60 bg-background"
     >
-      {/* Center: AI edit pill + runtime picker. Picker sits to the LEFT of
-          the pill so the narrow input stays readable; the same value is sent
-          in the createConversation call (terminal mode swaps to legacy PTY). */}
-      {showAIPill && (
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-auto">
-          <TaskRuntimePicker
-            value={aiRuntime}
-            onChange={setAiRuntime}
-            className="h-6 px-1.5 text-[10px]"
-          />
-          <div className="flex items-center rounded-full border border-border/50 bg-muted/30 px-2.5 py-0.5 gap-1.5 focus-within:border-border/80 focus-within:bg-muted/60 transition-colors w-56">
-            <input
-              type="text"
-              // Audit #098: anonymous form field tripped the
-              // "needs id/name" warning on every page surface.
-              name="status-bar-ai-prompt"
-              aria-label="Ask AI to edit this page"
-              title="↵ to send"
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleAISubmit();
-                }
-              }}
-              placeholder="How to edit this page?"
-              className="flex-1 bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground/40 outline-none min-w-0"
-            />
-            <button
-              onClick={() => void handleAISubmit()}
-              disabled={!aiPrompt.trim() || aiSubmitting}
-              className="shrink-0 text-muted-foreground/30 hover:text-muted-foreground disabled:opacity-20 transition-colors cursor-pointer"
-            >
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-        </div>
-      )}
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative">
           <button
@@ -483,18 +461,18 @@ export function StatusBar() {
             }`}
             title={
               checkingHealth
-                ? "Checking server status…"
+                ? t("status:server.checking")
                 : appAlive && daemonAlive && anyProviderReady
-                ? "All systems running"
+                ? t("status:server.allRunning")
                 : !appAlive
-                ? "App server is not responding"
+                ? t("status:server.appNotResponding")
                 : !daemonAlive && !anyProviderReady
-                ? "Daemon is not responding; no agent providers available"
+                ? t("status:server.daemonDownNoProviders")
                 : !daemonAlive
-                ? "Daemon is not responding"
-                : "No agent providers available"
+                ? t("status:server.daemonDown")
+                : t("status:server.noProviders")
             }
-            aria-label="Server status — click for details"
+            aria-label={t("status:server.serverStatusAriaLabel")}
           >
             {/* Audit #100: pair color with a state-specific shape so
                 colorblind users (and anyone scanning fast) can read the
@@ -512,16 +490,16 @@ export function StatusBar() {
             )}
             <span>
               {checkingHealth
-                ? "Checking…"
+                ? t("status:server.checkingShort")
                 : appAlive && daemonAlive && anyProviderReady
-                ? "Online"
+                ? t("status:server.online")
                 : !appAlive
-                ? "Offline"
-                : "Degraded"}
+                ? t("status:server.offline")
+                : t("status:server.degraded")}
             </span>
           </button>
           {showServerPopup && (
-            <div className={`absolute bottom-full left-0 mb-2 z-50 w-80 rounded-lg border bg-background p-3 shadow-lg ${
+            <div className={`absolute bottom-full start-0 mb-2 z-50 w-80 rounded-lg border bg-background p-3 shadow-lg ${
               appAlive && daemonAlive && anyProviderReady
                 ? "border-green-500/30"
                 : !appAlive
@@ -538,24 +516,24 @@ export function StatusBar() {
                       : "text-amber-500"
                   }`}>
                     {appAlive && daemonAlive && anyProviderReady
-                      ? "All Systems Running"
-                      : "Service Disruption"}
+                      ? t("status:server.allSystemsRunning")
+                      : t("status:server.serviceDisruption")}
                   </p>
 
                   {/* App Server */}
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2 text-[11px]">
                       <span className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${appAlive ? "bg-green-500" : "bg-red-500"}`} />
-                      <span className="font-medium text-foreground/80">App Server</span>
-                      <span className={`ml-auto ${appAlive ? "text-green-500" : "text-red-500"}`}>{appAlive ? "Running" : "Down"}</span>
+                      <span className="font-medium text-foreground/80">{t("status:server.appServer")}</span>
+                      <span className={`ml-auto ${appAlive ? "text-green-500" : "text-red-500"}`}>{appAlive ? t("status:server.running") : t("status:server.down")}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground/70 pl-3.5">
                       {appAlive
-                        ? "Pages, editor, search, and file management are working."
-                        : "Pages, editor, search, and saving are unavailable. You can still read cached content."}
+                        ? t("status:server.appWorking")
+                        : t("status:server.appDown")}
                     </p>
                     <p className="text-[10px] text-muted-foreground/50 pl-3.5">
-                      Last seen: {formatRelativeAgo(lastAppOkAt, popupNow)}
+                      {t("status:server.lastSeen", { when: formatRelativeAgo(lastAppOkAt, popupNow, t) })}
                     </p>
                   </div>
 
@@ -563,16 +541,16 @@ export function StatusBar() {
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2 text-[11px]">
                       <span className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${daemonAlive ? "bg-green-500" : "bg-red-500"}`} />
-                      <span className="font-medium text-foreground/80">Daemon</span>
-                      <span className={`ml-auto ${daemonAlive ? "text-green-500" : "text-red-500"}`}>{daemonAlive ? "Running" : "Down"}</span>
+                      <span className="font-medium text-foreground/80">{t("status:server.daemon")}</span>
+                      <span className={`ml-auto ${daemonAlive ? "text-green-500" : "text-red-500"}`}>{daemonAlive ? t("status:server.running") : t("status:server.down")}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground/70 pl-3.5">
                       {daemonAlive
-                        ? "AI agents, scheduled jobs, and the web terminal are working."
-                        : "AI agents, scheduled jobs, and the web terminal are unavailable. Page editing still works."}
+                        ? t("status:server.daemonWorking")
+                        : t("status:server.daemonDownDescription")}
                     </p>
                     <p className="text-[10px] text-muted-foreground/50 pl-3.5">
-                      Last seen: {formatRelativeAgo(lastDaemonOkAt, popupNow)}
+                      {t("status:server.lastSeen", { when: formatRelativeAgo(lastDaemonOkAt, popupNow, t) })}
                     </p>
                   </div>
 
@@ -582,9 +560,9 @@ export function StatusBar() {
                       <span className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${
                         anyProviderReady ? "bg-green-500" : "bg-red-500"
                       }`} />
-                      <span className="font-medium text-foreground/80">Agent Providers</span>
+                      <span className="font-medium text-foreground/80">{t("status:server.agentProviders")}</span>
                       <span className={`ml-auto ${anyProviderReady ? "text-green-500" : "text-red-500"}`}>
-                        {!providersLoaded ? "Checking..." : anyProviderReady ? "Available" : "None Ready"}
+                        {!providersLoaded ? t("status:server.checkingShort") : anyProviderReady ? t("status:server.available") : t("status:server.noneReady")}
                       </span>
                     </div>
                     {providersLoaded && providerStatuses.map((p) => (
@@ -597,9 +575,9 @@ export function StatusBar() {
                         <span>{p.name}</span>
                         <span className="ml-auto flex items-center gap-1.5">
                           <span>
-                            {p.available && p.authenticated ? "Ready"
-                            : p.available ? "Not logged in"
-                            : "Not installed"}
+                            {p.available && p.authenticated ? t("status:server.providerReady")
+                            : p.available ? t("status:server.providerNotLoggedIn")
+                            : t("status:server.providerNotInstalled")}
                           </span>
                           {/* Audit #094: every "Not installed" row gets a link
                               to the provider's canonical install docs. */}
@@ -610,7 +588,7 @@ export function StatusBar() {
                               rel="noopener noreferrer"
                               className="rounded bg-foreground px-1.5 py-0.5 text-[9px] font-medium text-background hover:bg-foreground/85"
                             >
-                              Install
+                              {t("status:server.install")}
                             </a>
                           )}
                         </span>
@@ -621,7 +599,7 @@ export function StatusBar() {
                   {/* Troubleshooting tips */}
                   {(!appAlive || !daemonAlive || !anyProviderReady) && (
                     <div className="pt-1.5 border-t border-border space-y-1">
-                      <p className="text-[10px] font-medium text-foreground/70">How to fix</p>
+                      <p className="text-[10px] font-medium text-foreground/70">{t("status:server.howToFix")}</p>
                       {(!appAlive || !daemonAlive) && (
                         installKind === "electron-macos" ? (
                           <p className="text-[10px] text-muted-foreground">
@@ -687,7 +665,7 @@ export function StatusBar() {
                 <button
                   onClick={() => setShowServerPopup(false)}
                   className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                  aria-label="Dismiss"
+                  aria-label={t("status:common.dismiss")}
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -703,19 +681,19 @@ export function StatusBar() {
             <button
               type="button"
               onClick={() => void retrySave()}
-              title="Click to retry the failed save"
-              aria-label="Save failed — click to retry"
+              title={t("status:save.retryTitle")}
+              aria-label={t("status:save.retryAriaLabel")}
               className="rounded-md px-1.5 py-0.5 text-red-500 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
             >
               Save failed — retry
             </button>
           ) : saveStatus === "saving" ? (
-            <span className="flex items-center gap-1 text-muted-foreground/70" title="Auto-saving…">
+            <span className="flex items-center gap-1 text-muted-foreground/70" title={t("status:save.autoSaving")}>
               <Loader2 className="h-3 w-3 animate-spin" />
               Saving…
             </span>
           ) : saveStatus === "saved" ? (
-            <span className="flex items-center gap-1 text-emerald-500/80" title="Force save: ⌘S">
+            <span className="flex items-center gap-1 text-emerald-500/80" title={t("status:save.forceSave")}>
               <Check className="h-3 w-3" />
               Saved
             </span>
@@ -725,7 +703,7 @@ export function StatusBar() {
             // forgotten about them. Pulses subtly via animate-pulse.
             <span
               className="flex items-center gap-1 text-muted-foreground/60"
-              title="Editing — autosave will run when you pause"
+              title={t("status:save.editing")}
             >
               <CircleDot className="h-3 w-3 animate-pulse" />
               Editing…
@@ -736,12 +714,21 @@ export function StatusBar() {
             // autosave is alive even when nothing is happening.
             <span
               className="flex items-center gap-1 text-muted-foreground/60"
-              title="Force save: ⌘S"
+              title={t("status:save.forceSave")}
             >
               <Check className="h-3 w-3 text-emerald-500/70" />
               Saved · {savedAgoLabel}
             </span>
           ) : null
+        )}
+        {showWordCount && (
+          <span
+            className="text-muted-foreground/60 tabular-nums"
+            title={t("status:save.wordCountTitle")}
+            aria-label={`${wordCount} ${wordCount === 1 ? "word" : "words"}`}
+          >
+            {wordCount.toLocaleString()} {wordCount === 1 ? "word" : "words"}
+          </span>
         )}
         {pullStatus === "pulling" && (
           <span className="flex items-center gap-1 text-blue-400">
@@ -770,7 +757,7 @@ export function StatusBar() {
           <button
             onClick={() => setSection({ type: "settings" })}
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-amber-600 hover:bg-muted hover:text-foreground transition-colors"
-            title="Open Settings to review the installed update"
+            title={t("status:common.openSettings")}
           >
             <CloudDownload className="h-3 w-3" />
             Restart to finish update
@@ -780,10 +767,10 @@ export function StatusBar() {
           <button
             onClick={() => setSection({ type: "settings" })}
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-blue-500 hover:bg-muted hover:text-foreground transition-colors"
-            title={`Cabinet ${update.latest.version} is available`}
+            title={t("status:update2.updateAvailableTip", { version: update.latest.version })}
           >
             <CloudDownload className="h-3 w-3" />
-            Update {update.latest.version} available
+            {t("status:update2.updateAvailable", { version: update.latest.version })}
           </button>
         )}
         {/* Audit #015: clickable so users can see *what* is uncommitted
@@ -795,24 +782,32 @@ export function StatusBar() {
             type="button"
             onClick={() => uncommitted > 0 && setShowUncommittedPopup((v) => !v)}
             disabled={uncommitted === 0}
-            // Audit #006: pluralize properly (was "1 uncommitted files" before).
             aria-label={
               uncommitted > 0
-                ? `${uncommitted} uncommitted ${uncommitted === 1 ? "file" : "files"} — click to see the list`
-                : "All committed"
+                ? t("status:git2.uncommittedFilesAria", {
+                    count: uncommitted,
+                    plural: uncommitted === 1 ? "" : "s",
+                  })
+                : t("status:git2.allCommitted")
             }
             title={
               uncommitted > 0
-                ? `Click to see uncommitted ${uncommitted === 1 ? "file" : "files"}`
-                : "All committed"
+                ? uncommitted === 1
+                  ? t("status:git2.uncommittedFileTip")
+                  : t("status:git2.uncommittedFilesTip")
+                : t("status:git2.allCommitted")
             }
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-current"
           >
             <GitBranch className="h-3 w-3" />
-            {uncommitted > 0 ? `${uncommitted} uncommitted` : "All committed"}
+            {uncommitted > 0
+              ? uncommitted === 1
+                ? t("status:git2.uncommittedFile", { count: uncommitted })
+                : t("status:git2.uncommittedFiles", { count: uncommitted })
+              : t("status:git2.allCommitted")}
           </button>
           {showUncommittedPopup && uncommitted > 0 && (
-            <div className="absolute bottom-full left-0 mb-2 z-50 w-80 rounded-lg border border-border bg-background p-2 shadow-lg">
+            <div className="absolute bottom-full start-0 mb-2 z-50 w-80 rounded-lg border border-border bg-background p-2 shadow-lg">
               <div className="mb-1.5 flex items-center justify-between gap-2 border-b border-border/60 pb-1.5">
                 <span className="text-[11px] font-medium text-foreground/80">
                   {uncommitted} uncommitted file{uncommitted === 1 ? "" : "s"}
@@ -820,7 +815,7 @@ export function StatusBar() {
                 <button
                   type="button"
                   onClick={() => setShowUncommittedPopup(false)}
-                  aria-label="Close"
+                  aria-label={t("status:common.close")}
                   className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <X className="h-3 w-3" />
@@ -837,7 +832,7 @@ export function StatusBar() {
                         : f.status === "D" ? "bg-red-500/15 text-red-600 dark:text-red-400"
                         : "bg-violet-500/15 text-violet-600 dark:text-violet-400"
                       }`}
-                      title={describeUncommittedStatus(f.status)}
+                      title={describeUncommittedStatus(f.status, t)}
                     >
                       {f.status}
                     </span>
@@ -900,7 +895,7 @@ export function StatusBar() {
                     uncommittedFiles.length === 1 ? "" : "s"
                   }`}
                   disabled={committing}
-                  aria-label="Commit message"
+                  aria-label={t("status:git.commitMessageAriaLabel")}
                   className="w-full rounded border border-border/60 bg-background px-2 py-1 text-[11px] outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
                 />
                 {commitError && (
@@ -932,28 +927,28 @@ export function StatusBar() {
             disabled={pulling}
             aria-label={
               lastSyncedLabel
-                ? `Pull latest changes from GitHub and refresh. Last synced ${lastSyncedLabel}.`
-                : "Pull latest changes from GitHub and refresh"
+                ? t("status:git2.syncAriaLabelWithLast", { when: lastSyncedLabel })
+                : t("status:git2.syncAriaLabel")
             }
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
             title={
               lastSyncedLabel
-                ? `Pull latest from GitHub & refresh. Last synced ${lastSyncedLabel}.`
-                : "Pull latest from GitHub & refresh"
+                ? t("status:git2.syncTitleWithLast", { when: lastSyncedLabel })
+                : t("status:git2.syncTitle")
             }
           >
             <RefreshCw className={`h-3 w-3 ${pulling ? "animate-spin" : ""}`} />
-            Sync
+            {t("status:git2.sync")}
           </button>
         )}
         <button
           onClick={toggleTerminal}
-          aria-label={terminalOpen ? "New terminal tab" : "Open terminal"}
-          title={terminalOpen ? "New terminal tab" : "Open terminal"}
+          aria-label={terminalOpen ? t("status:git2.newTerminalTab") : t("status:git2.openTerminal")}
+          title={terminalOpen ? t("status:git2.newTerminalTab") : t("status:git2.openTerminal")}
           className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 ${terminalOpen ? "text-primary" : ""}`}
         >
           <Terminal className="h-3 w-3" />
-          Terminal
+          {t("status:git2.terminal")}
         </button>
       </div>
       {/* Audit #018: status-bar carries live state on the left (status pill,
@@ -961,35 +956,86 @@ export function StatusBar() {
           Stars used to live as four separate pills competing visually with
           the live state. They're now collapsed into a single Help & community
           popover so the status bar stays readable at a glance. */}
-      <div className="relative flex items-center">
+      <div className="relative flex items-center gap-1">
         <button
           type="button"
           onClick={() => setShowCommunityPopup((v) => !v)}
-          aria-label="Open Help & community menu"
+          aria-label={t("status:help.menuAriaLabel")}
           aria-expanded={showCommunityPopup}
-          title="Help & community"
+          title={t("status:help.menuTitle")}
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 text-muted-foreground transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
         >
           <HelpCircle className="h-3.5 w-3.5" />
           <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            Help
+            {t("status:help.label")}
           </span>
-          {displayStars !== null && (
-            <span
-              // Audit #004: explain what the count is on hover. The whole
-              // Help button opens a popup that links to GitHub, so the
-              // number itself doesn't need an extra click target — just
-              // a clear name.
-              title={`${formatGithubStars(displayStars)} GitHub stars — open Help & community menu to star Cabinet`}
-              className="-mr-0.5 inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-px text-[9px] font-semibold text-amber-700 dark:text-amber-300"
-            >
-              <Star className="h-2.5 w-2.5 fill-current" />
+        </button>
+        {/* Stars moved out of the Help pill into their own control so the
+            count — and its count-up + burst animation — reads as a
+            standalone community signal rather than Help-pill chrome. */}
+        {displayStars !== null && (
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t("status:help.starsAriaLabel", {
+              count: formatGithubStars(displayStars),
+            })}
+            title={t("status:help.starsTitle", {
+              count: formatGithubStars(displayStars),
+            })}
+            className="relative inline-flex items-center gap-1 rounded-full border border-border bg-muted/55 px-2.5 py-1 text-muted-foreground transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
+          >
+            {starsExploding && <StarExplosion />}
+            <Star className="h-3 w-3 fill-current text-amber-500/75" />
+            <span className="text-[10px] font-semibold tabular-nums tracking-[0.04em] text-foreground">
               {formatGithubStars(displayStars)}
             </span>
+          </a>
+        )}
+        {/* Share Cabinet — a first-class status-bar control. Sharing is the
+            single highest-leverage thing a happy user can do for the project,
+            so it gets its own pill rather than hiding in the menu. */}
+        <button
+          type="button"
+          onClick={shareCabinet}
+          aria-label={t("status:help.share")}
+          title={t("status:help.shareSubtitle")}
+          className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 text-muted-foreground transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
+        >
+          <Heart className="h-3.5 w-3.5 fill-current text-rose-300/60 transition-transform group-hover:scale-110" />
+          <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
+            {t("status:help.share")}
+          </span>
+        </button>
+        {/* Rail toggle — kept as the rightmost status-bar control so it sits
+            right against the rail's reserved gutter. */}
+        <button
+          type="button"
+          onClick={toggleTaskRail}
+          aria-label={taskRailOpen ? t("taskRail:hide") : t("taskRail:show")}
+          aria-pressed={taskRailOpen}
+          title={
+            runningCount > 0
+              ? t("taskRail:toggleRunning", { count: runningCount })
+              : taskRailOpen
+                ? t("taskRail:hide")
+                : t("taskRail:show")
+          }
+          className={`relative inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 text-muted-foreground transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 ${
+            taskRailOpen ? "border-foreground/15 bg-muted text-primary" : ""
+          } ${taskRailFlash ? "animate-pulse !text-emerald-600 dark:!text-emerald-400" : ""}`}
+        >
+          <PanelRight className="h-3.5 w-3.5" />
+          {runningCount > 0 && (
+            <span
+              className="cabinet-task-heartbeat inline-block size-2 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]"
+              aria-hidden="true"
+            />
           )}
         </button>
         {showCommunityPopup && (
-          <div className="absolute bottom-full right-0 mb-2 z-50 w-64 rounded-lg border border-border bg-background p-1.5 shadow-lg">
+          <div className="absolute bottom-full end-0 mb-2 z-50 w-64 rounded-lg border border-border bg-background p-1.5 shadow-lg">
             <button
               type="button"
               onClick={() => {
@@ -1001,7 +1047,7 @@ export function StatusBar() {
               <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="flex flex-col">
                 <span className="font-medium text-foreground">Help</span>
-                <span className="text-[10px] text-muted-foreground">Demos, videos, and guides</span>
+                <span className="text-[10px] text-muted-foreground">{t("status:help.demos")}</span>
               </span>
             </button>
             <a
@@ -1013,8 +1059,8 @@ export function StatusBar() {
             >
               <DiscordIcon className="h-3.5 w-3.5 text-[#5865F2]" />
               <span className="flex flex-col">
-                <span className="font-medium text-foreground">Chat on Discord</span>
-                <span className="text-[10px] text-muted-foreground">Support and feedback</span>
+                <span className="font-medium text-foreground">{t("status:help.discord")}</span>
+                <span className="text-[10px] text-muted-foreground">{t("status:help.discordSubtitle")}</span>
               </span>
             </a>
             <a
@@ -1026,8 +1072,8 @@ export function StatusBar() {
             >
               <GitHubIcon className="h-3.5 w-3.5 text-foreground" />
               <span className="flex flex-col">
-                <span className="font-medium text-foreground">Contribute on GitHub</span>
-                <span className="text-[10px] text-muted-foreground">Source, issues, PRs</span>
+                <span className="font-medium text-foreground">{t("status:help.github")}</span>
+                <span className="text-[10px] text-muted-foreground">{t("status:help.githubSubtitle")}</span>
               </span>
             </a>
             <a
@@ -1035,17 +1081,30 @@ export function StatusBar() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setShowCommunityPopup(false)}
-              className="relative flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] hover:bg-muted"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] hover:bg-muted"
             >
-              {starsExploding && <StarExplosion />}
               <Star className="h-3.5 w-3.5 fill-current text-amber-500" />
               <span className="flex flex-col">
                 <span className="font-medium text-foreground">
                   {displayStars === null ? "Star Cabinet" : `${formatGithubStars(displayStars)} stars`}
                 </span>
-                <span className="text-[10px] text-muted-foreground">If you find it useful</span>
+                <span className="text-[10px] text-muted-foreground">{t("status:help.ifUseful")}</span>
               </span>
             </a>
+            <button
+              type="button"
+              onClick={() => {
+                shareCabinet();
+                setShowCommunityPopup(false);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] hover:bg-muted"
+            >
+              <Heart className="h-3.5 w-3.5 fill-current text-rose-500" />
+              <span className="flex flex-col">
+                <span className="font-medium text-foreground">{t("status:help.share")}</span>
+                <span className="text-[10px] text-muted-foreground">{t("status:help.shareSubtitle")}</span>
+              </span>
+            </button>
           </div>
         )}
       </div>

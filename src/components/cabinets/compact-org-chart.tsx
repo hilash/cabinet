@@ -4,6 +4,7 @@ import { Clock3, FolderOpen, FolderTree, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cronToShortLabel } from "@/lib/agents/cron-utils";
 import { sortOrgAgents, startCase } from "./cabinet-utils";
+import { useLocale } from "@/i18n/use-locale";
 import type {
   CabinetAgentSummary,
   CabinetJobSummary,
@@ -31,6 +32,7 @@ export function CompactOrgChart({
   onAgentSend?: (agent: CabinetAgentSummary) => void;
   onChildCabinetClick?: (cabinet: CabinetOverview["children"][number]) => void;
 }) {
+  const { t } = useLocale();
   const allAgents = [...agents].sort(sortOrgAgents);
   const grouped = Object.entries(
     allAgents.reduce<Record<string, CabinetAgentSummary[]>>((acc, agent) => {
@@ -69,7 +71,7 @@ export function CompactOrgChart({
   return (
     <div className="overflow-x-auto pb-2">
       {allAgents.length === 0 ? (
-        <p className="py-8 text-sm text-muted-foreground">No agents configured for this cabinet yet.</p>
+        <p className="py-8 text-sm text-muted-foreground">{t("cabinetsExtras:noAgentsConfigured")}</p>
       ) : (
         <div className="min-w-[720px] px-2">
           <div className="flex justify-center">
@@ -238,8 +240,8 @@ function HorizontalBranch({ count }: { count: number }) {
       <div
         className="absolute top-0 h-px"
         style={{
-          left: `${edgeInset}%`,
-          right: `${edgeInset}%`,
+          insetInlineStart: `${edgeInset}%`,
+          insetInlineEnd: `${edgeInset}%`,
           backgroundColor: CONNECTOR_COLOR,
         }}
       />
@@ -248,7 +250,7 @@ function HorizontalBranch({ count }: { count: number }) {
           key={index}
           className="absolute top-0 w-px"
           style={{
-            left: `${edgeInset + index * spacing}%`,
+            insetInlineStart: `${edgeInset + index * spacing}%`,
             height: 16,
             backgroundColor: CONNECTOR_COLOR,
           }}

@@ -20,6 +20,8 @@ import {
   listMatchingLocalStorageKeys,
 } from "@/lib/data-locations/client-registry";
 import type { DataLocation, DataLocationSnapshot } from "@/lib/data-locations/types";
+import { ONBOARDING_RESET_MARKER_KEY } from "@/components/layout/app-shell";
+import { useLocale } from "@/i18n/use-locale";
 
 function formatBytes(bytes: number | undefined): string {
   if (bytes === undefined) return "";
@@ -35,6 +37,7 @@ interface ClientRow {
 }
 
 export function DataLocationsSection() {
+  const { t } = useLocale();
   const [serverRows, setServerRows] = useState<DataLocationSnapshot[] | null>(null);
   const [clientRows, setClientRows] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +111,16 @@ export function DataLocationsSection() {
     });
     if (!ok) return;
 
+    // Set the reset marker BEFORE clearing localStorage. app-shell reads this
+    // on the next reload to (a) re-show the data-dir picker and (b) suppress
+    // the agents-config self-correction that would otherwise re-write
+    // wizard-done="1" within a second and silently undo the reset.
+    try {
+      window.sessionStorage.setItem(ONBOARDING_RESET_MARKER_KEY, "1");
+    } catch {
+      // ignore — fall back to best-effort clear-only behavior
+    }
+
     let cleared = 0;
     for (const loc of onboardingRows) {
       const keys = listMatchingLocalStorageKeys(loc);
@@ -147,13 +160,13 @@ export function DataLocationsSection() {
     <div className="space-y-3">
       <div>
         <div className="flex items-center gap-1.5 mb-1">
-          <h3 className="text-[14px] font-semibold">Where your data lives</h3>
+          <h3 className="text-[14px] font-semibold">{t("dataLocations:title")}</h3>
           <button
             type="button"
             onClick={() => setPrivacyOpen((v) => !v)}
-            aria-label="Why this matters"
+            aria-label={t("dataLocations:whyThisMatters")}
             aria-expanded={privacyOpen}
-            title="Why this matters"
+            title={t("dataLocations:whyThisMatters")}
             className={cn(
               "rounded-full p-0.5 transition-colors cursor-pointer",
               privacyOpen
@@ -204,10 +217,10 @@ export function DataLocationsSection() {
           <table className="w-full text-[12px]">
             <thead className="bg-muted/30 text-muted-foreground">
               <tr className="text-left">
-                <th className="px-3 py-2 font-medium">Location</th>
-                <th className="px-3 py-2 font-medium">Contains</th>
+                <th className="px-3 py-2 font-medium">{t("dataLocations:location")}</th>
+                <th className="px-3 py-2 font-medium">{t("dataLocations:contains")}</th>
                 <th className="px-3 py-2 font-medium w-[100px]">Size</th>
-                <th className="px-3 py-2 font-medium w-[100px]">Network</th>
+                <th className="px-3 py-2 font-medium w-[100px]">{t("dataLocations:network")}</th>
                 <th className="px-3 py-2 font-medium w-[40px]"></th>
               </tr>
             </thead>
@@ -256,8 +269,8 @@ export function DataLocationsSection() {
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
-                        title="Reveal in file manager"
-                        aria-label="Reveal in file manager"
+                        title={t("dataLocations:revealInFinder")}
+                        aria-label={t("dataLocations:revealInFinder")}
                         onClick={() => reveal(row.pathOrKey)}
                       >
                         <ExternalLink className="h-3 w-3" />
@@ -299,9 +312,9 @@ export function DataLocationsSection() {
               <thead className="bg-muted/30 text-muted-foreground">
                 <tr className="text-left">
                   <th className="px-3 py-2 font-medium">Key / prefix</th>
-                  <th className="px-3 py-2 font-medium">Contains</th>
+                  <th className="px-3 py-2 font-medium">{t("dataLocations:contains")}</th>
                   <th className="px-3 py-2 font-medium w-[110px]">Type</th>
-                  <th className="px-3 py-2 font-medium w-[80px]">Stored</th>
+                  <th className="px-3 py-2 font-medium w-[80px]">{t("dataLocations:stored")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -333,7 +346,7 @@ export function DataLocationsSection() {
       </div>
 
       <div className="border-t border-border pt-5">
-        <h4 className="text-[12.5px] font-medium mb-1">Reset onboarding</h4>
+        <h4 className="text-[12.5px] font-medium mb-1">{t("dataLocations:resetOnboarding")}</h4>
         <p className="text-[12px] text-muted-foreground mb-3">
           Wipe the flags that say you&apos;ve seen the welcome wizard, the tour,
           and the per-page intro cards. Cabinet will treat your next launch as

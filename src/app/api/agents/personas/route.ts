@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   );
   const personas = await listPersonas(cabinetPath);
   const activeHeartbeats = personas
-    .filter((persona) => persona.active && !!persona.heartbeat)
+    .filter((persona) => persona.active && persona.heartbeatEnabled && !!persona.heartbeat)
     .map((persona) => persona.slug);
   const runningCounts = await getRunningConversationCounts();
 

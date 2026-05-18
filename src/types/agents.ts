@@ -72,6 +72,8 @@ export interface AgentListItem {
   provider?: string;
   adapterType?: string;
   active: boolean;
+  /** Optional — undefined falls back to true for legacy personas. */
+  heartbeatEnabled?: boolean;
   type?: AgentType | string;
   department?: string;
   heartbeat?: string;

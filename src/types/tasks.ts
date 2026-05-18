@@ -128,6 +128,12 @@ export interface TaskMeta {
   jobId?: string;
   jobName?: string;
   mentionedPaths?: string[];
+  /**
+   * KB pages the agent wrote/edited during this task. Mirrors
+   * ConversationMeta.artifactPaths. Surfaced so the sidebar Tasks drawer can
+   * show task artifacts inline (one less click than the right-side panel).
+   */
+  artifactPaths?: string[];
   titlePinned?: boolean;
   summaryEditedAt?: string;
   errorKind?: string;

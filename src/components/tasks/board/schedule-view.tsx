@@ -6,10 +6,17 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DirIcon } from "@/components/ui/dir-icon";
 import {
   ScheduleCalendar,
   type CalendarMode,
 } from "@/components/cabinets/schedule-calendar";
+import {
+  ExplainerCard,
+  ExplainerIcon,
+  useExplainerState,
+} from "@/components/agents/v2/tab-explainer";
+import { useLocale } from "@/i18n/use-locale";
 import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
 import type { ConversationMeta } from "@/types/conversations";
 import type { ScheduleEvent } from "@/lib/agents/cron-compute";
@@ -33,6 +40,8 @@ export function ScheduleView({
   onJobClick?: (job: CabinetJobSummary, agent: CabinetAgentSummary) => void;
   onHeartbeatClick?: (agent: CabinetAgentSummary) => void;
 }) {
+  const { t } = useLocale();
+  const explainer = useExplainerState("tasks-schedule");
   const [mode, setMode] = useState<CalendarMode>("week");
   const [anchor, setAnchor] = useState(() => new Date());
 
@@ -61,10 +70,11 @@ export function ScheduleView({
   }
 
   const label = useMemo(() => {
-    const months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
+    // Use Intl.DateTimeFormat with `undefined` locale so the browser
+    // picks up document language automatically — this hands us proper
+    // Hebrew month names for `<html lang="he">` and Chinese for zh-*.
+    const monthOf = (d: Date) =>
+      d.toLocaleDateString(undefined, { month: "long" });
     if (mode === "day") {
       return anchor.toLocaleDateString(undefined, {
         weekday: "long",
@@ -73,7 +83,7 @@ export function ScheduleView({
       });
     }
     if (mode === "month") {
-      return `${months[anchor.getMonth()]} ${anchor.getFullYear()}`;
+      return `${monthOf(anchor)} ${anchor.getFullYear()}`;
     }
     const s = new Date(anchor);
     const dow = s.getDay();
@@ -81,23 +91,61 @@ export function ScheduleView({
     const e = new Date(s);
     e.setDate(e.getDate() + 6);
     return s.getMonth() === e.getMonth()
-      ? `${months[s.getMonth()]} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`
-      : `${months[s.getMonth()]} ${s.getDate()} – ${months[e.getMonth()]} ${e.getDate()}`;
+      ? `${monthOf(s)} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`
+      : `${monthOf(s)} ${s.getDate()} – ${monthOf(e)} ${e.getDate()}`;
   }, [anchor, mode]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-4 py-2">
-        <div className="flex items-center rounded-lg border border-border/60 p-0.5">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-3 overflow-y-auto px-4 pb-8 pt-4 sm:px-6">
+      <ExplainerCard state={explainer}>
+        <p>{t("scheduleTab:explainer1")}</p>
+        <p>{t("scheduleTab:explainer2")}</p>
+      </ExplainerCard>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <ExplainerIcon
+            state={explainer}
+            ariaLabel={t("scheduleTab:aboutAria")}
+          />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              <DirIcon ltr={ChevronLeft} rtl={ChevronRight} className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(0)}
+              className="rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(1)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              <DirIcon ltr={ChevronRight} rtl={ChevronLeft} className="size-4" />
+            </button>
+          </div>
+          <span className="text-[13px] font-medium text-foreground">
+            {label}
+          </span>
+        </div>
+
+        <div className="inline-flex shrink-0 items-center rounded-md border border-border/70 bg-background p-0.5">
           {(["day", "week", "month"] as CalendarMode[]).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => setMode(m)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors",
+                "rounded px-2.5 py-1 text-[11.5px] font-medium capitalize transition-colors",
                 mode === m
-                  ? "bg-foreground text-background"
+                  ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -105,35 +153,9 @@ export function ScheduleView({
             </button>
           ))}
         </div>
-
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(0)}
-            className="rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(1)}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-
-        <span className="text-[13px] font-medium text-foreground">{label}</span>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card">
         <ScheduleCalendar
           mode={mode}
           anchor={anchor}

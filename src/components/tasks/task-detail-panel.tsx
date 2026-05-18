@@ -1,17 +1,24 @@
 "use client";
 
-import { ArrowUpRight, BrainCircuit, Maximize2, Minimize2, X } from "lucide-react";
+import { ArrowUpRight, Maximize, Minimize, Square, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { TaskConversationPage } from "@/components/tasks/conversation/task-conversation-page";
+import { TaskComposeBody } from "@/components/tasks/task-compose-body";
+import { SideDrawer } from "@/components/ui/side-drawer";
+import { useSideDrawer } from "@/hooks/use-side-drawer";
 import { Button } from "@/components/ui/button";
+import { stopConversation } from "@/components/tasks/board/board-actions";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { useProviderIcon } from "@/hooks/use-provider-icons";
 import { formatEffortName } from "@/lib/agents/runtime-options";
-import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import type {
   ConversationMeta,
   ConversationStatus,
 } from "@/types/conversations";
+import type { TaskStatus } from "@/types/tasks";
 
 function StatusDot({ status }: { status: ConversationStatus }) {
   if (status === "running") {
@@ -95,19 +102,68 @@ function buildRuntimeLabel(
 }
 
 export function TaskDetailPanel() {
+  const { t } = useLocale();
   const conversation = useAppStore((s) => s.taskPanelConversation);
-  const setTaskPanelConversation = useAppStore((s) => s.setTaskPanelConversation);
   const setSection = useAppStore((s) => s.setSection);
   const fullscreen = useAppStore((s) => s.taskPanelFullscreen);
   const toggleFullscreen = useAppStore((s) => s.toggleTaskPanelFullscreen);
+  const taskPanelOpen = useAppStore((s) => s.taskPanelOpen);
+  const taskPanelMode = useAppStore((s) => s.taskPanelMode);
+  const composeContext = useAppStore((s) => s.taskPanelComposeContext);
+  const closeTaskPanel = useAppStore((s) => s.closeTaskPanel);
   const providerIcon = useProviderIcon(conversation?.providerId);
+  const drawer = useSideDrawer({
+    isOpen: taskPanelOpen,
+    storageKey: "cabinet-task-panel-width",
+  });
 
-  if (!conversation) return null;
-  const runtimeLabel = buildRuntimeLabel(conversation);
-  const errorKind = conversation.errorKind;
+  // Mirror the summary's collapse-on-scroll: once the body scrolls past the
+  // top, the header drops its meta row and ellipsises the title. Scroll
+  // doesn't bubble, so a capture-phase listener on the panel root catches
+  // scrolling inside the conversation. Callback ref so it binds when the
+  // node actually mounts.
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  // SSE-fresh status from the embedded TaskConversationPage. The store's
+  // `conversation` is a snapshot frozen when the panel opened, so it can't
+  // tell us a turn started running afterwards — this can.
+  const [livePhase, setLivePhase] = useState<TaskStatus | null>(null);
+  const scrollCleanupRef = useRef<(() => void) | null>(null);
+  const setPanelScrollRoot = useCallback((node: HTMLDivElement | null) => {
+    scrollCleanupRef.current?.();
+    scrollCleanupRef.current = null;
+    if (!node) return;
+    let raf = 0;
+    const onScroll = (e: Event) => {
+      const tgt = e.target as HTMLElement | null;
+      if (!tgt || typeof tgt.scrollTop !== "number") return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setHeaderCollapsed(tgt.scrollTop > 24);
+      });
+    };
+    node.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    scrollCleanupRef.current = () => {
+      node.removeEventListener("scroll", onScroll, { capture: true });
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  // Drop stale live status when the panel switches to another task; the
+  // freshly-mounted TaskConversationPage re-emits its own.
+  const conversationId = conversation?.id ?? null;
+  useEffect(() => {
+    setLivePhase(null);
+  }, [conversationId]);
+
+  if (!drawer.shouldRender) return null;
+
+  const isCompose = taskPanelMode === "compose" || !conversation;
 
   const openFullPage = () => {
-    setTaskPanelConversation(null);
+    if (!conversation) return;
+    closeTaskPanel();
     setSection({
       type: "task",
       taskId: conversation.id,
@@ -115,17 +171,103 @@ export function TaskDetailPanel() {
     });
   };
 
-  return (
+  const runtimeLabel = conversation ? buildRuntimeLabel(conversation) : null;
+  const errorKind = conversation?.errorKind;
+
+  // Stop is only meaningful while the model is actively generating. Prefer
+  // the SSE-fresh status from the embedded page (`"awaiting-input"` is its
+  // own status, so `"running"` is true only mid-generation); fall back to
+  // the store snapshot until the first live event arrives.
+  const llmRunning =
+    livePhase !== null
+      ? livePhase === "running"
+      : conversation?.status === "running" && !conversation.awaitingInput;
+
+  const collapsed = headerCollapsed;
+
+  // Order: expand (full viewer) · fullscreen toggle · close. Shared by the
+  // compose and conversation header variants.
+  const actions = (
+    <div className="ms-auto flex shrink-0 items-center gap-1">
+      {!isCompose && conversation && llmRunning ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 shrink-0 gap-1 px-2 text-[11px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+          disabled={stopping}
+          onClick={async () => {
+            try {
+              setStopping(true);
+              await stopConversation(conversation.id, conversation.cabinetPath);
+            } catch (e) {
+              console.error("[task-panel] stop failed", e);
+            } finally {
+              setStopping(false);
+            }
+          }}
+          title={t("tasks:conversation.sendSigterm")}
+        >
+          <Square className="size-3 fill-current" />
+          Stop
+        </Button>
+      ) : null}
+      {!isCompose && conversation ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
+          onClick={openFullPage}
+          title={t("tinyExtras:openFullTaskViewer")}
+        >
+          <ArrowUpRight className="size-3.5" />
+        </Button>
+      ) : null}
+      {!drawer.isMobile ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
+          onClick={toggleFullscreen}
+          title={fullscreen ? "Shrink" : "Enlarge"}
+        >
+          {fullscreen ? (
+            <Minimize className="size-3.5" />
+          ) : (
+            <Maximize className="size-3.5" />
+          )}
+        </Button>
+      ) : null}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 w-7 shrink-0 p-0"
+        onClick={closeTaskPanel}
+      >
+        <X className="size-4" />
+      </Button>
+    </div>
+  );
+
+  const ease = "duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
+
+  const header = (
     <div
       className={cn(
-        "flex flex-col bg-background",
-        fullscreen
-          ? "fixed inset-0 z-50"
-          : "h-full w-[420px] shrink-0 border-l border-border/70"
+        "flex flex-col gap-1 border-b border-border/70 px-4 shrink-0 transition-[padding]",
+        ease,
+        collapsed ? "py-2" : "py-3"
       )}
     >
-      <div className="flex items-center gap-2 border-b border-border/70 px-4 py-3">
-        <div className="min-w-0 flex-1">
+      {isCompose || !conversation ? (
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+            New task
+          </p>
+          {actions}
+        </div>
+      ) : (
+        <>
+          {/* Row 1: status circle · model icon · model string · actions */}
           <div className="flex items-center gap-2">
             <StatusDot status={conversation.status} />
             {providerIcon ? (
@@ -140,59 +282,64 @@ export function TaskDetailPanel() {
                 />
               </div>
             ) : null}
-            <p className="truncate text-[13px] font-medium text-foreground">
-              {conversation.title}
+            <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+              {runtimeLabel}
+            </p>
+            {actions}
+          </div>
+
+          {/* Row 2: agent · relative time — smoothly collapses its height
+              away (grid 0fr↔1fr + fade) instead of popping. */}
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows,opacity]",
+              ease,
+              collapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
+            )}
+          >
+            <p
+              dir="auto"
+              className="min-h-0 overflow-hidden truncate text-[11px] text-muted-foreground"
+            >
+              {startCase(conversation.agentSlug)}
+              {" · "}
+              {formatRelative(conversation.startedAt)}
+              {errorKind ? (
+                <span className="ml-1.5 rounded-sm bg-destructive/10 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-destructive">
+                  {errorKind.replace(/_/g, " ")}
+                </span>
+              ) : null}
             </p>
           </div>
-          <p className="mt-0.5 truncate pl-4 text-[11px] text-muted-foreground">
-            {startCase(conversation.agentSlug)}
-            {" · "}
-            {formatRelative(conversation.startedAt)}
-            {errorKind ? (
-              <span className="ml-1.5 rounded-sm bg-destructive/10 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-destructive">
-                {errorKind.replace(/_/g, " ")}
-              </span>
-            ) : null}
-          </p>
-          {runtimeLabel ? (
-            <div className="mt-1 flex items-center gap-1.5 pl-4 text-[11px] text-muted-foreground">
-              <BrainCircuit className="size-3.5 shrink-0" />
-              <p className="truncate">{runtimeLabel}</p>
-            </div>
-          ) : null}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
-          onClick={toggleFullscreen}
-          title={fullscreen ? "Shrink" : "Enlarge"}
-        >
-          {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1 shrink-0 px-2 text-[11px] text-muted-foreground"
-          onClick={openFullPage}
-          title="Open full task viewer"
-        >
-          <ArrowUpRight className="size-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 shrink-0 p-0"
-          onClick={() => setTaskPanelConversation(null)}
-        >
-          <X className="size-4" />
-        </Button>
-      </div>
 
+          {/* Row 3: title — wraps when expanded, eases down to a one-line
+              ellipsis when collapsed (max-height tween). */}
+          <p
+            dir="auto"
+            className={cn(
+              "overflow-hidden text-[14px] font-semibold leading-snug text-foreground transition-[max-height]",
+              ease,
+              collapsed
+                ? "max-h-[1.5rem] truncate"
+                : "max-h-[12rem] whitespace-normal"
+            )}
+          >
+            {conversation.title}
+          </p>
+        </>
+      )}
+    </div>
+  );
+
+  const body =
+    isCompose || !conversation ? (
+      <TaskComposeBody context={composeContext} />
+    ) : (
       <div className="flex-1 overflow-hidden">
         <TaskConversationPage
           taskId={conversation.id}
           variant="compact"
+          onLiveStatusChange={setLivePhase}
           returnContext={{
             type: "task",
             taskId: conversation.id,
@@ -200,6 +347,30 @@ export function TaskDetailPanel() {
           }}
         />
       </div>
+    );
+
+  const content = (
+    <div
+      ref={setPanelScrollRoot}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      {header}
+      {body}
     </div>
+  );
+
+  // Fullscreen is a separate overlay layout — bypass the drawer width-tween.
+  if (fullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <SideDrawer drawer={drawer} onScrimClick={closeTaskPanel}>
+      {content}
+    </SideDrawer>
   );
 }

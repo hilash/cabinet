@@ -20,6 +20,7 @@ import { useAppStore } from "@/stores/app-store";
 import { formatEffortName, getModelEffortLevels } from "@/lib/agents/runtime-options";
 import type { ProviderInfo } from "@/types/agents";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 const TYPE_COLORS: Record<string, string> = {
   LAUNCH_TASK: "bg-pink-500/15 text-pink-400 border-pink-500/20",
@@ -83,6 +84,7 @@ function ActionRuntimePicker({
   disabled,
   onChange,
 }: ActionRuntimePickerProps) {
+  const { t } = useLocale();
   const current = mergedRuntime(action, override);
   const overridden = !!(override?.model || override?.effort);
 
@@ -140,7 +142,7 @@ function ActionRuntimePicker({
         />
         <DropdownMenuContent align="start" className="max-h-72 w-56 overflow-y-auto">
           <DropdownMenuItem onClick={() => setModel(undefined)}>
-            <span className="mr-2 inline-flex size-3 items-center justify-center">
+            <span className="me-2 inline-flex size-3 items-center justify-center">
               {!override?.model ? "✓" : ""}
             </span>
             Use default
@@ -150,7 +152,7 @@ function ActionRuntimePicker({
               key={model.id}
               onClick={() => setModel(model.id)}
             >
-              <span className="mr-2 inline-flex size-3 items-center justify-center">
+              <span className="me-2 inline-flex size-3 items-center justify-center">
                 {current.model === model.id ? "✓" : ""}
               </span>
               <span className="truncate">{model.name || model.id}</span>
@@ -182,7 +184,7 @@ function ActionRuntimePicker({
         />
         <DropdownMenuContent align="start" className="max-h-72 w-48 overflow-y-auto">
           <DropdownMenuItem onClick={() => setEffort(undefined)}>
-            <span className="mr-2 inline-flex size-3 items-center justify-center">
+            <span className="me-2 inline-flex size-3 items-center justify-center">
               {!override?.effort ? "✓" : ""}
             </span>
             Use default
@@ -192,7 +194,7 @@ function ActionRuntimePicker({
               key={effort.id}
               onClick={() => setEffort(effort.id)}
             >
-              <span className="mr-2 inline-flex size-3 items-center justify-center">
+              <span className="me-2 inline-flex size-3 items-center justify-center">
                 {current.effort === effort.id ? "✓" : ""}
               </span>
               <span className="truncate">
@@ -236,6 +238,7 @@ export function PendingActionsPanel({
   parentProviderId,
   onRefresh,
 }: PendingActionsPanelProps) {
+  const { t } = useLocale();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState<null | "approve" | "reject">(null);
   const [error, setError] = useState<string | null>(null);
@@ -399,7 +402,7 @@ export function PendingActionsPanel({
                   pending.map((item) => item.id)
                 )
               }
-              title="Reject every pending action"
+              title={t("pendingActions:rejectAll")}
             >
               {submitting === "reject" && selected.size === 0 ? (
                 <Loader2 className="size-3 animate-spin" />
@@ -419,7 +422,7 @@ export function PendingActionsPanel({
                   approvable.map((item) => item.id)
                 )
               }
-              title="Approve and dispatch every action that has no hard blockers"
+              title={t("pendingActions:approveAll")}
             >
               {submitting === "approve" && selected.size === 0 ? (
                 <Loader2 className="size-3 animate-spin" />

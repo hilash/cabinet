@@ -112,6 +112,25 @@ Use `npm run debug:chrome` when you need a debuggable browser session. It launch
 
 This makes it possible to attach over CDP and inspect real DOM, network, and screenshots instead of guessing at frontend state.
 
+## Cabinetai CLI invariants
+
+### Where the npx tools live
+
+Both npm packages ship from this monorepo, not separate repos:
+
+- **`cabinetai/`** — published as [`cabinetai`](https://www.npmjs.com/package/cabinetai). The full CLI: `create`, `run`, `update`, `doctor`, `import`, `list`, `uninstall`, `reset-config`. Built with esbuild from `cabinetai/src/`.
+- **`cli/index.cjs`** — published as [`create-cabinet`](https://www.npmjs.com/package/create-cabinet). A thin wrapper that calls `cabinetai create <dir>` and then `cabinetai run` in the new subdir. Pinned to a matching `cabinetai` version via its `dependencies`.
+
+### Safety rules (read before "fixing" anything in the bootstrap path)
+
+1. **`cabinetai/src/lib/scaffold.ts::bootstrapCabinetAt()` refuses to scaffold a cabinet when the resolved target is `os.homedir()` or the filesystem root.** Exits 1 with a friendly message recommending an empty subdir or `--data-dir <empty-dir>`. Covers cwd fallthrough, `--data-dir ~`, and `CABINET_DATA_DIR=~`. See [#71](https://github.com/hilash/cabinet/pull/71) (closes [#59](https://github.com/hilash/cabinet/issues/59)).
+
+2. **Do NOT "fix" this by relocating `CABINET_HOME`.** That approach was rejected in [#60](https://github.com/hilash/cabinet/pull/60) — read the close comment for the full reasoning. The historical ENOTDIR crash was a safety net; removing it without the guard lets `cabinetai run` from `~` silently scribble `.agents/`, `.jobs/`, `.cabinet-state/`, `index.md`, and a `.cabinet` manifest file directly into the user's home directory.
+
+3. **`create-cabinet` (cli/index.cjs) is safe transitively** — `cabinetai create` always scaffolds into `cwd/<slug>` and errors on empty slug (so `.`, `..`, `~`, `$HOME` all bounce). The post-create `cabinetai run` then runs from the new subdir, never HOME. The guard in #71 is defense-in-depth.
+
+4. **When fixing a crash anywhere in the bootstrap/install path, trace what happens *before* the crash.** If the crash is the only thing stopping a worse silent outcome (HOME pollution, data loss, unrecoverable state), fix the root cause upstream instead of removing the crash.
+
 ## Progress Tracking
 
 After every change you make to this project, append an entry to `PROGRESS.md` using this format:

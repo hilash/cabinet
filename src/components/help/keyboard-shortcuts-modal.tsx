@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { cn } from "@/lib/utils";
 import { Search as SearchIcon, X } from "lucide-react";
+import { useLocale } from "@/i18n/use-locale";
 
 // Audit #053: single cheat sheet listing every Cabinet keyboard shortcut.
 // Opened via the global "?" key (see src/hooks/use-global-hotkeys.ts) or
@@ -34,6 +35,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     label: "Search & Commands",
     items: [
       { keys: ["cmd", "K"], description: "Open search palette" },
+      { keys: ["cmd", "F"], description: "Find in current page" },
       { keys: ["/"], description: "Open search palette (when not editing)" },
       {
         keys: ["/", "theme"],
@@ -78,6 +80,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
         description: "Toggle AI panel",
       },
       { keys: ["ctrl", "`"], description: "Toggle terminal" },
+      {
+        keys: ["cmd", "alt", "L"],
+        description: "Toggle tasks rail",
+      },
     ],
   },
 ];
@@ -99,6 +105,7 @@ function renderKeyToken(token: string, isMac: boolean): string {
 }
 
 export function KeyboardShortcutsModal() {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const isMac = useMemo(() => isMacPlatform(), []);
@@ -130,31 +137,31 @@ export function KeyboardShortcutsModal() {
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <Dialog.Popup
           className={cn(
-            "fixed left-1/2 top-[12%] z-50 -translate-x-1/2",
+            "fixed start-1/2 top-[12%] z-50 -translate-x-1/2 rtl:translate-x-1/2",
             "w-[min(620px,calc(100vw-2rem))] max-h-[78vh]",
             "flex flex-col overflow-hidden rounded-xl bg-background text-sm shadow-2xl ring-1 ring-foreground/10 outline-none",
             "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
           )}
         >
-          <Dialog.Title className="sr-only">Keyboard shortcuts</Dialog.Title>
+          <Dialog.Title className="sr-only">{t("keyboardShortcuts:title")}</Dialog.Title>
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-            <span className="text-[13px] font-semibold">Keyboard shortcuts</span>
-            <div className="ml-auto flex items-center gap-2">
+            <span className="text-[13px] font-semibold">{t("keyboardShortcuts:title")}</span>
+            <div className="ms-auto flex items-center gap-2">
               <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                <SearchIcon className="pointer-events-none absolute start-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Filter…"
-                  className="h-7 w-44 rounded-md border border-border bg-background pl-6 pr-2 text-[12px] outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
+                  placeholder={t("keyboardShortcuts:filterPlaceholder")}
+                  className="h-7 w-44 rounded-md border border-border bg-background ps-6 pe-2 text-[12px] outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
                   spellCheck={false}
                 />
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Close"
+                aria-label={t("keyboardShortcuts:close")}
                 className="rounded p-1 text-muted-foreground hover:bg-muted"
               >
                 <X className="h-3.5 w-3.5" />

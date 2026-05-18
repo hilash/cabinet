@@ -6,6 +6,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useAppStore } from "@/stores/app-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TreeNode } from "./tree-node";
+import { SidebarSearch } from "./sidebar-search";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -42,7 +43,6 @@ import {
   ClipboardCopy,
   Copy,
   Trash2,
-  Archive,
   TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,6 +57,7 @@ import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { getDataDir } from "@/lib/data-dir-cache";
 import { DepthDropdown } from "@/components/cabinets/depth-dropdown";
+import { useLocale } from "@/i18n/use-locale";
 
 interface AgentSummary {
   scopedId?: string;
@@ -89,6 +90,7 @@ const itemClass = (active: boolean) =>
   );
 
 export function TreeView() {
+  const { t } = useLocale();
   const { nodes, loading } = useTreeStore();
   const selectPage = useTreeStore((s) => s.selectPage);
   const createPage = useTreeStore((s) => s.createPage);
@@ -356,7 +358,7 @@ export function TreeView() {
         {typeof opts.activeDot === "boolean" && (
           <span
             className={cn(
-              "ml-auto h-1.5 w-1.5 shrink-0 rounded-full",
+              "ms-auto h-1.5 w-1.5 shrink-0 rounded-full",
               opts.activeDot ? "bg-green-500" : "bg-muted-foreground/30"
             )}
           />
@@ -372,7 +374,7 @@ export function TreeView() {
         <ContextMenuTrigger>{row}</ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onClick={() => setEditingAgent(editable)}>
-            <Pencil className="mr-2 h-3.5 w-3.5" />
+            <Pencil className="me-2 h-3.5 w-3.5" />
             Edit agent
           </ContextMenuItem>
         </ContextMenuContent>
@@ -387,8 +389,8 @@ export function TreeView() {
 
   return (
     <>
-    <ScrollArea className="flex-1 min-h-0 [&_[data-slot=scroll-area-scrollbar]]:w-1.5 [&_[data-slot=scroll-area-scrollbar]]:py-0 [&_[data-slot=scroll-area-scrollbar]]:pr-0 [&_[data-slot=scroll-area-scrollbar]]:pl-0.5 [&_[data-slot=scroll-area-scrollbar]]:border-l-0">
-      <div className="py-1">
+    <ScrollArea className="flex-1 min-h-0 [&_[data-slot=scroll-area-scrollbar]]:w-1.5 [&_[data-slot=scroll-area-scrollbar]]:py-0 [&_[data-slot=scroll-area-scrollbar]]:pe-0 [&_[data-slot=scroll-area-scrollbar]]:ps-0.5 [&_[data-slot=scroll-area-scrollbar]]:border-s-0">
+      <div className="flex min-h-full flex-col py-1">
         {/* ── Back to parent cabinet ────────────────────── */}
         {activeCabinet && parentCabinet ? (
           <button
@@ -414,7 +416,6 @@ export function TreeView() {
             onClick={() => openCabinetOverview(activeCabinet?.path || cabinetPath)}
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
           >
-            <Archive className="h-[18px] w-[18px] shrink-0 text-amber-400" />
             {/*
              * Audit #008 (review feedback 2026-05-02): match the drawer
              * tabs' uppercase treatment so the cabinet name reads as a
@@ -429,16 +430,16 @@ export function TreeView() {
           <ContextMenuContent>
             <ContextMenuItem disabled className="flex-col items-start gap-0">
               <span className="flex items-center">
-                <Pencil className="h-4 w-4 mr-2" />
+                <Pencil className="h-4 w-4 me-2" />
                 Rename
               </span>
-              <span className="text-[10px] text-muted-foreground/60 ml-6">
+              <span className="text-[10px] text-muted-foreground/60 ms-6">
                 Coming soon
               </span>
             </ContextMenuItem>
             {cabinetPath !== ROOT_CABINET_PATH && (
               <ContextMenuItem onClick={() => navigator.clipboard.writeText(cabinetPath)}>
-                <Copy className="h-4 w-4 mr-2" />
+                <Copy className="h-4 w-4 me-2" />
                 Copy Relative Path
               </ContextMenuItem>
             )}
@@ -448,7 +449,7 @@ export function TreeView() {
                 cabinetPath === ROOT_CABINET_PATH ? dir : `${dir}/${cabinetPath}`
               );
             }}>
-              <ClipboardCopy className="h-4 w-4 mr-2" />
+              <ClipboardCopy className="h-4 w-4 me-2" />
               Copy Full Path
             </ContextMenuItem>
             <ContextMenuItem onClick={() => {
@@ -460,7 +461,7 @@ export function TreeView() {
                 }),
               });
             }}>
-              <FolderOpen className="h-4 w-4 mr-2" />
+              <FolderOpen className="h-4 w-4 me-2" />
               Open in Finder
             </ContextMenuItem>
             {cabinetPath !== ROOT_CABINET_PATH && (
@@ -470,7 +471,7 @@ export function TreeView() {
                   className="text-destructive"
                   onClick={() => setCabinetDeleteOpen(true)}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-4 w-4 me-2" />
                   Delete
                 </ContextMenuItem>
               </>
@@ -484,7 +485,7 @@ export function TreeView() {
               setCabinetVisibilityMode(effectiveCabinetPath, mode)
             }
             compact
-            className="ml-auto"
+            className="ms-auto"
           />
         </div>
 
@@ -494,14 +495,14 @@ export function TreeView() {
              header above, inset by mx-[9px] so the header reads as a crown. */
           <div
             role="tablist"
-            aria-label="Cabinet drawers"
+            aria-label={t("treeView:drawersAriaLabel")}
             className="mx-[9px] grid grid-cols-3 gap-1 rounded-b-lg bg-muted/40 p-1 pt-2 border border-border/60"
           >
                 {([
                   {
                     id: "data" as DrawerId,
-                    label: "Data",
-                    addLabel: "New Page",
+                    label: t("sidebar:drawerData") || "Data",
+                    addLabel: t("sidebar:newPage"),
                     icon: BookOpen,
                     addIcon: FilePlus,
                     onOpen: () => {
@@ -530,8 +531,8 @@ export function TreeView() {
                   },
                   {
                     id: "agents" as DrawerId,
-                    label: "Agents",
-                    addLabel: "New Agent",
+                    label: t("sidebar:drawerAgents") || "Team",
+                    addLabel: t("sidebar:newAgent"),
                     icon: Users,
                     addIcon: UserPlus,
                     onOpen: () =>
@@ -553,8 +554,8 @@ export function TreeView() {
                   },
                   {
                     id: "tasks" as DrawerId,
-                    label: "Tasks",
-                    addLabel: "New Task",
+                    label: t("sidebar:drawerTasks") || "Tasks",
+                    addLabel: t("sidebar:newTask"),
                     icon: SquareKanban,
                     addIcon: ListPlus,
                     onOpen: () =>
@@ -602,7 +603,7 @@ export function TreeView() {
                         <span
                           aria-hidden
                           className={cn(
-                            "absolute left-1/2 top-1 h-[2px] w-4 -translate-x-1/2 rounded-full transition-colors",
+                            "absolute inset-x-0 top-1 mx-auto h-[2px] w-4 rounded-full transition-colors",
                             active ? "bg-amber-400/50" : "bg-muted-foreground/30"
                           )}
                         />
@@ -626,7 +627,7 @@ export function TreeView() {
                           }}
                           title={drawer.addLabel}
                           aria-label={drawer.addLabel}
-                          className="absolute right-1 top-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground/70 opacity-0 transition-opacity duration-150 hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                          className="absolute end-1 top-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground/70 opacity-0 transition-opacity duration-150 hover:bg-muted hover:text-foreground group-hover:opacity-100"
                         >
                           <AddIcon className="h-3 w-3" />
                         </button>
@@ -639,12 +640,14 @@ export function TreeView() {
         </div>
 
         {cabinetExpanded && (
-          <>
+          <div className="flex flex-1 min-h-0 flex-col">
             {agentsExpanded && (
-              <div
-                key="drawer-agents"
-                className="pt-1 animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
-              >
+              <ContextMenu>
+                <ContextMenuTrigger className="flex flex-1 flex-col">
+                  <div
+                    key="drawer-agents"
+                    className="flex flex-1 flex-col pt-1 animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
+                  >
                 {[
                   ...agents.filter((a) => a.slug === "editor"),
                   ...agents.filter((a) => a.slug !== "editor"),
@@ -687,32 +690,74 @@ export function TreeView() {
                     </div>
                   );
                 })}
-              </div>
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem
+                    onClick={() => {
+                      setSection({
+                        type: "agents",
+                        cabinetPath: activeCabinet?.path || ROOT_CABINET_PATH,
+                      });
+                      setTimeout(() => {
+                        window.dispatchEvent(
+                          new CustomEvent("cabinet:open-add-agent")
+                        );
+                      }, 100);
+                    }}
+                  >
+                    <UserPlus className="h-4 w-4 me-2" />
+                    New Agent
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             )}
 
             {tasksExpanded && (
-              <div
-                key="drawer-tasks"
-                className="pt-1 animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
-              >
-                <RecentTasks
-                  active
-                  padStyle={pad(1)}
-                  itemClass={itemClass}
-                  cabinetPath={activeCabinet?.path}
-                  agents={agents}
-                />
-              </div>
+              <ContextMenu>
+                <ContextMenuTrigger className="flex flex-1 flex-col">
+                  <div
+                    key="drawer-tasks"
+                    className="flex flex-1 flex-col pt-1 animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
+                  >
+                    <RecentTasks
+                      active
+                      padStyle={pad(1)}
+                      itemClass={itemClass}
+                      cabinetPath={activeCabinet?.path}
+                      agents={agents}
+                    />
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem
+                    onClick={() => {
+                      setSection({
+                        type: "tasks",
+                        cabinetPath: activeCabinet?.path || ROOT_CABINET_PATH,
+                      });
+                      setTimeout(() => {
+                        window.dispatchEvent(
+                          new CustomEvent("cabinet:open-create-task")
+                        );
+                      }, 100);
+                    }}
+                  >
+                    <ListPlus className="h-4 w-4 me-2" />
+                    New Task
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             )}
 
             {kbExpanded && (
               <ContextMenu>
-                <ContextMenuTrigger>
+                <ContextMenuTrigger className="flex flex-1 flex-col">
                   <div
                     key="drawer-data"
-                    className="pt-1 animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
+                    className="flex flex-1 flex-col pt-1 animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
                   >
-              <>
+              <SidebarSearch>
                 {visibleTreeNodes.length === 0 ? (
                   <button
                     onClick={() => {
@@ -744,16 +789,16 @@ export function TreeView() {
                     />
                   ))
                 )}
-              </>
+              </SidebarSearch>
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
                   <ContextMenuItem onClick={() => setKbSubPageOpen(true)}>
-                    <FilePlus className="h-4 w-4 mr-2" />
+                    <FilePlus className="h-4 w-4 me-2" />
                     Add Sub Page
                   </ContextMenuItem>
                   <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
-                    <GitBranch className="h-4 w-4 mr-2" />
+                    <GitBranch className="h-4 w-4 me-2" />
                     Load Knowledge
                   </ContextMenuItem>
                   <ContextMenuItem
@@ -764,7 +809,7 @@ export function TreeView() {
                       );
                     }}
                   >
-                    <ClipboardCopy className="h-4 w-4 mr-2" />
+                    <ClipboardCopy className="h-4 w-4 me-2" />
                     Copy Full Path
                   </ContextMenuItem>
                   <ContextMenuItem
@@ -776,13 +821,13 @@ export function TreeView() {
                       });
                     }}
                   >
-                    <FolderOpen className="h-4 w-4 mr-2" />
+                    <FolderOpen className="h-4 w-4 me-2" />
                     Open in Finder
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
             )}
-          </>
+          </div>
         )}
       </div>
     </ScrollArea>
@@ -828,7 +873,7 @@ export function TreeView() {
           className="flex gap-2"
         >
           <Input
-            placeholder="Page title..."
+            placeholder={t("treeView:pageTitlePlaceholder")}
             value={kbSubPageTitle}
             onChange={(e) => setKbSubPageTitle(e.target.value)}
             autoFocus

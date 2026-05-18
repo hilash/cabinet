@@ -34,6 +34,8 @@ export interface CabinetAgentSummary {
   emoji: string;
   role: string;
   active: boolean;
+  /** Optional — undefined falls back to true for legacy personas. */
+  heartbeatEnabled?: boolean;
   department?: string;
   type?: AgentType | string;
   heartbeat?: string;

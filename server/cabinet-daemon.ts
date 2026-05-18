@@ -31,7 +31,7 @@ import yaml from "js-yaml";
 import chokidar from "chokidar";
 import matter from "gray-matter";
 import { getDb, closeDb } from "./db";
-import { DATA_DIR } from "../src/lib/storage/path-utils";
+import { DATA_DIR, isHiddenEntry } from "../src/lib/storage/path-utils";
 import { discoverCabinetPathsSync } from "../src/lib/cabinets/discovery";
 import { resolveCabinetDir } from "../src/lib/cabinets/server-paths";
 import {
@@ -91,6 +91,141 @@ import {
 
 const PORT = getDaemonPort();
 const CABINET_MANIFEST_FILE = ".cabinet";
+
+// ===== Watcher backend probe =====
+// Cabinet uses chokidar v5, which drops fsevents support and watches via
+// node:fs.watch on every platform. fs.watch is per-directory: it opens one
+// kernel handle (FSEvents stream on macOS, inotify watch on linux,
+// ReadDirectoryChangesW on windows) per directory, each using one fd. So
+// large trees exhaust `ulimit -n` regardless of platform — there is no
+// "recursive single-fd" path. We still log the platform for support reports.
+type WatcherBackend = {
+  platform: NodeJS.Platform;
+  fdPerDir: boolean;
+  description: string;
+};
+
+let cachedWatcherBackend: WatcherBackend | null = null;
+
+function probeWatcherBackend(): WatcherBackend {
+  if (cachedWatcherBackend) return cachedWatcherBackend;
+  // Note: chokidar 5.x is in package.json. If a downgrade adds an FSEvents
+  // path back in, update this probe and the big-tree guard below.
+  let chokidarVersion = "unknown";
+  try {
+    const chokidarPkgPath = path.join(
+      process.cwd(),
+      "node_modules",
+      "chokidar",
+      "package.json"
+    );
+    chokidarVersion = JSON.parse(fs.readFileSync(chokidarPkgPath, "utf-8")).version;
+  } catch {
+    /* leave as unknown */
+  }
+  const perPlatform: Record<string, string> = {
+    darwin: "node fs.watch via FSEvents stream (one fd per directory)",
+    linux: "node fs.watch via inotify (one watch per directory; see /proc/sys/fs/inotify/max_user_watches)",
+    win32: "node fs.watch via ReadDirectoryChangesW (one handle per directory)",
+  };
+  cachedWatcherBackend = {
+    platform: process.platform,
+    fdPerDir: true, // chokidar v5 is always per-dir
+    description: `chokidar ${chokidarVersion} → ${
+      perPlatform[process.platform] ?? `node fs.watch (platform=${process.platform})`
+    }`,
+  };
+  return cachedWatcherBackend;
+}
+
+// ===== Big-tree guard =====
+// When the watcher backend opens one fd per directory, even ulimit -n 65536
+// can be exhausted by a real dev tree (node_modules adds tens of thousands).
+// Pre-flight: count dirs respecting the same ignore rules as the indexer,
+// early-exit at MAX_DIRS, and abort startup with a friendly message if we'd
+// definitely blow the limit. Cheap (~tens of ms even on huge trees) because
+// we stop counting as soon as we cross the threshold.
+const BIG_TREE_DIR_THRESHOLD = 1500;
+
+async function countWatchableDirs(maxBeforeAbort: number): Promise<number> {
+  let count = 0;
+  const stack: string[] = [DATA_DIR];
+  while (stack.length > 0) {
+    const dir = stack.pop()!;
+    count += 1;
+    if (count > maxBeforeAbort) return count;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (isHiddenEntry(entry.name)) continue;
+      stack.push(path.join(dir, entry.name));
+    }
+  }
+  return count;
+}
+
+function getOpenFileLimit(): number | null {
+  // posix_getrlimit isn't in Node's stdlib. We could shell out to `ulimit`,
+  // but the simplest check is: try to read it from `process.getrlimit?.()`
+  // (added in Node 22) or fall back to null and skip the check.
+  const proc = process as unknown as {
+    getrlimit?: (resource: string) => { soft: number; hard: number };
+  };
+  if (typeof proc.getrlimit !== "function") return null;
+  try {
+    return proc.getrlimit("nofile").soft;
+  } catch {
+    return null;
+  }
+}
+
+async function guardAgainstBigTree(): Promise<void> {
+  const backend = probeWatcherBackend();
+  if (!backend.fdPerDir) return; // FSEvents/ReadDirectoryChangesW are O(1) in fds
+  const dirCount = await countWatchableDirs(BIG_TREE_DIR_THRESHOLD);
+  const ulimit = getOpenFileLimit();
+  const ulimitTooLow = ulimit !== null && ulimit < 4096;
+  if (dirCount <= BIG_TREE_DIR_THRESHOLD && !ulimitTooLow) return;
+
+  const lines = [
+    "",
+    "  ╭─ Cabinet refused to start ─────────────────────────────────────────",
+    "  │",
+    `  │  Cabinet directory: ${DATA_DIR}`,
+    `  │  Watchable directories: ${dirCount > BIG_TREE_DIR_THRESHOLD ? `>${BIG_TREE_DIR_THRESHOLD}` : dirCount}` +
+      (ulimit !== null ? `   |   ulimit -n: ${ulimit}` : ""),
+    `  │  Watcher backend: ${backend.description}`,
+    "  │",
+    "  │  This combination will exhaust file-descriptor limits and crash with",
+    "  │  EMFILE. Pick a focused workspace instead of your full dev folder:",
+    "  │",
+    "  │    cabinetai run --data-dir ~/Documents/Cabinet",
+    "  │    # or:  CABINET_DATA_DIR=~/Documents/Cabinet cabinetai run",
+    "  │    # or:  cabinetai reset-config && cabinetai run",
+    "  │",
+    "  │  If you really meant this directory, raise the descriptor limit and",
+    "  │  set CABINET_ALLOW_BIG_TREE=1 to bypass this check:",
+    "  │",
+    "  │    ulimit -n 65536 && CABINET_ALLOW_BIG_TREE=1 cabinetai run",
+    "  │",
+    "  ╰────────────────────────────────────────────────────────────────────",
+    "",
+  ];
+  if (process.env.CABINET_ALLOW_BIG_TREE === "1") {
+    console.warn(
+      `[cabinet-daemon] big-tree guard bypassed by CABINET_ALLOW_BIG_TREE=1 ` +
+        `(${dirCount > BIG_TREE_DIR_THRESHOLD ? ">" : ""}${dirCount} dirs, platform=${backend.platform})`
+    );
+    return;
+  }
+  for (const line of lines) console.error(line);
+  process.exit(1);
+}
 
 // ===== Search index =====
 
@@ -304,7 +439,12 @@ function emitSessionOutput(
   if (!chunk) return;
 
   session.output.push(chunk);
-  void syncConversationChunk(session.id, chunk).catch(() => {});
+  void syncConversationChunk(session.id, chunk).catch((err) => {
+    console.warn(
+      `[cabinet-daemon] failed to sync transcript chunk for session ${session.id}:`,
+      err
+    );
+  });
   if (session.ws && session.ws.readyState === WebSocket.OPEN) {
     session.ws.send(chunk);
   }
@@ -317,7 +457,12 @@ function emitSessionOutput(
 
 async function finalizeSessionConversation(session: ActiveSession): Promise<void> {
   const meta = await readConversationMeta(session.id);
-  if (!meta) return;
+  if (!meta) {
+    console.warn(
+      `[cabinet-daemon] cannot finalize session ${session.id}: meta.json missing/unreadable — run result not persisted`
+    );
+    return;
+  }
 
   const plain = stripAnsi(session.output.join(""));
   if (meta.status !== "running") {
@@ -691,11 +836,18 @@ function createStructuredSession(input: {
         sessionParams: input.adapterSessionParams ?? null,
         onLog: async (stream, chunk) => {
           if (stream === "stderr") {
+            // Diagnostic only: buffer for classifyError, but never fold
+            // stderr into the user-visible turn. Structured adapters curate
+            // their display via stdout; codex/claude/etc. emit startup
+            // tracing (e.g. skill-load errors) on stderr that would otherwise
+            // land at the TOP of the assistant message. Mirrors the
+            // stderr handling in conversation-runner's executeWithPrompt.
             session.stderrBuffer = (session.stderrBuffer ?? "") + chunk;
             // Cap stderr buffer at 64 KB so a chatty adapter doesn't OOM us.
             if (session.stderrBuffer.length > 65_536) {
               session.stderrBuffer = session.stderrBuffer.slice(-65_536);
             }
+            return;
           }
           emitSessionOutput(session, chunk, input.onData);
         },
@@ -1070,6 +1222,10 @@ async function reloadSchedules(): Promise<void> {
     const agentsDir = path.join(cabinet.absDir, ".agents");
 
     // --- Heartbeats from .agents/*/persona.md ---
+    // Also collect active-agent slugs per cabinet so jobs owned by an
+    // inactive (Stopped) agent don't get scheduled. Master switch =
+    // `agent.active`; per-heartbeat enable = `agent.heartbeatEnabled`.
+    const activeAgents = new Set<string>();
     if (fs.existsSync(agentsDir)) {
       let agentEntries: fs.Dirent[];
       try {
@@ -1087,8 +1243,10 @@ async function reloadSchedules(): Promise<void> {
             const rawPersona = fs.readFileSync(personaPath, "utf-8");
             const { data } = matter(rawPersona);
             const active = data.active !== false;
+            const heartbeatEnabled = data.heartbeatEnabled !== false;
             const heartbeat = typeof data.heartbeat === "string" ? data.heartbeat : "";
-            if (active && heartbeat) {
+            if (active) activeAgents.add(entry.name);
+            if (active && heartbeatEnabled && heartbeat) {
               scheduleHeartbeat(entry.name, heartbeat, cabinet.relPath);
               heartbeatCount++;
             }
@@ -1123,7 +1281,13 @@ async function reloadSchedules(): Promise<void> {
             agentSlug: ownerAgent,
             cabinetPath: cabinet.relPath,
           };
-          if (config.id && config.enabled && config.schedule && ownerAgent) {
+          if (
+            config.id &&
+            config.enabled &&
+            config.schedule &&
+            ownerAgent &&
+            activeAgents.has(ownerAgent)
+          ) {
             scheduleJob(config);
             jobCount++;
           }
@@ -1710,6 +1874,24 @@ scheduleWatcher.on("all", () => {
   queueScheduleReload();
 });
 
+// Same EMFILE/ENOSPC failure mode as the search watcher — log once, close,
+// keep the daemon up. Schedule reloads pause; the rest of the daemon (jobs,
+// API, sessions) keeps serving.
+let scheduleWatcherFailed = false;
+scheduleWatcher.on("error", (err: unknown) => {
+  if (scheduleWatcherFailed) return;
+  scheduleWatcherFailed = true;
+  const code = (err as NodeJS.ErrnoException)?.code;
+  const msg = err instanceof Error ? err.message : String(err);
+  console.warn(
+    `[schedule-watcher] disabled: ${code ?? "error"} — ${msg}.\n` +
+      `  Schedule changes won't auto-reload. POST /reload-schedules to refresh manually.`
+  );
+  void scheduleWatcher.close().catch(() => {
+    /* already closing */
+  });
+});
+
 server.listen(PORT, () => {
   console.log(`Cabinet Daemon running on port ${PORT}`);
   console.log(`  Terminal WebSocket: ws://localhost:${PORT}/api/daemon/pty`);
@@ -1721,6 +1903,8 @@ server.listen(PORT, () => {
   console.log(`  Search endpoint: GET http://localhost:${PORT}/search`);
   console.log(`  Default provider: ${resolveProviderId()}`);
   console.log(`  Working directory: ${DATA_DIR}`);
+  const watcherBackend = probeWatcherBackend();
+  console.log(`  Watcher backend: ${watcherBackend.description}`);
 
   getOrCreateSessionId();
   printStartupBannerIfNeeded();
@@ -1747,7 +1931,9 @@ server.listen(PORT, () => {
       }
     });
   });
-  void bootstrapSearchIndex().then(() => startSearchWatcher());
+  void guardAgainstBigTree().then(() =>
+    bootstrapSearchIndex().then(() => startSearchWatcher())
+  );
   void (async () => {
     try {
       const { loadExternalAdapters } = await import(

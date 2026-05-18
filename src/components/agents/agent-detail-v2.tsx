@@ -30,7 +30,6 @@ import {
   Pencil,
   Play,
   Plus,
-  Power,
   Send,
   Share2,
   Sparkles,
@@ -78,6 +77,9 @@ import { cronToHuman } from "@/lib/agents/cron-utils";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { ScheduleCalendar } from "@/components/cabinets/schedule-calendar";
 import { NewRoutineDialog } from "@/components/agents/new-routine-dialog";
+import { HeartbeatDialog } from "@/components/agents/heartbeat-dialog";
+import { Switch } from "@/components/ui/switch";
+import { LockedSwitch } from "@/components/ui/locked-switch";
 import type { JobConfig } from "@/types/jobs";
 import {
   TaskRuntimePicker,
@@ -99,6 +101,8 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import { editorExtensions } from "@/components/editor/extensions";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
+import { useLocale } from "@/i18n/use-locale";
+import { DirIcon } from "@/components/ui/dir-icon";
 
 interface AgentJob {
   id: string;
@@ -397,6 +401,7 @@ function StatusChip({
   color: string;
   onClick?: () => void;
 }) {
+  const { t } = useLocale();
   const label = status === "working" ? "Working" : status === "ready" ? "Ready" : "Paused";
   return (
     <button
@@ -441,6 +446,7 @@ function TopBar({
   onToggleCanDispatch,
   onExport,
   onDelete,
+  pulseToken = 0,
 }: {
   persona: AgentPersona;
   status: AgentStatus;
@@ -451,10 +457,19 @@ function TopBar({
   onToggleCanDispatch: () => void;
   onExport: () => void;
   onDelete: () => void;
+  /** Bumped from outside (locked child Switch click) to nudge the user
+   *  toward the master toggle with a brief ring animation. */
+  pulseToken?: number;
 }) {
+  const { t } = useLocale();
   const palette = persona.color
     ? tintFromHex(persona.color)
     : getAgentColor(persona.slug);
+
+  // Each new pulseToken bump remounts the wrapper via `key`, restarting the
+  // one-shot CSS animation defined in globals.css (`cabinet-master-pulse`).
+  // No React state needed for the on/off transition.
+  const pulseKey = pulseToken > 0 ? `pulse-${pulseToken}` : "pulse-idle";
 
   return (
     <div className="flex items-center justify-between px-6 pt-4">
@@ -463,7 +478,7 @@ function TopBar({
           onClick={onBack}
           className="flex items-center gap-1 rounded-md px-2 py-1 hover:bg-accent hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="h-3 w-3" />
+          <DirIcon ltr={ArrowLeft} rtl={ArrowRight} className="h-3 w-3" />
           Agents
         </button>
         <span aria-hidden>/</span>
@@ -499,26 +514,26 @@ function TopBar({
         <Tooltip>
           <TooltipTrigger
             render={
-              <button
-                type="button"
-                onClick={onToggleActive}
+              <label
+                key={pulseKey}
                 className={cn(
-                  "inline-flex items-center gap-1.5 h-7 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
+                  "inline-flex items-center gap-2 h-7 rounded-md border px-2.5 text-[12px] font-medium transition-colors cursor-pointer select-none",
                   persona.active
                     ? "border-border hover:bg-accent/40"
-                    : "border-dashed border-border/60 text-muted-foreground hover:bg-accent/30"
+                    : "border-dashed border-border/60 text-muted-foreground hover:bg-accent/30",
+                  pulseToken > 0 && "cabinet-master-pulse"
                 )}
                 style={persona.active ? { color: palette.text } : undefined}
               >
-                <Power className="h-3.5 w-3.5" />
-                {persona.active ? "Active" : "Stopped"}
-              </button>
+                <Switch checked={persona.active} onCheckedChange={onToggleActive} />
+                <span>{persona.active ? "Working" : "Stopped"}</span>
+              </label>
             }
           />
           <TooltipContent>
             {persona.active
-              ? "Stop this agent — pauses heartbeat and all scheduled jobs. Manual chats still work."
-              : "Resume this agent — re-enables heartbeat and scheduled jobs."}
+              ? "Stop this agent. Scheduled heartbeat and routines won't fire. Manual chats and any in-flight runs keep working."
+              : "Start this agent. Scheduled heartbeat and routines resume on their own rhythm."}
           </TooltipContent>
         </Tooltip>
 
@@ -562,7 +577,7 @@ function TopBar({
                     </span>
                   </div>
                   {canDispatch && (
-                    <div className="text-muted-foreground">Click to turn off.</div>
+                    <div className="text-muted-foreground">{t("agents:detail.clickToTurnOff")}</div>
                   )}
                 </div>
               </TooltipContent>
@@ -584,7 +599,7 @@ function TopBar({
           />
           <DropdownMenuContent align="end" className="w-64">
             <DropdownMenuItem onClick={onToggleCanDispatch}>
-              <span className="mr-2 inline-flex size-4 items-center justify-center font-mono text-[11px]">
+              <span className="me-2 inline-flex size-4 items-center justify-center font-mono text-[11px]">
                 {(
                   typeof persona.canDispatch === "boolean"
                     ? persona.canDispatch
@@ -597,7 +612,7 @@ function TopBar({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onExport}>
-              <Download className="h-3.5 w-3.5 mr-2" />
+              <Download className="h-3.5 w-3.5 me-2" />
               Export persona
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -605,7 +620,7 @@ function TopBar({
               onClick={onDelete}
               className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
             >
-              <Trash2 className="h-3.5 w-3.5 mr-2" />
+              <Trash2 className="h-3.5 w-3.5 me-2" />
               Delete agent
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -638,6 +653,7 @@ function AvatarEditorPopover({
   onApplyOptimistic: (fields: Record<string, string>) => void;
   onClose: () => void;
 }) {
+  const { t } = useLocale();
   const [tab, setTab] = useState<"icon" | "avatar">("icon");
   const [uploading, setUploading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -685,7 +701,7 @@ function AvatarEditorPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-2 z-50 w-72 rounded-xl border border-border bg-popover shadow-xl"
+      className="absolute top-full start-0 mt-2 z-50 w-72 rounded-xl border border-border bg-popover shadow-xl"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Tab bar */}
@@ -698,7 +714,7 @@ function AvatarEditorPopover({
             className={cn(
               "flex-1 py-2 text-[12px] font-medium transition-colors relative",
               tab === t
-                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
+                ? "text-foreground after:absolute after:bottom-0 after:inset-inline-0 after:h-0.5 after:bg-primary"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -710,7 +726,7 @@ function AvatarEditorPopover({
       {tab === "icon" ? (
         <div className="p-3 space-y-3">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Icon</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{t("agents:detail.iconLabel")}</p>
             <div className="grid grid-cols-8 gap-1 max-h-56 overflow-y-auto pr-1">
               {ICON_PICKER_KEYS.map((key) => {
                 const IconComp = ICON_CATALOG[key];
@@ -737,7 +753,7 @@ function AvatarEditorPopover({
           </div>
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Color</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{t("agents:detail.color")}</p>
             <div className="flex flex-wrap gap-1.5 items-center">
               {COLOR_PRESETS.map((hex) => (
                 <button
@@ -752,7 +768,7 @@ function AvatarEditorPopover({
                 />
               ))}
               <label
-                title="Custom color"
+                title={t("agents:detail.customColor")}
                 className="relative h-6 w-6 rounded-full border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-foreground/60 transition-colors overflow-hidden"
               >
                 <input
@@ -769,7 +785,7 @@ function AvatarEditorPopover({
       ) : (
         <div className="p-3 space-y-3">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Preset</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{t("agents:detail.preset")}</p>
             <div className="grid grid-cols-8 gap-1 max-h-56 overflow-y-auto pr-1">
               {AVATAR_PRESETS.map((preset) => {
                 const isSelected = persona.avatar === preset.id;
@@ -851,6 +867,7 @@ function Hero({
   onSaveFields: (fields: Record<string, string>) => void;
   onApplyOptimistic: (fields: Record<string, string>) => void;
 }) {
+  const { t } = useLocale();
   const [editorOpen, setEditorOpen] = useState(false);
   const palette = persona.color
     ? tintFromHex(persona.color)
@@ -865,7 +882,7 @@ function Hero({
             type="button"
             onClick={() => setEditorOpen((v) => !v)}
             className="group relative focus:outline-none"
-            title="Edit icon, color, or avatar"
+            title={t("agents:detail.editIconColor")}
           >
             <AgentAvatar
               agent={{
@@ -916,7 +933,7 @@ function Hero({
                 <span className="opacity-40">·</span>
                 <span
                   className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] text-violet-300"
-                  title="Shared across all cabinets — edits apply everywhere"
+                  title={t("agents:detail.sharedAcrossCabinetsHint")}
                 >
                   Global
                 </span>
@@ -1063,7 +1080,6 @@ function Composer({
         submitLabel="Send"
         variant="card"
         minHeight="78px"
-        maxHeight="320px"
         mentionDropdownPlacement="below"
         showKeyHint={false}
         textareaClassName="pt-3 pb-1 text-[14px] leading-relaxed"
@@ -1142,13 +1158,14 @@ function InboxSection({
   onOpenTask: (task: AgentTask) => void;
   startingTaskId: string | null;
 }) {
+  const { t } = useLocale();
   if (tasks.length === 0) return null;
   const pending = tasks.filter((t) => t.status === "pending" || t.status === "in_progress");
   if (pending.length === 0) return null;
 
   return (
     <Section
-      title="Inbox"
+      title={t("agents:detail.inbox")}
       meta={`${pending.length} waiting`}
     >
       <ul className="space-y-0">
@@ -1237,10 +1254,11 @@ function ConversationsSection({
   onOpen: (c: ConversationMeta) => void;
   onSeeAll?: () => void;
 }) {
+  const { t } = useLocale();
   const top = conversations.slice(0, 7);
   return (
     <Section
-      title="Conversations"
+      title={t("agents:detail.conversations")}
       meta={`${conversations.length} total`}
       action={
         conversations.length > top.length && onSeeAll && (
@@ -1248,7 +1266,7 @@ function ConversationsSection({
             onClick={onSeeAll}
             className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
           >
-            See all <ArrowRight className="h-3 w-3" />
+            See all <ArrowRight className="h-3 w-3 rtl:rotate-180" />
           </button>
         )
       }
@@ -1305,7 +1323,7 @@ function ConversationsSection({
                     <span className="w-8 text-right">
                       {ds === "running" ? "—" : formatDuration(duration)}
                     </span>
-                    <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                    <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity rtl:rotate-180" />
                   </span>
                 </button>
               </li>
@@ -1325,10 +1343,11 @@ function RecentWorkSection({
   artifacts: Artifact[];
   onOpenPath: (path: string) => void;
 }) {
+  const { t } = useLocale();
   const top = artifacts.slice(0, 5);
   return (
     <Section
-      title="Recent work"
+      title={t("agents:detail.recentWork")}
       meta={
         artifacts.length > 0
           ? `${artifacts.length} file${artifacts.length === 1 ? "" : "s"} touched`
@@ -1337,7 +1356,7 @@ function RecentWorkSection({
       action={
         artifacts.length > top.length && (
           <button className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-            See all <ArrowRight className="h-3 w-3" />
+            See all <ArrowRight className="h-3 w-3 rtl:rotate-180" />
           </button>
         )
       }
@@ -1374,7 +1393,7 @@ function RecentWorkSection({
                   <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 w-14 text-right">
                     {formatRelative(a.ts)}
                   </span>
-                  <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                  <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0 rtl:rotate-180" />
                 </button>
               </li>
             );
@@ -1393,8 +1412,10 @@ function ScheduleSection({
   onRunJob,
   onAddRoutine,
   onEditRoutine,
+  onEditHeartbeat,
   onRunHeartbeat,
-  onToggleActive,
+  onToggleHeartbeat,
+  onLockedChildClick,
   onManage,
 }: {
   persona: AgentPersona;
@@ -1403,56 +1424,68 @@ function ScheduleSection({
   onRunJob: (id: string) => void;
   onAddRoutine: () => void;
   onEditRoutine: (job: AgentJob) => void;
+  onEditHeartbeat: () => void;
   onRunHeartbeat: () => void;
-  onToggleActive: () => void;
+  onToggleHeartbeat: () => void;
+  onLockedChildClick?: () => void;
   onManage: () => void;
 }) {
+  const { t } = useLocale();
+  const heartbeatOn = persona.heartbeatEnabled !== false;
+  const heartbeatEffective = persona.active && heartbeatOn;
+  const lockedTooltip =
+    "This agent is stopped. Heartbeat and routines won't fire until you start it.";
 
   return (
     <Section
-      title="Schedule"
+      title={t("agents:detail.schedule")}
       action={
         <button
           onClick={onManage}
           className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
         >
-          Manage <ArrowRight className="h-3 w-3" />
+          Manage <ArrowRight className="h-3 w-3 rtl:rotate-180" />
         </button>
       }
     >
       <ul className="space-y-0">
         {/* Heartbeat */}
         <li className="flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-md hover:bg-accent/30 transition-colors">
-          <Zap className={cn("h-3.5 w-3.5 shrink-0", persona.active ? "text-amber-500" : "text-muted-foreground/40")} />
-          <span className={cn("flex-1 text-[13px]", !persona.active && "text-muted-foreground/60")}>Heartbeat</span>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {cronToHuman(persona.heartbeat)}
-          </span>
           <button
-            onClick={onToggleActive}
-            className={cn(
-              "text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded transition-colors",
-              persona.active
-                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                : "bg-muted text-muted-foreground"
-            )}
-            title={persona.active ? "Pause heartbeat (stops all scheduled jobs)" : "Resume heartbeat"}
+            type="button"
+            onClick={onEditHeartbeat}
+            className="flex flex-1 items-center gap-3 text-left"
+            title={t("agents:workspace.editHeartbeat")}
           >
-            {persona.active ? "on" : "off"}
+            <Zap className={cn("h-3.5 w-3.5 shrink-0", heartbeatEffective ? "text-amber-500" : "text-muted-foreground/40")} />
+            <span className={cn("flex-1 text-[13px]", !heartbeatEffective && "text-muted-foreground/60")}>{t("agents:detail.heartbeat")}</span>
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {cronToHuman(persona.heartbeat)}
+            </span>
           </button>
+          <LockedSwitch
+            checked={heartbeatOn}
+            onCheckedChange={onToggleHeartbeat}
+            locked={!persona.active}
+            onLockedClick={onLockedChildClick}
+            tooltip={lockedTooltip}
+            ariaLabel={heartbeatOn ? "Pause heartbeat" : "Resume heartbeat"}
+          />
           <Button
             variant="ghost"
             size="icon-sm"
             className="h-7 w-7"
             onClick={onRunHeartbeat}
-            title="Run now"
-            disabled={!persona.active}
+            title={t("agents:detail.runNow")}
+            disabled={!heartbeatEffective}
           >
             <Play className="h-3 w-3" />
           </Button>
         </li>
         {/* Jobs */}
-        {jobs.map((job) => (
+        {jobs.map((job) => {
+          const jobEffective = persona.active && job.enabled;
+          return (
           <li
             key={job.id}
             className="flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-md hover:bg-accent/30 transition-colors"
@@ -1461,36 +1494,34 @@ function ScheduleSection({
               type="button"
               onClick={() => onEditRoutine(job)}
               className="flex flex-1 items-center gap-3 text-left"
-              title="Edit routine"
+              title={t("agents:detail.editRoutine")}
             >
-              <Briefcase className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="flex-1 text-[13px] truncate">{job.name}</span>
+              <Briefcase className={cn("h-3.5 w-3.5 shrink-0", jobEffective ? "text-muted-foreground" : "text-muted-foreground/50")} />
+              <span className={cn("flex-1 text-[13px] truncate", !jobEffective && "text-muted-foreground/60")}>{job.name}</span>
               <span className="text-[11px] text-muted-foreground tabular-nums">
                 {cronToHuman(job.schedule)}
               </span>
             </button>
-            <button
-              onClick={() => onToggleJob(job.id)}
-              className={cn(
-                "text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded transition-colors",
-                job.enabled
-                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
-              {job.enabled ? "on" : "off"}
-            </button>
+            <LockedSwitch
+              checked={job.enabled}
+              onCheckedChange={() => onToggleJob(job.id)}
+              locked={!persona.active}
+              onLockedClick={onLockedChildClick}
+              tooltip={lockedTooltip}
+              ariaLabel={job.enabled ? `Disable ${job.name}` : `Enable ${job.name}`}
+            />
             <Button
               variant="ghost"
               size="icon-sm"
               className="h-7 w-7"
               onClick={() => onRunJob(job.id)}
-              title="Run now"
+              title={t("agents:detail.runNow")}
             >
               <Play className="h-3 w-3" />
             </Button>
           </li>
-        ))}
+          );
+        })}
         {/* Add */}
         <li>
           <button
@@ -1498,7 +1529,7 @@ function ScheduleSection({
             className="w-full flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-md text-muted-foreground hover:bg-accent/30 hover:text-foreground transition-colors text-left"
           >
             <Plus className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 text-[13px]">Add routine</span>
+            <span className="flex-1 text-[13px]">{t("agents:detail.addRoutine")}</span>
           </button>
         </li>
       </ul>
@@ -1572,6 +1603,7 @@ function DetailsSection({
   onSaveField: (field: string, value: string) => void;
   onSaveSkills: (slugs: string[]) => void;
 }) {
+  const { t } = useLocale();
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   useEffect(() => {
     fetch("/api/agents/providers")
@@ -1582,47 +1614,47 @@ function DetailsSection({
   const selectableProviders = providers.filter(isAgentProviderSelectable);
 
   return (
-    <Section title="Details">
+    <Section title={t("agents:detail.details")}>
       {persona.scope === "global" && (
         <div className="mb-3 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-[12px] text-violet-200">
-          <span className="font-medium">Editing global agent</span> — changes
+          <span className="font-medium">{t("agents:detail.editingGlobalAgent")}</span> — changes
           apply across every cabinet that uses this agent.
         </div>
       )}
       <div className="grid grid-cols-6 gap-x-3 gap-y-3">
         <Field
-          label="Display name"
+          label={t("agents:detail.displayName")}
           value={persona.displayName || persona.name}
           className="col-span-3"
           onSave={(v) => onSaveField("displayName", v)}
         />
         <Field
-          label="Role"
+          label={t("agents:detail.role")}
           value={persona.role}
           className="col-span-3"
           onSave={(v) => onSaveField("role", v)}
         />
         <Field
-          label="Department"
+          label={t("agents:detail.department")}
           value={persona.department}
           className="col-span-2"
           onSave={(v) => onSaveField("department", v)}
         />
         <Field
-          label="Type"
+          label={t("agents:detail.type")}
           value={persona.type}
           className="col-span-2"
           onSave={(v) => onSaveField("type", v)}
         />
         <Field
-          label="Workspace"
+          label={t("agents:detail.workspace")}
           value={persona.workspace || "/"}
           className="col-span-2"
           mono
           onSave={(v) => onSaveField("workspace", v)}
         />
         <Field
-          label="Tags"
+          label={t("agents:detail.tags")}
           value={persona.tags.join(", ")}
           className="col-span-4"
           onSave={(v) => onSaveField("tags", v)}
@@ -1688,6 +1720,7 @@ function SkillsMultiSelect({
   agentSlug: string;
   onChange: (slugs: string[]) => void;
 }) {
+  const { t } = useLocale();
   const [catalog, setCatalog] = useState<SkillCatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1768,7 +1801,7 @@ function SkillsMultiSelect({
           useAppStore.getState().setSection({ type: "settings", slug: "skills" })
         }
         className="mb-1.5 block text-[12px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-        title="Open Settings → Skills"
+        title={t("agents:detail.openSkillsSettings")}
       >
         Skills →
       </button>
@@ -1827,7 +1860,7 @@ function SkillsMultiSelect({
               key={slug}
               type="button"
               onClick={() => toggle(slug)}
-              title="Not found in catalog — click to remove"
+              title={t("agents:detail.notInCatalog")}
               className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[12.5px] font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
             >
               <CircleAlert className="size-3" />
@@ -1851,7 +1884,7 @@ function SkillsMultiSelect({
                     key={rec.key}
                     type="button"
                     onClick={() => toggle(rec.key)}
-                    title="Recommended for this role — click to attach"
+                    title={t("agents:detail.recommendedForRole")}
                     className="inline-flex items-center gap-1 rounded-full border border-dashed border-violet-500/40 bg-violet-500/5 px-2.5 py-1 text-[12.5px] font-medium text-violet-700 dark:text-violet-300 hover:bg-violet-500/15"
                   >
                     <Sparkles className="size-3" />
@@ -2006,6 +2039,7 @@ function PersonaEditor({
   persona: AgentPersona;
   onSave: (body: string) => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -2113,7 +2147,7 @@ function PersonaEditor({
               Unsaved changes
             </span>
           ) : savedAt ? (
-            <span className="text-[11px] text-muted-foreground">Saved</span>
+            <span className="text-[11px] text-muted-foreground">{t("agents:detail.saved")}</span>
           ) : null}
           {dirty && (
             <Button
@@ -2167,17 +2201,28 @@ export function AgentDetailV2({
   onOpenConversation?: (c: ConversationMeta) => void;
   onSeeAllConversations?: () => void;
 }) {
+  const { t } = useLocale();
   const [persona, setPersona] = useState<AgentPersona | null>(null);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [jobs, setJobs] = useState<AgentJob[]>([]);
   const [inboxTasks, setInboxTasks] = useState<AgentTask[]>([]);
   const [loading, setLoading] = useState(true);
+  // True when the persona fetch fails outright (HTTP error / network error).
+  // Distinguishes "still loading" from "could not load this agent" so a failed
+  // fetch shows a recoverable error instead of an infinite "Loading…".
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [routineDialogOpen, setRoutineDialogOpen] = useState(false);
   const [routineEditJob, setRoutineEditJob] = useState<JobConfig | null>(null);
+  const [heartbeatDialogOpen, setHeartbeatDialogOpen] = useState(false);
+  // Bumped each time a locked child Switch is clicked. The TopBar's master
+  // Switch consumes this to run a brief ring pulse, visually pointing the
+  // user to the toggle they need to flip.
+  const [masterPulseToken, setMasterPulseToken] = useState(0);
+  const pulseMaster = useCallback(() => setMasterPulseToken((n) => n + 1), []);
 
   // Schedule handoff — lets the user convert the current composer draft into
   // a recurring routine or heartbeat by opening StartWorkDialog seeded with
@@ -2188,48 +2233,60 @@ export function AgentDetailV2({
 
   const effectiveCabinetPath = persona?.cabinetPath ?? cabinetPath;
 
-  const refresh = useCallback(async () => {
-    try {
-      const cabinetQuery = cabinetPath
-        ? `?cabinetPath=${encodeURIComponent(cabinetPath)}`
-        : "";
-      const agentConvosQuery =
-        `agent=${encodeURIComponent(slug)}&limit=50` +
-        (cabinetPath ? `&cabinetPath=${encodeURIComponent(cabinetPath)}` : "");
-      const tasksQuery =
-        `agent=${encodeURIComponent(slug)}` +
-        (cabinetPath ? `&cabinetPath=${encodeURIComponent(cabinetPath)}` : "");
-      const [personaRes, convoRes, jobsRes, tasksRes] = await Promise.all([
-        fetch(`/api/agents/personas/${slug}${cabinetQuery}`),
-        fetch(`/api/agents/conversations?${agentConvosQuery}`),
-        fetch(`/api/agents/${slug}/jobs${cabinetQuery}`),
-        fetch(`/api/agents/tasks?${tasksQuery}`),
-      ]);
-      if (personaRes.ok) {
-        const data = await personaRes.json();
-        setPersona(data.persona);
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const cabinetQuery = cabinetPath
+          ? `?cabinetPath=${encodeURIComponent(cabinetPath)}`
+          : "";
+        const agentConvosQuery =
+          `agent=${encodeURIComponent(slug)}&limit=50` +
+          (cabinetPath ? `&cabinetPath=${encodeURIComponent(cabinetPath)}` : "");
+        const tasksQuery =
+          `agent=${encodeURIComponent(slug)}` +
+          (cabinetPath ? `&cabinetPath=${encodeURIComponent(cabinetPath)}` : "");
+        const [personaRes, convoRes, jobsRes, tasksRes] = await Promise.all([
+          fetch(`/api/agents/personas/${slug}${cabinetQuery}`, { signal }),
+          fetch(`/api/agents/conversations?${agentConvosQuery}`, { signal }),
+          fetch(`/api/agents/${slug}/jobs${cabinetQuery}`, { signal }),
+          fetch(`/api/agents/tasks?${tasksQuery}`, { signal }),
+        ]);
+        // A response that arrives after the user navigated away (or after this
+        // load was superseded) must not clobber the new agent's state.
+        if (signal?.aborted) return;
+        if (personaRes.ok) {
+          const data = await personaRes.json();
+          setPersona(data.persona);
+          setLoadError(false);
+        } else {
+          setLoadError(true);
+        }
+        if (convoRes.ok) {
+          const data = await convoRes.json();
+          setConversations(data.conversations || []);
+        }
+        if (jobsRes.ok) {
+          const data = await jobsRes.json();
+          setJobs(data.jobs || []);
+        }
+        if (tasksRes.ok) {
+          const data = await tasksRes.json();
+          setInboxTasks(data.tasks || []);
+        }
+      } catch (err) {
+        if ((err as { name?: string } | null)?.name === "AbortError") return;
+        setLoadError(true);
+      } finally {
+        if (!signal?.aborted) setLoading(false);
       }
-      if (convoRes.ok) {
-        const data = await convoRes.json();
-        setConversations(data.conversations || []);
-      }
-      if (jobsRes.ok) {
-        const data = await jobsRes.json();
-        setJobs(data.jobs || []);
-      }
-      if (tasksRes.ok) {
-        const data = await tasksRes.json();
-        setInboxTasks(data.tasks || []);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [slug, cabinetPath]);
+    },
+    [slug, cabinetPath]
+  );
 
   useEffect(() => {
-    refresh();
+    const controller = new AbortController();
+    refresh(controller.signal);
+    return () => controller.abort();
   }, [refresh]);
 
   const handleComposerSubmit = useCallback(
@@ -2421,6 +2478,20 @@ export function AgentDetailV2({
     refresh();
   }, [slug, refresh, effectiveCabinetPath]);
 
+  const toggleHeartbeat = useCallback(async () => {
+    if (!persona) return;
+    const next = persona.heartbeatEnabled === false;
+    setPersona((prev) => (prev ? { ...prev, heartbeatEnabled: next } : prev));
+    const body: Record<string, unknown> = { heartbeatEnabled: next };
+    if (effectiveCabinetPath) body.cabinetPath = effectiveCabinetPath;
+    await fetch(`/api/agents/personas/${slug}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    refresh();
+  }, [persona, slug, refresh, effectiveCabinetPath]);
+
   const toggleCanDispatch = useCallback(async () => {
     if (!persona) return;
     const current =
@@ -2505,6 +2576,27 @@ export function AgentDetailV2({
     [conversations]
   );
 
+  if (!persona && loadError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+        <div className="text-muted-foreground">
+          {t("agents:detail.loadError")}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setLoadError(false);
+            setLoading(true);
+            void refresh();
+          }}
+        >
+          {t("agents:detail.retry")}
+        </Button>
+      </div>
+    );
+  }
+
   if (loading || !persona) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
@@ -2549,6 +2641,7 @@ export function AgentDetailV2({
             onToggleCanDispatch={toggleCanDispatch}
             onExport={handleExport}
             onDelete={handleDelete}
+            pulseToken={masterPulseToken}
           />
         </div>
         {scheduleOpen ? (
@@ -2603,8 +2696,10 @@ export function AgentDetailV2({
                   setRoutineEditJob(job as unknown as JobConfig);
                   setRoutineDialogOpen(true);
                 }}
+                onEditHeartbeat={() => setHeartbeatDialogOpen(true)}
                 onRunHeartbeat={runHeartbeat}
-                onToggleActive={togglingActive ? () => {} : toggleActive}
+                onToggleHeartbeat={toggleHeartbeat}
+                onLockedChildClick={pulseMaster}
                 onManage={() => setScheduleOpen(true)}
               />
               <DetailsSection
@@ -2640,6 +2735,23 @@ export function AgentDetailV2({
           onDeleted={() => {
             setRoutineEditJob(null);
             void refresh();
+          }}
+        />
+
+        <HeartbeatDialog
+          open={heartbeatDialogOpen}
+          onOpenChange={setHeartbeatDialogOpen}
+          agent={{
+            slug: persona.slug,
+            name: persona.name,
+            role: persona.role,
+            cabinetPath: persona.cabinetPath || effectiveCabinetPath || "",
+          }}
+          initialHeartbeat={persona.heartbeat}
+          initialEnabled={persona.heartbeatEnabled !== false}
+          onSaved={() => void refresh()}
+          onToggledEnabled={(heartbeatEnabled) => {
+            setPersona((prev) => (prev ? { ...prev, heartbeatEnabled } : prev));
           }}
         />
 

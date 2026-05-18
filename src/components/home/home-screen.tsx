@@ -8,6 +8,7 @@ import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { Download, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import { flattenTree } from "@/lib/tree-utils";
 import { createConversation } from "@/lib/agents/conversation-client";
 import { ComposerInput } from "@/components/composer/composer-input";
@@ -40,6 +41,8 @@ import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
 import { TiltCard } from "@/components/ui/tilt-card";
 
 type QuickAction = {
+  /** Key under `home:quickActions.*` for the visible button label. */
+  labelKey: string;
   label: string;
   prompt: string;
   // For delegation chips: ordered list of preferred dispatcher slugs. The
@@ -57,95 +60,112 @@ const LEAD_FALLBACKS = ["ceo", "cto", "pm"];
 
 const QUICK_ACTIONS: QuickAction[] = [
   {
+    labelKey: "launch10Songs",
     label: "Launch 10 song-writing editors",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Launch 10 LAUNCH_TASKs to the editor in parallel. Each one writes a short song from the perspective of a different Harry Potter character (Harry, Hermione, Ron, Dumbledore, Snape, Hagrid, Luna, Draco, Neville, McGonagall). Save each as its own page under @Songs. Use effort=low.",
   },
   {
+    labelKey: "dailyReview9am",
     label: "Daily review at 9am",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Schedule a SCHEDULE_JOB on the editor with cron `0 9 * * *` — every day at 9am, write a short daily review of yesterday and what's on today, and append it to @Daily Review.",
   },
   {
+    labelKey: "weeklyReview",
     label: "Weekly review next Monday",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Schedule a SCHEDULE_TASK on the assistant for next Monday 09:00 — review what I worked on this past week by inspecting recently-modified files in this cabinet, then write @Weekly Review and a @Tasks for Next Week list.",
   },
   {
+    labelKey: "thailandTrip",
     label: "Plan my Thailand trip",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Plan a 2-week Thailand trip. Dispatch a LAUNCH_TASK to the librarian (effort=high) to research itinerary, places to stay, and food spots, and a LAUNCH_TASK to the editor (effort=medium) to compile the findings into one @Thailand Trip page with a day-by-day schedule and a rough budget.",
   },
   {
+    labelKey: "physicsApp",
     label: "Build me a physics study app",
     prompt:
       "Create an interactive webapp inside this cabinet so I can study physics for beginners. Include clear explanations, simple animations where useful, and quick checks for understanding.",
   },
   {
+    labelKey: "summariseRecent",
     label: "Summarise my recent work",
     prompt:
       "Read the most recently modified pages in this cabinet and write a concise summary of what I've been working on. Group by theme, note any open threads, and save the result as @Recent Work Summary.",
   },
   {
+    labelKey: "recruiterReply",
     label: "Draft a recruiter reply",
     prompt:
       "Write a polite, direct reply to a recruiter outreach message. Ask the key qualifying questions (role, comp range, company stage, remote policy) without committing to anything. Keep it under 100 words.",
   },
   {
+    labelKey: "mapArticles",
     label: "Map article connections",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Pipeline of two LAUNCH_TASKs: first dispatch the librarian to identify the articles in this cabinet and map connections between their ideas, people, and concepts. Then dispatch the editor to build an interactive webapp that visualises that graph.",
   },
   {
+    labelKey: "physicsCourse",
     label: "Spin up a 6-module physics course",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Plan a beginner physics curriculum across 6 modules (motion, forces, energy, waves, electricity, light). Dispatch one LAUNCH_TASK per module to the editor (effort=high) to build an interactive lesson page. Save them under @Physics 101.",
   },
   {
+    labelKey: "shortStory",
     label: "Outline a short story",
     prompt:
       "Outline a 5-chapter short story with a clear arc, a protagonist, and a twist in chapter 4. Save it as @Story Outline. Don't write the prose yet — just chapter titles and 3–4 beats each.",
   },
   {
+    labelKey: "hourlyStandup",
     label: "Hourly stand-up nudge",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Schedule a SCHEDULE_JOB on the assistant with cron `0 9-18 * * 1-5` — every weekday hour from 9am–6pm, ask me what I'm working on right now and append the answer to @Hourly Log.",
   },
   {
+    labelKey: "researchPhone",
     label: "Research my next phone",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Dispatch the librarian to research the current top-3 flagship phones for someone who values battery life and camera. Compile the comparison into @Phone Research with a recommendation and the trade-offs.",
   },
   {
+    labelKey: "translateToSpanish",
     label: "Translate this cabinet to Spanish",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
       "Read every page in this cabinet and dispatch a LAUNCH_TASK per page to the editor (effort=low) to write a Spanish translation. Save each under @Translations/<original page name>.",
   },
   {
+    labelKey: "refactorNotes",
     label: "Refactor my note-taking system",
     prompt:
       "Audit the structure of this cabinet — folders, naming, orphans, duplicates. Propose a cleaner structure as @Note System Audit with concrete moves (don't apply them yet).",
   },
   {
+    labelKey: "birthdayParty",
     label: "Plan a birthday party",
     prompt:
       "Plan a birthday party for 12 adults at home. Output @Party Plan with: theme suggestions (3 options), shopping list, day-of timeline, and a music vibe.",
   },
   {
+    labelKey: "boardUpdate",
     label: "Draft a board update",
     prompt:
       "Write a concise monthly board update. Cover: traction, shipped, missed, asks. Pull anything I've worked on this month from recently-modified pages. Save as @Board Update.",
   },
   {
+    labelKey: "customerInterviews",
     label: "Simulate 5 customer interviews",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
@@ -153,11 +173,11 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
-function getGreeting(): string {
+function getGreetingKey(): "goodMorning" | "goodAfternoon" | "goodEvening" {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "goodMorning";
+  if (hour < 17) return "goodAfternoon";
+  return "goodEvening";
 }
 
 function CabinetCard({
@@ -219,6 +239,7 @@ function RegistryCarousel({
   templates: RegistryTemplate[];
   onSelect: (template: RegistryTemplate) => void;
 }) {
+  const { dir } = useLocale();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -229,6 +250,9 @@ function RegistryCarousel({
     let animationId: number;
     let position = 0;
     const speed = 1.2;
+    // In RTL the row reverses, so the marquee scrolls in the opposite
+    // direction to keep items visually emerging from the leading edge.
+    const sign = dir === "rtl" ? 1 : -1;
 
     const animate = () => {
       if (!isPaused) {
@@ -237,14 +261,14 @@ function RegistryCarousel({
         if (position >= halfWidth) {
           position = 0;
         }
-        el.style.transform = `translateX(-${position}px)`;
+        el.style.transform = `translateX(${sign * position}px)`;
       }
       animationId = requestAnimationFrame(animate);
     };
 
     animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
-  }, [isPaused, templates]);
+  }, [isPaused, templates, dir]);
 
   const doubled = [...templates, ...templates];
 
@@ -271,8 +295,8 @@ function RegistryCarousel({
           );
         })}
       </div>
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-background to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-background to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r rtl:bg-gradient-to-l from-background to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l rtl:bg-gradient-to-r from-background to-transparent" />
     </div>
   );
 }
@@ -290,6 +314,7 @@ function ImportDialog({
   onImportStart: () => void;
   onImportEnd: () => void;
 }) {
+  const { t } = useLocale();
   const [name, setName] = useState("");
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -364,10 +389,10 @@ function ImportDialog({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Cabinet name..."
+              placeholder={t("home:newCabinet.namePlaceholder")}
             />
             <p className="text-[11px] text-muted-foreground/70">
-              Cabinet names can&apos;t be renamed later (for now). Choose wisely.
+              {t("home:newCabinet.renameWarning")}
             </p>
           </div>
           {error && (
@@ -385,7 +410,7 @@ function ImportDialog({
               onClick={handleImport}
               disabled={importing || !name.trim()}
             >
-              <Download className="mr-2 h-4 w-4" />
+              <Download className="me-2 h-4 w-4" />
               Import
             </Button>
           </div>
@@ -396,6 +421,7 @@ function ImportDialog({
 }
 
 export function HomeScreen() {
+  const { t } = useLocale();
   const setSection = useAppStore((s) => s.setSection);
   const treeNodes = useTreeStore((s) => s.nodes);
   const [userName, setUserName] = useState<string | null>(null);
@@ -602,8 +628,10 @@ export function HomeScreen() {
     }
   };
 
-  const greeting = getGreeting();
-  const headline = userName ? `${greeting}, ${userName}.` : `${greeting}.`;
+  const greeting = t(`home:${getGreetingKey()}`);
+  const headline = userName
+    ? t("home:greetingWithName", { greeting, name: userName })
+    : t("home:greetingNoName", { greeting });
 
   // Daemon owns agent execution — if it's confirmed down (≥2 missed polls)
   // disable the prompt and surface why, instead of letting the user fire a
@@ -611,8 +639,8 @@ export function HomeScreen() {
   const daemonLevel = useHealthStore(selectDaemonLevel);
   const daemonDown = daemonLevel === "down";
   const composerPlaceholder = daemonDown
-    ? "Agent daemon offline — restart to send"
-    : "I want to create...";
+    ? t("home:composerDaemonDown")
+    : t("home:composerPlaceholder");
 
   return (
     <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
@@ -638,7 +666,6 @@ export function HomeScreen() {
           disabled={daemonDown}
           className="w-full"
           minHeight="44px"
-          maxHeight="160px"
           mentionDropdownPlacement="below"
           topRightOverlay={
             <WhenChip
@@ -677,7 +704,7 @@ export function HomeScreen() {
               const disabled = composer.submitting || quickRunning || daemonDown;
               return (
                 <button
-                  key={`${chipShuffle}-${action.label}`}
+                  key={`${chipShuffle}-${action.labelKey}`}
                   onClick={() => void runQuickAction(action)}
                   disabled={disabled}
                   title={action.prompt}
@@ -696,7 +723,7 @@ export function HomeScreen() {
                     disabled && "opacity-50 cursor-not-allowed"
                   )}
                 >
-                  {action.label}
+                  {t(`home:quickActions.${action.labelKey}`, { defaultValue: action.label })}
                 </button>
               );
             })}
@@ -705,8 +732,8 @@ export function HomeScreen() {
               type="button"
               onClick={() => setChipShuffle((n) => n + 1)}
               disabled={composer.submitting || quickRunning || daemonDown}
-              title="Show different suggestions"
-              aria-label="Show different suggestions"
+              title={t("home:quickActions.shuffle")}
+              aria-label={t("home:quickActions.shuffle")}
               className={cn(
                 "inline-flex items-center justify-center rounded-full border border-dashed border-border/70 bg-card/40 size-7",
                 "text-muted-foreground hover:bg-secondary hover:border-border hover:text-foreground",
@@ -729,13 +756,13 @@ export function HomeScreen() {
       <div className="w-screen pb-8 pt-4 space-y-3">
         <div className="flex items-center justify-center gap-3">
           <h2 className="text-sm font-medium text-muted-foreground">
-            Start from a template
+            {t("home:templates.header")}
           </h2>
           <button
             onClick={() => setSection({ type: "registry" })}
             className="text-xs font-medium text-primary hover:text-primary/80 underline underline-offset-2 cursor-pointer transition-colors"
           >
-            Browse all &rarr;
+            {t("home:templates.browseAll")}
           </button>
         </div>
         <RegistryCarousel

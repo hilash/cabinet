@@ -17,6 +17,7 @@ import { AgentDetailPanel } from "./agent-detail-panel";
 import { GoalBar } from "./goal-bar";
 import { WorkspaceGallery } from "./workspace-gallery";
 import type { GoalMetric } from "@/types/agents";
+import { useLocale } from "@/i18n/use-locale";
 
 interface AgentSummary {
   name: string;
@@ -40,6 +41,7 @@ interface DepartmentGroup {
 }
 
 export function MissionControl() {
+  const { t } = useLocale();
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [alertCount, setAlertCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -488,7 +490,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
             onClick={() => setShowGallery(!showGallery)}
           >
             <FolderOpen className="h-3 w-3" />
-            <span className="hidden md:inline">Gallery</span>
+            <span className="hidden md:inline">{t("agents:missionControl.gallery")}</span>
           </Button>
           <Button
             variant="ghost"
@@ -506,7 +508,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
             onClick={() => setCreateOpen(true)}
           >
             <Plus className="h-3 w-3" />
-            <span className="hidden sm:inline">New Agent</span>
+            <span className="hidden sm:inline">{t("agents:missionControl.newAgent")}</span>
           </Button>
         </div>
       </div>
@@ -527,7 +529,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
       {showGoalSummary && (
         <div className="px-4 py-3 border-b border-border bg-muted/10 space-y-3 max-h-[200px] overflow-y-auto shrink-0">
           <div className="flex items-center justify-between">
-            <h3 className="text-[12px] font-semibold text-muted-foreground">All Goals</h3>
+            <h3 className="text-[12px] font-semibold text-muted-foreground">{t("agents:missionControl.allGoals")}</h3>
             <button
               onClick={() => setShowGoalSummary(false)}
               className="text-[10px] text-muted-foreground/50 hover:text-foreground"
@@ -556,7 +558,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
               </div>
             ))}
             {mcAgents.filter((a) => a.goals.length > 0).length === 0 && (
-              <p className="text-[11px] text-muted-foreground/50 col-span-full">No agents have goals configured.</p>
+              <p className="text-[11px] text-muted-foreground/50 col-span-full">{t("agents:missionControl.noGoals")}</p>
             )}
           </div>
         </div>
@@ -647,7 +649,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                       className="flex-1 max-w-[120px] py-2 px-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors text-center"
                     >
                       <Zap className="h-4 w-4 mx-auto mb-1 text-amber-500/60" />
-                      <p className="text-[11px] font-medium text-muted-foreground">From Scratch</p>
+                      <p className="text-[11px] font-medium text-muted-foreground">{t("agents:missionControl.fromScratch")}</p>
                     </button>
                     <button
                       onClick={() => {
@@ -657,7 +659,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                       className="flex-1 max-w-[120px] py-2 px-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors text-center"
                     >
                       <MessageSquare className="h-4 w-4 mx-auto mb-1 text-primary/60" />
-                      <p className="text-[11px] font-medium text-muted-foreground">Describe It</p>
+                      <p className="text-[11px] font-medium text-muted-foreground">{t("agents:missionControl.describeIt")}</p>
                     </button>
                     <button
                       onClick={() => {
@@ -685,7 +687,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
                       className="flex-1 max-w-[120px] py-2 px-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-primary/[0.03] transition-colors text-center"
                     >
                       <Upload className="h-4 w-4 mx-auto mb-1 text-cyan-500/60" />
-                      <p className="text-[11px] font-medium text-muted-foreground">Import</p>
+                      <p className="text-[11px] font-medium text-muted-foreground">{t("agents:missionControl.import")}</p>
                     </button>
                   </div>
                 </div>
@@ -723,13 +725,13 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <button
             type="button"
-            aria-label="Close dialog"
+            aria-label={t("agents:missionControl.closeDialog")}
             className="fixed inset-0 bg-black/40"
             onClick={() => !nlGenerating && setNlOpen(false)}
           />
           <div className="relative bg-background border border-border rounded-xl shadow-2xl w-[440px] max-w-[90vw] p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div>
-              <h2 className="text-[15px] font-semibold">Describe Your Agent</h2>
+              <h2 className="text-[15px] font-semibold">{t("agents:missionControl.describeYourAgent")}</h2>
               <p className="text-[12px] text-muted-foreground/60 mt-1">
                 Tell us what you need and we&apos;ll create the agent for you.
               </p>
@@ -737,7 +739,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
             <textarea
               value={nlInput}
               onChange={(e) => setNlInput(e.target.value)}
-              placeholder="I need an agent that monitors Hacker News for GPU-related posts and writes thoughtful comments linking to our blog posts..."
+              placeholder={t("agents:missionControl.describePlaceholder")}
               className="w-full h-28 text-[13px] bg-muted/30 border border-border/50 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
               disabled={nlGenerating}
               autoFocus
@@ -788,7 +790,7 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <button
             type="button"
-            aria-label="Close dialog"
+            aria-label={t("agents:missionControl.closeDialog")}
             className="fixed inset-0 bg-black/40"
             onClick={() => setConfirmStart(false)}
           />

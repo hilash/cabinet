@@ -11,6 +11,7 @@ import { setConversationMuted } from "./board-actions";
 import type { LaneKey } from "./lane-rules";
 import type { TaskMeta } from "@/types/tasks";
 import type { CabinetAgentSummary } from "@/types/cabinets";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Slide-out right panel. Renders a thin agent/title chrome at the top and
@@ -31,6 +32,7 @@ export function DetailPanel({
   onClose: () => void;
   onRefresh?: () => Promise<void>;
 }) {
+  const { t } = useLocale();
   const fullscreen = useAppStore((s) => s.taskPanelFullscreen);
   const toggleFullscreen = useAppStore((s) => s.toggleTaskPanelFullscreen);
   const setFullscreen = useAppStore((s) => s.setTaskPanelFullscreen);
@@ -71,7 +73,7 @@ export function DetailPanel({
         "flex flex-col bg-background transition-all duration-150 ease-out",
         fullscreen
           ? "fixed inset-0 z-50"
-          : "absolute inset-y-0 right-0 z-20 w-[460px] border-l border-border/70 shadow-xl"
+          : "absolute inset-y-0 end-0 z-20 w-[460px] border-s border-border/70 shadow-xl"
       )}
     >
       <header className="flex items-start gap-3 border-b border-border/60 px-5 py-3">
@@ -119,7 +121,7 @@ export function DetailPanel({
           type="button"
           onClick={onClose}
           className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          title="Close (Esc)"
+          title={t("taskDetail:close")}
         >
           <X className="size-4" />
         </button>

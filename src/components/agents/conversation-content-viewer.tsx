@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { ChevronRight, Wrench } from "lucide-react";
 import { parseTranscript, type Block } from "@/lib/agents/transcript-parser";
+import { Markdown } from "@/components/tasks/conversation/markdown";
+import { cn } from "@/lib/utils";
 
 const LABEL_COLORS: Record<string, string> = {
   SUMMARY: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
@@ -64,7 +67,7 @@ function DiffBlock({ block }: { block: Extract<Block, { type: "diff" }> }) {
   const removals = block.lines.filter((line) => line.kind === "remove").length;
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-border">
+    <div dir="ltr" className="my-3 overflow-hidden rounded-xl border border-border">
       {fileName ? (
         <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3 py-1.5">
           <span className="font-mono text-[11px] font-medium text-foreground">
@@ -109,7 +112,7 @@ function DiffBlock({ block }: { block: Extract<Block, { type: "diff" }> }) {
 
 function CodeBlock({ block }: { block: Extract<Block, { type: "code" }> }) {
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-border">
+    <div dir="ltr" className="my-3 overflow-hidden rounded-xl border border-border">
       {block.lang && block.lang !== "text" ? (
         <div className="border-b border-border bg-muted/40 px-3 py-1">
           <span className="font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -136,7 +139,10 @@ function StructuredBadge({ label, value }: { label: string; value: string }) {
       >
         {label}
       </span>
-      <span className="text-[12px] leading-relaxed text-foreground/85">
+      <span
+        dir="auto"
+        className="text-[12px] leading-relaxed text-foreground/85 [unicode-bidi:plaintext]"
+      >
         {renderInlineFormatting(value)}
       </span>
     </div>
@@ -184,10 +190,16 @@ function ActionsBlock({ block }: { block: Extract<Block, { type: "actions" }> })
               {action.type}
             </span>
             <div className="min-w-0">
-              <div className="text-[12px] font-medium text-foreground/90">
+              <div
+                dir="auto"
+                className="text-[12px] font-medium text-foreground/90 [unicode-bidi:plaintext]"
+              >
                 {headline}
               </div>
-              <div className="mt-0.5 whitespace-pre-wrap break-words text-[11px] text-foreground/70">
+              <div
+                dir="auto"
+                className="mt-0.5 whitespace-pre-wrap break-words text-[11px] text-foreground/70 [unicode-bidi:plaintext]"
+              >
                 {action.prompt}
               </div>
             </div>
@@ -200,11 +212,10 @@ function ActionsBlock({ block }: { block: Extract<Block, { type: "actions" }> })
 
 function MarkdownBlock({ content }: { content: string }) {
   return (
-    <div className="my-1 whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-foreground">
-      {content.split("\n").map((line, index) => (
-        <div key={index}>{renderInlineFormatting(line)}</div>
-      ))}
-    </div>
+    <Markdown
+      content={content}
+      className="text-[14.5px] leading-[1.65] tracking-[-0.005em] text-foreground/95"
+    />
   );
 }
 
@@ -214,6 +225,50 @@ function TokensBadge({ value }: { value: string }) {
       <span className="rounded-md border border-border bg-muted/20 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
         {value} tokens
       </span>
+    </div>
+  );
+}
+
+function ToolOutputBlock({
+  block,
+}: {
+  block: Extract<Block, { type: "tool" }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const label =
+    block.steps > 1 ? `Ran ${block.steps} steps` : "Ran a command";
+
+  return (
+    <div
+      dir="ltr"
+      className="my-3 overflow-hidden rounded-xl border border-border/60 bg-muted/20"
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground/80"
+      >
+        <ChevronRight
+          aria-hidden="true"
+          className={cn(
+            "size-3.5 shrink-0 transition-transform",
+            open && "rotate-90"
+          )}
+        />
+        <Wrench aria-hidden="true" className="size-3 shrink-0 opacity-70" />
+        <span className="text-[11px] font-medium uppercase tracking-wider">
+          {label}
+        </span>
+        {!open ? (
+          <span className="ml-auto text-[10px] opacity-60">show output</span>
+        ) : null}
+      </button>
+      {open ? (
+        <pre className="max-h-80 overflow-auto border-t border-border/60 bg-background/40 px-3 py-2 font-mono text-[11px] leading-[1.55] text-muted-foreground/80 whitespace-pre-wrap break-all">
+          {block.content || "(no output)"}
+        </pre>
+      ) : null}
     </div>
   );
 }
@@ -235,6 +290,8 @@ function BlockRenderer({ blocks }: { blocks: Block[] }) {
             return <StructuredBadge key={index} label={block.label} value={block.value} />;
           case "tokens":
             return <TokensBadge key={index} value={block.value} />;
+          case "tool":
+            return <ToolOutputBlock key={index} block={block} />;
           case "text":
             return <MarkdownBlock key={index} content={block.content} />;
         }

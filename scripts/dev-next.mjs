@@ -217,10 +217,13 @@ async function main() {
         // via CABINET_TELEMETRY_DISABLED=0 is honored (process.env spread
         // happens after the default).
         CABINET_TELEMETRY_DISABLED: "1",
+        // Default CABINET_APP_ORIGIN to loopback, but let process.env spread
+        // below override when an operator pinned a public hostname so
+        // next.config.ts can auto-allow it through Next 15's dev origin guard.
+        CABINET_APP_ORIGIN: origin,
         ...process.env,
         PORT: String(port),
         CABINET_APP_PORT: String(port),
-        CABINET_APP_ORIGIN: origin,
       },
     }
   );

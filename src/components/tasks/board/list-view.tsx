@@ -120,14 +120,14 @@ export function ListView({
                     task={task}
                     agents={agents}
                     onRefresh={onRefresh}
-                    className="absolute right-[300px] top-1/2 z-10 -translate-y-1/2"
+                    className="absolute end-[300px] top-1/2 z-10 -translate-y-1/2"
                   />
                 ) : null}
                 <button
                   type="button"
                   onClick={() => onSelect(task.id)}
                   className={cn(
-                    "relative flex w-full items-center gap-3 px-6 text-left transition-colors",
+                    "relative flex w-full items-center gap-3 px-6 text-start transition-colors",
                     density === "compact" ? "py-1.5" : "py-2.5",
                     isSelected ? "bg-primary/5" : "hover:bg-accent/35"
                   )}
@@ -135,7 +135,7 @@ export function ListView({
                   {isSelected ? (
                     <span
                       aria-hidden
-                      className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary"
+                      className="absolute inset-y-1.5 start-0 w-0.5 rounded-full bg-primary"
                     />
                   ) : null}
                   <StatusIcon state={state} />
@@ -144,7 +144,7 @@ export function ListView({
                   </span>
                   <AgentPill agent={agent} slug={task.agentSlug ?? "editor"} size="sm" />
                   <TriggerBadge trigger={task.trigger} />
-                  <span className="w-20 shrink-0 text-right text-[10.5px] tabular-nums text-muted-foreground">
+                  <span className="w-20 shrink-0 text-end text-[10.5px] tabular-nums text-muted-foreground">
                     {relTime(lastActivity, now)}
                   </span>
                 </button>

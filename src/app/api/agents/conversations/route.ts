@@ -75,7 +75,19 @@ export async function GET(req: NextRequest) {
     limit,
   });
 
-  return NextResponse.json({ conversations });
+  // listConversationMetas walks every discovered cabinet path and can
+  // surface the same conversation id more than once (e.g. recovered from
+  // multiple roots). The visibility!=="own" branch above already dedupes;
+  // do the same here or the board renders duplicate React keys and the
+  // kanban crashes. Keep first occurrence to preserve sort order.
+  const seenIds = new Set<string>();
+  const deduped = conversations.filter((conversation) => {
+    if (seenIds.has(conversation.id)) return false;
+    seenIds.add(conversation.id);
+    return true;
+  });
+
+  return NextResponse.json({ conversations: deduped });
 }
 
 export async function POST(req: NextRequest) {
@@ -108,6 +120,10 @@ export async function POST(req: NextRequest) {
       typeof body.cabinetPath === "string" && body.cabinetPath.trim()
         ? body.cabinetPath.trim()
         : undefined;
+    const locale =
+      typeof body.locale === "string" && (body.locale === "en" || body.locale === "he")
+        ? body.locale
+        : undefined;
     if (!userMessage) {
       return NextResponse.json(
         { error: "userMessage is required" },
@@ -129,6 +145,7 @@ export async function POST(req: NextRequest) {
         userMessage,
         mentionedPaths,
         cabinetPath,
+        locale,
       });
       const runtime = normalizeRuntimeOverride(
         { providerId: body.providerId, adapterType: body.adapterType, model: body.model, effort: body.effort, runtimeMode: body.runtimeMode },
@@ -162,6 +179,7 @@ export async function POST(req: NextRequest) {
             mentionedPaths,
             mentionedSkills,
             cabinetPath: editorCabinetPath,
+            locale,
           })
         : await buildManualConversationPrompt({
             agentSlug,
@@ -169,6 +187,7 @@ export async function POST(req: NextRequest) {
             mentionedPaths,
             mentionedSkills,
             cabinetPath,
+            locale,
           });
 
     const conversationCabinetPath =

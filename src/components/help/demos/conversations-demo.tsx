@@ -59,7 +59,7 @@ function SlideTalkBack() {
             CMO
           </span>
           <span
-            className="ml-auto text-[10px]"
+            className="ms-auto text-[10px]"
             style={{ color: P.textTertiary }}
           >
             Marketing
@@ -68,7 +68,7 @@ function SlideTalkBack() {
 
         <div className="space-y-2.5 px-4 py-3">
           <div
-            className="rounded-lg rounded-bl-sm px-3 py-2 text-[11px] leading-relaxed opacity-0"
+            className="rounded-lg rounded-es-sm px-3 py-2 text-[11px] leading-relaxed opacity-0"
             style={{
               background: P.paperWarm,
               color: P.textSecondary,
@@ -82,7 +82,7 @@ function SlideTalkBack() {
           </div>
 
           <div
-            className="ml-6 rounded-lg rounded-br-sm px-3 py-2 text-[11px] leading-relaxed opacity-0"
+            className="ms-6 rounded-lg rounded-ee-sm px-3 py-2 text-[11px] leading-relaxed opacity-0"
             style={{
               background: P.accentBg,
               color: P.text,
@@ -97,7 +97,7 @@ function SlideTalkBack() {
           </div>
 
           <div
-            className="rounded-lg rounded-bl-sm px-3 py-2 text-[11px] leading-relaxed opacity-0"
+            className="rounded-lg rounded-es-sm px-3 py-2 text-[11px] leading-relaxed opacity-0"
             style={{
               background: P.paperWarm,
               color: P.textSecondary,
@@ -169,7 +169,7 @@ function SlideQueue() {
             Pending actions
           </span>
           <span
-            className="ml-auto rounded-full px-2 py-0.5 text-[9px] font-semibold"
+            className="ms-auto rounded-full px-2 py-0.5 text-[9px] font-semibold"
             style={{ background: P.accentBg, color: P.accent }}
           >
             4 waiting
@@ -247,7 +247,7 @@ function SlideQueue() {
             3 selected
           </span>
           <span
-            className="ml-auto flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-semibold"
+            className="ms-auto flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-semibold"
             style={{
               background: "transparent",
               color: P.textSecondary,
@@ -292,7 +292,7 @@ function SlideAudit() {
           <span className="text-[12.5px] font-semibold" style={{ color: P.text }}>
             LAUNCH_TASK
           </span>
-          <span className="ml-auto text-[10px]" style={{ color: P.textTertiary }}>
+          <span className="ms-auto text-[10px]" style={{ color: P.textTertiary }}>
             from CMO
           </span>
         </div>
@@ -380,7 +380,7 @@ function SlideAudit() {
                 @Launch/post.md
               </span>
             </div>
-            <span className="ml-auto flex items-center gap-1 text-[9.5px]" style={{ color: P.textTertiary }}>
+            <span className="ms-auto flex items-center gap-1 text-[9.5px]" style={{ color: P.textTertiary }}>
               <DollarSign className="h-2.5 w-2.5" />
               ~$0.04
             </span>
@@ -404,7 +404,7 @@ function SlideAudit() {
             >
               <Sparkles className="h-3 w-3" />
               Approve & run
-              <ArrowRight className="h-3 w-3" />
+              <ArrowRight className="h-3 w-3 rtl:rotate-180" />
             </span>
             <span
               className="flex-1 rounded-lg py-2 text-center text-[11px] font-semibold"

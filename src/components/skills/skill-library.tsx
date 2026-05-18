@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import type { SkillEntry, SkillOrigin } from "@/lib/agents/skills/types";
 import { SkillAddDialog } from "./skill-add-dialog";
 import { SkillDetail } from "./skill-detail";
+import { useLocale } from "@/i18n/use-locale";
 
 interface ScanResult {
   path: string;
@@ -101,6 +102,7 @@ function SkillCard({
   /** When provided, the card becomes a button that opens the skill detail dialog. */
   onOpen?: (key: string) => void;
 }) {
+  const { t } = useLocale();
   const pluginLabel = pluginBadgeLabel(skill);
   const inner = (
     <div className="bg-card border border-border rounded-lg p-4 flex flex-col gap-2 hover:border-primary/30 transition-colors">
@@ -128,7 +130,7 @@ function SkillCard({
             {!skill.editable && (
               <Lock
                 className="size-3 text-muted-foreground"
-                aria-label="Read-only — cannot edit from Cabinet"
+                aria-label={t("skillLibrary:readOnly")}
               />
             )}
           </div>
@@ -162,7 +164,7 @@ function SkillCard({
         {!skill.upstream && (
           <span
             className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
-            title="Authored directly in this cabinet — no upstream git source recorded"
+            title={t("skillLibrary:noUpstream")}
           >
             Custom
           </span>
@@ -170,13 +172,13 @@ function SkillCard({
         {skill.trustLevel === "scripts_executables" && (
           <div
             className="flex items-center gap-1 text-[10px] text-amber-500"
-            title="Bundle includes executable scripts — review before approving"
+            title={t("skillLibrary:executableWarning")}
           >
             <ShieldAlert className="size-3" />
             scripts
           </div>
         )}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ms-auto flex items-center gap-3">
           {skill.allowedTools.length > 0 && (
             <div
               className="text-[10px] text-muted-foreground truncate min-w-0"
@@ -241,6 +243,7 @@ interface SkillLibraryProps {
 }
 
 export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
+  const { t } = useLocale();
   const [entries, setEntries] = useState<SkillEntryWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [systemOpen, setSystemOpen] = useState(false);
@@ -353,7 +356,7 @@ export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
       <div className="border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Library className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Skills</h2>
+          <h2 className="text-sm font-semibold">{t("skillLibrary:skills")}</h2>
           <span className="text-xs text-muted-foreground">({managed.length})</span>
         </div>
         <div className="flex items-center gap-1">
@@ -362,12 +365,12 @@ export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
             size="sm"
             onClick={refresh}
             disabled={loading}
-            aria-label="Refresh"
+            aria-label={t("skillLibraryPlus:refresh")}
           >
             <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
           </Button>
           <Button size="sm" onClick={() => setAddOpen(true)}>
-            <Plus className="size-3.5 mr-1" />
+            <Plus className="size-3.5 me-1" />
             Add Skill
           </Button>
         </div>
@@ -381,7 +384,7 @@ export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
           {!loading && managed.length === 0 && system.length === 0 && (
             <div className="text-center py-12 flex flex-col items-center gap-2">
               <Library className="size-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">No skills yet.</p>
+              <p className="text-sm text-muted-foreground">{t("skillLibraryPlus:noSkills")}</p>
               <Button size="sm" onClick={() => setAddOpen(true)}>
                 Add your first skill
               </Button>
@@ -412,7 +415,7 @@ export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
                 Discoverable in your workspace ({discovered.length}) — click to import
               </button>
               {discoverOpen && (
-                <div className="flex flex-col gap-1.5 mt-1 pl-2 border-l border-border">
+                <div className="flex flex-col gap-1.5 mt-1 ps-2 border-s border-border">
                   {discovered.map((entry) => {
                     const state = discoverState[entry.path] ?? { status: "idle" };
                     const isImporting = state.status === "importing";
@@ -448,11 +451,11 @@ export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
                           className="shrink-0 h-7"
                         >
                           {isImporting ? (
-                            <Loader2 className="size-3 mr-1 animate-spin" />
+                            <Loader2 className="size-3 me-1 animate-spin" />
                           ) : isImported ? (
-                            <Check className="size-3 mr-1" />
+                            <Check className="size-3 me-1" />
                           ) : null}
-                          {isImported ? "Imported" : isImporting ? "Importing…" : "Import"}
+                          {isImported ? t("skillLibrary:imported") : isImporting ? t("skillLibrary:importing") : t("skillLibrary:import")}
                         </Button>
                       </div>
                     );
@@ -477,7 +480,7 @@ export function SkillLibrary({ cabinetPath }: SkillLibraryProps = {}) {
                 Also available from your local install ({system.length})
               </button>
               {systemOpen && (
-                <div className="flex flex-col gap-2 mt-1 pl-2 border-l border-border">
+                <div className="flex flex-col gap-2 mt-1 ps-2 border-s border-border">
                   {system.map((entry) => (
                     <SkillCard
                       key={entry.path}

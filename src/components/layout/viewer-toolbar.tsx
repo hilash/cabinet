@@ -39,12 +39,12 @@ export function ViewerToolbar({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-background/95 px-4 py-2.5 transition-[padding] duration-200 sm:px-6",
+        "flex shrink-0 items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-background px-4 py-2 transition-[padding] duration-200 md:h-12 md:py-0",
         className
       )}
-      style={{ paddingLeft: `calc(1rem + var(--sidebar-toggle-offset, 0px))` }}
+      style={{ paddingInlineStart: `calc(1rem + var(--sidebar-toggle-offset, 0px))` }}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
         <ReturnToChip />
         {leading}
         {showBreadcrumb && path ? <ViewerBreadcrumb path={path} /> : null}
@@ -54,7 +54,9 @@ export function ViewerToolbar({
           </span>
         )}
         {sublabel && (
-          <span className="shrink-0 text-xs text-muted-foreground/40">{sublabel}</span>
+          <span className="hidden shrink-0 text-xs text-muted-foreground/40 sm:inline">
+            {sublabel}
+          </span>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">

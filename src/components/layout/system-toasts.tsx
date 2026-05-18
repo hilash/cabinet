@@ -42,7 +42,7 @@ export function SystemToasts() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-[100] flex -translate-x-1/2 flex-col gap-2">
+    <div className="fixed inset-x-0 bottom-4 z-[100] mx-auto flex w-fit flex-col gap-2">
       {toasts.map((toast) => {
         const Icon =
           toast.kind === "error"
@@ -77,7 +77,7 @@ export function SystemToasts() {
             <button
               type="button"
               onClick={() => dismiss(toast.key)}
-              className="-mr-1 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="-me-1 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-3 w-3" />
             </button>

@@ -165,7 +165,9 @@ export function getScheduleEvents(
             agentEmoji: owner?.emoji || "🤖",
             agentName: owner?.name || job.ownerAgent || "Unknown",
             agentSlug: slug,
-            enabled: job.enabled,
+            // Effective enable: agent must be active too. Stopping the agent
+            // dims every routine even though `job.enabled` stays true on disk.
+            enabled: job.enabled && (owner?.active !== false),
             cronExpr: job.schedule,
             time: next,
             jobRef: job,
@@ -209,7 +211,8 @@ export function getScheduleEvents(
             agentEmoji: agent.emoji || "🤖",
             agentName: agent.name,
             agentSlug: agent.slug,
-            enabled: agent.active,
+            // Effective enable: master switch AND per-heartbeat toggle.
+            enabled: agent.active && agent.heartbeatEnabled !== false,
             cronExpr: agent.heartbeat,
             time: next,
             agentRef: agent,

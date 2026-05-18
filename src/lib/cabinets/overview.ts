@@ -281,6 +281,7 @@ async function readAgentPersona(
       emoji: trimString(data.emoji) || "🤖",
       role,
       active: data.active !== false,
+      heartbeatEnabled: data.heartbeatEnabled !== false,
       department: trimString(data.department) || "general",
       type: trimString(data.type) || "specialist",
       heartbeat: trimString(data.heartbeat),

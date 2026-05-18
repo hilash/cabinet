@@ -31,6 +31,14 @@ export interface UseComposerOptions {
   onSubmit: (payload: ComposerPayload) => void | Promise<void>;
   disabled?: boolean;
   initialMentionedAgents?: string[];
+  /**
+   * A page path that is always present as a context chip without the user
+   * having to @-mention it (e.g. the page currently open in the editor).
+   * It survives auto-removal, submit, and reset, and follows the value as
+   * it changes. The user can still dismiss it; it reappears when the path
+   * changes to a different page.
+   */
+  pinnedPagePath?: string | null;
   getMentionInsertBehavior?: (item: MentionableItem) => MentionInsertBehavior | void;
   attachments?: UseComposerAttachmentsReturn;
   stagingClientUuid?: string;
@@ -61,10 +69,15 @@ export function useComposer({
   getMentionInsertBehavior,
   attachments,
   stagingClientUuid,
+  pinnedPagePath = null,
 }: UseComposerOptions): UseComposerReturn {
   const initialAgentsRef = useRef(initialMentionedAgents ?? []);
   const [input, setInput] = useState("");
   const [mentionedPaths, setMentionedPaths] = useState<string[]>([]);
+  // Tracks the pinned path the user explicitly dismissed. The chip is hidden
+  // only while this equals the active `pinnedPagePath`; navigating to a
+  // different page changes the path and the chip returns automatically.
+  const [dismissedPinnedPath, setDismissedPinnedPath] = useState<string | null>(null);
   const [mentionedAgents, setMentionedAgents] = useState<string[]>(initialAgentsRef.current);
   const [mentionedSkills, setMentionedSkills] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -83,6 +96,22 @@ export function useComposer({
         item.sublabel.toLowerCase().includes(q)
     );
   }, [items, mentionQuery, showDropdown]);
+
+  const pinnedActive =
+    pinnedPagePath && dismissedPinnedPath !== pinnedPagePath
+      ? pinnedPagePath
+      : null;
+
+  // The pinned page is merged into the reported/submitted paths without
+  // living in `mentionedPaths` state, so the @-label auto-removal in
+  // handleChange never touches it.
+  const effectivePaths = useMemo(
+    () =>
+      pinnedActive
+        ? [pinnedActive, ...mentionedPaths.filter((p) => p !== pinnedActive)]
+        : mentionedPaths,
+    [pinnedActive, mentionedPaths]
+  );
 
   const findLabelForMention = useCallback(
     (type: "page" | "agent" | "skill", id: string): string => {
@@ -187,13 +216,14 @@ export function useComposer({
     (type: "page" | "agent" | "skill", id: string) => {
       if (type === "page") {
         setMentionedPaths((prev) => prev.filter((p) => p !== id));
+        if (id === pinnedPagePath) setDismissedPinnedPath(pinnedPagePath);
       } else if (type === "skill") {
         setMentionedSkills((prev) => prev.filter((k) => k !== id));
       } else {
         setMentionedAgents((prev) => prev.filter((a) => a !== id));
       }
     },
-    []
+    [pinnedPagePath]
   );
 
   const reset = useCallback(() => {
@@ -213,7 +243,8 @@ export function useComposer({
     if (!msg || disabled || submitting) return;
     if (attachments?.isUploading) return;
 
-    const paths = [...mentionedPaths];
+    const priorPaths = [...mentionedPaths];
+    const paths = [...effectivePaths];
     const agents = [...mentionedAgents];
     const skills = [...mentionedSkills];
     const attachmentPaths = attachments
@@ -246,13 +277,13 @@ export function useComposer({
     } catch {
       // Restore input on failure
       setInput(msg);
-      setMentionedPaths(paths);
+      setMentionedPaths(priorPaths);
       setMentionedAgents(agents);
       setMentionedSkills(skills);
     } finally {
       setSubmitting(false);
     }
-  }, [input, disabled, submitting, mentionedPaths, mentionedAgents, mentionedSkills, onSubmit, attachments, stagingClientUuid]);
+  }, [input, disabled, submitting, mentionedPaths, effectivePaths, mentionedAgents, mentionedSkills, onSubmit, attachments, stagingClientUuid]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -315,7 +346,7 @@ export function useComposer({
   return {
     input,
     setInput,
-    mentions: { paths: mentionedPaths, agents: mentionedAgents, skills: mentionedSkills },
+    mentions: { paths: effectivePaths, agents: mentionedAgents, skills: mentionedSkills },
     showDropdown,
     filteredItems,
     dropdownIndex: mentionIndex,

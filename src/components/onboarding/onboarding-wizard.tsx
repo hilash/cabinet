@@ -1,6 +1,7 @@
 "use client";
 
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -53,6 +54,7 @@ import {
   submitWaitlistEmail,
 } from "@/lib/telemetry/waitlist-client";
 import { acknowledgeDisclaimer } from "@/components/layout/breaking-changes-warning";
+import { useLocale } from "@/i18n/use-locale";
 
 type OnboardingVerifyStatus =
   | "pass"
@@ -80,13 +82,13 @@ type OnboardingVerifyState =
   | { phase: "done"; result: OnboardingVerifyResult }
   | { phase: "error"; message: string };
 
-const ONBOARDING_VERIFY_META: Record<OnboardingVerifyStatus, { label: string; color: string; bg: string }> = {
-  pass: { label: "Passed", color: "#16a34a", bg: "rgba(22,163,74,0.1)" },
-  not_installed: { label: "Not installed", color: "#64748b", bg: "rgba(100,116,139,0.12)" },
-  auth_required: { label: "Auth required", color: "#d97706", bg: "rgba(217,119,6,0.12)" },
-  payment_required: { label: "Payment required", color: "#e11d48", bg: "rgba(225,29,72,0.12)" },
-  quota_exceeded: { label: "Quota / rate limit", color: "#ea580c", bg: "rgba(234,88,12,0.12)" },
-  other_error: { label: "Error", color: "#e11d48", bg: "rgba(225,29,72,0.1)" },
+const ONBOARDING_VERIFY_META: Record<OnboardingVerifyStatus, { labelKey: string; color: string; bg: string }> = {
+  pass: { labelKey: "passed", color: "#16a34a", bg: "rgba(22,163,74,0.1)" },
+  not_installed: { labelKey: "notInstalled", color: "#64748b", bg: "rgba(100,116,139,0.12)" },
+  auth_required: { labelKey: "authRequired", color: "#d97706", bg: "rgba(217,119,6,0.12)" },
+  payment_required: { labelKey: "paymentRequired", color: "#e11d48", bg: "rgba(225,29,72,0.12)" },
+  quota_exceeded: { labelKey: "quotaExceeded", color: "#ea580c", bg: "rgba(234,88,12,0.12)" },
+  other_error: { labelKey: "error", color: "#e11d48", bg: "rgba(225,29,72,0.1)" },
 };
 
 interface OnboardingAnswers {
@@ -130,9 +132,6 @@ const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
 const GITHUB_STATS_URL = "/api/github/repo";
 const GITHUB_STARS_FALLBACK = 393;
-// Typewritten on the Welcome home step after the blueprint finishes drawing.
-const WELCOME_PARAGRAPH =
-  "Your Home is yours. Inside it, you'll set up rooms for different parts of your life: work, second brain, research, family. And every room has cabinets: your notes, your files, and an AI team quietly getting things done in the background.";
 const WELCOME_TYPE_START_MS = 4800; // begin typing shortly after heading fades in
 const WELCOME_TYPE_CHAR_MS = 32;
 
@@ -261,6 +260,7 @@ function getAlwaysCheckedForRoom(roomType: RoomType): Set<string> {
 type PreMadeTeam = StarterTeam;
 
 function TerminalCommand({ command }: { command: string }) {
+  const { t } = useLocale();
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
@@ -279,7 +279,7 @@ function TerminalCommand({ command }: { command: string }) {
       <button
         onClick={copy}
         className="shrink-0 p-1 rounded transition-colors hover:bg-white/10"
-        title="Copy to clipboard"
+        title={t("tinyExtras:copyToClipboard")}
       >
         {copied ? (
           <ClipboardCheck className="size-3.5" style={{ color: "#6A9955" }} />
@@ -300,8 +300,10 @@ function TeamCarousel({
   roomType: RoomType;
   onSelect: (t: RegistryTemplate) => void;
 }) {
+  const { dir } = useLocale();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
+  const positionRef = useRef(0);
 
   // Use real templates if loaded, otherwise fall back to room-filtered starter teams.
   const fallbackTeams = STARTER_TEAMS.filter((t) => t.rooms.includes(roomType));
@@ -314,29 +316,29 @@ function TeamCarousel({
     if (!el) return;
 
     let animationId: number;
-    let position = 0;
+    const sign = dir === "rtl" ? 1 : -1;
 
     const animate = () => {
-      if (!isPaused) {
-        position += 1.2;
+      if (!isPausedRef.current) {
+        positionRef.current += 1.2;
         const halfWidth = el.scrollWidth / 2;
-        if (position >= halfWidth) position = 0;
-        el.style.transform = `translateX(-${position}px)`;
+        if (positionRef.current >= halfWidth) positionRef.current = 0;
+        el.style.transform = `translateX(${sign * positionRef.current}px)`;
       }
       animationId = requestAnimationFrame(animate);
     };
 
     animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
-  }, [isPaused]);
+  }, [dir]);
 
   const doubled = [...items, ...items];
 
   return (
     <div
       className="tilt-carousel relative w-full py-4"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      onMouseEnter={() => { isPausedRef.current = true; }}
+      onMouseLeave={() => { isPausedRef.current = false; }}
     >
       <div ref={scrollRef} className="flex gap-2 will-change-transform">
         {doubled.map((item, i) => {
@@ -397,6 +399,7 @@ function TeamCarousel({
 }
 
 function IntroStep({ onNext }: { onNext: () => void }) {
+  const { t } = useLocale();
   const [phase, setPhase] = useState(0);
   // 0: nothing  1: card border + "cabinet" title  2: pronunciation + noun
   // 3: def 1  4: def 2  5: def 3  6: tagline line 1  7: tagline line 2  8: button
@@ -504,7 +507,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
         <div className="flex flex-col items-center lg:items-start gap-6 py-6 lg:py-0 lg:max-w-xs shrink-0">
           <h2 className="text-center lg:text-left text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-[1.1]">
             <span className="font-logo italic" style={{ ...fade(6), color: WEB.text, display: "inline-block" }}>
-              Your knowledge base.
+              {t("onboarding:intro.tagline1")}
             </span>
             <br />
             <span
@@ -518,7 +521,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
                 backgroundClip: "text",
               }}
             >
-              Your AI team.
+              {t("onboarding:intro.tagline2")}
             </span>
           </h2>
 
@@ -528,7 +531,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
               className="inline-flex items-center justify-center gap-2.5 rounded-full px-10 py-4 text-base font-medium text-white transition-all hover:-translate-y-0.5 shadow-sm w-full lg:w-auto"
               style={{ background: WEB.accent }}
             >
-              Get started
+              {t("onboarding:intro.getStarted")}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -553,6 +556,8 @@ function CabinetCreatedScreen({
   roomType: RoomType;
   onContinue: () => void;
 }) {
+  const { dir } = useLocale();
+  const slideOffset = dir === "rtl" ? "translateX(8px)" : "translateX(-8px)";
   const roomConfig = ROOMS[roomType];
   const RoomIcon = roomConfig.icon;
   const [visibleLines, setVisibleLines] = useState(0);
@@ -652,7 +657,7 @@ function CabinetCreatedScreen({
               className="transition-all duration-300"
               style={{
                 opacity: isVisible ? 1 : 0,
-                transform: isVisible ? "translateX(0)" : "translateX(-8px)",
+                transform: isVisible ? "translateX(0)" : slideOffset,
               }}
             >
               {isRoot ? (
@@ -697,6 +702,7 @@ function WelcomeBackStep({
   cabinetName?: string;
   onNext: () => void;
 }) {
+  const { t } = useLocale();
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -712,10 +718,12 @@ function WelcomeBackStep({
       >
         <CheckCircle2 className="size-10 mx-auto" style={{ color: WEB.accent }} />
         <h1 className="font-logo text-2xl tracking-tight italic" style={{ color: WEB.text }}>
-          Welcome back{cabinetName ? ` to ${cabinetName}` : ""}
+          {cabinetName
+            ? t("onboarding:welcomeBack.headingNamed", { cabinet: cabinetName })
+            : t("onboarding:welcomeBack.heading")}
         </h1>
         <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
-          We found an existing cabinet here. Let&apos;s finish setting it up.
+          {t("onboarding:welcomeBack.subtitle")}
         </p>
       </div>
 
@@ -728,7 +736,7 @@ function WelcomeBackStep({
           transform: show ? "translateY(0)" : "translateY(8px)",
         }}
       >
-        Continue
+        {t("onboarding:welcomeBack.continue")}
         <ArrowRight className="w-3.5 h-3.5" />
       </button>
     </div>
@@ -1557,6 +1565,8 @@ const STEP_NAMES: Record<number, string> = {
 };
 
 export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
+  const { t, locale, dir } = useLocale();
+  const welcomeParagraph = t("onboarding:welcome.paragraph");
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -1630,7 +1640,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     const start = window.setTimeout(() => {
       interval = setInterval(() => {
         setWelcomeTyped((c) => {
-          if (c >= WELCOME_PARAGRAPH.length) {
+          if (c >= welcomeParagraph.length) {
             if (interval) clearInterval(interval);
             return c;
           }
@@ -1642,7 +1652,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       window.clearTimeout(start);
       if (interval) clearInterval(interval);
     };
-  }, [step]);
+  }, [step, welcomeParagraph.length]);
   const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[]>([]);
   const [libraryTemplates, setLibraryTemplates] = useState<LibraryTemplate[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
@@ -1855,6 +1865,20 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             defaultEffort: selectedEffort || undefined,
           }),
         });
+
+        // Seed the set of environments integrations install into from the CLI
+        // the user just set up. The endpoint sanitizes to MCP-capable
+        // providers (a no-op for non-capable ones) and the user can edit this
+        // any time in Settings → Integrations. Best-effort: never block setup.
+        try {
+          await fetch("/api/agents/config/integration-environments", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ environments: [selectedProvider] }),
+          });
+        } catch {
+          /* non-critical — defaults apply until edited in Settings */
+        }
       }
 
       await fetch("/api/onboarding/setup", {
@@ -1871,6 +1895,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             priority: answers.priority,
           },
           selectedAgents: selected,
+          locale,
         }),
       });
 
@@ -2087,8 +2112,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     className="text-sm leading-relaxed text-center"
                     style={{ color: WEB.textSecondary, minHeight: "5.5em" }}
                   >
-                    <span>{WELCOME_PARAGRAPH.slice(0, welcomeTyped)}</span>
-                    {welcomeTyped < WELCOME_PARAGRAPH.length && (
+                    <span>{welcomeParagraph.slice(0, welcomeTyped)}</span>
+                    {welcomeTyped < welcomeParagraph.length && (
                       <span
                         className="wh-caret"
                         aria-hidden="true"
@@ -2098,7 +2123,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                       </span>
                     )}
                     <span aria-hidden="true" style={{ color: "transparent" }}>
-                      {WELCOME_PARAGRAPH.slice(welcomeTyped)}
+                      {welcomeParagraph.slice(welcomeTyped)}
                     </span>
                   </p>
                 </div>
@@ -2119,7 +2144,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         setStep(STEP_ROOM_SETUP);
                       }
                     }}
-                    placeholder="Jane"
+                    placeholder={t("tinyExtras:namePlaceholder")}
                     style={inputStyle}
                     autoFocus
                   />
@@ -2187,7 +2212,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         aria-hidden="true"
                         className="pointer-events-none absolute transition-opacity duration-300"
                         style={{
-                          right: -40,
+                          [dir === "rtl" ? "left" : "right"]: -40,
                           bottom: -40,
                           width: 190,
                           height: 190,
@@ -2347,10 +2372,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           ? ONBOARDING_VERIFY_META[verifyState.result.status]
                           : null;
                       const statusLabel = isReady
-                        ? "Ready"
+                        ? t("onboarding:providerStatus.ready")
                         : isInstalled
-                          ? "Log in required"
-                          : "Not installed";
+                          ? t("onboarding:providerStatus.loginRequired")
+                          : t("onboarding:providerStatus.notInstalled");
                       const statusColor = isReady
                         ? "#16a34a"
                         : isInstalled
@@ -2439,7 +2464,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                               className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                               style={{ background: statusBg, color: statusColor }}
                             >
-                              {verifyMeta ? verifyMeta.label : statusLabel}
+                              {verifyMeta ? t(`onboarding:verify.${verifyMeta.labelKey}`) : statusLabel}
                             </span>
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-medium"
@@ -2634,7 +2659,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                               className="text-[10px] px-2 py-0.5 rounded-full font-medium"
                               style={{ background: verifyMeta.bg, color: verifyMeta.color }}
                             >
-                              {verifyMeta.label}
+                              {t(`onboarding:verify.${verifyMeta.labelKey}`)}
                             </span>
                           )}
                           {verifyResult &&
@@ -2760,7 +2785,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         className={`waitlist-cloud-row absolute ${cloud.reverse ? "waitlist-cloud-row-reverse" : ""}`}
                         style={{
                           top: cloud.top,
-                          left: cloud.left,
+                          insetInlineStart: cloud.left,
                           opacity: cloud.opacity,
                           ["--cloud-row-duration" as string]: cloud.duration,
                           animationDelay: cloud.delay,
@@ -2827,8 +2852,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           <Star className="size-5 fill-current" style={{ color: WEB.accent }} />
                         </span>
                         <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Star Cabinet on GitHub</span>
-                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Help more people find the community</span>
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>{t("tinyExtras:starOnGithub")}</span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>{t("tinyExtras:helpMoreFind")}</span>
                         </span>
                       </span>
                       <span className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex" style={{ background: WEB.bgWarm, color: WEB.accent }}>
@@ -2852,8 +2877,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           <DiscordIcon className="size-5" style={{ color: "#5865F2" }} />
                         </span>
                         <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Join the Discord</span>
-                          <span className="text-sm" style={{ color: WEB.textSecondary }}>Chat with the people building Cabinet</span>
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>{t("tinyExtras:joinDiscord")}</span>
+                          <span className="text-sm" style={{ color: WEB.textSecondary }}>{t("tinyExtras:chatWithBuilders")}</span>
                         </span>
                       </span>
                       <span className="hidden shrink-0 rounded-full px-3 py-1 text-sm font-semibold sm:inline-flex" style={{ background: "#D8D4F7", color: "#5865F2" }}>
@@ -2874,7 +2899,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                           <Cloud className="size-5" style={{ color: WEB.accent }} />
                         </span>
                         <div className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>Join the Cabinet Cloud waitlist</span>
+                          <span className="truncate text-base font-semibold sm:text-lg" style={{ color: WEB.text }}>{t("tinyExtras:joinWaitlist")}</span>
                           <span className="text-sm" style={{ color: WEB.textSecondary }}>Connect from anywhere. Your AI team works 24/7.</span>
                         </div>
                       </div>
@@ -2902,7 +2927,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                             type="email"
                             inputMode="email"
                             autoComplete="email"
-                            placeholder="you@company.com"
+                            placeholder={t("tinyExtras:emailPlaceholder")}
                             value={cloudEmail}
                             onChange={(e) => handleCloudInput(e.target.value)}
                             disabled={cloudStatus === "submitting"}
@@ -2983,7 +3008,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             <div className="mx-auto flex max-w-4xl flex-col gap-6 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
                 <h1 className="font-logo text-2xl tracking-tight italic">
-                  Start your <span style={{ color: WEB.accent }}>Cabinet</span>
+                  <Trans
+                    i18nKey="onboarding:launchHeading"
+                    components={{ accent: <span style={{ color: WEB.accent }} /> }}
+                  />
                 </h1>
               </div>
 
@@ -3134,13 +3162,13 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <input
                     type="checkbox"
                     name="disclaimer-accept"
-                    aria-label="I have read and I accept"
+                    aria-label={t("breakingChanges:iAccept")}
                     checked={disclaimerAccepted}
                     onChange={(e) => setDisclaimerAccepted(e.target.checked)}
                     className="mt-0.5 size-4 shrink-0 rounded"
                     style={{ borderColor: WEB.border, accentColor: WEB.accent }}
                   />
-                  <span>I understand and want to continue.</span>
+                  <span>{t("breakingChangesPlus:iUnderstand")}</span>
                 </label>
                 <p
                   className="text-[11px]"

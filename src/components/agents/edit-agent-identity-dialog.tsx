@@ -19,6 +19,7 @@ import { AVATAR_PRESETS } from "@/lib/agents/avatar-catalog";
 import { AgentAvatar } from "./agent-avatar";
 import { cn } from "@/lib/utils";
 import { Upload, Trash2 } from "lucide-react";
+import { useLocale } from "@/i18n/use-locale";
 
 interface EditAgentIdentityDialogProps {
   target: { slug: string; cabinetPath?: string } | null;
@@ -79,6 +80,7 @@ export function EditAgentIdentityDialog({
   onOpenChange,
   onSaved,
 }: EditAgentIdentityDialogProps) {
+  const { t } = useLocale();
   const open = target !== null;
   const [state, setState] = useState<PersonaState>(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -201,7 +203,7 @@ export function EditAgentIdentityDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit agent</DialogTitle>
+          <DialogTitle>{t("editIdentity:title")}</DialogTitle>
           <DialogDescription>
             Customize name, icon, color, and avatar. Role stays the same.
           </DialogDescription>
@@ -230,7 +232,7 @@ export function EditAgentIdentityDialog({
 
             {/* Display name */}
             <div className="space-y-1.5">
-              <Label htmlFor="displayName">Display name</Label>
+              <Label htmlFor="displayName">{t("editIdentity:displayName")}</Label>
               <Input
                 id="displayName"
                 placeholder={state.role || "e.g. Steve"}
@@ -280,7 +282,7 @@ export function EditAgentIdentityDialog({
 
             {/* Color */}
             <div className="space-y-1.5">
-              <Label>Color</Label>
+              <Label>{t("editIdentity:color")}</Label>
               <div className="flex items-center gap-2">
                 {AGENT_PALETTE.map((_, i) => {
                   const hex = hexFromPalette(i);
@@ -309,7 +311,7 @@ export function EditAgentIdentityDialog({
                 })}
                 <Input
                   type="text"
-                  placeholder="#hex"
+                  placeholder={t("editIdentity:hexPlaceholder")}
                   value={state.color}
                   onChange={(e) =>
                     setState((s) => ({ ...s, color: e.target.value }))
@@ -321,7 +323,7 @@ export function EditAgentIdentityDialog({
 
             {/* Avatar */}
             <div className="space-y-1.5">
-              <Label>Avatar</Label>
+              <Label>{t("editIdentityPlus:avatar")}</Label>
               <div className="grid grid-cols-6 gap-2 max-h-64 overflow-y-auto pr-1">
                 <button
                   type="button"
@@ -334,7 +336,7 @@ export function EditAgentIdentityDialog({
                       ? "border-foreground"
                       : "border-transparent"
                   )}
-                  title="Use icon instead"
+                  title={t("editIdentityPlus:useIconInstead")}
                 >
                   None
                 </button>

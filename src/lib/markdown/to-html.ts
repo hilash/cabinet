@@ -46,6 +46,24 @@ function fixTaskListHtml(html: string): string {
 }
 
 /**
+ * Add `dir="auto"` to each list *item* (never the `<ul>`/`<ol>`) so a Hebrew
+ * item infers RTL and, with `padding-inline-start` on the `<li>` (see
+ * `.rtl-aware li` in globals.css), renders its bullet/number on the right.
+ * `dir="auto"` ignores descendants that carry their own `dir`, so putting it
+ * on the container would make a list full of `dir`-bearing items resolve LTR
+ * and pin every marker left. Mirrors the editor's AutoDirection extension.
+ * Skips items that already carry an explicit dir (e.g. task-list markup from
+ * fixTaskListHtml).
+ */
+function addListAutoDir(html: string): string {
+  return html.replace(
+    /<li((?:\s[^>]*)?)>/gi,
+    (match, attrs: string) =>
+      /\bdir=/i.test(attrs) ? match : `<li${attrs} dir="auto">`
+  );
+}
+
+/**
  * Upgrade broken `<video src="https://youtu.be/...">` (or any non-file video URL
  * that points at a known embed provider) into a real iframe embed block.
  *
@@ -130,6 +148,9 @@ export async function markdownToHtml(markdown: string, pagePath?: string): Promi
 
   // Post-process task lists for Tiptap compatibility
   html = fixTaskListHtml(html);
+
+  // Let Hebrew lists infer RTL so markers sit on the right
+  html = addListAutoDir(html);
 
   // Heal <video src="youtube-url"> into real iframe embeds
   html = upgradeProviderVideos(html);

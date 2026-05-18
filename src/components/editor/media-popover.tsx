@@ -11,7 +11,7 @@ interface Props {
   pagePath: string;
   onCancel: () => void;
   onInsert: (payload: { url: string; alt?: string; mimeType?: string }) => void;
-  anchor: { top: number; left: number };
+  anchor: { top: number; left?: number; right?: number };
 }
 
 async function uploadFile(
@@ -75,7 +75,7 @@ export function MediaPopover({ kind, pagePath, onCancel, onInsert, anchor }: Pro
   return (
     <div
       className="absolute z-50 w-[360px] bg-popover border border-border rounded-lg shadow-xl overflow-hidden"
-      style={{ top: anchor.top, left: anchor.left }}
+      style={{ top: anchor.top, left: anchor.left, right: anchor.right }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">

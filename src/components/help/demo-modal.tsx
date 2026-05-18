@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { ArrowLeft, ArrowRight, Sparkles, X } from "lucide-react";
+import { DirIcon } from "@/components/ui/dir-icon";
 import { TOUR_PALETTE as P } from "@/components/onboarding/tour/palette";
+import { useLocale } from "@/i18n/use-locale";
 
 export interface DemoSlide {
   id: string;
@@ -51,11 +53,13 @@ function transition(update: () => void) {
 }
 
 export function DemoModal({ demo, onClose }: DemoModalProps) {
+  const { t } = useLocale();
   if (!demo) return null;
   return <DemoBody demo={demo} onClose={onClose} />;
 }
 
 function DemoBody({ demo, onClose }: { demo: DemoConfig; onClose: () => void }) {
+  const { t, dir } = useLocale();
   const slides = demo.slides;
   const [index, setIndex] = useState(0);
 
@@ -87,7 +91,9 @@ function DemoBody({ demo, onClose }: { demo: DemoConfig; onClose: () => void }) 
         onClose();
         return;
       }
-      if (e.key === "ArrowRight") {
+      const forwardKey = dir === "rtl" ? "ArrowLeft" : "ArrowRight";
+      const backKey = dir === "rtl" ? "ArrowRight" : "ArrowLeft";
+      if (e.key === forwardKey) {
         e.preventDefault();
         if (index === slides.length - 1) {
           finish();
@@ -96,14 +102,14 @@ function DemoBody({ demo, onClose }: { demo: DemoConfig; onClose: () => void }) 
         }
         return;
       }
-      if (e.key === "ArrowLeft") {
+      if (e.key === backKey) {
         e.preventDefault();
         back();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [index, slides.length, next, back, finish, onClose]);
+  }, [index, slides.length, next, back, finish, onClose, dir]);
 
   const isLast = index === slides.length - 1;
   const current = slides[index];
@@ -126,15 +132,15 @@ function DemoBody({ demo, onClose }: { demo: DemoConfig; onClose: () => void }) 
 
       <button
         onClick={onClose}
-        aria-label="Close demo"
-        className="absolute right-6 top-6 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition-colors"
+        aria-label={t("demoModal:closeDemo")}
+        className="absolute end-6 top-6 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition-colors"
         style={{
           color: P.textSecondary,
           background: P.bgCard,
           border: `1px solid ${P.border}`,
         }}
       >
-        <span>Close</span>
+        <span>{t("demoModal:close")}</span>
         <X className="h-3.5 w-3.5" />
       </button>
 
@@ -157,7 +163,7 @@ function DemoBody({ demo, onClose }: { demo: DemoConfig; onClose: () => void }) 
               border: `1px solid ${P.border}`,
             }}
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
+            <DirIcon ltr={ArrowLeft} rtl={ArrowRight} className="h-3.5 w-3.5" />
             Back
           </button>
 
@@ -188,7 +194,7 @@ function DemoBody({ demo, onClose }: { demo: DemoConfig; onClose: () => void }) 
             >
               <Sparkles className="h-4 w-4" />
               {demo.finalCta.label}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              <DirIcon ltr={ArrowRight} rtl={ArrowLeft} className="h-4 w-4 transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5" />
             </button>
           ) : isLast ? (
             <button
@@ -197,7 +203,7 @@ function DemoBody({ demo, onClose }: { demo: DemoConfig; onClose: () => void }) 
               style={{ background: P.text, color: P.paper }}
             >
               Done
-              <ArrowRight className="h-3.5 w-3.5" />
+              <DirIcon ltr={ArrowRight} rtl={ArrowLeft} className="h-3.5 w-3.5" />
             </button>
           ) : (
             <button
@@ -206,7 +212,7 @@ function DemoBody({ demo, onClose }: { demo: DemoConfig; onClose: () => void }) 
               style={{ background: P.text, color: P.paper }}
             >
               Next
-              <ArrowRight className="h-3.5 w-3.5" />
+              <DirIcon ltr={ArrowRight} rtl={ArrowLeft} className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

@@ -2,7 +2,6 @@
 
 import {
   AlertCircle,
-  ArrowDownToLine,
   CheckCircle2,
   Circle,
   Loader2,
@@ -12,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { TaskMeta } from "@/types/tasks";
 import type { LaneKey } from "./lane-rules";
+import { IconHint } from "./icon-hint";
 
 /**
  * One of six visual states a card can carry. Derived from `TaskMeta.status`
@@ -26,21 +26,39 @@ export type CardState =
   | "handoff"
   | "idle";
 
+// "handoff" (an unstarted inbox task) is intentionally absent — it renders
+// no glyph (see StatusIcon). The old violet download-style arrow read as a
+// confusing clickable button, so waiting-to-start cards now show nothing.
 const STATUS_STYLE: Record<
-  CardState,
+  Exclude<CardState, "handoff">,
   { icon: LucideIcon; color: string; label: string; animate?: string }
 > = {
   running: {
     icon: Loader2,
     color: "text-sky-500",
-    label: "Running",
+    label: "Running — the agent is working on this now",
     animate: "animate-spin [animation-duration:1.6s]",
   },
-  ask: { icon: MessageCircleQuestion, color: "text-amber-500", label: "Your turn — reply or approve" },
-  failed: { icon: AlertCircle, color: "text-red-500", label: "Failed" },
-  "just-done": { icon: CheckCircle2, color: "text-emerald-500", label: "Just finished" },
-  handoff: { icon: ArrowDownToLine, color: "text-violet-500", label: "Waiting to start" },
-  idle: { icon: Circle, color: "text-muted-foreground/50", label: "Idle" },
+  ask: {
+    icon: MessageCircleQuestion,
+    color: "text-amber-500",
+    label: "Your turn — the agent asked a question or needs approval",
+  },
+  failed: {
+    icon: AlertCircle,
+    color: "text-red-500",
+    label: "Failed — the last run ended with an error (Restart to retry)",
+  },
+  "just-done": {
+    icon: CheckCircle2,
+    color: "text-emerald-500",
+    label: "Just finished — completed within the last hour",
+  },
+  idle: {
+    icon: Circle,
+    color: "text-muted-foreground/50",
+    label: "Idle — no activity yet",
+  },
 };
 
 export function deriveCardState(task: TaskMeta, lane: LaneKey): CardState {
@@ -56,17 +74,21 @@ export function deriveCardState(task: TaskMeta, lane: LaneKey): CardState {
 }
 
 export function StatusIcon({ state, size = "sm" }: { state: CardState; size?: "sm" | "md" }) {
+  // Unstarted inbox tasks carry no status glyph.
+  if (state === "handoff") return null;
   const meta = STATUS_STYLE[state];
   const Icon = meta.icon;
   return (
-    <span
-      className={cn("inline-flex shrink-0 items-center justify-center", meta.color)}
-      title={meta.label}
-    >
-      <Icon
-        className={cn(size === "md" ? "size-4" : "size-3.5", meta.animate)}
-        strokeWidth={2.25}
-      />
-    </span>
+    <IconHint label={meta.label}>
+      <span
+        className={cn("inline-flex shrink-0 items-center justify-center", meta.color)}
+        aria-label={meta.label}
+      >
+        <Icon
+          className={cn(size === "md" ? "size-4" : "size-3.5", meta.animate)}
+          strokeWidth={2.25}
+        />
+      </span>
+    </IconHint>
   );
 }

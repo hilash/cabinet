@@ -1,9 +1,14 @@
 "use client";
 
 import { ArrowRight, Music, AtSign } from "lucide-react";
+import { Trans } from "react-i18next";
 import { MockupSidebar } from "./mockup-sidebar";
 import { TOUR_PALETTE as P } from "./palette";
+import { useLocale } from "@/i18n/use-locale";
 
+// English song titles — intentional creative content for the demo, not
+// translated. They feel like song titles in any locale because they're
+// poetic English phrases.
 const SONG_TITLES = [
   "Neon Dreams",
   "Paper Moons",
@@ -17,12 +22,12 @@ const SONG_TITLES = [
   "Halfway Home",
 ];
 
-const TYPED_COMMAND = "Run 10 tasks, each writing a song, save to @Songs/";
-
 export function SlideTasks() {
+  const { t } = useLocale();
+  const TYPED_COMMAND = t("slideTasks:typedCommand");
   return (
-    <div className="grid h-full grid-cols-[minmax(360px,420px)_1fr] gap-10 lg:gap-14 items-center">
-      <div className="h-[440px] w-full">
+    <div className="flex h-full flex-col items-center gap-6 md:grid md:grid-cols-[minmax(360px,420px)_1fr] md:gap-10 md:items-center lg:gap-14">
+      <div className="order-2 h-[420px] w-full max-w-[320px] md:order-1 md:h-[440px] md:max-w-none">
         <MockupSidebar activeTab="tasks" viewTransitionName="cabinet-card">
           <div className="flex h-full flex-col gap-2 px-2 py-2">
             {/* Composer */}
@@ -159,9 +164,9 @@ export function SlideTasks() {
               }}
             >
               <AtSign className="h-2.5 w-2.5" style={{ color: P.accent }} />
-              <span>Saving to </span>
+              <span>{t("tour:savingTo")}</span>
               <span className="font-mono font-semibold" style={{ color: P.text }}>
-                Songs/
+                {t("slideTasks:savingFolder")}
               </span>
             </div>
           </div>
@@ -169,7 +174,7 @@ export function SlideTasks() {
       </div>
 
       {/* Copy */}
-      <div className="flex flex-col gap-5 max-w-lg">
+      <div className="order-1 flex flex-col items-center gap-3 max-w-lg text-center md:order-2 md:items-start md:gap-5 md:text-start">
         <span
           className="inline-block w-fit rounded-full px-3 py-1 text-[10px] font-semibold tracking-[0.18em] opacity-0"
           style={{
@@ -180,17 +185,20 @@ export function SlideTasks() {
             animationDelay: "60ms",
           }}
         >
-          03 &middot; TASKS
+          {t("slideTasks:slideNum")}
         </span>
         <h2
-          className="font-logo text-4xl italic tracking-tight opacity-0 lg:text-5xl"
+          className="font-logo text-3xl italic tracking-tight opacity-0 md:text-4xl lg:text-5xl"
           style={{
             color: P.text,
             animation: "cabinet-tour-fade-up 0.5s ease-out forwards",
             animationDelay: "180ms",
           }}
         >
-          Ready to <span style={{ color: P.accent }}>start</span>?
+          <Trans
+            i18nKey="slideTasks:headlineSentence"
+            components={{ accent: <span style={{ color: P.accent }} /> }}
+          />
         </h2>
         <p
           className="font-body-serif text-base leading-relaxed opacity-0 lg:text-lg"
@@ -200,10 +208,9 @@ export function SlideTasks() {
             animationDelay: "320ms",
           }}
         >
-          Write a task. Run one, run ten, schedule them forever.
-          Mention pages with{" "}
-          <span className="font-mono" style={{ color: P.accent }}>@</span>,
-          save output wherever you want. You&apos;re the director now.
+          {t("slideTasks:paragraphPrefix")}
+          <span className="font-mono" style={{ color: P.accent }}>@</span>
+          {t("slideTasks:paragraphSuffix")}
         </p>
       </div>
     </div>

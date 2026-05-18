@@ -11,7 +11,7 @@ import { reloadDaemonSchedules } from "@/lib/agents/daemon-client";
 export async function GET() {
   const personas = await listAllPersonas();
   const registered = personas
-    .filter((persona) => persona.active && !!persona.heartbeat)
+    .filter((persona) => persona.active && persona.heartbeatEnabled && !!persona.heartbeat)
     .map((persona) => ({
       slug: persona.slug,
       cabinetPath: persona.cabinetPath,
@@ -90,6 +90,26 @@ export async function POST(req: NextRequest) {
       }
       await reloadDaemonSchedules().catch(() => {});
       return NextResponse.json({ ok: true, paused: toPause.length });
+    }
+
+    case "pause-heartbeats": {
+      // Disable heartbeats only — leaves agent.active alone so other
+      // routines keep firing. Used by the "Pause all heartbeats" button.
+      const toPause = personas.filter((p) => p.heartbeatEnabled !== false);
+      for (const p of toPause) {
+        await writePersona(p.slug, { heartbeatEnabled: false }, p.cabinetPath);
+      }
+      await reloadDaemonSchedules().catch(() => {});
+      return NextResponse.json({ ok: true, paused: toPause.length });
+    }
+
+    case "resume-heartbeats": {
+      const toResume = personas.filter((p) => p.heartbeatEnabled === false);
+      for (const p of toResume) {
+        await writePersona(p.slug, { heartbeatEnabled: true }, p.cabinetPath);
+      }
+      await reloadDaemonSchedules().catch(() => {});
+      return NextResponse.json({ ok: true, resumed: toResume.length });
     }
 
     case "activate": {

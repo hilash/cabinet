@@ -1,4 +1,5 @@
 import type { AdapterBillingType, AdapterUsageSummary } from "./types";
+import { wrapToolOutput } from "../tool-output-markers";
 
 interface ClaudeUsagePayload {
   input_tokens?: number;
@@ -168,9 +169,11 @@ function consumeLine(
 
     const toolText = extractClaudeToolResultText(payload);
     if (toolText) {
-      const normalized = toolText.endsWith("\n") ? toolText : `${toolText}\n`;
-      accumulator.streamedText = `${accumulator.streamedText}${normalized}`;
-      return normalized;
+      // Fence tool stdout/stderr (incl. shell-init noise + `ls` dumps) so the
+      // renderer can collapse it instead of flattening it into the prose.
+      const wrapped = wrapToolOutput(toolText.trimEnd());
+      accumulator.streamedText = `${accumulator.streamedText}${wrapped}`;
+      return wrapped;
     }
 
     if (!accumulator.streamedText && accumulator.finalText) {

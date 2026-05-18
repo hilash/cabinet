@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sparkles, X, ExternalLink } from "lucide-react";
 import { version as pkgVersion } from "../../../package.json";
+import { useLocale } from "@/i18n/use-locale";
 
 // Audit #057: lightweight "What's new" card for the home screen. Compares
 // the current package.json version to the user's lastSeenVersion in
@@ -69,6 +70,7 @@ function findReleaseFor(version: string): ReleaseEntry | null {
 }
 
 export function WhatsNewCard() {
+  const { t } = useLocale();
   const [show, setShow] = useState(false);
   const [release, setRelease] = useState<ReleaseEntry | null>(null);
 
@@ -108,13 +110,13 @@ export function WhatsNewCard() {
   if (!show || !release) return null;
 
   return (
-    <div className="pointer-events-auto fixed right-4 bottom-12 z-40 w-[360px] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 shadow-2xl ring-1 ring-foreground/10">
+    <div className="pointer-events-auto fixed end-4 bottom-12 z-40 w-[360px] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 shadow-2xl ring-1 ring-foreground/10">
       <div className="flex items-start gap-2">
         <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="flex flex-1 flex-col gap-1">
           <div className="flex items-baseline gap-2">
             <span className="text-[13px] font-semibold">
-              What&rsquo;s new in v{release.version}
+              {t("whatsNew:headerPrefix")}{release.version}
             </span>
             <span className="text-[10px] text-muted-foreground/70">
               {release.date}
@@ -138,14 +140,14 @@ export function WhatsNewCard() {
             rel="noreferrer noopener"
             className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 underline-offset-2 hover:underline"
           >
-            Read full release notes
+            {t("whatsNew:readFull")}
             <ExternalLink className="size-3" />
           </a>
         </div>
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Dismiss"
+          aria-label={t("whatsNew:dismiss")}
           className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X className="size-3.5" />

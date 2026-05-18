@@ -147,9 +147,9 @@ Three action types:
 Inline form — one action per line:
 
 ```cabinet
-LAUNCH_TASK: researcher | Benchmark | Pull pricing from three competitors | effort=low
-SCHEDULE_TASK: writer | 2026-04-23T09:00:00Z | Launch copy | Draft the hero section
-SCHEDULE_JOB: growth | Weekly digest | 0 9 * * MON | Summarize last week's metrics
+LAUNCH_TASK: <agent-slug> | <title> | <one-line prompt> | effort=low
+SCHEDULE_TASK: <agent-slug> | <ISO datetime> | <title> | <prompt>
+SCHEDULE_JOB: <agent-slug> | <name> | <cron> | <prompt>
 ```
 
 JSON form for multi-line prompts or fan-out over ~5 actions:
@@ -157,7 +157,7 @@ JSON form for multi-line prompts or fan-out over ~5 actions:
 ````markdown
 ```cabinet-actions
 [
-  { "type": "LAUNCH_TASK", "agent": "writer", "title": "Draft hero", "prompt": "Outline the hero section...", "effort": "high" }
+  { "type": "LAUNCH_TASK", "agent": "<agent-slug>", "title": "<title>", "prompt": "<prompt>", "effort": "high" }
 ]
 ```
 ````

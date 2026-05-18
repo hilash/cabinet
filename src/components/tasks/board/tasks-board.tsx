@@ -4,17 +4,16 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  ArrowRight,
   ArrowRightLeft,
-  Bot,
   ChevronDown,
-  Clock3,
-  HeartPulse,
   Loader2,
   Plus,
   Repeat,
   Trash2,
   Zap,
 } from "lucide-react";
+import { DirIcon } from "@/components/ui/dir-icon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,10 +37,21 @@ import { ScheduleView } from "./schedule-view";
 import { DetailPanel } from "./detail-panel";
 import { ViewToggle, type BoardViewMode } from "./view-toggle";
 import { DensityToggle, type BoardDensity } from "./density-toggle";
-import { AgentFilterDropdown, TriggerChip, type TriggerFilter } from "./filter-bar";
+import {
+  ExplainerCard,
+  ExplainerIcon,
+  useExplainerState,
+} from "@/components/agents/v2/tab-explainer";
+import {
+  AgentFilterDropdown,
+  TriggerFilterDropdown,
+  type TriggerFilter,
+} from "./filter-bar";
 import { UndoToast, type PendingUndo } from "./undo-toast";
 import { ConfirmPopover, type PendingConfirm } from "./confirm-popover";
 import { StartWorkDialog, type StartWorkMode } from "@/components/composer/start-work-dialog";
+import type { TaskRuntimeSelection } from "@/components/composer/task-runtime-picker";
+import { IconHint } from "./icon-hint";
 import { ReassignMenu } from "./reassign-menu";
 import { deleteConversation, reassignConversation } from "./board-actions";
 import {
@@ -62,6 +72,7 @@ import { useAppStore } from "@/stores/app-store";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { TaskMeta } from "@/types/tasks";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Entry point for the Task Board.
@@ -78,6 +89,7 @@ export function TasksBoard({
   visibilityMode?: CabinetVisibilityMode;
   standalone?: boolean;
 }) {
+  const { t } = useLocale();
   // Visibility depth is owned by the board (so the in-board segmented
   // control can change it) but seeded from the caller / the cabinet's
   // per-path store so sidebar + board share the same default.
@@ -136,6 +148,9 @@ export function TasksBoard({
     "comfortable",
     (raw) => (raw === "compact" || raw === "comfortable" ? raw : null)
   );
+  // Onboarding explainer for the kanban/list views. Schedule has its own
+  // (keyed "tasks-schedule") inside ScheduleView.
+  const boardExplainer = useExplainerState("tasks-board");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
@@ -143,6 +158,15 @@ export function TasksBoard({
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [newTaskMode, setNewTaskMode] = useState<StartWorkMode>("now");
   const [newTaskInitialPrompt, setNewTaskInitialPrompt] = useState<string | undefined>(undefined);
+  // Inbox-draft edit: RowActions dispatches `cabinet:open-edit-draft`; we
+  // load the draft's current text/agent/runtime and reopen StartWorkDialog
+  // bound to that conversation so submit PATCHes instead of creating.
+  const [editingDraft, setEditingDraft] = useState<
+    { conversationId: string; cabinetPath?: string } | null
+  >(null);
+  const [editSeed, setEditSeed] = useState<
+    { prompt: string; agentSlug?: string; runtime?: TaskRuntimeSelection } | null
+  >(null);
   const [jobDialog, setJobDialog] = useState<JobDialogState | null>(null);
   const [heartbeatDialog, setHeartbeatDialog] = useState<HeartbeatDialogState | null>(null);
 
@@ -155,6 +179,8 @@ export function TasksBoard({
       const detail = (e as CustomEvent).detail as
         | { initialPrompt?: string; initialMode?: StartWorkMode }
         | undefined;
+      setEditingDraft(null);
+      setEditSeed(null);
       setNewTaskMode(detail?.initialMode ?? "now");
       setNewTaskInitialPrompt(detail?.initialPrompt);
       setNewTaskOpen(true);
@@ -163,7 +189,65 @@ export function TasksBoard({
     return () => window.removeEventListener("cabinet:open-create-task", handler);
   }, []);
 
+  // Inbox-draft Edit (row action) → load the draft, then reopen the dialog
+  // pre-filled and bound to it. `request` is the user's original typed text
+  // (the composite prompt's "User request:" tail, peeled by the server).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as
+        | { taskId?: string; cabinetPath?: string }
+        | undefined;
+      const taskId = detail?.taskId;
+      if (!taskId) return;
+      const cp = detail?.cabinetPath;
+      void (async () => {
+        try {
+          const params = new URLSearchParams();
+          if (cp) params.set("cabinetPath", cp);
+          const qs = params.toString();
+          const res = await fetch(
+            `/api/agents/conversations/${encodeURIComponent(taskId)}${qs ? `?${qs}` : ""}`,
+            { cache: "no-store" }
+          );
+          if (!res.ok) throw new Error(`load draft failed: ${res.status}`);
+          const data = (await res.json()) as {
+            request?: string;
+            meta?: {
+              agentSlug?: string;
+              providerId?: string;
+              adapterType?: string;
+              adapterConfig?: Record<string, unknown>;
+            };
+          };
+          const meta = data.meta;
+          const cfg = meta?.adapterConfig ?? {};
+          setEditSeed({
+            prompt: data.request ?? "",
+            agentSlug: meta?.agentSlug,
+            runtime: {
+              providerId: meta?.providerId,
+              adapterType: meta?.adapterType,
+              model: typeof cfg.model === "string" ? cfg.model : undefined,
+              effort: typeof cfg.effort === "string" ? cfg.effort : undefined,
+            },
+          });
+          setEditingDraft({ conversationId: taskId, cabinetPath: cp });
+          setNewTaskOpen(true);
+        } catch (err) {
+          console.error("[board] open edit draft failed", err);
+        }
+      })();
+    };
+    window.addEventListener("cabinet:open-edit-draft", handler);
+    return () => window.removeEventListener("cabinet:open-edit-draft", handler);
+  }, []);
+
   const openComposer = (mode: StartWorkMode) => {
+    // Always a fresh task — drop any edit binding so submit creates instead
+    // of PATCHing the previously-edited draft.
+    setEditingDraft(null);
+    setEditSeed(null);
+    setNewTaskInitialPrompt(undefined);
     setNewTaskMode(mode);
     setNewTaskOpen(true);
   };
@@ -248,30 +332,51 @@ export function TasksBoard({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/95 px-4 py-2.5 sm:px-6">
+      <header
+        className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/70 bg-background px-4 py-2 transition-[padding] duration-200 md:h-12 md:flex-nowrap md:py-0"
+        style={{ paddingInlineStart: `calc(1rem + var(--sidebar-toggle-offset, 0px))` }}
+      >
         {standalone && (
           <Link
             href="/"
             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <ArrowLeft className="size-4" />
+            <DirIcon ltr={ArrowLeft} rtl={ArrowRight} className="size-4" />
           </Link>
         )}
-        <h1 className="text-[14px] font-semibold tracking-tight">Tasks</h1>
+        <h1 className="font-ui text-[14px] font-semibold tracking-tight">{t("tasksBoard:title")}</h1>
         {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
-        <div className="ml-4 flex items-center gap-2">
+        {view !== "schedule" && (
+          <ExplainerIcon
+            state={boardExplainer}
+            ariaLabel="About the task board"
+          />
+        )}
+        <div className="flex items-center gap-2 md:ms-2">
           <ViewToggle value={view} onChange={setView} />
-          <DensityToggle value={density} onChange={setDensity} />
+          {/* Density only affects kanban/list rows — the schedule grid
+              ignores it, so don't surface a no-op control there. */}
+          {view !== "schedule" && (
+            <DensityToggle value={density} onChange={setDensity} />
+          )}
         </div>
 
         {/* right-side: depth, trigger, selection */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ms-auto flex items-center gap-2">
           {/* visibility depth dropdown */}
           <DepthDropdown
             mode={visibilityMode}
             onChange={(mode) => {
               setVisibilityMode(mode);
               setCabinetVisibilityMode(cabinetPath, mode);
+            }}
+            descriptions={{
+              own: "Show only this cabinet's tasks.",
+              "children-1":
+                "Also show tasks from direct child cabinets.",
+              "children-2":
+                "Also show tasks from two levels of child cabinets.",
+              all: "Show tasks from this cabinet and all its children.",
             }}
           />
 
@@ -288,47 +393,17 @@ export function TasksBoard({
 
           <div className="h-3.5 w-px bg-border/60" />
 
-          {/* trigger filter chips — "All" carries the task count */}
-          <div className="flex items-center gap-1">
-            <TriggerChip
-              active={triggerFilter === "all"}
-              onClick={() => setTriggerFilter("all")}
-              count={
-                agentFilter
-                  ? `${filteredTasks.length}/${tasks.length}`
-                  : tasks.length
-              }
-            >
-              All
-            </TriggerChip>
-            <TriggerChip
-              active={triggerFilter === "manual"}
-              onClick={() => setTriggerFilter("manual")}
-              icon={<Bot className="size-3" />}
-              tone="sky"
-              title="Manual — tasks you launched directly"
-            >
-              Manual
-            </TriggerChip>
-            <TriggerChip
-              active={triggerFilter === "job"}
-              onClick={() => setTriggerFilter("job")}
-              icon={<Clock3 className="size-3" />}
-              tone="emerald"
-              title="Jobs — scheduled recurring runs"
-            >
-              Jobs
-            </TriggerChip>
-            <TriggerChip
-              active={triggerFilter === "heartbeat"}
-              onClick={() => setTriggerFilter("heartbeat")}
-              icon={<HeartPulse className="size-3" />}
-              tone="pink"
-              title="Heartbeat — self-directed agent runs"
-            >
-              Heartbeat
-            </TriggerChip>
-          </div>
+          {/* trigger filter — dropdown, styled like the cabinet-scope and
+              agent-filter dropdowns. "All" carries the task count. */}
+          <TriggerFilterDropdown
+            value={triggerFilter}
+            onChange={setTriggerFilter}
+            count={
+              agentFilter
+                ? `${filteredTasks.length}/${tasks.length}`
+                : tasks.length
+            }
+          />
 
           {selection.size > 0 && (
             <>
@@ -367,7 +442,7 @@ export function TasksBoard({
                   type="button"
                   onClick={clearSelection}
                   className="rounded px-1 text-[10.5px] text-sky-700 hover:bg-sky-500/20 dark:text-sky-300"
-                  title="Clear selection (Esc)"
+                  title={t("tasksBoard:clearSelection")}
                 >
                   Clear
                 </button>
@@ -389,27 +464,21 @@ export function TasksBoard({
               const toDelete = filteredTasks.slice();
               const count = toDelete.length;
               if (count === 0) {
-                const scope =
-                  triggerFilter !== "all"
-                    ? `${triggerFilter} task`
-                    : agentFilter
-                    ? "task"
-                    : "task";
                 const narrowedBy =
                   triggerFilter !== "all" && agentFilter
-                    ? `the ${triggerFilter} filter and selected agent`
+                    ? t("tasksBoard:filterTriggerAndAgent", { trigger: triggerFilter })
                     : triggerFilter !== "all"
-                    ? `the ${triggerFilter} filter`
+                    ? t("tasksBoard:filterTrigger", { trigger: triggerFilter })
                     : agentFilter
-                    ? "the selected agent filter"
+                    ? t("tasksBoard:filterSelectedAgent")
                     : null;
                 setPendingConfirm({
                   id: `delete-empty-${Date.now()}`,
-                  title: `No ${scope}s to delete`,
+                  title: t("tasksBoard:noToDeleteTitle"),
                   body: narrowedBy
-                    ? `Nothing matches ${narrowedBy}. Clear the filter, pick another view, or create a new task.`
-                    : `There are no tasks on the board yet. Create one with the + New Task button.`,
-                  confirmLabel: "Got it",
+                    ? t("tasksBoard:noToDeleteFiltered", { filter: narrowedBy })
+                    : t("tasksBoard:noToDeleteEmpty"),
+                  confirmLabel: t("tasksBoard:gotIt"),
                   infoOnly: true,
                   onConfirm: () => {},
                 });
@@ -418,11 +487,14 @@ export function TasksBoard({
               const narrowed = !!agentFilter || triggerFilter !== "all";
               setPendingConfirm({
                 id: `delete-all-${Date.now()}`,
-                title: `Delete ${count} task${count === 1 ? "" : "s"}?`,
-                body: `This permanently removes conversation meta, transcripts, and artifacts for every task currently shown${
-                  narrowed ? " by the active filters" : ""
-                }. This can't be undone.`,
-                confirmLabel: `Delete ${count}`,
+                title:
+                  count === 1
+                    ? t("tasksBoard:deleteCountTitle", { count })
+                    : t("tasksBoard:deleteCountTitlePlural", { count }),
+                body: narrowed
+                  ? t("tasksBoard:deleteBodyFiltered")
+                  : t("tasksBoard:deleteBody"),
+                confirmLabel: t("tasksBoard:deleteConfirm", { count }),
                 destructive: true,
                 typedConfirmation: "DELETE",
                 onConfirm: async () => {
@@ -442,15 +514,15 @@ export function TasksBoard({
             }}
             title={
               filteredTasks.length > 0
-                ? `Delete all ${filteredTasks.length} shown task${
-                    filteredTasks.length === 1 ? "" : "s"
-                  }`
-                : "Nothing to delete in this view"
+                ? filteredTasks.length === 1
+                  ? t("tasksBoard:deleteAllShown", { count: filteredTasks.length })
+                  : t("tasksBoard:deleteAllShownPlural", { count: filteredTasks.length })
+                : t("tasksBoard:nothingToDelete")
             }
             aria-label={
               filteredTasks.length > 0
-                ? "Delete all shown tasks"
-                : "No tasks in this view"
+                ? t("tasksBoard:deleteAllAria")
+                : t("tasksBoard:noTasksAria")
             }
             className={cn(
               "inline-flex size-5 items-center justify-center rounded-md transition-colors",
@@ -504,6 +576,21 @@ export function TasksBoard({
           <BoardSkeleton view={view} />
         ) : (
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {view !== "schedule" && boardExplainer.open === true && (
+              <div className="px-4 pt-3">
+                <ExplainerCard state={boardExplainer}>
+                  <p>
+                    Every task your team has run or has queued, in one place.
+                    Kanban groups them by status; List is a flat, sortable
+                    feed of the same tasks.
+                  </p>
+                  <p>
+                    Click any task to open it. Use the filters in the header
+                    to narrow by agent or trigger, and switch views any time.
+                  </p>
+                </ExplainerCard>
+              </div>
+            )}
             {view === "kanban" && (
               <KanbanView
                 byLane={filteredByLane}
@@ -564,7 +651,7 @@ export function TasksBoard({
                     agentName: agent.name,
                     cabinetPath: agent.cabinetPath || cabinetPath,
                     heartbeat: agent.heartbeat || "0 9 * * 1-5",
-                    active: agent.active,
+                    enabled: agent.heartbeatEnabled !== false,
                   });
                 }}
               />
@@ -596,7 +683,7 @@ export function TasksBoard({
               density={density}
             />
             {selection.has(draggedTask.id) && selection.size > 1 && (
-              <span className="absolute -right-2 -top-2 inline-flex size-6 items-center justify-center rounded-full border border-border/60 bg-foreground text-[11px] font-semibold text-background shadow-md">
+              <span className="absolute -end-2 -top-2 inline-flex size-6 items-center justify-center rounded-full border border-border/60 bg-foreground text-[11px] font-semibold text-background shadow-md">
                 {selection.size}
               </span>
             )}
@@ -615,12 +702,19 @@ export function TasksBoard({
         open={newTaskOpen}
         onOpenChange={(open) => {
           setNewTaskOpen(open);
-          if (!open) setNewTaskInitialPrompt(undefined);
+          if (!open) {
+            setNewTaskInitialPrompt(undefined);
+            setEditingDraft(null);
+            setEditSeed(null);
+          }
         }}
         cabinetPath={cabinetPath}
         agents={overview?.agents ?? []}
         initialMode={newTaskMode}
-        initialPrompt={newTaskInitialPrompt}
+        initialPrompt={editingDraft ? editSeed?.prompt : newTaskInitialPrompt}
+        initialAgentSlug={editingDraft ? editSeed?.agentSlug : undefined}
+        initialRuntime={editingDraft ? editSeed?.runtime : undefined}
+        editing={editingDraft}
         onStarted={(id) => {
           void refresh();
           setSelectedId(id);
@@ -647,23 +741,25 @@ function NewWorkButton({
 }: {
   onCreate: (mode: StartWorkMode) => void;
 }) {
+  const { t } = useLocale();
   return (
-    <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md shadow-sm ring-1 ring-primary/20">
-      <button
-        type="button"
-        onClick={() => onCreate("now")}
-        className="inline-flex items-center gap-1.5 bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        title="Create a new task"
-      >
-        <Plus className="size-3.5" />
-        New Task
-      </button>
+    <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md">
+      <IconHint label={t("tasksBoard:createTask")} side="bottom">
+        <button
+          type="button"
+          onClick={() => onCreate("now")}
+          className="inline-flex items-center gap-1.5 bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Plus className="size-3.5" />
+          New Task
+        </button>
+      </IconHint>
       <div className="w-px bg-primary-foreground/20" aria-hidden />
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="inline-flex items-center bg-primary px-1.5 text-primary-foreground transition-colors hover:bg-primary/90"
-          title="More new item types"
-          aria-label="More new item types"
+          className="inline-flex items-center bg-primary pl-1.5 pr-1 text-primary-foreground transition-colors hover:bg-primary/90"
+          title={t("tasksBoard:moreNewTypes")}
+          aria-label={t("tasksBoard:moreNewTypes")}
         >
           <ChevronDown className="size-3.5" />
         </DropdownMenuTrigger>
@@ -674,7 +770,7 @@ function NewWorkButton({
           >
             <Zap className="mt-0.5 size-3.5 text-foreground/70" />
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium">New Task</span>
+              <span className="text-[13px] font-medium">{t("tasksBoard:newTask")}</span>
               <span className="text-[11px] text-muted-foreground">
                 Run once, right now
               </span>
@@ -686,7 +782,7 @@ function NewWorkButton({
           >
             <Repeat className="mt-0.5 size-3.5 text-indigo-500" />
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium">New Routine</span>
+              <span className="text-[13px] font-medium">{t("tasksBoard:newRoutine")}</span>
               <span className="text-[11px] text-muted-foreground">
                 Run this prompt on a schedule
               </span>

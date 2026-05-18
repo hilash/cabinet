@@ -50,7 +50,7 @@ export function MentionDropdown({
         key={`${keyPrefix}-${idx}-${item.id}`}
         onClick={() => onSelect(item)}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12px]",
+          "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-[12px]",
           idx === activeIndex
             ? "bg-accent text-foreground"
             : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
@@ -58,7 +58,7 @@ export function MentionDropdown({
       >
         {icon}
         <span className="shrink-0 font-medium">{item.label}</span>
-        <span className="ml-auto min-w-0 flex-1 truncate text-right text-[11px] text-muted-foreground">
+        <span className="ms-auto min-w-0 flex-1 truncate text-end text-[11px] text-muted-foreground">
           {item.sublabel}
         </span>
       </button>

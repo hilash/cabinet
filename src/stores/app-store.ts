@@ -64,6 +64,24 @@ export interface SelectedSection {
   agentScopedId?: string;
   conversationId?: string; // auto-select this conversation on mount
   taskId?: string; // task id when type === "task"
+  /** Sub-tab key when type === "agents" (e.g. "routines", "heartbeats"). */
+  agentsTab?: "agents" | "routines" | "heartbeats" | "schedule";
+}
+
+/**
+ * The task drawer is either showing a live conversation or composing a new
+ * one. Compose mode carries optional context so a "New Chat" launched from a
+ * page can default to the Editor agent with that page pinned.
+ */
+export type TaskPanelMode = "conversation" | "compose";
+
+export interface TaskPanelComposeContext {
+  /** Page to pin as an @context chip (Editor-scoped opens). */
+  pinnedPagePath?: string | null;
+  /** Agent the composer should default to (defaults to "editor"). */
+  defaultAgentSlug?: string;
+  /** Mirrors createConversation's discriminant. */
+  source?: "editor" | "agent";
 }
 
 interface TerminalTab {
@@ -103,6 +121,16 @@ interface AppState {
   cabinetVisibilityModes: Record<string, CabinetVisibilityMode>;
   taskPanelConversation: ConversationMeta | null;
   taskPanelFullscreen: boolean;
+  taskPanelOpen: boolean;
+  taskPanelMode: TaskPanelMode;
+  taskPanelComposeContext: TaskPanelComposeContext | null;
+  /** Right-edge recent-tasks rail. Closed by default; session memory only. */
+  taskRailOpen: boolean;
+  /**
+   * Conversation ids the user has opened in the task drawer this session,
+   * newest-first. Backs the "recent" group of the task rail. Session memory.
+   */
+  recentlyOpenedTaskIds: string[];
   providers: ProviderInfo[];
   defaultProviderId: string | null;
   defaultModel: string | null;
@@ -131,10 +159,26 @@ interface AppState {
   setTaskPanelConversation: (conversation: ConversationMeta | null) => void;
   setTaskPanelFullscreen: (fullscreen: boolean) => void;
   toggleTaskPanelFullscreen: () => void;
+  openTaskPanelCompose: (context?: TaskPanelComposeContext) => void;
+  closeTaskPanel: () => void;
+  toggleTaskPanelCompose: (context?: TaskPanelComposeContext) => void;
+  swapToConversation: (conversation: ConversationMeta) => void;
+  toggleTaskRail: () => void;
 }
 
 function normalizeVisibilityCabinetPath(cabinetPath?: string): string {
   return cabinetPath?.trim() || ROOT_CABINET_PATH;
+}
+
+/** Max entries kept in the task rail's "recently opened" session history. */
+const RECENT_TASKS_CAP = 25;
+
+/** Prepend `id` to the recents list, dedupe, and cap. Pure. */
+function rememberOpenedTask(current: string[], id: string): string[] {
+  const next = [id, ...current.filter((existing) => existing !== id)];
+  return next.length > RECENT_TASKS_CAP
+    ? next.slice(0, RECENT_TASKS_CAP)
+    : next;
 }
 
 function loadCabinetVisibilityModes(): Record<string, CabinetVisibilityMode> {
@@ -187,6 +231,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   cabinetVisibilityModes: loadCabinetVisibilityModes(),
   taskPanelConversation: null,
   taskPanelFullscreen: false,
+  taskPanelOpen: false,
+  taskPanelMode: "compose",
+  taskPanelComposeContext: null,
+  taskRailOpen: false,
+  recentlyOpenedTaskIds: [],
   providers: [],
   defaultProviderId: null,
   defaultModel: null,
@@ -403,13 +452,70 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ cabinetVisibilityModes: nextModes });
   },
 
+  // Backward-compatible entry point used by the post-create flows
+  // (start-work-dialog / new-task-button.onStarted). `meta` opens the
+  // animated drawer in conversation mode; `null` closes it (the
+  // conversation is kept so the desktop close tween can play out).
   setTaskPanelConversation: (conversation) =>
-    set({ taskPanelConversation: conversation, taskPanelFullscreen: false }),
+    set(
+      conversation
+        ? {
+            taskPanelConversation: conversation,
+            taskPanelMode: "conversation" as const,
+            taskPanelOpen: true,
+            taskPanelFullscreen: false,
+            recentlyOpenedTaskIds: rememberOpenedTask(
+              get().recentlyOpenedTaskIds,
+              conversation.id
+            ),
+          }
+        : { taskPanelOpen: false }
+    ),
 
   setTaskPanelFullscreen: (fullscreen) => set({ taskPanelFullscreen: fullscreen }),
 
   toggleTaskPanelFullscreen: () =>
     set({ taskPanelFullscreen: !get().taskPanelFullscreen }),
+
+  openTaskPanelCompose: (context) =>
+    set({
+      taskPanelOpen: true,
+      taskPanelMode: "compose",
+      taskPanelComposeContext: context ?? null,
+      taskPanelConversation: null,
+      taskPanelFullscreen: false,
+    }),
+
+  closeTaskPanel: () => set({ taskPanelOpen: false }),
+
+  toggleTaskPanelCompose: (context) => {
+    if (get().taskPanelOpen) {
+      set({ taskPanelOpen: false });
+    } else {
+      set({
+        taskPanelOpen: true,
+        taskPanelMode: "compose",
+        taskPanelComposeContext: context ?? null,
+        taskPanelConversation: null,
+        taskPanelFullscreen: false,
+      });
+    }
+  },
+
+  // Compose -> live swap: keep the SAME drawer mounted (width unchanged)
+  // and preserve fullscreen, unlike the external setTaskPanelConversation.
+  swapToConversation: (conversation) =>
+    set({
+      taskPanelConversation: conversation,
+      taskPanelMode: "conversation",
+      taskPanelOpen: true,
+      recentlyOpenedTaskIds: rememberOpenedTask(
+        get().recentlyOpenedTaskIds,
+        conversation.id
+      ),
+    }),
+
+  toggleTaskRail: () => set({ taskRailOpen: !get().taskRailOpen }),
 
   openAgentTab: (taskTitle: string, prompt: string) => {
     const id = `agent-${Date.now()}`;

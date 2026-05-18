@@ -1,18 +1,20 @@
 "use client";
 
 import { Brain, Heart, Calendar, Search, PenLine, FolderTree } from "lucide-react";
+import { Trans } from "react-i18next";
 import { MockupSidebar } from "./mockup-sidebar";
 import { TOUR_PALETTE as P } from "./palette";
-
-const OTHER_AGENTS = [
-  { name: "Writer", icon: PenLine, tone: "#6B8CC4" },
-  { name: "Organizer", icon: FolderTree, tone: "#9678BA" },
-];
+import { useLocale } from "@/i18n/use-locale";
 
 export function SlideAgents() {
+  const { t } = useLocale();
+  const OTHER_AGENTS = [
+    { name: t("slideAgents:otherWriter"), icon: PenLine, tone: "#6B8CC4" },
+    { name: t("slideAgents:otherOrganizer"), icon: FolderTree, tone: "#9678BA" },
+  ];
   return (
-    <div className="grid h-full grid-cols-[minmax(260px,320px)_1fr] gap-10 lg:gap-14 items-center">
-      <div className="h-[440px] w-full">
+    <div className="flex h-full flex-col items-center gap-6 md:grid md:grid-cols-[minmax(260px,320px)_1fr] md:gap-10 md:items-center lg:gap-14">
+      <div className="order-2 h-[420px] w-full max-w-[300px] md:order-1 md:h-[440px] md:max-w-none">
         <MockupSidebar activeTab="agents" viewTransitionName="cabinet-card">
           <div className="relative flex h-full flex-col gap-2 px-2.5 py-2">
             {/* Other agents fade in then fade out */}
@@ -35,7 +37,7 @@ export function SlideAgents() {
                     className="ml-auto text-[9px]"
                     style={{ color: P.textTertiary }}
                   >
-                    idle
+                    {t("slideAgents:idle")}
                   </span>
                 </div>
               );
@@ -71,13 +73,13 @@ export function SlideAgents() {
                     className="text-[12px] font-semibold"
                     style={{ color: P.text }}
                   >
-                    Research Analyst
+                    {t("slideAgents:researchAnalyst")}
                   </span>
                   <span
                     className="text-[10px]"
                     style={{ color: P.textTertiary }}
                   >
-                    Claude · Sonnet 4.6
+                    {t("slideAgents:modelLine")}
                   </span>
                 </div>
                 <div className="ml-auto flex items-center gap-1">
@@ -98,7 +100,7 @@ export function SlideAgents() {
                     className="text-[9px] font-medium"
                     style={{ color: "#4A8E6B" }}
                   >
-                    live
+                    {t("slideAgents:live")}
                   </span>
                 </div>
               </div>
@@ -108,8 +110,8 @@ export function SlideAgents() {
                 num={1}
                 icon={Brain}
                 iconColor={P.accent}
-                label="Persona"
-                body="&ldquo;Rigorous analyst. Cites sources. Flags conflicting claims.&rdquo;"
+                label={t("slideAgents:persona")}
+                body={t("slideAgents:personaBody")}
                 delay="2500ms"
               />
 
@@ -118,8 +120,8 @@ export function SlideAgents() {
                 num={2}
                 icon={Heart}
                 iconColor="#C26B6B"
-                label="Heartbeat"
-                body="Scans @Market Research every 15 min"
+                label={t("slideAgents:heartbeat")}
+                body={t("slideAgents:heartbeatBody")}
                 delay="2900ms"
               />
 
@@ -128,8 +130,8 @@ export function SlideAgents() {
                 num={3}
                 icon={Calendar}
                 iconColor="#8B7FB5"
-                label="Jobs"
-                body="Mon 9:00 · Weekly competitor digest"
+                label={t("slideAgents:jobs")}
+                body={t("slideAgents:jobsBody")}
                 delay="3300ms"
               />
             </div>
@@ -138,7 +140,7 @@ export function SlideAgents() {
       </div>
 
       {/* Copy */}
-      <div className="flex flex-col gap-5 max-w-lg">
+      <div className="order-1 flex flex-col items-center gap-3 max-w-lg text-center md:order-2 md:items-start md:gap-5 md:text-start">
         <span
           className="inline-block w-fit rounded-full px-3 py-1 text-[10px] font-semibold tracking-[0.18em] opacity-0"
           style={{
@@ -149,17 +151,21 @@ export function SlideAgents() {
             animationDelay: "60ms",
           }}
         >
-          02 &middot; AGENTS
+          {t("slideAgents:slideNum")}
         </span>
         <h2
-          className="font-logo text-4xl italic tracking-tight opacity-0 lg:text-5xl"
+          className="font-logo text-3xl italic tracking-tight opacity-0 md:text-4xl lg:text-5xl"
           style={{
             color: P.text,
             animation: "cabinet-tour-fade-up 0.5s ease-out forwards",
             animationDelay: "180ms",
           }}
         >
-          Your <span style={{ color: P.accent }}>AI team</span>.
+          <Trans
+            i18nKey="slideAgents:aiTeamSentence"
+            defaults="Your <accent>AI team</accent>."
+            components={{ accent: <span style={{ color: P.accent }} /> }}
+          />
         </h2>
         <p
           className="font-body-serif text-base leading-relaxed opacity-0 lg:text-lg"
@@ -169,9 +175,13 @@ export function SlideAgents() {
             animationDelay: "320ms",
           }}
         >
-          Each agent has a <span className="font-medium" style={{ color: P.text }}>persona</span>, its own{" "}
-          <span className="font-medium" style={{ color: P.text }}>schedule</span>, and a{" "}
-          <span className="font-medium" style={{ color: P.text }}>memory</span>. Your AI agents get the work done, 24/7. Go be human — they&apos;ll handle the rest.
+          {t("slideAgents:paragraphPrefix")}
+          <span className="font-medium" style={{ color: P.text }}>{t("slideAgents:personaWord")}</span>
+          {t("slideAgents:paragraphMiddle")}
+          <span className="font-medium" style={{ color: P.text }}>{t("slideAgents:scheduleWord")}</span>
+          {t("slideAgents:paragraphMiddle2")}
+          <span className="font-medium" style={{ color: P.text }}>{t("slideAgents:memoryWord")}</span>
+          {t("slideAgents:paragraphSuffix")}
         </p>
       </div>
     </div>

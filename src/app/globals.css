@@ -171,6 +171,34 @@ html[data-custom-theme] .tiptap h3,
 html[data-custom-theme] .tiptap h4 {
   font-family: var(--font-heading-theme, var(--font-theme)) !important;
 }
+
+/* CJK fallback — appends Noto Sans SC / TC after the active theme font so
+   Chinese glyphs render correctly across all themes. Browsers cascade
+   font-family per character, so Latin keeps the theme's look and CJK chars
+   resolve to Noto Sans. The font itself is loaded on demand by
+   `loadCjkFonts()` in src/lib/themes.ts when the locale changes. */
+html:lang(zh-CN),
+html:lang(zh-CN) body,
+html[lang^="zh-Hans"],
+html[lang^="zh-Hans"] body {
+  font-family: var(--font-theme, var(--font-sans)), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+}
+html:lang(zh-CN) h1, html:lang(zh-CN) h2, html:lang(zh-CN) h3, html:lang(zh-CN) h4,
+html:lang(zh-CN) .tiptap h1, html:lang(zh-CN) .tiptap h2, html:lang(zh-CN) .tiptap h3, html:lang(zh-CN) .tiptap h4,
+html[lang^="zh-Hans"] h1, html[lang^="zh-Hans"] h2, html[lang^="zh-Hans"] h3, html[lang^="zh-Hans"] h4 {
+  font-family: var(--font-heading-theme, var(--font-theme, var(--font-sans))), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+}
+html:lang(zh-TW),
+html:lang(zh-TW) body,
+html[lang^="zh-Hant"],
+html[lang^="zh-Hant"] body {
+  font-family: var(--font-theme, var(--font-sans)), "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif !important;
+}
+html:lang(zh-TW) h1, html:lang(zh-TW) h2, html:lang(zh-TW) h3, html:lang(zh-TW) h4,
+html:lang(zh-TW) .tiptap h1, html:lang(zh-TW) .tiptap h2, html:lang(zh-TW) .tiptap h3, html:lang(zh-TW) .tiptap h4,
+html[lang^="zh-Hant"] h1, html[lang^="zh-Hant"] h2, html[lang^="zh-Hant"] h3, html[lang^="zh-Hant"] h4 {
+  font-family: var(--font-heading-theme, var(--font-theme, var(--font-sans))), "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif !important;
+}
 /* Cloud sway animation (from runcabinet.com) */
 @keyframes waitlist-cloud-sway {
   0% { transform: translate3d(11%, 0, 0); }
@@ -223,6 +251,33 @@ html[data-custom-theme] .tiptap h4 {
   animation: cabinet-tree-blink 1.4s ease-in-out;
 }
 
+/* One-shot ring pulse for the agent header master Switch — fired when a
+   user clicks a locked child Switch to point them at the toggle they need. */
+@keyframes cabinet-master-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  60% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+.cabinet-master-pulse {
+  animation: cabinet-master-pulse 700ms ease-out;
+}
+
+/* Status-bar "tasks running" dot — a double-thump heartbeat with a rest
+   beat, so it reads as a live pulse rather than a plain fade. */
+@keyframes cabinet-task-heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%      { transform: scale(1.4); }
+  28%      { transform: scale(1); }
+  42%      { transform: scale(1.28); }
+  56%      { transform: scale(1); }
+}
+.cabinet-task-heartbeat {
+  animation: cabinet-task-heartbeat 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cabinet-task-heartbeat { animation: none; }
+}
+
 /* Body serif — Source Serif 4, beats theme overrides */
 html[data-custom-theme] .font-body-serif,
 .font-body-serif {
@@ -237,6 +292,50 @@ html[data-custom-theme] span.font-logo,
 html[data-custom-theme] .font-logo,
 .font-logo {
   font-family: var(--font-logo), Georgia, serif !important;
+}
+
+/* RTL override: Cardo for the `cabinet` logo + any .font-logo surface
+   when the UI is in Hebrew. Cardo carries a calligraphic Latin italic
+   that pairs better with Hebrew chrome than Instrument Serif. */
+html[dir="rtl"] h1.font-logo,
+html[dir="rtl"] h2.font-logo,
+html[dir="rtl"] h3.font-logo,
+html[dir="rtl"] h4.font-logo,
+html[dir="rtl"] span.font-logo,
+html[dir="rtl"] .font-logo {
+  font-family: var(--font-logo-rtl), Cardo, Georgia, serif !important;
+}
+
+/* The `cabinet` wordmark opts out of the RTL Cardo swap above: it stays
+   in the English Instrument Serif logo face in every locale (including
+   Hebrew) so the brand reads identically everywhere. Higher specificity
+   than the `html[dir="rtl"] span.font-logo` rule, so it wins in RTL. */
+.brand-en,
+html[dir="rtl"] span.brand-en,
+html[dir="rtl"] .brand-en {
+  font-family: var(--font-logo), Georgia, serif !important;
+}
+
+/* UI font — forces the theme's *body* font onto an element that would
+   otherwise inherit the theme heading font (h1–h4). Lets chrome titles
+   (Team / Tasks page headers) match the breadcrumb leaf, which is a
+   <span> and so already renders in the body font. Mirrors the
+   `.font-logo` override pattern: class selector + !important beats the
+   `html[data-custom-theme] h1` and CJK `html:lang() h1` overrides. */
+html[data-custom-theme] h1.font-ui,
+html[data-custom-theme] h2.font-ui,
+html:lang(zh-CN) h1.font-ui, html:lang(zh-CN) h2.font-ui,
+html[lang^="zh-Hans"] h1.font-ui, html[lang^="zh-Hans"] h2.font-ui,
+.font-ui {
+  font-family: var(--font-theme, var(--font-sans)) !important;
+}
+html:lang(zh-CN) h1.font-ui, html:lang(zh-CN) h2.font-ui,
+html[lang^="zh-Hans"] h1.font-ui, html[lang^="zh-Hans"] h2.font-ui {
+  font-family: var(--font-theme, var(--font-sans)), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+}
+html:lang(zh-TW) h1.font-ui, html:lang(zh-TW) h2.font-ui,
+html[lang^="zh-Hant"] h1.font-ui, html[lang^="zh-Hant"] h2.font-ui {
+  font-family: var(--font-theme, var(--font-sans)), "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif !important;
 }
 
 .scrollbar-none {
@@ -338,9 +437,35 @@ html[data-custom-theme] .font-logo,
   line-height: 1.65;
 }
 
+/* Per-block automatic direction inference.
+
+   Each paragraph, heading, list item, blockquote, table cell, and
+   description-list term picks its own reading direction based on its
+   first strong directional character. The browser implements this
+   natively via Unicode Bidi paragraph algorithm P3 (`unicode-bidi:
+   plaintext`) — no JS, no markdown pollution.
+
+   `text-align: start` makes the alignment follow the inferred
+   direction: a Hebrew paragraph right-aligns, an English paragraph
+   left-aligns, even when they share the same parent doc with the
+   opposite `dir`. Mixed-language docs "just work" without the user
+   toggling RTL per block. */
+.tiptap :where(p, h1, h2, h3, h4, h5, h6, li, blockquote, td, th, dd, dt, figcaption),
+.registry-prose :where(p, h1, h2, h3, h4, h5, h6, li, blockquote, td, th, dd, dt, figcaption) {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
+/* The inline indent lives on the <li>, not the <ul>/<ol>. Each list item
+   carries `dir="auto"` (AutoDirection), so putting `padding-inline-start`
+   on the item makes its outside marker resolve to the item's own
+   direction — a Hebrew item's bullet/number sits on the right, an English
+   item's on the left, even within the same list. Padding on the container
+   would instead follow the container's direction (LTR), pinning every
+   marker left regardless of the text. */
 .tiptap ul,
 .tiptap ol {
-  padding-left: 1.5rem;
+  padding-inline-start: 0;
   margin-bottom: 0.75rem;
 }
 
@@ -353,8 +478,23 @@ html[data-custom-theme] .font-logo,
 }
 
 .tiptap li {
+  padding-inline-start: 1.5rem;
   margin-bottom: 0.25rem;
   line-height: 1.65;
+}
+
+/* In an explicitly RTL document every list item is RTL — bullet/number on
+   the right, text right-aligned — even when the item starts with a Latin
+   word (a URL, a brand). Per-item `dir="auto"` plus the inherited
+   `unicode-bidi: plaintext` would otherwise resolve such an item LTR and
+   pin its marker left, mismatched against the RTL column. `isolate` (not
+   `plaintext`) makes the base direction come from `direction: rtl` while
+   the bidi algorithm still orders embedded Latin runs correctly. LTR
+   documents keep per-item auto, so a Hebrew list there still flips itself. */
+.tiptap[dir="rtl"] li,
+.tiptap[dir="rtl"] li > p {
+  direction: rtl;
+  unicode-bidi: isolate;
 }
 
 .tiptap li p {
@@ -362,8 +502,8 @@ html[data-custom-theme] .font-logo,
 }
 
 .tiptap blockquote {
-  border-left: 2px solid var(--border);
-  padding-left: 1rem;
+  border-inline-start: 2px solid var(--border);
+  padding-inline-start: 1rem;
   margin: 1rem 0;
   color: var(--muted-foreground);
 }
@@ -413,7 +553,7 @@ html[data-custom-theme] .font-logo,
 .tiptap p.is-editor-empty:first-child::before {
   color: var(--muted-foreground);
   content: attr(data-placeholder);
-  float: left;
+  float: inline-start;
   height: 0;
   pointer-events: none;
   opacity: 0.5;
@@ -461,7 +601,7 @@ html[data-custom-theme] .font-logo,
 .tiptap td {
   border: 1px solid var(--border);
   padding: 0.5rem 0.75rem;
-  text-align: left;
+  text-align: start;
   vertical-align: top;
 }
 
@@ -497,7 +637,7 @@ html[data-custom-theme] .font-logo,
   bottom: -1px;
   pointer-events: none;
   position: absolute;
-  right: -2px;
+  inset-inline-end: -2px;
   top: 0;
   width: 3px;
 }
@@ -509,13 +649,17 @@ html[data-custom-theme] .font-logo,
 /* Checklist/Task list styles */
 .tiptap .task-list {
   list-style: none;
-  padding-left: 0;
+  padding-inline-start: 0;
 }
 
 .tiptap .task-list li {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+  /* No list marker here — the checkbox is the marker. Cancel the inline
+     indent that .tiptap li adds; dir="auto" on the item still flips the
+     flex order so the checkbox leads on the correct side. */
+  padding-inline-start: 0;
 }
 
 .tiptap .task-list li label {
@@ -561,7 +705,7 @@ html[data-custom-theme] .font-logo,
   border-radius: 0.5rem;
   padding: 0.75rem 1rem;
   margin: 1rem 0;
-  border-left: 3px solid;
+  border-inline-start: 3px solid;
 }
 
 .tiptap .callout-info {
@@ -732,7 +876,21 @@ em-emoji-picker {
 .electron-desktop header [role="button"] {
   -webkit-app-region: no-drag;
 }
-.electron-desktop .sidebar-header {
+/* The macOS traffic lights sit at the window's *physical* top-left
+   (trafficLightPosition x:16,y:18, ≈80px wide) and do NOT mirror with
+   `dir` — they are OS chrome. The app shell is `flex [Sidebar][main]`, so:
+     • LTR — the sidebar occupies the window's top-left; its header clears
+       the lights.
+     • RTL — the flex row flips: the sidebar moves to the right and the
+       MAIN column is now under the lights, so the clearance must move to
+       the main column's top bar instead (and come off the sidebar header,
+       which is no longer in the corner). `main > :first-child` is every
+       section's top bar / root (editor Header, agents/tasks <header>,
+       settings/help/home roots) — view-independent, no per-section edits. */
+html:not([dir="rtl"]).electron-desktop .sidebar-header {
+  padding-left: 80px;
+}
+html[dir="rtl"].electron-desktop main > :first-child {
   padding-left: 80px;
 }
 
@@ -846,17 +1004,17 @@ em-emoji-picker {
 .registry-prose p { margin-top: 0; margin-bottom: 1em; }
 .registry-prose ul {
   list-style-type: disc;
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
   margin-bottom: 1em;
 }
 .registry-prose ol {
   list-style-type: decimal;
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
   margin-bottom: 1em;
 }
 .registry-prose li {
   margin-bottom: 0.4em;
-  padding-left: 0.15em;
+  padding-inline-start: 0.15em;
 }
 .registry-prose ul li::marker { color: var(--prose-link, #8b5e3c); }
 .registry-prose code {
@@ -887,9 +1045,9 @@ em-emoji-picker {
   margin: 1.5em 0;
 }
 .registry-prose blockquote {
-  border-left: 3px solid var(--prose-border, #e8ddd0);
-  padding-left: 1em;
-  margin-left: 0;
+  border-inline-start: 3px solid var(--prose-border, #e8ddd0);
+  padding-inline-start: 1em;
+  margin-inline-start: 0;
   color: var(--prose-body, #6b5b4e);
   opacity: 0.8;
 }
@@ -1039,4 +1197,91 @@ html[data-custom-theme="cyber"] :where(button:not([data-no-bevel])):hover {
   html[data-custom-theme="matrix"] body {
     background-image: none;
   }
+}
+
+/* Tour data slide — 3-column grid at md+ (sidebar / viewer / copy). */
+@media (min-width: 768px) {
+  .cabinet-tour-data-grid {
+    grid-template-columns: 280px 340px 1fr;
+  }
+}
+
+/* ─── AI Editor drawer (mobile overlay) ─────────────────────────
+   Desktop open/close is a width push handled inline in ai-panel.tsx
+   (the panel is a flex sibling, so the tween reflows the main UI).
+   These cover the mobile full-screen overlay only. */
+@keyframes ai-drawer-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes ai-scrim-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.ai-drawer-anim-up {
+  animation: ai-drawer-slide-up 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.ai-scrim-anim {
+  animation: ai-scrim-in 220ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-drawer-anim-up,
+  .ai-scrim-anim { animation: none; }
+}
+
+/* Bidi-aware text. Each block resolves its own direction from its first
+   strong character (unicode-bidi: plaintext === per-paragraph dir="auto"),
+   so a Hebrew paragraph reads RTL and an English/code one reads LTR within
+   the same message regardless of the UI locale. text-align: start follows
+   the resolved direction. Code stays LTR and isolated so Hebrew comments
+   or prose around it don't reorder the source. */
+.rtl-aware,
+.rtl-aware p,
+.rtl-aware li,
+.rtl-aware h1,
+.rtl-aware h2,
+.rtl-aware h3,
+.rtl-aware h4,
+.rtl-aware h5,
+.rtl-aware h6,
+.rtl-aware blockquote,
+.rtl-aware td,
+.rtl-aware th,
+.rtl-aware dd,
+.rtl-aware dt {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+.rtl-aware pre,
+.rtl-aware pre code,
+.rtl-aware kbd {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
+}
+/* Same per-item marker logic as the editor's .tiptap lists: the inline
+   indent rides on the <li> (which carries dir="auto"), not the container,
+   so a Hebrew item's bullet/number lands on the right. Overrides the
+   container padding the prose/typography plugin sets on <ul>/<ol>. */
+.rtl-aware ul,
+.rtl-aware ol {
+  padding-inline-start: 0;
+}
+.rtl-aware li {
+  padding-inline-start: 1.5rem;
+}
+.rtl-aware ul[data-type="taskList"] li,
+.rtl-aware li[data-type="taskItem"] {
+  padding-inline-start: 0;
+}
+
+/* ── In-page find (Cmd+F) match highlighting ── */
+.ProseMirror .find-match {
+  background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  border-radius: 2px;
+}
+.ProseMirror .find-match--current {
+  background-color: color-mix(in srgb, var(--primary) 52%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 68%, transparent);
 }

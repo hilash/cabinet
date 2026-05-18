@@ -1,5 +1,10 @@
 import type { AgentAction } from "@/types/actions";
 import { parseAgentActions } from "./action-parser";
+import {
+  TOOL_OUTPUT_OPEN,
+  toolRegionRe,
+  toolUnterminatedRe,
+} from "./tool-output-markers";
 
 export type Block =
   | { type: "text"; content: string }
@@ -8,7 +13,8 @@ export type Block =
   | { type: "cabinet"; fields: { label: string; value: string }[] }
   | { type: "actions"; actions: AgentAction[] }
   | { type: "structured"; label: string; value: string }
-  | { type: "tokens"; value: string };
+  | { type: "tokens"; value: string }
+  | { type: "tool"; content: string; steps: number };
 
 export type DiffLine = {
   kind: "add" | "remove" | "hunk" | "header" | "plain";
@@ -137,13 +143,42 @@ function parseCodeBlock(
   return null;
 }
 
-function parseStructuredLine(line: string): Block | null {
-  const match = line.match(
-    /^(SUMMARY|CONTEXT|CONTEXT_UPDATE|ARTIFACT|DECISION|LEARNING|GOAL_UPDATE|MESSAGE_TO|LAUNCH_TASK|SCHEDULE_JOB|SCHEDULE_TASK)\s*(?:\[([^\]]*)\])?:\s+(.*)$/
-  );
-  if (!match) return null;
-  const label = match[2] ? `${match[1]} [${match[2]}]` : match[1];
-  return { type: "structured", label, value: match[3] };
+const STRUCTURED_LABELS =
+  "SUMMARY|CONTEXT|CONTEXT_UPDATE|ARTIFACT|DECISION|LEARNING|GOAL_UPDATE|MESSAGE_TO|LAUNCH_TASK|SCHEDULE_JOB|SCHEDULE_TASK";
+// A label token at line start or after whitespace. No `:\s+` requirement —
+// agents (esp. with RTL/CJK values) emit `SUMMARY:value` with no space,
+// which must still be recognized as a meta field instead of leaking into
+// the markdown body. Mirrors STRUCTURED_RE's tolerant `:\s*`.
+const STRUCTURED_SEGMENT_RE = new RegExp(
+  `(?:^|\\s)(${STRUCTURED_LABELS})\\s*(?:\\[([^\\]]*)\\])?:\\s*`,
+  "g"
+);
+const STRUCTURED_START_RE = new RegExp(
+  `^\\s*(?:${STRUCTURED_LABELS})\\s*(?:\\[[^\\]]*\\])?:`
+);
+
+// A single line can carry one meta field, or several squashed together
+// ("SUMMARY:… CONTEXT:… ARTIFACT:…"). Only treat the line as structured
+// when it *starts* with a known label, so prose mentioning "context:" is
+// left untouched. Returns one structured block per field.
+function parseStructuredLine(line: string): Block[] | null {
+  if (!STRUCTURED_START_RE.test(line)) return null;
+  const trimmed = line.trim();
+  const matches = [...trimmed.matchAll(STRUCTURED_SEGMENT_RE)];
+  if (matches.length === 0) return null;
+  const blocks: Block[] = [];
+  for (let m = 0; m < matches.length; m += 1) {
+    const cur = matches[m];
+    const valueStart = (cur.index ?? 0) + cur[0].length;
+    const valueEnd =
+      m + 1 < matches.length
+        ? matches[m + 1].index ?? trimmed.length
+        : trimmed.length;
+    const value = trimmed.slice(valueStart, valueEnd).trim();
+    const label = cur[2] ? `${cur[1]} [${cur[2]}]` : cur[1];
+    blocks.push({ type: "structured", label, value });
+  }
+  return blocks;
 }
 
 // Agents occasionally squash multiple files onto one `ARTIFACT:` line
@@ -172,7 +207,64 @@ function splitArtifactLineValue(value: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Split the transcript on tool-output fences before prose parsing. Each
+ * fenced region becomes a `tool` block; consecutive regions separated by
+ * only whitespace collapse into one block with a step count, so a burst of
+ * `ls`/`cat`/`write` calls reads as a single "Ran N steps" disclosure
+ * rather than N stacked ones. Prose between/around fences parses normally.
+ */
 export function parseTranscript(raw: string): Block[] {
+  if (!raw || raw.indexOf(TOOL_OUTPUT_OPEN) === -1) {
+    return parseProseBlocks(raw);
+  }
+
+  type Segment = { kind: "prose" | "tool"; text: string };
+  const segments: Segment[] = [];
+  const regionRe = toolRegionRe();
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regionRe.exec(raw)) !== null) {
+    if (match.index > cursor) {
+      segments.push({ kind: "prose", text: raw.slice(cursor, match.index) });
+    }
+    segments.push({ kind: "tool", text: match[1] ?? "" });
+    cursor = regionRe.lastIndex;
+  }
+
+  // Tail after the last complete region: it may carry an unterminated open
+  // marker (tool still streaming) — fence everything from it onward.
+  const tail = raw.slice(cursor);
+  const openTail = tail.match(toolUnterminatedRe());
+  if (openTail) {
+    const before = tail.slice(0, openTail.index);
+    if (before) segments.push({ kind: "prose", text: before });
+    segments.push({ kind: "tool", text: openTail[1] ?? "" });
+  } else if (tail) {
+    segments.push({ kind: "prose", text: tail });
+  }
+
+  const blocks: Block[] = [];
+  for (const seg of segments) {
+    if (seg.kind === "prose") {
+      if (!seg.text.trim()) continue;
+      blocks.push(...parseProseBlocks(seg.text));
+      continue;
+    }
+    const prev = blocks[blocks.length - 1];
+    // Merge into the previous tool block only when nothing but the (already
+    // dropped) whitespace gap separated them — i.e. it's still the tail.
+    if (prev && prev.type === "tool") {
+      prev.content = `${prev.content}\n${seg.text}`.trim();
+      prev.steps += 1;
+    } else {
+      blocks.push({ type: "tool", content: seg.text.trim(), steps: 1 });
+    }
+  }
+  return blocks;
+}
+
+function parseProseBlocks(raw: string): Block[] {
   const text = preprocess(raw);
   const lines = text.split("\n");
   const blocks: Block[] = [];
@@ -189,7 +281,22 @@ export function parseTranscript(raw: string): Block[] {
 
     const nonEmpty = textBuf.filter((line) => line.trim());
     const diffLikeCount = nonEmpty.filter((line) => isDiffContentLine(line)).length;
-    if (nonEmpty.length > 0 && diffLikeCount / nonEmpty.length >= 0.5) {
+    // A header-less diff fragment still carries diff *structure* — a hunk
+    // header (@@ … @@) or the +++/--- file markers. Without that, a high
+    // +/- ratio is just a markdown bullet list ("- item") or prose with
+    // dashes, which must render as text, not a red diff block.
+    const hasDiffStructure = nonEmpty.some(
+      (line) =>
+        /^@@ /.test(line) ||
+        /^@@@ /.test(line) ||
+        /^\+\+\+ /.test(line) ||
+        /^--- /.test(line)
+    );
+    if (
+      hasDiffStructure &&
+      nonEmpty.length > 0 &&
+      diffLikeCount / nonEmpty.length >= 0.5
+    ) {
       const diffLines: DiffLine[] = textBuf
         .filter((line) => line.trim())
         .map((line) => {
@@ -230,7 +337,7 @@ export function parseTranscript(raw: string): Block[] {
     const structured = parseStructuredLine(line);
     if (structured) {
       flushText();
-      blocks.push(structured);
+      blocks.push(...structured);
       i += 1;
       continue;
     }

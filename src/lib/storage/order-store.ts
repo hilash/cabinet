@@ -237,7 +237,19 @@ export async function computeInsertOrder(
   }
 
   if (prevO !== null) return prevO + ORDER_GAP;
-  if (nextO !== null) return Math.max(nextO - ORDER_GAP, 1);
+  if (nextO !== null) {
+    if (nextO - ORDER_GAP >= 1) return nextO - ORDER_GAP;
+    await renumberSiblings(parentVirtualPath);
+    const after = await listOrderedSiblings(parentVirtualPath);
+    const refreshed = after
+      .filter((x) => x.name !== selfName)
+      .find((x) => x.name === nextName)?.order;
+    if (typeof refreshed === "number") return Math.max(refreshed - ORDER_GAP, 1);
+    // nextName disappeared between renumber and re-read (e.g. concurrent
+    // delete). Land at 1 so the new item still sorts above whatever the
+    // post-renumber first sibling is — ORDER_GAP would tie with it.
+    return 1;
+  }
 
   return ORDER_GAP;
 }

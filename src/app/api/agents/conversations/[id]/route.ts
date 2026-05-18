@@ -4,10 +4,15 @@ import {
   finalizeConversation,
   readConversationDetail,
   readConversationMeta,
+  updateConversationPrompt,
   writeConversationMeta,
 } from "@/lib/agents/conversation-store";
 import { closeDaemonSession, stopDaemonSession } from "@/lib/agents/daemon-client";
-import { startConversationRun } from "@/lib/agents/conversation-runner";
+import {
+  buildManualConversationPrompt,
+  startConversationRun,
+} from "@/lib/agents/conversation-runner";
+import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
 import { publishConversationEvent } from "@/lib/agents/conversation-events";
 import type { ConversationMeta } from "@/types/conversations";
 
@@ -58,6 +63,16 @@ interface PatchBody {
   agentSlug?: string;
   // v2 board: mute the task so done runs skip Just Finished.
   muted?: boolean;
+  // action === "edit-draft": rewrite an unstarted inbox draft in place.
+  userMessage?: string;
+  mentionedPaths?: string[];
+  mentionedSkills?: string[];
+  providerId?: string;
+  adapterType?: string;
+  model?: string;
+  effort?: string;
+  runtimeMode?: "native" | "terminal";
+  locale?: string;
 }
 
 export async function PATCH(
@@ -129,6 +144,99 @@ export async function PATCH(
     });
 
     return NextResponse.json({ ok: true, conversation: newConversation });
+  }
+
+  // Rewrite an unstarted inbox draft in place — backs the board's "Edit"
+  // affordance. Only idle drafts that never ran are editable; once a run
+  // has started the prompt is history, not a draft. We deliberately do NOT
+  // touch startedAt/lastActivityAt so the task keeps its Inbox lane + sort.
+  if (action === "edit-draft") {
+    const meta = await readConversationMeta(id, cabinetPath);
+    if (!meta) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+
+    // Mirrors lane-rules' Inbox derivation: an idle conversation with no
+    // activity (never ran, never completed). `startedAt` is always set at
+    // creation, so it is deliberately NOT part of this test.
+    const editable =
+      meta.status === "idle" &&
+      !meta.lastActivityAt &&
+      !meta.completedAt;
+    if (!editable) {
+      return NextResponse.json(
+        { error: "Only unstarted inbox tasks can be edited" },
+        { status: 409 }
+      );
+    }
+
+    const userMessage =
+      typeof body.userMessage === "string" ? body.userMessage.trim() : "";
+    if (!userMessage) {
+      return NextResponse.json(
+        { error: "userMessage is required" },
+        { status: 400 }
+      );
+    }
+
+    const agentSlug =
+      typeof body.agentSlug === "string" && body.agentSlug.trim()
+        ? body.agentSlug.trim()
+        : meta.agentSlug;
+    const mentionedPaths = Array.isArray(body.mentionedPaths)
+      ? body.mentionedPaths.filter((p): p is string => typeof p === "string")
+      : [];
+    const mentionedSkills = Array.isArray(body.mentionedSkills)
+      ? body.mentionedSkills.filter((s): s is string => typeof s === "string")
+      : [];
+    const cp = meta.cabinetPath ?? cabinetPath;
+
+    const draftInput = await buildManualConversationPrompt({
+      agentSlug,
+      userMessage,
+      mentionedPaths,
+      mentionedSkills,
+      cabinetPath: cp,
+      locale:
+        body.locale === "en" || body.locale === "he" ? body.locale : undefined,
+    });
+
+    const runtime = normalizeRuntimeOverride(
+      {
+        providerId: body.providerId,
+        adapterType: body.adapterType,
+        model: body.model,
+        effort: body.effort,
+        runtimeMode: body.runtimeMode,
+      },
+      {
+        providerId: draftInput.providerId,
+        adapterType: draftInput.adapterType,
+        adapterConfig: draftInput.adapterConfig,
+      }
+    );
+
+    await updateConversationPrompt(id, draftInput.prompt, cp);
+
+    const nextMeta: ConversationMeta = {
+      ...meta,
+      agentSlug,
+      title: meta.titlePinned ? meta.title : draftInput.title,
+      providerId: runtime.providerId,
+      adapterType: runtime.adapterType,
+      adapterConfig: runtime.adapterConfig,
+      mentionedPaths,
+    };
+    await writeConversationMeta(nextMeta);
+
+    publishConversationEvent({
+      type: "task.updated",
+      taskId: id,
+      cabinetPath,
+      payload: { action: "edit-draft" },
+    });
+
+    return NextResponse.json({ ok: true, conversation: nextMeta });
   }
 
   if (action) {

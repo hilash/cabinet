@@ -97,6 +97,9 @@ import {
   recordWaitlistStart,
   submitWaitlistEmail,
 } from "@/lib/telemetry/waitlist-client";
+import { useLocale } from "@/i18n/use-locale";
+import { REQUESTABLE_LOCALES, localeToDir, type Locale } from "@/i18n";
+import { submitLanguageRequest } from "@/lib/telemetry/language-request-client";
 
 interface McpServer {
   name: string;
@@ -125,6 +128,7 @@ interface IntegrationConfig {
 type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
 
 function TerminalCommand({ command }: { command: string }) {
+  const { t } = useLocale();
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
@@ -143,7 +147,7 @@ function TerminalCommand({ command }: { command: string }) {
       <button
         onClick={copy}
         className="shrink-0 p-1 rounded transition-colors hover:bg-white/10"
-        title="Copy to clipboard"
+        title={t("settings:common.copyToClipboard")}
       >
         {copied ? (
           <ClipboardCheck className="size-3.5" style={{ color: "#6A9955" }} />
@@ -219,7 +223,144 @@ function matchesFailedStep(stepTitle: string, failedStepTitle?: string): boolean
   return stepTitle.trim().toLowerCase() === failedStepTitle.trim().toLowerCase();
 }
 
+function LanguageSection() {
+  const { locale, setLocale, t } = useLocale();
+  const [requesting, setRequesting] = useState<string | null>(null);
+  const [requested, setRequested] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = window.localStorage.getItem(REQUESTED_LOCALES_KEY);
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  const supported: { value: Locale; label: string; dir: "ltr" | "rtl" }[] = [
+    { value: "en", label: t("settings:language.english"), dir: localeToDir("en") },
+    { value: "he", label: t("settings:language.hebrew"), dir: localeToDir("he") },
+    { value: "zh-CN", label: t("settings:language.chineseSimplified"), dir: localeToDir("zh-CN") },
+    { value: "zh-TW", label: t("settings:language.chineseTraditional"), dir: localeToDir("zh-TW") },
+  ];
+
+  const requestLanguage = async (code: string, label: string) => {
+    if (requesting === code || requested.has(code)) return;
+    setRequesting(code);
+    const result = await submitLanguageRequest({
+      requestedLocale: code,
+      localeLabel: label,
+      currentLocale: locale,
+      appVersion: pkgVersion,
+    });
+    setRequesting(null);
+    if (result.ok) {
+      const next = new Set(requested);
+      next.add(code);
+      setRequested(next);
+      try {
+        window.localStorage.setItem(
+          REQUESTED_LOCALES_KEY,
+          JSON.stringify([...next]),
+        );
+      } catch {
+        /* ignore localStorage failures */
+      }
+      window.dispatchEvent(
+        new CustomEvent("cabinet:toast", {
+          detail: {
+            kind: "success",
+            message: t("settings:language.requestSubmitted", { language: label }),
+          },
+        }),
+      );
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("cabinet:toast", {
+          detail: {
+            kind: "error",
+            message: t("settings:language.requestFailed"),
+          },
+        }),
+      );
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="text-[13px] font-semibold mb-1">{t("settings:language.title")}</h3>
+      <p className="text-[12px] text-muted-foreground mb-4">
+        {t("settings:language.description")}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {supported.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setLocale(opt.value)}
+            dir={opt.dir}
+            title={opt.dir === "rtl" ? "RTL ←" : undefined}
+            className={cn(
+              "rounded-lg border p-3 text-[13px] transition-colors text-start",
+              locale === opt.value
+                ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                : "border-border hover:border-primary/30",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5">
+        <div className="flex items-baseline justify-between mb-1.5">
+          <h4 className="text-[12px] font-semibold text-muted-foreground">
+            {t("settings:language.moreLanguages")}
+          </h4>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+            {t("settings:language.comingSoon")}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground/80 mb-3">
+          {t("settings:language.moreLanguagesHint")}
+        </p>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-1">
+          {REQUESTABLE_LOCALES.map((opt) => {
+            const isRequesting = requesting === opt.code;
+            const isRequested = requested.has(opt.code);
+            return (
+              <button
+                key={opt.code}
+                type="button"
+                onClick={() => requestLanguage(opt.code, opt.label)}
+                disabled={isRequesting || isRequested}
+                title={isRequested
+                  ? t("settings:language.requestSubmitted", { language: opt.label })
+                  : opt.englishName}
+                dir={opt.dir}
+                className={cn(
+                  "rounded border border-dashed px-1.5 py-1 text-[11px] leading-tight text-start truncate transition-colors",
+                  "border-border/60 text-muted-foreground/70",
+                  isRequested
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 cursor-default"
+                    : isRequesting
+                    ? "opacity-60 cursor-wait"
+                    : "hover:border-primary/30 hover:text-foreground hover:bg-accent/40 cursor-pointer",
+                )}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const REQUESTED_LOCALES_KEY = "cabinet-requested-locales";
+
 export function SettingsPage() {
+  const { t } = useLocale();
   const { showHiddenFiles, setShowHiddenFiles } = useTreeStore();
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("");
@@ -622,27 +763,27 @@ export function SettingsPage() {
     items: { id: Tab; label: string; icon: React.ReactNode }[];
   }[] = [
     {
-      label: "You",
+      label: t("settings:page.groupYou"),
       items: [
-        { id: "profile", label: "Profile", icon: <CircleUser className="h-3.5 w-3.5" /> },
-        { id: "notifications", label: "Notifications", icon: <Bell className="h-3.5 w-3.5" /> },
-        { id: "appearance", label: "Appearance", icon: <Palette className="h-3.5 w-3.5" /> },
+        { id: "profile", label: t("settings:tabs.profile"), icon: <CircleUser className="h-3.5 w-3.5" /> },
+        { id: "notifications", label: t("settings:tabs.notifications"), icon: <Bell className="h-3.5 w-3.5" /> },
+        { id: "appearance", label: t("settings:tabs.appearance"), icon: <Palette className="h-3.5 w-3.5" /> },
       ],
     },
     {
-      label: "Workspace",
+      label: t("settings:page.groupWorkspace"),
       items: [
-        { id: "providers", label: "Providers", icon: <Cpu className="h-3.5 w-3.5" /> },
-        { id: "skills", label: "Skills", icon: <Sparkles className="h-3.5 w-3.5" /> },
-        { id: "storage", label: "Storage", icon: <HardDrive className="h-3.5 w-3.5" /> },
-        { id: "integrations", label: "Integrations", icon: <Plug className="h-3.5 w-3.5" /> },
+        { id: "providers", label: t("settings:tabs.providers"), icon: <Cpu className="h-3.5 w-3.5" /> },
+        { id: "skills", label: t("settings:tabs.skills"), icon: <Sparkles className="h-3.5 w-3.5" /> },
+        { id: "storage", label: t("settings:tabs.storage"), icon: <HardDrive className="h-3.5 w-3.5" /> },
+        { id: "integrations", label: t("settings:tabs.integrations"), icon: <Plug className="h-3.5 w-3.5" /> },
       ],
     },
     {
-      label: "App",
+      label: t("settings:page.groupApp"),
       items: [
-        { id: "updates", label: "Updates", icon: <CloudDownload className="h-3.5 w-3.5" /> },
-        { id: "about", label: "About", icon: <Info className="h-3.5 w-3.5" /> },
+        { id: "updates", label: t("settings:tabs.updates"), icon: <CloudDownload className="h-3.5 w-3.5" /> },
+        { id: "about", label: t("settings:tabs.about"), icon: <Info className="h-3.5 w-3.5" /> },
       ],
     },
   ];
@@ -660,7 +801,7 @@ export function SettingsPage() {
            * should be H1, not H2. Visual size kept identical via Tailwind.
            */}
           <h1 className="text-[15px] font-semibold tracking-[-0.02em]">
-            Settings
+            {t("settings:page.title")}
           </h1>
         </div>
         <div className="flex items-center gap-1.5">
@@ -671,7 +812,7 @@ export function SettingsPage() {
             onClick={() => { refresh(); loadConfig(); }}
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            {t("settings:page.refresh")}
           </Button>
         </div>
       </div>
@@ -679,8 +820,8 @@ export function SettingsPage() {
       {/* Audit #040: vertical sidebar instead of a 9-tab horizontal strip. */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <nav
-          aria-label="Settings categories"
-          className="hidden w-[212px] shrink-0 flex-col gap-3 border-r border-border bg-muted/10 px-2 py-3 md:flex"
+          aria-label={t("settings:common.categoriesAriaLabel")}
+          className="hidden w-[212px] shrink-0 flex-col gap-3 border-e border-border bg-muted/10 px-2 py-3 md:flex"
         >
           {tabGroups.map((group) => (
             <div key={group.label} className="flex flex-col gap-0.5">
@@ -744,9 +885,9 @@ export function SettingsPage() {
           {tab === "appearance" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[13px] font-semibold mb-1">Theme</h3>
+                <h3 className="text-[13px] font-semibold mb-1">{t("settings:appearance.theme")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-4">
-                  Choose a theme for the interface.
+                  {t("settings:appearance.themeDescription")}
                 </p>
 
                 <div className="space-y-4">
@@ -773,15 +914,15 @@ export function SettingsPage() {
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[13px] font-semibold">
-                            Match system
+                            {t("settings:appearance.matchSystem")}
                           </span>
                           <span className="text-[11px] text-muted-foreground">
-                            Switch automatically with your OS appearance.
+                            {t("settings:appearance.matchSystemDescription")}
                           </span>
                         </div>
                       </div>
                       <label className="inline-flex items-center gap-2">
-                        <span className="sr-only">Match system</span>
+                        <span className="sr-only">{t("settings:appearance.matchSystem")}</span>
                         <input
                           type="checkbox"
                           checked={themeMode === "system"}
@@ -798,7 +939,7 @@ export function SettingsPage() {
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         <label className="flex flex-col gap-1 text-[11px]">
                           <span className="font-medium text-muted-foreground">
-                            Light variant
+                            {t("settings:appearance.lightVariant")}
                           </span>
                           <select
                             value={themePair.light}
@@ -818,7 +959,7 @@ export function SettingsPage() {
                         </label>
                         <label className="flex flex-col gap-1 text-[11px]">
                           <span className="font-medium text-muted-foreground">
-                            Dark variant
+                            {t("settings:appearance.darkVariant")}
                           </span>
                           <select
                             value={themePair.dark}
@@ -841,7 +982,7 @@ export function SettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">Light Themes</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">{t("settings:appearance.lightThemes")}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {lightThemes.map((t) => (
                         <button
@@ -875,7 +1016,7 @@ export function SettingsPage() {
                               {t.label}
                             </span>
                             {activeThemeName === t.name && (
-                              <Check className="h-3 w-3 text-primary ml-auto shrink-0" />
+                              <Check className="h-3 w-3 text-primary ms-auto shrink-0" />
                             )}
                           </div>
                         </button>
@@ -884,7 +1025,7 @@ export function SettingsPage() {
                   </div>
 
                   <div>
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">Dark Themes</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">{t("settings:appearance.darkThemes")}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {darkThemes.map((t) => (
                         <button
@@ -911,7 +1052,7 @@ export function SettingsPage() {
                               {t.label}
                             </span>
                             {activeThemeName === t.name && (
-                              <Check className="h-3 w-3 text-primary ml-auto shrink-0" />
+                              <Check className="h-3 w-3 text-primary ms-auto shrink-0" />
                             )}
                           </div>
                         </button>
@@ -922,9 +1063,9 @@ export function SettingsPage() {
               </div>
 
               <div className="border-t border-border pt-6">
-                <h3 className="text-[13px] font-semibold mb-1">Sidebar</h3>
+                <h3 className="text-[13px] font-semibold mb-1">{t("settings:appearance.sidebar")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-4">
-                  Configure how files are displayed in the sidebar.
+                  {t("settings:appearance.sidebarDescription")}
                 </p>
 
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/30 transition-colors">
@@ -936,9 +1077,9 @@ export function SettingsPage() {
                       className="h-4 w-4 rounded border-border accent-primary"
                     />
                     <div>
-                      <span className="text-[13px] font-medium">Show hidden files</span>
+                      <span className="text-[13px] font-medium">{t("settings:appearance.showHiddenFiles")}</span>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Display files and folders starting with a dot (e.g. .env, .git)
+                        {t("settings:appearance.showHiddenFilesHint")}
                       </p>
                     </div>
                   </div>
@@ -953,6 +1094,10 @@ export function SettingsPage() {
                   </kbd>
                 </label>
               </div>
+
+              <div className="border-t border-border pt-6">
+                <LanguageSection />
+              </div>
             </div>
           )}
 
@@ -960,10 +1105,9 @@ export function SettingsPage() {
           {tab === "storage" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[14px] font-semibold mb-1">Data Directory</h3>
+                <h3 className="text-[14px] font-semibold mb-1">{t("settings:storage.dataDirectory")}</h3>
                 <p className="text-[12px] text-muted-foreground">
-                  All Knowledge Base content is stored in this directory.
-                  Changing the path requires a restart.
+                  {t("settings:storage.dataDirectoryDescription")}
                 </p>
               </div>
 
@@ -971,9 +1115,9 @@ export function SettingsPage() {
                 <div className="flex items-center gap-3 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
                   <RotateCw className="h-4 w-4 shrink-0 text-yellow-500" />
                   <div className="flex-1">
-                    <p className="text-[13px] font-medium text-yellow-500">Restart required</p>
+                    <p className="text-[13px] font-medium text-yellow-500">{t("settings:storage.restartRequired")}</p>
                     <p className="text-[12px] text-muted-foreground">
-                      The data directory will change after you restart Cabinet.
+                      {t("settings:storage.restartHint")}
                     </p>
                   </div>
                 </div>
@@ -981,12 +1125,12 @@ export function SettingsPage() {
 
               <div className="space-y-2">
                 <label className="text-[12px] font-medium text-muted-foreground">
-                  Current path
+                  {t("settings:storage.currentPath")}
                 </label>
                 <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 bg-muted/30">
                   <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="flex-1 font-mono text-[12px] truncate select-all">
-                    {dataDir || "Loading..."}
+                    {dataDir || t("settings:storage.loadingPath")}
                   </span>
                   <Button
                     variant="ghost"
@@ -1003,11 +1147,11 @@ export function SettingsPage() {
 
               <div className="space-y-2">
                 <label className="text-[12px] font-medium text-muted-foreground">
-                  Change directory
+                  {t("settings:storage.changeDirectory")}
                 </label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="/path/to/data"
+                    placeholder={t("settings:storage.directoryPlaceholder")}
                     value={dataDirPending ?? ""}
                     onChange={(e) => setDataDirPending(e.target.value)}
                     className="font-mono text-[12px]"
@@ -1035,7 +1179,7 @@ export function SettingsPage() {
                     ) : (
                       <FolderOpen className="h-3.5 w-3.5" />
                     )}
-                    Browse
+                    {t("settings:storage.browse")}
                   </Button>
                 </div>
                 <div className="flex gap-2 pt-1">
@@ -1053,24 +1197,24 @@ export function SettingsPage() {
                         });
                         const data = await res.json().catch(() => null);
                         if (!res.ok) {
-                          showError(data?.error || "Failed to save.");
+                          showError(data?.error || t("settings:storage.failedToSave"));
                           return;
                         }
                         setDataDirRestartNeeded(true);
                         setDataDirPending(null);
                       } catch {
-                        showError("Failed to save data directory.");
+                        showError(t("settings:storage.failedToSaveDir"));
                       } finally {
                         setDataDirSaving(false);
                       }
                     }}
                   >
                     {dataDirSaving ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin me-1.5" />
                     ) : (
-                      <Save className="h-3.5 w-3.5 mr-1.5" />
+                      <Save className="h-3.5 w-3.5 me-1.5" />
                     )}
-                    Save
+                    {t("settings:storage.save")}
                   </Button>
                   {dataDir && (
                     <Button
@@ -1085,8 +1229,8 @@ export function SettingsPage() {
                         });
                       }}
                     >
-                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                      Open in Finder
+                      <ExternalLink className="h-3.5 w-3.5 me-1.5" />
+                      {t("settings:storage.openInFinder")}
                     </Button>
                   )}
                 </div>
@@ -1094,8 +1238,7 @@ export function SettingsPage() {
 
               <div className="border-t border-border pt-4">
                 <p className="text-[12px] text-muted-foreground">
-                  You can also set the <code className="px-1 py-0.5 rounded bg-muted text-[11px]">CABINET_DATA_DIR</code> environment
-                  variable, which takes priority over this setting.
+                  {t("settings:storage.envVarHint1")}<code className="px-1 py-0.5 rounded bg-muted text-[11px]">CABINET_DATA_DIR</code>{t("settings:storage.envVarHint2")}
                 </p>
               </div>
 
@@ -1128,7 +1271,7 @@ export function SettingsPage() {
           )}
 
           {tab === "updates" && !update && updateLoading && (
-            <p className="text-[13px] text-muted-foreground">Checking for Cabinet updates...</p>
+            <p className="text-[13px] text-muted-foreground">{t("settings:updates.checking")}</p>
           )}
 
           {/* Providers Tab */}
@@ -1136,7 +1279,7 @@ export function SettingsPage() {
             <>
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-[14px] font-semibold">Agent Providers</h3>
+                  <h3 className="text-[14px] font-semibold">{t("settings:providers.title")}</h3>
                   <a
                     href="/providers-demo"
                     target="_blank"
@@ -1144,21 +1287,21 @@ export function SettingsPage() {
                     className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
                   >
                     <Stethoscope className="h-3 w-3" />
-                    Troubleshoot AI providers
+                    {t("settings:providers.troubleshoot")}
                   </a>
                 </div>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Configure AI agent providers. CLI agents run via terminal, API agents use direct API calls.
+                  {t("settings:providers.subtitle")}
                 </p>
 
                 {loading ? (
-                  <p className="text-[13px] text-muted-foreground">Loading...</p>
+                  <p className="text-[13px] text-muted-foreground">{t("settings:common.loading")}</p>
                 ) : (
                   <div className="space-y-3">
                     <div>
                       <div className="mb-3 rounded-lg border border-border bg-card p-3 space-y-2">
                         <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Default runtime
+                          {t("settings:providers.defaultRuntime")}
                         </label>
                         <RuntimeSelectionBanner
                           providers={providers}
@@ -1167,7 +1310,7 @@ export function SettingsPage() {
                             model: defaultModel || null,
                             effort: defaultEffort || null,
                           }}
-                          label="Default Model"
+                          label={t("settings:providers.defaultModel")}
                         />
                         <RuntimeMatrixPicker
                           providers={providers}
@@ -1177,7 +1320,7 @@ export function SettingsPage() {
                             effort: defaultEffort || null,
                           }}
                           includeUnavailable
-                          emptyText="No providers are configured. Add one below."
+                          emptyText={t("settings:providers.emptyMatrix")}
                           onChange={({ providerId, model, effort }) => {
                             if (savingProviders) return;
                             const disabledIds = providers
@@ -1193,12 +1336,12 @@ export function SettingsPage() {
                           }}
                         />
                         <p className="text-[11px] text-muted-foreground">
-                          General conversations and fallback runs use this provider/model/effort.
+                          {t("settings:providers.defaultRuntimeHint")}
                         </p>
                       </div>
 
                       <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                        CLI Agents
+                        {t("settings:providers.cliAgents")}
                       </h4>
                       <div className="space-y-2">
                         {providers
@@ -1210,10 +1353,10 @@ export function SettingsPage() {
                             const setupSteps = buildProviderSetupSteps(provider.installSteps);
                             const statusColor = isReady ? "text-green-500" : isInstalled ? "text-amber-500" : "text-muted-foreground";
                             const statusText = isReady
-                              ? provider.version || "Ready"
+                              ? provider.version || t("settings:providers.ready")
                               : isInstalled
-                                ? "Installed but not logged in"
-                                : "Not installed";
+                                ? t("settings:providers.installedNotLoggedIn")
+                                : t("settings:providers.notInstalled");
                             return (
                               <div
                                 key={provider.id}
@@ -1248,7 +1391,7 @@ export function SettingsPage() {
                                           "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
                                           isExpanded ? "bg-muted" : ""
                                         )}
-                                        title="Setup guide"
+                                        title={t("settings:providers.setupGuide")}
                                       >
                                         <Info className="size-3" />
                                         Guide
@@ -1435,7 +1578,7 @@ export function SettingsPage() {
                                                   [provider.id]: !isOutputOpen,
                                                 }))
                                               }
-                                              className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                                              className="ms-auto inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
                                             >
                                               <ChevronDown
                                                 className="size-3 transition-transform"
@@ -1532,16 +1675,16 @@ export function SettingsPage() {
               {/* Blurred content preview */}
               <div className="pointer-events-none select-none blur-[2px] opacity-70" aria-hidden="true">
                 <div>
-                  <h3 className="text-[14px] font-semibold mb-1">Notification Channels</h3>
+                  <h3 className="text-[14px] font-semibold mb-1">{t("settings:notifications.channels")}</h3>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Configure how you receive alerts when agents need your attention.
+                    {t("settings:notifications.channelsHint")}
                   </p>
                   <div className="space-y-3">
                     {[
-                      { icon: "🔔", name: "Browser Push", desc: "Instant alerts when Cabinet tab is open or PWA installed" },
-                      { icon: "✈️", name: "Telegram", desc: "Instant mobile notifications via Telegram bot" },
-                      { icon: "💬", name: "Slack Webhook", desc: "Forward alerts to your team's Slack channel" },
-                      { icon: "📧", name: "Email Digest", desc: "Batched summary of alerts and agent activity" },
+                      { icon: "🔔", name: t("settings:notifications.channelPushName"), desc: t("settings:notifications.channelPushDesc") },
+                      { icon: "✈️", name: t("settings:notifications.channelTelegramName"), desc: t("settings:notifications.channelTelegramDesc") },
+                      { icon: "💬", name: t("settings:notifications.channelSlackName"), desc: t("settings:notifications.channelSlackDesc") },
+                      { icon: "📧", name: t("settings:notifications.channelEmailName"), desc: t("settings:notifications.channelEmailDesc") },
                     ].map((ch) => (
                       <div key={ch.name} className="bg-card border border-border rounded-lg p-3">
                         <div className="flex items-center justify-between">
@@ -1553,7 +1696,7 @@ export function SettingsPage() {
                             </div>
                           </div>
                           <div className="h-4 w-8 rounded-full bg-muted-foreground/30 relative">
-                            <span className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white" />
+                            <span className="absolute top-0.5 start-0.5 h-3 w-3 rounded-full bg-white" />
                           </div>
                         </div>
                       </div>
@@ -1562,23 +1705,23 @@ export function SettingsPage() {
                 </div>
 
                 <div className="border-t border-border pt-6 mt-6">
-                  <h3 className="text-[14px] font-semibold mb-1">Alert Rules</h3>
+                  <h3 className="text-[14px] font-semibold mb-1">{t("settings:notifications.alertRules")}</h3>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Notifications are triggered automatically for these events:
+                    {t("settings:notifications.rulesHint")}
                   </p>
                   <div className="space-y-2">
                     {[
-                      { event: "#alerts channel messages", desc: "Any agent posting to the alerts channel" },
-                      { event: "@human mentions", desc: "When an agent mentions @human in any channel" },
-                      { event: "Goal floor breached", desc: "A goal drops below its minimum threshold" },
-                      { event: "Agent health degraded", desc: "3+ consecutive heartbeat failures" },
+                      { event: t("settings:notifications.ruleAlertsEvent"), desc: t("settings:notifications.ruleAlertsDesc") },
+                      { event: t("settings:notifications.ruleMentionsEvent"), desc: t("settings:notifications.ruleMentionsDesc") },
+                      { event: t("settings:notifications.ruleFloorEvent"), desc: t("settings:notifications.ruleFloorDesc") },
+                      { event: t("settings:notifications.ruleHealthEvent"), desc: t("settings:notifications.ruleHealthDesc") },
                     ].map((rule) => (
                       <div key={rule.event} className="flex items-center justify-between bg-card border border-border rounded-lg px-3 py-2">
                         <div>
                           <p className="text-[12px] font-medium">{rule.event}</p>
                           <p className="text-[10px] text-muted-foreground/60">{rule.desc}</p>
                         </div>
-                        <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Always on</span>
+                        <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">{t("settings:notifications.alwaysOn")}</span>
                       </div>
                     ))}
                   </div>
@@ -1589,9 +1732,9 @@ export function SettingsPage() {
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 bg-background/80 backdrop-blur-sm rounded-xl px-8 py-6 border border-border shadow-lg">
                   <Bell className="h-6 w-6 text-muted-foreground/50" />
-                  <span className="text-[13px] font-semibold">Coming Soon</span>
+                  <span className="text-[13px] font-semibold">{t("settings:notifications.comingSoon")}</span>
                   <p className="text-[12px] text-muted-foreground text-center max-w-[220px]">
-                    Browser push, Telegram, Slack, and email notifications.
+                    {t("settings:notifications.previewHint")}
                   </p>
                 </div>
               </div>
@@ -1602,19 +1745,19 @@ export function SettingsPage() {
           {tab === "about" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-[14px] font-semibold mb-1">Cabinet</h3>
+                <h3 className="text-[14px] font-semibold mb-1">{t("settings:about.cabinet")}</h3>
                 <p className="text-[12px] text-muted-foreground">
-                  AI-first self-hosted knowledge base and startup OS.
+                  {t("settings:about.tagline")}
                 </p>
               </div>
 
               <div className="space-y-3 text-[13px]">
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Version</span>
+                  <span className="text-muted-foreground">{t("settings:about.version")}</span>
                   <span className="font-mono">{pkgVersion}</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Release</span>
+                  <span className="text-muted-foreground">{t("settings:about.release")}</span>
                   <span className="font-mono text-[12px] text-muted-foreground">
                     {releaseJson.version}
                     {releaseJson.channel !== "stable" && (
@@ -1623,40 +1766,39 @@ export function SettingsPage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Framework</span>
-                  <span>Next.js (App Router)</span>
+                  <span className="text-muted-foreground">{t("settings:about.framework")}</span>
+                  <span>{t("settings:about.frameworkValue")}</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Storage</span>
-                  <span className="font-mono text-[12px] truncate max-w-[300px]" title={dataDir}>{dataDir || "Local filesystem"}</span>
+                  <span className="text-muted-foreground">{t("settings:about.storage")}</span>
+                  <span className="font-mono text-[12px] truncate max-w-[300px]" title={dataDir}>{dataDir || t("settings:about.storageValue")}</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">AI</span>
+                  <span className="text-muted-foreground">{t("settings:about.aiLabel")}</span>
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5" />
-                    Powered by local AI CLIs
+                    {t("settings:about.aiValue")}
                   </span>
                 </div>
               </div>
 
               <div className="pt-2">
                 <p className="text-[12px] text-muted-foreground">
-                  All content lives as markdown files on disk. Humans define intent. Agents do the work. The knowledge base is the shared memory between both.
+                  {t("settings:about.philosophy")}
                 </p>
               </div>
 
               <div className="border-t border-border pt-6">
-                <h3 className="text-[14px] font-semibold mb-1">Privacy</h3>
+                <h3 className="text-[14px] font-semibold mb-1">{t("settings:about.privacy")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-3">
-                  Cabinet sends anonymous usage telemetry to help us improve the
-                  product. No file contents, paths, prompts, or secrets are collected.
+                  {t("settings:about.privacyBody")}
                   <a
                     href="https://github.com/hilash/cabinet/blob/main/TELEMETRY.md"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="ml-1 underline hover:text-foreground"
                   >
-                    What&apos;s collected?
+                    {t("settings:about.privacyLink")}
                   </a>
                 </p>
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/30 transition-colors">
@@ -1669,11 +1811,11 @@ export function SettingsPage() {
                       className="h-4 w-4 rounded border-border accent-primary"
                     />
                     <div>
-                      <span className="text-[13px] font-medium">Anonymous usage telemetry</span>
+                      <span className="text-[13px] font-medium">{t("settings:about.telemetry")}</span>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {telemetryEnvDisabled
-                          ? "Disabled by CABINET_TELEMETRY_DISABLED=1 (env var)."
-                          : "Event counts, versions, and platform info only. Toggle off to stop sending."}
+                          ? t("settings:about.telemetryEnvDisabled")
+                          : t("settings:about.telemetryHint")}
                       </p>
                     </div>
                   </div>
@@ -1683,20 +1825,18 @@ export function SettingsPage() {
               <div className="border-t border-border pt-6">
                 <h3 className="text-[14px] font-semibold mb-1 flex items-center gap-2">
                   <Cloud className="h-3.5 w-3.5" />
-                  Cabinet Cloud
+                  {t("settings:about.cabinetCloud")}
                 </h3>
                 <p className="text-[12px] text-muted-foreground mb-3">
-                  Connect to your Cabinet from anywhere, while your AI team works 24/7
-                  for you. Drop your email below and we&apos;ll let you know when
-                  Cabinet Cloud opens up.
+                  {t("settings:about.cloudBody")}
                 </p>
                 {cloudStatus === "success" || cloudStatus === "already" ? (
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-[13px]">
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
                     <span>
                       {cloudStatus === "already"
-                        ? "You're already on the list — we'll be in touch."
-                        : "You're on the list. We'll email you when Cabinet Cloud opens up."}
+                        ? t("settings:about.cloudAlready")
+                        : t("settings:about.cloudSuccess")}
                     </span>
                   </div>
                 ) : (
@@ -1711,7 +1851,7 @@ export function SettingsPage() {
                       type="email"
                       inputMode="email"
                       autoComplete="email"
-                      placeholder="you@company.com"
+                      placeholder={t("settings:notifications.emailPlaceholder")}
                       value={cloudEmail}
                       onChange={(e) => handleCloudInput(e.target.value)}
                       disabled={cloudStatus === "submitting"}
@@ -1728,11 +1868,11 @@ export function SettingsPage() {
                       {cloudStatus === "submitting" ? (
                         <>
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Sending…
+                          {t("settings:about.cloudSending")}
                         </>
                       ) : (
                         <>
-                          Join waitlist
+                          {t("settings:about.cloudJoinWaitlist")}
                           <ArrowRight className="h-3 w-3" />
                         </>
                       )}
@@ -1741,15 +1881,15 @@ export function SettingsPage() {
                 )}
                 {cloudStatus === "error" && (
                   <p className="mt-2 text-[11px] text-destructive">
-                    Something went wrong. Check the email and try again.
+                    {t("settings:about.cloudError")}
                   </p>
                 )}
               </div>
 
               <div className="border-t border-border pt-6">
-                <h3 className="text-[14px] font-semibold mb-1">Connect</h3>
+                <h3 className="text-[14px] font-semibold mb-1">{t("settings:about.connectTitle")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-3">
-                  Get help, share feedback, or just say hi.
+                  {t("settings:about.connectBody")}
                 </p>
                 <div className="space-y-2">
                   <a
@@ -1759,8 +1899,8 @@ export function SettingsPage() {
                     className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-[13px] font-medium hover:bg-primary/10 transition-colors"
                   >
                     <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-                    Join the Discord
-                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">Recommended</span>
+                    {t("settings:about.joinDiscord")}
+                    <span className="ms-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{t("settings:common.recommended")}</span>
                   </a>
                   <a
                     href="mailto:hi@runcabinet.com"
@@ -1810,7 +1950,7 @@ function ThemeThumbnail({ theme }: { theme: ThemeDefinition }) {
       >
         {/* Mini sidebar */}
         <div
-          className="flex h-full w-[28%] flex-col gap-0.5 border-r p-1"
+          className="flex h-full w-[28%] flex-col gap-0.5 border-e p-1"
           style={{
             background: "var(--sidebar)",
             color: "var(--sidebar-foreground)",
@@ -1924,6 +2064,7 @@ function AvatarPicker({
   onSelect: (id: string) => void;
   onClear: () => void;
 }) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [browseAll, setBrowseAll] = useState(false);
   const [tab, setTab] = useState<AvatarCategory>("silhouettes");
@@ -1961,7 +2102,7 @@ function AvatarPicker({
       <div className="flex flex-wrap items-center gap-2">
         <Input
           type="search"
-          placeholder="Search avatars…"
+          placeholder={t("settings:profile.searchAvatars")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="h-8 max-w-xs text-[12px]"
@@ -1974,7 +2115,7 @@ function AvatarPicker({
             className="h-8 text-[11px]"
             onClick={() => setBrowseAll((v) => !v)}
           >
-            {browseAll ? "Show favorites" : `Browse all (${totalCount})`}
+            {browseAll ? t("settings:profile.showFavorites") : t("settings:profile.browseAll", { count: totalCount })}
           </Button>
         )}
       </div>
@@ -2012,7 +2153,7 @@ function AvatarPicker({
             "flex h-12 w-12 items-center justify-center rounded-full border-2 bg-muted text-[10px] text-muted-foreground",
             !selectedId ? "border-foreground" : "border-transparent",
           )}
-          title="Use icon instead"
+          title={t("settings:profile.useIconInstead")}
         >
           None
         </button>
@@ -2060,6 +2201,7 @@ function IconPicker({
   selectedKey: string;
   onSelect: (next: string) => void;
 }) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
 
@@ -2087,7 +2229,7 @@ function IconPicker({
       <div className="flex flex-wrap items-center gap-2">
         <Input
           type="search"
-          placeholder="Search icons…"
+          placeholder={t("settings:profile.searchIcons")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="h-8 max-w-xs text-[12px]"
@@ -2101,8 +2243,8 @@ function IconPicker({
             onClick={() => setShowAll((v) => !v)}
           >
             {showAll
-              ? "Show fewer"
-              : `Browse all (${ICON_PICKER_KEYS.length})`}
+              ? t("settings:profile.showFewer")
+              : t("settings:profile.browseAll", { count: ICON_PICKER_KEYS.length })}
           </Button>
         )}
       </div>
@@ -2174,6 +2316,7 @@ function hexFromPalette(i: number): string {
 }
 
 function ProfileTab() {
+  const { t } = useLocale();
   const state = useUserProfile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
@@ -2252,16 +2395,16 @@ function ProfileTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="mb-1 text-[13px] font-semibold">Profile</h3>
+        <h3 className="mb-1 text-[13px] font-semibold">{t("settings:profile.title")}</h3>
         <p className="mb-4 text-[12px] text-muted-foreground">
-          How you appear in conversations and across the app.
+          {t("settings:profile.howAppear")}
         </p>
 
         <div className="mb-4 flex items-center gap-3 rounded-md border bg-muted/30 p-3">
           <UserAvatar profile={profile} size="lg" shape="circle" />
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium">
-              {profile.displayName?.trim() || profile.name || "You"}
+              {profile.displayName?.trim() || profile.name || t("settings:profile.youFallback")}
             </span>
             {profile.role ? (
               <span className="truncate text-xs text-muted-foreground">
@@ -2272,15 +2415,15 @@ function ProfileTab() {
         </div>
 
         <div className="space-y-3">
-          <Field label="Name">
+          <Field label={t("settings:profile.name")}>
             <Input
               value={profile.name}
               onChange={(e) => update({ profile: { name: e.target.value } })}
-              placeholder="Hila"
+              placeholder={t("settings:profile.namePlaceholder")}
               maxLength={60}
             />
           </Field>
-          <Field label="Display name" hint="Shown in conversations. Defaults to Name.">
+          <Field label={t("settings:profile.displayName")} hint={t("settings:profile.displayNameHint")}>
             <Input
               value={profile.displayName || ""}
               onChange={(e) =>
@@ -2290,11 +2433,11 @@ function ProfileTab() {
               maxLength={60}
             />
           </Field>
-          <Field label="Role">
+          <Field label={t("settings:profile.role")}>
             <Input
               value={profile.role || ""}
               onChange={(e) => update({ profile: { role: e.target.value } })}
-              placeholder="Builder"
+              placeholder={t("settings:profile.rolePlaceholder")}
               maxLength={80}
             />
           </Field>
@@ -2306,44 +2449,44 @@ function ProfileTab() {
           decoration. Moved to right after Name/Role so the workspace
           fields are above the fold and visible before the avatar grid. */}
       <div className="border-t border-border pt-5">
-        <h3 className="mb-1 text-[13px] font-semibold">Workspace</h3>
+        <h3 className="mb-1 text-[13px] font-semibold">{t("settings:workspace.title")}</h3>
         <p className="mb-4 text-[12px] text-muted-foreground">
-          Captured during onboarding. Agents read these when planning work.
+          {t("settings:workspace.subtitle")}
         </p>
         <div className="space-y-3">
-          <Field label="Workspace name">
+          <Field label={t("settings:workspace.name")}>
             <Input
               value={workspace.workspaceName || ""}
               onChange={(e) =>
                 update({ workspace: { workspaceName: e.target.value } })
               }
-              placeholder="My Cabinet"
+              placeholder={t("settings:workspace.namePlaceholder")}
             />
           </Field>
-          <Field label="Description">
+          <Field label={t("settings:workspace.description")}>
             <textarea
               value={workspace.description || ""}
               onChange={(e) =>
                 update({ workspace: { description: e.target.value } })
               }
               className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              placeholder="What do you do?"
+              placeholder={t("settings:workspace.descriptionPlaceholder")}
             />
           </Field>
-          <Field label="Team size">
+          <Field label={t("settings:workspace.teamSize")}>
             <Input
               value={workspace.teamSize || ""}
               onChange={(e) =>
                 update({ workspace: { teamSize: e.target.value } })
               }
-              placeholder="Solo / 2–5 / 6–20 / 20+"
+              placeholder={t("settings:workspace.teamSizePlaceholder")}
             />
           </Field>
         </div>
       </div>
 
       <div>
-        <h4 className="mb-2 text-[12px] font-semibold">Avatar</h4>
+        <h4 className="mb-2 text-[12px] font-semibold">{t("settings:profile.avatar")}</h4>
         <AvatarPicker
           selectedId={profile.avatar}
           onSelect={(id) => update({ profile: { avatar: id, avatarExt: "" } })}
@@ -2367,7 +2510,7 @@ function ProfileTab() {
             size="sm"
             onClick={() => fileInputRef.current?.click()}
           >
-            <Upload className="mr-1.5 h-3.5 w-3.5" />
+            <Upload className="me-1.5 h-3.5 w-3.5" />
             Upload custom
           </Button>
           {profile.avatar === "custom" ? (
@@ -2377,7 +2520,7 @@ function ProfileTab() {
               size="sm"
               onClick={() => void removeAvatar()}
             >
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              <Trash2 className="me-1.5 h-3.5 w-3.5" />
               Remove
             </Button>
           ) : null}
@@ -2385,7 +2528,7 @@ function ProfileTab() {
       </div>
 
       <div>
-        <h4 className="mb-2 text-[12px] font-semibold">Accent color</h4>
+        <h4 className="mb-2 text-[12px] font-semibold">{t("settings:profile.accentColor")}</h4>
         <div className="flex flex-wrap items-center gap-2">
           {AGENT_PALETTE.map((_, i) => {
             const hex = hexFromPalette(i);
@@ -2413,14 +2556,14 @@ function ProfileTab() {
           })}
           <Input
             type="text"
-            placeholder="#hex"
+            placeholder={t("settings:profile.hexPlaceholder")}
             value={profile.color || ""}
             onChange={(e) => update({ profile: { color: e.target.value } })}
-            className="ml-2 h-8 w-24 text-xs"
+            className="ms-2 h-8 w-24 text-xs"
           />
         </div>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Tints the fallback avatar when no image is set.
+          {t("settings:profile.tintHint")}
         </p>
         {(() => {
           const hex = (profile.color || "").trim();
@@ -2436,29 +2579,29 @@ function ProfileTab() {
       </div>
 
       <div>
-        <h4 className="mb-2 text-[12px] font-semibold">Fallback icon</h4>
+        <h4 className="mb-2 text-[12px] font-semibold">{t("settings:profile.fallbackIcon")}</h4>
         <IconPicker
           selectedKey={profile.iconKey || ""}
           onSelect={(key) => update({ profile: { iconKey: key } })}
         />
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Used when no avatar image is set. Click again to clear.
+          {t("settings:profile.iconHint")}
         </p>
       </div>
 
       <div className="sticky bottom-0 flex items-center gap-2 border-t border-border bg-background pt-4 pb-2 z-10">
         <Button onClick={() => void save()} disabled={saving} size="sm">
           {saving ? (
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="me-1.5 h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Save className="mr-1.5 h-3.5 w-3.5" />
+            <Save className="me-1.5 h-3.5 w-3.5" />
           )}
-          {saving ? "Saving…" : "Save"}
+          {saving ? t("settings:profile.saving") : t("settings:profile.save")}
         </Button>
         {saved ? (
           <span className="inline-flex items-center gap-1 text-[12px] text-emerald-600 dark:text-emerald-400">
             <Check className="h-3.5 w-3.5" />
-            Saved
+            {t("settings:profile.saved")}
           </span>
         ) : null}
       </div>

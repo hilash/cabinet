@@ -206,13 +206,38 @@ export const DragHandle = Extension.create({
             }
             currentBlock = block as typeof currentBlock;
             const domRect = block.dom.getBoundingClientRect();
+            const isRtl =
+              typeof document !== "undefined" &&
+              document.documentElement.dir === "rtl";
             handle.style.display = "flex";
             handle.style.top = `${window.scrollY + domRect.top + 4}px`;
-            handle.style.left = `${window.scrollX + domRect.left - 22}px`;
+            if (isRtl) {
+              // Anchor the gutter from the block's right edge so the drag /
+              // add handles sit outside the content's logical start in RTL.
+              handle.style.left = "auto";
+              handle.style.right = `${
+                document.documentElement.clientWidth -
+                (window.scrollX + domRect.right) -
+                22
+              }px`;
+            } else {
+              handle.style.right = "auto";
+              handle.style.left = `${window.scrollX + domRect.left - 22}px`;
+            }
             if (addBtn) {
               addBtn.style.display = "flex";
               addBtn.style.top = `${window.scrollY + domRect.top + 4}px`;
-              addBtn.style.left = `${window.scrollX + domRect.left - 44}px`;
+              if (isRtl) {
+                addBtn.style.left = "auto";
+                addBtn.style.right = `${
+                  document.documentElement.clientWidth -
+                  (window.scrollX + domRect.right) -
+                  44
+                }px`;
+              } else {
+                addBtn.style.right = "auto";
+                addBtn.style.left = `${window.scrollX + domRect.left - 44}px`;
+              }
             }
           };
 

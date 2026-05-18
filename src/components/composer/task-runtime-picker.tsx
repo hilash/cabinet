@@ -5,6 +5,7 @@ import { useAppStore } from "@/stores/app-store";
 import { BrainCircuit, Check, Sparkles, Terminal } from "lucide-react";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import {
   formatEffortName,
   getModelEffortLevels,
@@ -361,6 +362,7 @@ function ProviderRuntimeMatrix({
   selectedEffortId?: string;
   onSelect: (modelId: string, effortId?: string) => void;
 }) {
+  const { t } = useLocale();
   const matrixEffortColumns = getProviderEffortColumns(provider);
   const models = provider.models || [];
 
@@ -384,14 +386,14 @@ function ProviderRuntimeMatrix({
             <thead className="bg-muted/25">
               <tr>
                 <th className="min-w-[9.5rem] px-2.5 py-1.5 text-left font-medium text-foreground">
-                  Model
+                  {t("runtime:modelCol")}
                 </th>
-                {[{ id: AUTO_EFFORT_ID, name: "Auto" }, ...matrixEffortColumns].map(
+                {[{ id: AUTO_EFFORT_ID, name: t("runtime:auto") }, ...matrixEffortColumns].map(
                   (effort) => {
                     const tone = getEffortTone(effort.id);
                     const label =
                       effort.id === AUTO_EFFORT_ID
-                        ? "Auto"
+                        ? t("runtime:auto")
                         : formatEffortName(effort.name) || effort.name;
 
                     return (
@@ -449,7 +451,7 @@ function ProviderRuntimeMatrix({
                           {model.name}
                           {model.requires === "api_key" ? (
                             <span
-                              title="Requires an OpenAI API key. Not available on ChatGPT-plan Codex accounts — picking this model will fail with 'model not supported when using Codex with a ChatGPT account'."
+                              title={t("runtime:ptyWarningTitle")}
                               className="inline-flex items-center rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[8.5px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400"
                             >
                               API key
@@ -538,10 +540,12 @@ interface RuntimeSelectionBannerProps {
 export function RuntimeSelectionBanner({
   providers,
   value,
-  label = "Selected Model",
+  label,
   trailing,
   className,
 }: RuntimeSelectionBannerProps) {
+  const { t } = useLocale();
+  const effectiveLabel = label ?? t("runtime:selectedModelLabel");
   const currentProvider = useMemo(
     () =>
       resolveSelectedProvider(providers, value.providerId ?? undefined, undefined),
@@ -568,7 +572,7 @@ export function RuntimeSelectionBanner({
   const effortTone = getEffortTone(value.effort ?? AUTO_EFFORT_ID);
   const effortName =
     currentEffort?.name ||
-    (value.effort ? formatEffortName(value.effort) : "Auto");
+    (value.effort ? formatEffortName(value.effort) : t("runtime:auto"));
   const isTerminal = value.runtimeMode === "terminal";
 
   return (
@@ -585,7 +589,7 @@ export function RuntimeSelectionBanner({
           isTerminal ? "text-zinc-400" : "text-muted-foreground/60"
         )}
       >
-        {label}
+        {effectiveLabel}
       </span>
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
         {currentProvider ? (
@@ -630,7 +634,7 @@ export function RuntimeSelectionBanner({
             )}
           </>
         ) : (
-          <span className="text-[10px] text-muted-foreground">No provider selected</span>
+          <span className="text-[10px] text-muted-foreground">{t("runtime:noProvider")}</span>
         )}
       </div>
       {trailing}
@@ -678,6 +682,7 @@ export function RuntimeMatrixPicker({
   className,
   emptyText = "No providers available.",
 }: RuntimeMatrixPickerProps) {
+  const { t } = useLocale();
   const runtimeMode: RuntimeMode = value.runtimeMode === "terminal" ? "terminal" : "native";
   const selectableProviders = useMemo(() => {
     const base = includeUnavailable
@@ -791,7 +796,7 @@ export function RuntimeMatrixPicker({
       {showRuntimeModeToggle && (
         <div
           role="tablist"
-          aria-label="Runtime mode"
+          aria-label={t("runtime:modeAriaLabel")}
           className="relative z-10 grid grid-cols-2 gap-1 -mb-px px-2 pt-2 text-[12px] font-medium"
         >
           <button
@@ -805,10 +810,10 @@ export function RuntimeMatrixPicker({
                 ? "border-border/70 bg-background text-foreground shadow-[0_-1px_0_0_var(--border)]"
                 : "border-transparent bg-muted/50 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
             )}
-            title="Cabinet's native transcript — structured JSON stream, artifacts, summary, the full UX"
+            title={t("runtime:nativeTranscriptTitle")}
           >
             <Sparkles className="h-4 w-4" />
-            <span>Native</span>
+            <span>{t("runtime:native")}</span>
           </button>
           <button
             type="button"
@@ -821,10 +826,10 @@ export function RuntimeMatrixPicker({
                 ? "border-emerald-500/50 bg-zinc-950 text-zinc-100 shadow-[0_-1px_0_0_rgba(16,185,129,0.5)] dark:border-emerald-400/50"
                 : "border-transparent bg-muted/50 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
             )}
-            title="Run the CLI in a live PTY terminal session (experimental hacker mode)"
+            title={t("runtime:terminalTitle")}
           >
             <Terminal className="h-4 w-4" />
-            <span>Terminal</span>
+            <span>{t("runtime:terminal")}</span>
           </button>
         </div>
       )}
@@ -848,7 +853,7 @@ export function RuntimeMatrixPicker({
             <div className="flex px-1.5 pt-1.5 overflow-x-auto scrollbar-none">
               <TabsList
                 variant="line"
-                aria-label="Providers"
+                aria-label={t("runtime:providers")}
                 className="h-auto w-max min-w-full justify-start gap-1.5 rounded-none bg-transparent p-0 !border-b-0"
               >
                 {selectableProviders.map((provider) => {
@@ -864,7 +869,7 @@ export function RuntimeMatrixPicker({
                       title={
                         ready
                           ? provider.name
-                          : `${provider.name} — ${unreadyReason || "Not available"}`
+                          : `${provider.name} — ${unreadyReason || t("runtime:notAvailable")}`
                       }
                       className={cn(
                         "relative -mb-px flex h-7 flex-none items-center gap-1.5 rounded-t-md rounded-b-none border-0 !bg-muted/60 py-1 text-[9px] font-medium text-muted-foreground shadow-none after:hidden data-active:z-10 data-active:!bg-background data-active:text-foreground data-active:shadow-none",
@@ -936,11 +941,12 @@ function TerminalProviderPanel({
   selectedProviderId: string | null;
   onSelect: (providerId: string) => void;
 }) {
+  const { t } = useLocale();
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
       <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[10px] font-medium text-zinc-300">
         <Terminal className="size-3 text-emerald-400" />
-        <span>Pick a CLI to spawn in a PTY:</span>
+        <span>{t("composerExtras:pickCliPty")}</span>
       </div>
       <div className="grid grid-cols-2 gap-1.5 p-2 sm:grid-cols-3">
         {providers.map((provider) => {
@@ -948,10 +954,10 @@ function TerminalProviderPanel({
           const unreadyReason = describeProviderUnreadyReason(provider);
           const selected = ready && selectedProviderId === provider.id;
           const statusLabel = ready
-            ? "Ready"
+            ? t("runtime:ready")
             : provider.available
-              ? "Log in"
-              : "Not installed";
+              ? t("runtime:loginRequired")
+              : t("runtime:notInstalled");
           return (
             <button
               key={provider.id}
@@ -963,8 +969,8 @@ function TerminalProviderPanel({
               }}
               title={
                 ready
-                  ? `Click to launch ${provider.name} in a PTY terminal`
-                  : `${provider.name} — ${unreadyReason || "Not available"}`
+                  ? t("runtime:clickToLaunch", { name: provider.name })
+                  : `${provider.name} — ${unreadyReason || t("runtime:notAvailable")}`
               }
               className={cn(
                 "group relative flex flex-col items-start gap-1.5 rounded-md border px-2.5 py-2 text-left transition-all",
@@ -1058,12 +1064,17 @@ export function TaskRuntimePicker({
   onChange,
   align = "start",
   className,
+  compact = false,
 }: {
   value: TaskRuntimeSelection;
   onChange: (value: TaskRuntimeSelection) => void;
   align?: "start" | "center" | "end";
   className?: string;
+  /** Icon-only trigger (no model/effort labels) — used in tight surfaces
+   *  like the side-panel conversation composer. */
+  compact?: boolean;
 }) {
+  const { t } = useLocale();
   const providers = useAppStore((s) => s.providers);
   const defaultProviderId = useAppStore((s) => s.defaultProviderId);
   const defaultModel = useAppStore((s) => s.defaultModel);
@@ -1169,31 +1180,32 @@ export function TaskRuntimePicker({
         currentEffort?.name ||
           (normalizedValue.effort
             ? formatEffortName(normalizedValue.effort)
-            : "Default"),
+            : t("runtime:defaultLabel")),
         currentProvider.name,
       ]
         .filter(Boolean)
         .join(" · ")
     : loading
-      ? "Loading providers..."
-      : "No providers available";
+      ? t("runtime:loadingProviders")
+      : t("runtime:noProvidersAvailable");
 
   // Audit #052: the prior tooltip "Task model: Claude Opus 4.7 · Medium ·
   // Claude Code" read as a compound model identifier, sending users to
   // search Anthropic for a non-existent product. Split the three concepts
   // (model, effort tier, provider) explicitly so each is recognisable.
   const triggerTitle = currentProvider
-    ? `Model: ${currentModel?.name || currentProvider.name}` +
-      ` · Effort: ${
-        currentEffort?.name ||
-        (normalizedValue.effort
-          ? formatEffortName(normalizedValue.effort)
-          : "Default")
-      }` +
-      ` · via ${currentProvider.name}`
+    ? t("runtime:triggerSummary", {
+        model: currentModel?.name || currentProvider.name,
+        effort:
+          currentEffort?.name ||
+          (normalizedValue.effort
+            ? formatEffortName(normalizedValue.effort)
+            : t("runtime:defaultLabel")),
+        provider: currentProvider.name,
+      })
     : loading
-      ? "Loading available providers…"
-      : "Task model — using system default (click to pick)";
+      ? t("runtime:loadingAvailableProviders")
+      : t("runtime:triggerSystemDefault");
 
   function applySelection(
     providerId: string,
@@ -1236,7 +1248,8 @@ export function TaskRuntimePicker({
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex h-8 items-center gap-1 rounded-md border px-2 transition-colors disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex h-8 items-center rounded-md border transition-colors disabled:pointer-events-none disabled:opacity-50",
+          compact ? "gap-0 px-1.5" : "gap-1 px-2",
           isTerminalTrigger
             ? "border-emerald-500/40 bg-zinc-950 text-zinc-100 hover:bg-zinc-900"
             : "border-border/70 bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -1252,26 +1265,34 @@ export function TaskRuntimePicker({
               <div className="flex size-4 shrink-0 items-center justify-center rounded border border-emerald-500/40 bg-zinc-900 text-emerald-400">
                 <Terminal className="h-2.5 w-2.5" />
               </div>
-              <span className="text-[11px] font-medium text-zinc-100">
-                {currentProvider.name}
-              </span>
-              <span className="text-[9px] text-zinc-500">·</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wide text-emerald-400">
-                Terminal
-              </span>
+              {!compact && (
+                <>
+                  <span className="text-[11px] font-medium text-zinc-100">
+                    {currentProvider.name}
+                  </span>
+                  <span className="text-[9px] text-zinc-500">·</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wide text-emerald-400">
+                    Terminal
+                  </span>
+                </>
+              )}
             </>
           ) : (
             <>
               <div className="flex size-4 shrink-0 items-center justify-center rounded border border-border/60 bg-muted/30">
                 <ProviderGlyph icon={currentProvider.icon} className="h-2.5 w-2.5" />
               </div>
-              <span className={cn("text-[11px] font-medium", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).header)}>
-                {currentModel?.name || currentProvider.name}
-              </span>
-              <span className="text-[9px] text-muted-foreground/40">·</span>
-              <span className={cn("text-[9px] font-medium", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).header)}>
-                {currentEffort?.name || (normalizedValue.effort ? formatEffortName(normalizedValue.effort) : "Auto")}
-              </span>
+              {!compact && (
+                <>
+                  <span className={cn("text-[11px] font-medium", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).header)}>
+                    {currentModel?.name || currentProvider.name}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground/40">·</span>
+                  <span className={cn("text-[9px] font-medium", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).header)}>
+                    {currentEffort?.name || (normalizedValue.effort ? formatEffortName(normalizedValue.effort) : t("runtime:auto"))}
+                  </span>
+                </>
+              )}
             </>
           )
         ) : loading ? (
@@ -1279,7 +1300,9 @@ export function TaskRuntimePicker({
         ) : (
           <>
             <BrainCircuit className="h-4 w-4" />
-            <span className="text-[11px] font-medium">Auto</span>
+            {!compact && (
+              <span className="text-[11px] font-medium">{t("runtime:auto")}</span>
+            )}
           </>
         )}
       </DropdownMenuTrigger>
@@ -1312,18 +1335,18 @@ export function TaskRuntimePicker({
                   resetToDefault();
                 }}
                 title={[
-                  appDefaultModelInfo?.name || "Default model",
+                  appDefaultModelInfo?.name || t("runtime:defaultModel"),
                   appDefaultSelection.effort
                     ? formatEffortName(appDefaultSelection.effort)
-                    : "Auto",
+                    : t("runtime:auto"),
                   appDefaultProvider?.name || null,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
               >
                 {sameSelection(normalizedValue, appDefaultSelection)
-                  ? "App default"
-                  : "Select app default"}
+                  ? t("runtime:appDefault")
+                  : t("runtime:selectAppDefault")}
               </button>
             }
           />

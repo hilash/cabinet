@@ -35,6 +35,7 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  Code2,
 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -44,18 +45,26 @@ import { MediaPopover, type MediaKind } from "./media-popover";
 import { EmbedPopover } from "./embed-popover";
 import { LinkPopover } from "./link-popover";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
+import { DirIcon } from "@/components/ui/dir-icon";
 
 interface EditorToolbarProps {
   editor: Editor | null;
+  /** Whether the raw-markdown source view is active. */
+  sourceMode: boolean;
+  /** Toggle between the rich editor and the raw-markdown textarea. */
+  onToggleSource: () => void;
 }
+
+type Anchor = { top: number; left?: number; right?: number };
 
 type PopoverKind =
   | null
-  | { type: "color"; anchor: { top: number; left: number }; range: { from: number; to: number } }
-  | { type: "highlight"; anchor: { top: number; left: number }; range: { from: number; to: number } }
-  | { type: "link"; anchor: { top: number; left: number }; range: { from: number; to: number }; existing: string }
-  | { type: "media"; kind: MediaKind; anchor: { top: number; left: number } }
-  | { type: "embed"; anchor: { top: number; left: number } };
+  | { type: "color"; anchor: Anchor; range: { from: number; to: number } }
+  | { type: "highlight"; anchor: Anchor; range: { from: number; to: number } }
+  | { type: "link"; anchor: Anchor; range: { from: number; to: number }; existing: string }
+  | { type: "media"; kind: MediaKind; anchor: Anchor }
+  | { type: "embed"; anchor: Anchor };
 
 interface ToolButtonProps {
   label: string;
@@ -95,7 +104,9 @@ function ToolButton({ label, icon: Icon, active, disabled, style, onAction }: To
   );
 }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({ editor, sourceMode, onToggleSource }: EditorToolbarProps) {
+  const { t, dir: uiDir } = useLocale();
+  const isUiRtl = uiDir === "rtl";
   const frontmatter = useEditorStore((s) => s.frontmatter);
   const updateFrontmatter = useEditorStore((s) => s.updateFrontmatter);
   const pagePath = useEditorStore((s) => s.currentPath);
@@ -180,10 +191,14 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
   const openPopoverFromButton = (
     e: React.MouseEvent<HTMLElement>,
-    build: (anchor: { top: number; left: number }, range: { from: number; to: number }) => PopoverKind
+    build: (anchor: Anchor, range: { from: number; to: number }) => PopoverKind
   ) => {
     const btn = e.currentTarget.getBoundingClientRect();
-    const anchor = { top: btn.bottom + 6, left: btn.left };
+    // RTL: anchor the popover from the viewport's right edge so it opens
+    // toward the logical start instead of running offscreen.
+    const anchor: Anchor = isUiRtl
+      ? { top: btn.bottom + 6, right: window.innerWidth - btn.right }
+      : { top: btn.bottom + 6, left: btn.left };
     const range = captureRange();
     setPopover(build(anchor, range));
   };
@@ -277,22 +292,22 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
   // Primary items — always visible in the toolbar
   const primaryItems: ButtonSpec[] = [
-    { icon: Heading1, action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive("heading", { level: 1 }), label: "Heading 1" },
-    { icon: Heading2, action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive("heading", { level: 2 }), label: "Heading 2" },
-    { icon: Heading3, action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive("heading", { level: 3 }), label: "Heading 3" },
+    { icon: Heading1, action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive("heading", { level: 1 }), label: t("editor:toolbar.heading1") },
+    { icon: Heading2, action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive("heading", { level: 2 }), label: t("editor:toolbar.heading2") },
+    { icon: Heading3, action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive("heading", { level: 3 }), label: t("editor:toolbar.heading3") },
     { separator: true },
-    { icon: Bold, action: () => editor.chain().focus().toggleBold().run(), isActive: editor.isActive("bold"), label: "Bold" },
-    { icon: Italic, action: () => editor.chain().focus().toggleItalic().run(), isActive: editor.isActive("italic"), label: "Italic" },
-    { icon: UnderlineIcon, action: () => editor.chain().focus().toggleUnderline().run(), isActive: editor.isActive("underline"), label: "Underline" },
-    { icon: Strikethrough, action: () => editor.chain().focus().toggleStrike().run(), isActive: editor.isActive("strike"), label: "Strikethrough" },
-    { icon: Code, action: () => editor.chain().focus().toggleCode().run(), isActive: editor.isActive("code"), label: "Inline code" },
-    { icon: LinkIcon, action: toggleLink, isActive: editor.isActive("link"), label: "Link" },
+    { icon: Bold, action: () => editor.chain().focus().toggleBold().run(), isActive: editor.isActive("bold"), label: t("editor:toolbar.bold") },
+    { icon: Italic, action: () => editor.chain().focus().toggleItalic().run(), isActive: editor.isActive("italic"), label: t("editor:toolbar.italic") },
+    { icon: UnderlineIcon, action: () => editor.chain().focus().toggleUnderline().run(), isActive: editor.isActive("underline"), label: t("editor:toolbar.underline") },
+    { icon: Strikethrough, action: () => editor.chain().focus().toggleStrike().run(), isActive: editor.isActive("strike"), label: t("editor:toolbar.strikethrough") },
+    { icon: Code, action: () => editor.chain().focus().toggleCode().run(), isActive: editor.isActive("code"), label: t("editor:toolbar.inlineCode") },
+    { icon: LinkIcon, action: toggleLink, isActive: editor.isActive("link"), label: t("editor:toolbar.link") },
     {
       icon: Baseline,
       action: (e) =>
         openPopoverFromButton(e, (anchor, range) => ({ type: "color", anchor, range })),
       isActive: currentColor != null,
-      label: "Text color",
+      label: t("editor:toolbar.textColor"),
       style: currentColor ? { color: currentColor } : undefined,
     },
     {
@@ -300,118 +315,141 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       action: (e) =>
         openPopoverFromButton(e, (anchor, range) => ({ type: "highlight", anchor, range })),
       isActive: currentHighlight != null || editor.isActive("highlight"),
-      label: "Highlight",
+      label: t("editor:toolbar.highlight"),
       style: currentHighlight ? { backgroundColor: currentHighlight } : undefined,
     },
     { separator: true },
-    { icon: List, action: () => editor.chain().focus().toggleBulletList().run(), isActive: editor.isActive("bulletList"), label: "Bullet list" },
-    { icon: ListOrdered, action: () => editor.chain().focus().toggleOrderedList().run(), isActive: editor.isActive("orderedList"), label: "Ordered list" },
-    { icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), isActive: editor.isActive("blockquote"), label: "Blockquote" },
-    { icon: CheckSquare, action: () => editor.chain().focus().toggleTaskList().run(), isActive: editor.isActive("taskList"), label: "Checklist" },
-    { icon: FileCode, action: () => editor.chain().focus().toggleCodeBlock().run(), isActive: editor.isActive("codeBlock"), label: "Code block" },
-    { icon: Minus, action: () => editor.chain().focus().setHorizontalRule().run(), isActive: false, label: "Divider" },
+    { icon: List, action: () => editor.chain().focus().toggleBulletList().run(), isActive: editor.isActive("bulletList"), label: t("editor:toolbar.bulletList") },
+    { icon: ListOrdered, action: () => editor.chain().focus().toggleOrderedList().run(), isActive: editor.isActive("orderedList"), label: t("editor:toolbar.orderedList") },
+    { icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), isActive: editor.isActive("blockquote"), label: t("editor:toolbar.blockquote") },
+    { icon: CheckSquare, action: () => editor.chain().focus().toggleTaskList().run(), isActive: editor.isActive("taskList"), label: t("editor:toolbar.checklist") },
+    { icon: FileCode, action: () => editor.chain().focus().toggleCodeBlock().run(), isActive: editor.isActive("codeBlock"), label: t("editor:toolbar.codeBlock") },
+    { icon: Minus, action: () => editor.chain().focus().setHorizontalRule().run(), isActive: false, label: t("editor:toolbar.divider") },
   ];
 
   // Secondary items — appended to the same scrollable row after the primary set
   const secondaryItems: ButtonSpec[] = [
-    { icon: AlignLeft, action: () => editor.chain().focus().setTextAlign("left").run(), isActive: editor.isActive({ textAlign: "left" }), label: "Align left" },
-    { icon: AlignCenter, action: () => editor.chain().focus().setTextAlign("center").run(), isActive: editor.isActive({ textAlign: "center" }), label: "Align center" },
-    { icon: AlignRight, action: () => editor.chain().focus().setTextAlign("right").run(), isActive: editor.isActive({ textAlign: "right" }), label: "Align right" },
-    { icon: AlignJustify, action: () => editor.chain().focus().setTextAlign("justify").run(), isActive: editor.isActive({ textAlign: "justify" }), label: "Justify" },
+    { icon: AlignLeft, action: () => editor.chain().focus().setTextAlign("left").run(), isActive: editor.isActive({ textAlign: "left" }), label: t("editor:toolbar.alignLeft") },
+    { icon: AlignCenter, action: () => editor.chain().focus().setTextAlign("center").run(), isActive: editor.isActive({ textAlign: "center" }), label: t("editor:toolbar.alignCenter") },
+    { icon: AlignRight, action: () => editor.chain().focus().setTextAlign("right").run(), isActive: editor.isActive({ textAlign: "right" }), label: t("editor:toolbar.alignRight") },
+    { icon: AlignJustify, action: () => editor.chain().focus().setTextAlign("justify").run(), isActive: editor.isActive({ textAlign: "justify" }), label: t("editor:toolbar.justify") },
     { separator: true },
-    { icon: SuperIcon, action: () => editor.chain().focus().toggleSuperscript().run(), isActive: editor.isActive("superscript"), label: "Superscript" },
-    { icon: SubIcon, action: () => editor.chain().focus().toggleSubscript().run(), isActive: editor.isActive("subscript"), label: "Subscript" },
+    { icon: SuperIcon, action: () => editor.chain().focus().toggleSuperscript().run(), isActive: editor.isActive("superscript"), label: t("editor:toolbar.superscript") },
+    { icon: SubIcon, action: () => editor.chain().focus().toggleSubscript().run(), isActive: editor.isActive("subscript"), label: t("editor:toolbar.subscript") },
     { separator: true },
     {
       icon: ImageIcon,
       action: (e) => openPopoverFromButton(e, (anchor) => ({ type: "media", kind: "image", anchor })),
       isActive: false,
-      label: "Insert image",
+      label: t("editor:toolbar.insertImage"),
     },
     {
       icon: VideoIcon,
       action: (e) => openPopoverFromButton(e, (anchor) => ({ type: "media", kind: "video", anchor })),
       isActive: false,
-      label: "Insert video",
+      label: t("editor:toolbar.insertVideo"),
     },
     {
       icon: Sparkles,
       action: (e) => openPopoverFromButton(e, (anchor) => ({ type: "embed", anchor })),
       isActive: false,
-      label: "Embed",
+      label: t("editor:toolbar.embed"),
     },
     { separator: true },
-    { icon: Undo, action: () => editor.chain().focus().undo().run(), isActive: false, label: "Undo" },
-    { icon: Redo, action: () => editor.chain().focus().redo().run(), isActive: false, label: "Redo" },
+    { icon: Undo, action: () => editor.chain().focus().undo().run(), isActive: false, label: t("editor:toolbar.undo") },
+    { icon: Redo, action: () => editor.chain().focus().redo().run(), isActive: false, label: t("editor:toolbar.redo") },
     { separator: true },
     {
       icon: isRtl ? PilcrowLeft : PilcrowRight,
       action: () => updateFrontmatter({ dir: isRtl ? undefined : "rtl" }),
       isActive: isRtl,
-      label: isRtl ? "Switch to LTR" : "Switch to RTL",
+      label: isRtl ? t("editor:toolbar.switchToLtr") : t("editor:toolbar.switchToRtl"),
     },
   ];
 
   return (
     <>
-      <div className="relative border-b border-border bg-background/50">
-        {/* Scroll indicator arrows */}
-        {canScrollLeft && (
+      <div className="relative flex items-stretch border-b border-border bg-background/50">
+        <div className="relative flex-1 min-w-0">
+          {/* Scroll indicator arrows */}
+          {!sourceMode && canScrollLeft && (
+            <button
+              type="button"
+              aria-label={t("editor:toolbar.scrollLeft")}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => scrollBy(-1)}
+              className="absolute left-0 rtl:left-auto rtl:right-0 top-0 bottom-0 w-6 z-10 flex items-center justify-start rtl:justify-end ps-0.5 bg-gradient-to-r rtl:bg-gradient-to-l from-background via-background/80 to-transparent text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <DirIcon ltr={ChevronLeft} rtl={ChevronRight} className="h-4 w-4" />
+            </button>
+          )}
+          {!sourceMode && canScrollRight && (
+            <button
+              type="button"
+              aria-label={t("editor:toolbar.scrollRight")}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => scrollBy(1)}
+              className="absolute right-0 rtl:right-auto rtl:left-0 top-0 bottom-0 w-6 z-10 flex items-center justify-end rtl:justify-start pe-0.5 bg-gradient-to-l rtl:bg-gradient-to-r from-background via-background/80 to-transparent text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <DirIcon ltr={ChevronRight} rtl={ChevronLeft} className="h-4 w-4" />
+            </button>
+          )}
+          {!sourceMode && (
+            <div
+              ref={scrollRef}
+              onWheel={onWheel}
+              className="flex items-center gap-0.5 px-2 pt-1 pb-1.5 overflow-x-scroll overflow-y-hidden editor-toolbar-scroll"
+            >
+              {[...primaryItems, { separator: true } as ButtonSpec, ...secondaryItems].map((item, i) => {
+                if ("separator" in item) {
+                  return (
+                    <Separator key={i} orientation="vertical" className="mx-1 h-6 shrink-0" />
+                  );
+                }
+                return (
+                  <ToolButton
+                    key={i}
+                    label={item.label}
+                    icon={item.icon}
+                    active={item.isActive}
+                    style={item.style}
+                    onAction={item.action}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {/* Pinned, non-scrolling source/preview toggle — always reachable
+            regardless of how far the formatting row is scrolled. */}
+        <div className="shrink-0 flex items-center gap-1 ps-1 pe-2">
+          <Separator orientation="vertical" className="h-6" />
           <button
             type="button"
-            aria-label="Scroll toolbar left"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => scrollBy(-1)}
-            className="absolute left-0 top-0 bottom-0 w-6 z-10 flex items-center justify-start pl-0.5 bg-gradient-to-r from-background via-background/80 to-transparent text-muted-foreground hover:text-foreground transition-colors"
+            onClick={onToggleSource}
+            className={cn(
+              "flex items-center gap-1.5 h-8 shrink-0 px-2.5 text-xs rounded-md transition-colors",
+              sourceMode
+                ? "bg-accent text-foreground ring-1 ring-inset ring-foreground/15"
+                : "text-foreground/80 hover:bg-accent"
+            )}
           >
-            <ChevronLeft className="h-4 w-4" />
+            <Code2 className="h-4 w-4" />
+            {sourceMode ? t("editor:toolbar.preview") : t("editor:toolbar.markdown")}
           </button>
-        )}
-        {canScrollRight && (
-          <button
-            type="button"
-            aria-label="Scroll toolbar right"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => scrollBy(1)}
-            className="absolute right-0 top-0 bottom-0 w-6 z-10 flex items-center justify-end pr-0.5 bg-gradient-to-l from-background via-background/80 to-transparent text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        )}
-        <div
-          ref={scrollRef}
-          onWheel={onWheel}
-          className="flex items-center gap-0.5 px-2 pt-1 pb-1.5 overflow-x-scroll overflow-y-hidden editor-toolbar-scroll"
-        >
-          {[...primaryItems, { separator: true } as ButtonSpec, ...secondaryItems].map((item, i) => {
-            if ("separator" in item) {
-              return (
-                <Separator key={i} orientation="vertical" className="mx-1 h-6 shrink-0" />
-              );
-            }
-            return (
-              <ToolButton
-                key={i}
-                label={item.label}
-                icon={item.icon}
-                active={item.isActive}
-                style={item.style}
-                onAction={item.action}
-              />
-            );
-          })}
         </div>
       </div>
 
       {popover && (popover.type === "color" || popover.type === "highlight") && (
         <div
           data-editor-popover="true"
-          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, zIndex: 60 }}
+          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, right: popover.anchor.right, zIndex: 60 }}
         >
           <div className="bg-popover border border-border rounded-md shadow-lg">
             {popover.type === "color" ? (
               <ColorPalette
-                title="Text color"
+                title={t("editor:toolbar.textColor")}
                 palette={TEXT_COLORS}
                 current={currentColor}
                 swatchType="text"
@@ -419,7 +457,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
               />
             ) : (
               <ColorPalette
-                title="Background"
+                title={t("editor:toolbar.background")}
                 palette={HIGHLIGHT_COLORS}
                 current={currentHighlight}
                 swatchType="background"
@@ -433,7 +471,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       {popover?.type === "link" && (
         <div
           data-editor-popover="true"
-          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, zIndex: 60 }}
+          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, right: popover.anchor.right, zIndex: 60 }}
         >
           <LinkPopover
             anchor={{ top: 0, left: 0 }}
@@ -448,7 +486,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       {popover?.type === "media" && pagePath && (
         <div
           data-editor-popover="true"
-          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, zIndex: 60 }}
+          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, right: popover.anchor.right, zIndex: 60 }}
         >
           <MediaPopover
             kind={popover.kind}
@@ -463,7 +501,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       {popover?.type === "embed" && (
         <div
           data-editor-popover="true"
-          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, zIndex: 60 }}
+          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, right: popover.anchor.right, zIndex: 60 }}
         >
           <EmbedPopover
             anchor={{ top: 0, left: 0 }}

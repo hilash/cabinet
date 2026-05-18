@@ -225,7 +225,9 @@ export const useTreeStore = create<TreeState>((set, get) => ({
           })
         );
       }
-      console.error("Failed to move page:", error);
+      // Toast is the user-facing surface; no console.error so a name
+      // collision (or any other server-validated message) doesn't trip
+      // the Next.js dev-tools error overlay.
     } finally {
       set((state) => {
         const next = new Set(state.movingPaths);

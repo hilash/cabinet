@@ -71,6 +71,13 @@ function decodePathSegment(value?: string): string {
   }
 }
 
+const AGENTS_SUB_TABS = ["agents", "routines", "heartbeats", "schedule"] as const;
+type AgentsSubTab = (typeof AGENTS_SUB_TABS)[number];
+
+function isAgentsSubTab(value: string | undefined): value is AgentsSubTab {
+  return !!value && (AGENTS_SUB_TABS as readonly string[]).includes(value);
+}
+
 function normalizeRoutePath(value: string): string {
   if (value === ROOT_CABINET_PATH) return ROOT_CABINET_PATH;
   return normalizeVirtualPath(value);
@@ -100,8 +107,12 @@ function buildHash(section: SectionState, pagePath: string | null): string {
     return `#/cabinet/${encodePathSegment(cabinetPath)}/agents/${encodePathSegment(section.slug)}`;
   }
   if (section.type === "agents") {
-    if (isRoot) return "#/agents";
-    return `#/cabinet/${encodePathSegment(cabinetPath)}/agents`;
+    const tabSuffix =
+      section.agentsTab && section.agentsTab !== "agents"
+        ? `/${section.agentsTab}`
+        : "";
+    if (isRoot) return `#/agents${tabSuffix}`;
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/agents${tabSuffix}`;
   }
   if (section.type === "task" && section.taskId) {
     return buildTaskHash(section.taskId, cabinetPath);
@@ -169,6 +180,13 @@ function parseHash(hash: string): RouteState {
     if (!leaf) {
       return {
         section: { type: "cabinet", cabinetPath },
+        pagePath: null,
+      };
+    }
+
+    if (leaf === "agents" && parts[3] && isAgentsSubTab(parts[3])) {
+      return {
+        section: { type: "agents", cabinetPath, agentsTab: parts[3] },
         pagePath: null,
       };
     }
@@ -248,6 +266,18 @@ function parseHash(hash: string): RouteState {
   // the form `/#/tasks`, `/#/agents` land on the correct view without having
   // to know about the internal `/#/cabinet/./tasks` shape. Audit #11, #12.
   if (parts[0] === "agents") {
+    // `#/agents/{sub-tab}` for the new V2 layout — sub-tab takes priority
+    // over the legacy `#/agents/{slug}` form (which is now under `#/a/`).
+    if (parts[1] && isAgentsSubTab(parts[1])) {
+      return {
+        section: {
+          type: "agents",
+          cabinetPath: ROOT_CABINET_PATH,
+          agentsTab: parts[1],
+        },
+        pagePath: null,
+      };
+    }
     if (parts[1]) {
       const slug = decodePathSegment(parts[1]);
       return {
@@ -406,7 +436,8 @@ export function useHashRoute() {
       if (
         state.section.type !== prev.section.type ||
         state.section.slug !== prev.section.slug ||
-        state.section.cabinetPath !== prev.section.cabinetPath
+        state.section.cabinetPath !== prev.section.cabinetPath ||
+        state.section.agentsTab !== prev.section.agentsTab
       ) {
         const selectedPath = useTreeStore.getState().selectedPath;
         const hash = buildHash(state.section, selectedPath);

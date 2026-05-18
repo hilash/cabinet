@@ -33,10 +33,14 @@ import { useSkillMentionItems } from "@/hooks/use-skill-mention-items";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { flattenTree } from "@/lib/tree-utils";
-import { createConversation } from "@/lib/agents/conversation-client";
+import {
+  createConversation,
+  editDraftConversation,
+} from "@/lib/agents/conversation-client";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { JobConfig } from "@/types/jobs";
+import { useLocale } from "@/i18n/use-locale";
 
 const PLACEHOLDERS = [
   "Write a blog post about our Q2 results...",
@@ -61,6 +65,8 @@ export function StartWorkDialog({
   initialMode = "now",
   initialPrompt,
   initialAgentSlug,
+  initialRuntime,
+  editing,
   onStarted,
 }: {
   open: boolean;
@@ -73,8 +79,16 @@ export function StartWorkDialog({
   initialPrompt?: string;
   /** Seed the selected agent. Falls back to the first active agent. */
   initialAgentSlug?: string;
+  /** Seed the runtime picker (provider / model / effort). Used by edit mode
+   *  to restore the draft's saved runtime. */
+  initialRuntime?: TaskRuntimeSelection;
+  /** When set, the dialog edits an existing unstarted inbox draft in place
+   *  instead of creating a new task. Submit PATCHes the conversation. */
+  editing?: { conversationId: string; cabinetPath?: string } | null;
   onStarted?: (conversationId: string, conversationCabinetPath?: string) => void;
 }) {
+  const { t, locale } = useLocale();
+  const isEditing = !!editing;
   const treeNodes = useTreeStore((s) => s.nodes);
   const setSection = useAppStore((s) => s.setSection);
 
@@ -84,13 +98,18 @@ export function StartWorkDialog({
   const [error, setError] = useState<string | null>(null);
 
   // Reset dialog state each time it opens so a fresh + click doesn't inherit
-  // the previous draft.
+  // the previous draft. Edit mode is always an inbox draft, so it pins the
+  // mode to "inbox" and restores the draft's saved runtime.
   useEffect(() => {
     if (!open) return;
-    setMode(initialMode);
+    setMode(isEditing ? "inbox" : initialMode);
+    // Only edit mode seeds the runtime picker — the create flow keeps its
+    // prior selection across opens (unchanged behavior).
+    if (isEditing) setTaskRuntime(initialRuntime ?? {});
     setError(null);
     setSubmitting(false);
-  }, [open, initialMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialMode, isEditing]);
 
 
   const placeholder = useMemo(
@@ -226,6 +245,32 @@ export function StartWorkDialog({
     [selectedAgent, cabinetPath, taskRuntime, onStarted]
   );
 
+  const saveEdit = useCallback(
+    async (
+      message: string,
+      mentionedPaths: string[],
+      mentionedSkills: string[],
+    ) => {
+      if (!editing) return;
+      const resolvedAgent = selectedAgent;
+      if (!resolvedAgent) throw new Error("No agent available.");
+      await editDraftConversation(
+        editing.conversationId,
+        {
+          userMessage: message,
+          mentionedPaths,
+          mentionedSkills,
+          agentSlug: resolvedAgent.slug,
+          locale,
+          ...taskRuntime,
+        },
+        editing.cabinetPath,
+      );
+      onStarted?.(editing.conversationId, editing.cabinetPath);
+    },
+    [editing, selectedAgent, taskRuntime, locale, onStarted],
+  );
+
   const saveRoutine = useCallback(
     async (message: string) => {
       const resolvedAgent = selectedAgent;
@@ -291,7 +336,9 @@ export function StartWorkDialog({
       setSubmitting(true);
       setError(null);
       try {
-        if (mode === "now") {
+        if (isEditing) {
+          await saveEdit(message, mentionedPaths, mentionedSkills);
+        } else if (mode === "now") {
           await runNow(message, mentionedPaths, mentionedSkills);
         } else if (mode === "inbox") {
           await addToInbox(message, mentionedPaths, mentionedSkills);
@@ -303,7 +350,13 @@ export function StartWorkDialog({
         }
         onOpenChange(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to start");
+        setError(
+          err instanceof Error
+            ? err.message
+            : isEditing
+              ? t("startWork:failedToSave")
+              : t("startWork:failedToStart")
+        );
       } finally {
         setSubmitting(false);
       }
@@ -313,11 +366,14 @@ export function StartWorkDialog({
   // Seed the composer textarea from inline-composer handoffs (HomeScreen /
   // CabinetTaskComposer pass whatever the user already typed as
   // initialPrompt when they pick a non-"now" mode from the When chip).
+  // Deterministic on every open: edit mode / inline handoffs seed their
+  // text; a plain "+ New task" clears whatever a previous (possibly
+  // cancelled) edit left in the composer so it doesn't bleed into the new
+  // task. The composer stays mounted across opens, so without this an
+  // abandoned edit would resurface here.
   useEffect(() => {
     if (!open) return;
-    if (typeof initialPrompt === "string") {
-      composer.setInput(initialPrompt);
-    }
+    composer.setInput(typeof initialPrompt === "string" ? initialPrompt : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialPrompt]);
 
@@ -339,7 +395,7 @@ export function StartWorkDialog({
       await saveHeartbeat();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save heartbeat");
+      setError(err instanceof Error ? err.message : t("startWork:failedToSaveHeartbeat"));
     } finally {
       setSubmitting(false);
     }
@@ -362,21 +418,23 @@ export function StartWorkDialog({
       ? "sm:max-w-3xl"
       : "sm:max-w-xl";
 
-  const title =
-    mode === "now" || mode === "inbox"
-      ? "What needs to get done?"
+  const title = isEditing
+    ? t("startWork:titleEdit")
+    : mode === "now" || mode === "inbox"
+      ? t("startWork:titleNow")
       : mode === "recurring"
-        ? "Set up a recurring routine"
-        : "Wake this agent on a schedule";
+        ? t("startWork:titleRecurring")
+        : t("startWork:titleHeartbeat");
 
-  const submitLabel =
-    mode === "now"
-      ? "Start"
+  const submitLabel = isEditing
+    ? t("startWork:submitSaveEdit")
+    : mode === "now"
+      ? t("startWork:submitStart")
       : mode === "inbox"
-        ? "Add to Inbox"
+        ? t("startWork:submitAddInbox")
         : mode === "recurring"
-          ? "Create routine"
-          : "Save heartbeat";
+          ? t("startWork:submitCreateRoutine")
+          : t("startWork:submitSaveHeartbeat");
 
   const canSubmitRecurring = routineDraft.name.trim().length > 0;
 
@@ -392,10 +450,12 @@ export function StartWorkDialog({
         <DialogHeader className="px-5 pb-3 pt-5">
           <div className="flex items-start gap-3">
             <DialogTitle className="flex-1 text-xl font-semibold">{title}</DialogTitle>
-            <WhenChip mode={mode} onChange={handleModeChange} />
+            {!isEditing ? (
+              <WhenChip mode={mode} onChange={handleModeChange} />
+            ) : null}
             <DialogClose className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground">
               <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("startWork:close")}</span>
             </DialogClose>
           </div>
         </DialogHeader>
@@ -409,7 +469,6 @@ export function StartWorkDialog({
             items={mentionItems}
             autoFocus
             minHeight="100px"
-            maxHeight="260px"
             mentionDropdownPlacement="below"
             disabled={mode === "recurring" && !canSubmitRecurring}
             actionsStart={
@@ -444,7 +503,13 @@ export function StartWorkDialog({
                       <span className="text-destructive">{error}</span>
                     ) : (
                       <span className="text-muted-foreground/60">
-                        {mode === "recurring" ? "Creating routine…" : mode === "inbox" ? "Saving to Inbox…" : "Starting…"}
+                        {isEditing
+                          ? "Saving changes…"
+                          : mode === "recurring"
+                            ? "Creating routine…"
+                            : mode === "inbox"
+                              ? "Saving to Inbox…"
+                              : "Starting…"}
                       </span>
                     )}
                   </div>
@@ -485,7 +550,8 @@ export function WhenChip({
    */
   allowHeartbeat?: boolean;
 }) {
-  const { icon: Icon, label, tone } = modeMeta(mode);
+  const { t } = useLocale();
+  const { icon: Icon, label, tone } = modeMeta(mode, t);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -508,26 +574,26 @@ export function WhenChip({
           mode="inbox"
           active={mode === "inbox"}
           onSelect={() => onChange("inbox")}
-          hint="Save to Inbox — start it when you're ready"
+          hint={t("startWork:modeInboxHint")}
         />
         <ModeItem
           mode="now"
           active={mode === "now"}
           onSelect={() => onChange("now")}
-          hint="Start this conversation right away"
+          hint={t("startWork:modeNowHint")}
         />
         <ModeItem
           mode="recurring"
           active={mode === "recurring"}
           onSelect={() => onChange("recurring")}
-          hint="Run this prompt on a schedule"
+          hint={t("startWork:modeRecurringHint")}
         />
         {allowHeartbeat && (
           <ModeItem
             mode="heartbeat"
             active={mode === "heartbeat"}
             onSelect={() => onChange("heartbeat")}
-            hint="Wake the agent on its own rhythm"
+            hint={t("startWork:modeHeartbeatHint")}
           />
         )}
       </DropdownMenuContent>
@@ -546,7 +612,8 @@ function ModeItem({
   onSelect: () => void;
   hint: string;
 }) {
-  const { icon: Icon, label } = modeMeta(mode);
+  const { t } = useLocale();
+  const { icon: Icon, label } = modeMeta(mode, t);
   return (
     <DropdownMenuItem onClick={onSelect} className="flex flex-col items-start gap-0.5 py-2">
       <div className="flex items-center gap-2 text-[13px] font-medium">
@@ -554,7 +621,7 @@ function ModeItem({
         {label}
         {active ? (
           <span className="ml-auto text-[10px] font-normal text-muted-foreground">
-            current
+            {t("startWork:current")}
           </span>
         ) : null}
       </div>
@@ -563,7 +630,10 @@ function ModeItem({
   );
 }
 
-function modeMeta(mode: StartWorkMode): {
+function modeMeta(
+  mode: StartWorkMode,
+  t: (k: string) => string,
+): {
   icon: typeof Zap;
   label: string;
   tone: string;
@@ -571,27 +641,27 @@ function modeMeta(mode: StartWorkMode): {
   if (mode === "inbox") {
     return {
       icon: Inbox,
-      label: "→ Inbox",
+      label: t("startWork:modeInboxLabel"),
       tone: "border-border/70 bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
     };
   }
   if (mode === "recurring") {
     return {
       icon: Repeat,
-      label: "On a schedule",
+      label: t("startWork:modeRecurringLabel"),
       tone: "border-indigo-500/40 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/15",
     };
   }
   if (mode === "heartbeat") {
     return {
       icon: HeartPulse,
-      label: "Heartbeat",
+      label: t("startWork:modeHeartbeatLabel"),
       tone: "border-pink-500/40 bg-pink-500/10 text-pink-500 hover:bg-pink-500/15",
     };
   }
   return {
     icon: Zap,
-    label: "Run now",
+    label: t("startWork:modeNowLabel"),
     tone: "border-border/70 bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
   };
 }
@@ -605,17 +675,18 @@ function AgentDropdown({
   selectedAgent: CabinetAgentSummary | null;
   onSelect: (slug: string) => void;
 }) {
+  const { t } = useLocale();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2 text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        title="Select agent"
+        title={t("startWork:selectAgent")}
       >
         {selectedAgent ? (
           <AgentAvatar agent={selectedAgent} shape="circle" size="xs" />
         ) : null}
         <span className="max-w-[7rem] truncate font-medium">
-          {selectedAgent?.displayName ?? selectedAgent?.name ?? "Agent"}
+          {selectedAgent?.displayName ?? selectedAgent?.name ?? t("startWork:agentFallback")}
         </span>
         <ChevronDown className="h-3 w-3 text-muted-foreground/60 shrink-0" />
       </DropdownMenuTrigger>
@@ -661,6 +732,7 @@ function HeartbeatModePanel({
   onSubmit: () => Promise<void>;
   onCancel: () => void;
 }) {
+  const { t } = useLocale();
   return (
     <div className="px-5 pb-5">
       {agents.length > 0 ? (
@@ -686,7 +758,7 @@ function HeartbeatModePanel({
           onClick={onCancel}
           className="h-8 rounded-md px-3 text-[13px] text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         >
-          Cancel
+          {t("apiKeysSection:cancel")}
         </button>
         <button
           type="button"
@@ -694,7 +766,7 @@ function HeartbeatModePanel({
           disabled={submitting || !agent}
           className="h-8 rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {submitting ? "Saving…" : "Save heartbeat"}
+          {submitting ? t("startWork:saving") : t("startWork:submitSaveHeartbeat")}
         </button>
       </div>
     </div>

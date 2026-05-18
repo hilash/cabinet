@@ -36,7 +36,7 @@ export function AgentPill({
       <span
         className={cn(
           "inline-flex items-center gap-1 rounded-full font-medium",
-          size === "md" ? "py-0.5 pl-0.5 pr-2 text-[11px]" : "py-0.5 pl-0.5 pr-1.5 text-[10px]",
+          size === "md" ? "py-0.5 ps-0.5 pe-2 text-[11px]" : "py-0.5 ps-0.5 pe-1.5 text-[10px]",
           className
         )}
         style={{ backgroundColor: tint.bg, color: tint.text, opacity: 0.75 }}

@@ -31,8 +31,9 @@ const PptxViewer = dynamic(
 import { HomeScreen } from "@/components/home/home-screen";
 import type { ConversationMeta } from "@/types/conversations";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
-import { AIPanel } from "@/components/ai-panel/ai-panel";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
+import { TaskRail } from "@/components/tasks/rail/task-rail";
+import { TaskRailProvider } from "@/components/tasks/rail/task-rail-context";
 import { SearchPalette } from "@/components/search/search-palette";
 import { KeyboardShortcutsModal } from "@/components/help/keyboard-shortcuts-modal";
 import { WhatsNewCard } from "@/components/help/whats-new-card";
@@ -56,11 +57,22 @@ import type { CabinetAgentSummary } from "@/types/cabinets";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
 import { SystemToasts } from "@/components/layout/system-toasts";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 // Section components are only rendered when the user navigates to them —
 // load them on demand to keep the first-paint bundle small. Previously all of
 // these (together ~15k lines of code including AgentsWorkspace and
 // OnboardingWizard) shipped in the home-page chunk.
+const AgentsWorkspaceV2 = dynamic(
+  () =>
+    import("@/components/agents/v2/agents-workspace-v2").then(
+      (m) => m.AgentsWorkspaceV2
+    ),
+  { ssr: false }
+);
+// Legacy V1 — used for the "agent settings" sub-screen (which still lives in
+// the V1 workspace component). Phased out once that path lands in V2.
 const AgentsWorkspace = dynamic(
   () => import("@/components/agents/agents-workspace").then((m) => m.AgentsWorkspace),
   { ssr: false }
@@ -113,6 +125,21 @@ import { useEditorStore } from "@/stores/editor-store";
 
 const DISMISSED_UPDATE_STORAGE_KEY = "cabinet.dismissed-update-version";
 const WIZARD_DONE_STORAGE_KEY = "cabinet.wizard-done";
+// sessionStorage key set by Settings → Storage → Reset onboarding. While
+// present we (a) skip the silent-accept of dataDirConfirmed and (b) skip the
+// agents-config self-correction that would otherwise rewrite wizard-done="1"
+// from server state — both of which silently undid Reset before this guard.
+// Cleared when the wizard completes; auto-clears on tab close (sessionStorage).
+export const ONBOARDING_RESET_MARKER_KEY = "cabinet.onboarding-reset-in-progress";
+
+function isOnboardingResetInProgress(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(ONBOARDING_RESET_MARKER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 // useLayoutEffect logs a no-op warning during SSR; alias to useEffect on the
 // server so we get pre-paint sync on the client without console noise.
@@ -120,6 +147,7 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 
 export function AppShell() {
   useGlobalHotkeys();
+  const isMobile = useIsMobile();
   const loadTree = useTreeStore((s) => s.loadTree);
   const nodes = useTreeStore((s) => s.nodes);
   const selectedPath = useTreeStore((s) => s.selectedPath);
@@ -127,12 +155,11 @@ export function AppShell() {
   const setSection = useAppStore((s) => s.setSection);
   const terminalOpen = useAppStore((s) => s.terminalOpen);
   const terminalPosition = useAppStore((s) => s.terminalPosition);
+  const taskRailOpen = useAppStore((s) => s.taskRailOpen);
   const setTerminalCwd = useAppStore((s) => s.setTerminalCwd);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
-  const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
-  const taskPanelConversation = useAppStore((s) => s.taskPanelConversation);
   const setTaskPanelConversation = useAppStore((s) => s.setTaskPanelConversation);
   const {
     update,
@@ -158,9 +185,20 @@ export function AppShell() {
   const [showDataDirPrompt, setShowDataDirPrompt] = useState<boolean>(false);
   useIsoLayoutEffect(() => {
     try {
+      const resetting = isOnboardingResetInProgress();
       const wizardDone =
         window.localStorage.getItem(WIZARD_DONE_STORAGE_KEY) === "1";
-      if (wizardDone) {
+      if (resetting) {
+        // Explicit reset in progress: re-show the data-dir picker (with the
+        // current folder pre-filled) so the user can confirm or change it
+        // before the wizard re-runs. Do NOT silent-accept dataDirConfirmed —
+        // that would skip the picker the user just asked to see again.
+        if (!isDataDirConfirmed()) {
+          setShowDataDirPrompt(true);
+        }
+        // Leave showWizard=null so the agents-config effect (below) can flip
+        // it to true regardless of whether workspace.json exists on disk.
+      } else if (wizardDone) {
         setShowWizard(false);
         // Existing user — silent-accept their current data dir choice so the
         // first-launch picker never ambushes them post-update.
@@ -389,6 +427,14 @@ export function AppShell() {
       dedupFetch("/api/agents/config")
         .then((r) => r.json())
         .then((data) => {
+          // While Reset onboarding is in progress, force the wizard to show
+          // even though workspace.json still exists on disk. Without this the
+          // self-correction below silently rewrites wizard-done="1" within a
+          // second of reload and undoes the reset the user just requested.
+          if (isOnboardingResetInProgress()) {
+            setShowWizard(true);
+            return;
+          }
           const done = !!data.exists;
           setShowWizard(!done);
           if (done) {
@@ -479,6 +525,9 @@ export function AppShell() {
       window.localStorage.setItem("cabinet.tasks.v2.view", "kanban");
       window.localStorage.setItem("cabinet.tasks.v2.trigger", "all");
       window.localStorage.removeItem("cabinet.tasks.v2.agent");
+      // Onboarding flow finished — drop the reset marker so the next page
+      // load goes through the normal silent-accept path.
+      window.sessionStorage.removeItem(ONBOARDING_RESET_MARKER_KEY);
     } catch {
       // ignore
     }
@@ -579,10 +628,16 @@ export function AppShell() {
     }
     if (section.type === "agents") {
       return (
-        <AgentsWorkspace
-          selectedScope="all"
-          selectedAgentSlug={null}
+        <AgentsWorkspaceV2
           cabinetPath={section.cabinetPath}
+          tab={section.agentsTab}
+          onTabChange={(next) =>
+            setSection({
+              type: "agents",
+              cabinetPath: section.cabinetPath,
+              agentsTab: next,
+            })
+          }
         />
       );
     }
@@ -592,6 +647,7 @@ export function AppShell() {
         const agentScopedId = `${agentCabinetPath}::agent::${section.slug}`;
         return (
           <AgentDetailV2
+            key={agentScopedId}
             slug={section.slug}
             cabinetPath={agentCabinetPath}
             onBack={() =>
@@ -772,7 +828,15 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <TaskRailProvider>
+    {/* When the rail is open we reserve a 30px gutter on the inline-end
+        edge: the whole app shrinks into the remaining width (the "iframe")
+        and the fixed, full-height rail lives in that gutter. */}
+    <div
+      className={`flex h-screen bg-background text-foreground transition-[padding] duration-200 ease-out${
+        taskRailOpen && !isMobile ? " pe-[30px]" : ""
+      }`}
+    >
       {/* Audit #031: SR-only live region announcing the active page title
           on every route change. role="status" + aria-live="polite" so it
           doesn't interrupt other speech; aria-atomic so the entire string
@@ -787,20 +851,21 @@ export function AppShell() {
       />
       <Sidebar />
       <div
-        className="flex-1 flex flex-col overflow-hidden"
+        className="flex-1 flex flex-col overflow-hidden max-md:pb-[calc(56px+env(safe-area-inset-bottom))]"
         style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '2.25rem' : '0px' } as React.CSSProperties}
       >
         <DaemonHealthBanner />
-        <NarrowViewportHint />
+        {!isMobile && <NarrowViewportHint />}
         <main className="flex-1 flex flex-col overflow-hidden">
           {renderContent()}
         </main>
         {terminalOpen && terminalPosition === "bottom" && <TerminalTabs />}
-        <StatusBar />
+        {!isMobile && <StatusBar />}
       </div>
+      <MobileBottomNav />
       {terminalOpen && terminalPosition === "right" && <TerminalTabs />}
-      {taskPanelConversation && <TaskDetailPanel />}
-      {!aiPanelCollapsed && <AIPanel />}
+      {!isMobile && <TaskRail />}
+      <TaskDetailPanel />
       <SearchPalette />
       <KeyboardShortcutsModal />
       <WhatsNewCard />
@@ -880,6 +945,7 @@ export function AppShell() {
         }}
       />
     </div>
+    </TaskRailProvider>
   );
 }
 

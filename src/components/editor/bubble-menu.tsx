@@ -23,6 +23,7 @@ import { ColorPalette } from "./color-palette";
 import { TEXT_COLORS, HIGHLIGHT_COLORS } from "./extensions/color-highlight";
 import { LinkPopover } from "./link-popover";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 interface Props {
   editor: Editor | null;
@@ -33,9 +34,15 @@ type OpenPopover =
   | { type: "color"; range: { from: number; to: number } }
   | { type: "highlight"; range: { from: number; to: number } }
   | { type: "align"; range: { from: number; to: number } }
-  | { type: "link"; range: { from: number; to: number }; existing: string; anchor: { top: number; left: number } };
+  | {
+      type: "link";
+      range: { from: number; to: number };
+      existing: string;
+      anchor: { top: number; left?: number; right?: number };
+    };
 
 export function EditorBubbleMenu({ editor }: Props) {
+  const { t, dir } = useLocale();
   const [popover, setPopover] = useState<OpenPopover>(null);
 
   useEffect(() => {
@@ -96,7 +103,10 @@ export function EditorBubbleMenu({ editor }: Props) {
       type: "link",
       range: captureRange(),
       existing,
-      anchor: { top: btnRect.bottom + 6, left: btnRect.left },
+      anchor:
+        dir === "rtl"
+          ? { top: btnRect.bottom + 6, right: window.innerWidth - btnRect.right }
+          : { top: btnRect.bottom + 6, left: btnRect.left },
     });
   };
 
@@ -149,7 +159,7 @@ export function EditorBubbleMenu({ editor }: Props) {
           className={btn(editor.isActive("bold"))}
           onMouseDown={(e) => e.preventDefault()}
           onClick={toggleMark(() => editor.chain().focus().toggleBold().run())}
-          aria-label="Bold"
+          aria-label={t("editor:toolbar.bold")}
         >
           <Bold className="w-3.5 h-3.5" />
         </button>
@@ -158,7 +168,7 @@ export function EditorBubbleMenu({ editor }: Props) {
           className={btn(editor.isActive("italic"))}
           onMouseDown={(e) => e.preventDefault()}
           onClick={toggleMark(() => editor.chain().focus().toggleItalic().run())}
-          aria-label="Italic"
+          aria-label={t("editor:toolbar.italic")}
         >
           <Italic className="w-3.5 h-3.5" />
         </button>
@@ -167,7 +177,7 @@ export function EditorBubbleMenu({ editor }: Props) {
           className={btn(editor.isActive("underline"))}
           onMouseDown={(e) => e.preventDefault()}
           onClick={toggleMark(() => editor.chain().focus().toggleUnderline().run())}
-          aria-label="Underline"
+          aria-label={t("editor:toolbar.underline")}
         >
           <UnderlineIcon className="w-3.5 h-3.5" />
         </button>
@@ -176,7 +186,7 @@ export function EditorBubbleMenu({ editor }: Props) {
           className={btn(editor.isActive("strike"))}
           onMouseDown={(e) => e.preventDefault()}
           onClick={toggleMark(() => editor.chain().focus().toggleStrike().run())}
-          aria-label="Strikethrough"
+          aria-label={t("editor:toolbar.strikethrough")}
         >
           <Strikethrough className="w-3.5 h-3.5" />
         </button>
@@ -185,7 +195,7 @@ export function EditorBubbleMenu({ editor }: Props) {
           className={btn(editor.isActive("code"))}
           onMouseDown={(e) => e.preventDefault()}
           onClick={toggleMark(() => editor.chain().focus().toggleCode().run())}
-          aria-label="Inline code"
+          aria-label={t("editor:toolbar.inlineCode")}
         >
           <Code className="w-3.5 h-3.5" />
         </button>
@@ -195,7 +205,7 @@ export function EditorBubbleMenu({ editor }: Props) {
           className={btn(editor.isActive("superscript"))}
           onMouseDown={(e) => e.preventDefault()}
           onClick={toggleMark(() => editor.chain().focus().toggleSuperscript().run())}
-          aria-label="Superscript"
+          aria-label={t("editor:toolbar.superscript")}
         >
           <SuperIcon className="w-3.5 h-3.5" />
         </button>
@@ -204,7 +214,7 @@ export function EditorBubbleMenu({ editor }: Props) {
           className={btn(editor.isActive("subscript"))}
           onMouseDown={(e) => e.preventDefault()}
           onClick={toggleMark(() => editor.chain().focus().toggleSubscript().run())}
-          aria-label="Subscript"
+          aria-label={t("editor:toolbar.subscript")}
         >
           <SubIcon className="w-3.5 h-3.5" />
         </button>
@@ -215,7 +225,7 @@ export function EditorBubbleMenu({ editor }: Props) {
             className={btn(currentColor != null)}
             onMouseDown={(e) => e.preventDefault()}
             onClick={openColor}
-            aria-label="Text color"
+            aria-label={t("editor:toolbar.textColor")}
             style={currentColor ? { color: currentColor } : undefined}
           >
             <Baseline className="w-3.5 h-3.5" />
@@ -223,10 +233,10 @@ export function EditorBubbleMenu({ editor }: Props) {
           {popover?.type === "color" && (
             <div
               data-bubble-popover="true"
-              className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg"
+              className="absolute top-full left-0 rtl:left-auto rtl:right-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg"
             >
               <ColorPalette
-                title="Text color"
+                title={t("editor:toolbar.textColor")}
                 palette={TEXT_COLORS}
                 current={currentColor}
                 swatchType="text"
@@ -241,7 +251,7 @@ export function EditorBubbleMenu({ editor }: Props) {
             className={btn(currentHighlight != null || editor.isActive("highlight"))}
             onMouseDown={(e) => e.preventDefault()}
             onClick={openHighlight}
-            aria-label="Highlight"
+            aria-label={t("editor:toolbar.highlight")}
             style={currentHighlight ? { backgroundColor: currentHighlight } : undefined}
           >
             <Highlighter className="w-3.5 h-3.5" />
@@ -249,10 +259,10 @@ export function EditorBubbleMenu({ editor }: Props) {
           {popover?.type === "highlight" && (
             <div
               data-bubble-popover="true"
-              className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg"
+              className="absolute top-full left-0 rtl:left-auto rtl:right-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg"
             >
               <ColorPalette
-                title="Background"
+                title={t("editor:toolbar.background")}
                 palette={HIGHLIGHT_COLORS}
                 current={currentHighlight}
                 swatchType="background"
@@ -267,7 +277,7 @@ export function EditorBubbleMenu({ editor }: Props) {
           className={btn(editor.isActive("link"))}
           onMouseDown={(e) => e.preventDefault()}
           onClick={openLink}
-          aria-label="Link"
+          aria-label={t("editor:toolbar.link")}
         >
           <LinkIcon className="w-3.5 h-3.5" />
         </button>
@@ -278,19 +288,19 @@ export function EditorBubbleMenu({ editor }: Props) {
             className={btn(false)}
             onMouseDown={(e) => e.preventDefault()}
             onClick={openAlign}
-            aria-label="Align"
+            aria-label={t("editor:toolbar.align")}
           >
             <AlignLeft className="w-3.5 h-3.5" />
           </button>
           {popover?.type === "align" && (
             <div
               data-bubble-popover="true"
-              className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg p-1 flex gap-0.5"
+              className="absolute top-full left-0 rtl:left-auto rtl:right-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg p-1 flex gap-0.5"
             >
-              <button type="button" className={btn(editor.isActive({ textAlign: "left" }))} onMouseDown={(e) => e.preventDefault()} onClick={() => applyAlign("left")} aria-label="Align left"><AlignLeft className="w-3.5 h-3.5" /></button>
-              <button type="button" className={btn(editor.isActive({ textAlign: "center" }))} onMouseDown={(e) => e.preventDefault()} onClick={() => applyAlign("center")} aria-label="Align center"><AlignCenter className="w-3.5 h-3.5" /></button>
-              <button type="button" className={btn(editor.isActive({ textAlign: "right" }))} onMouseDown={(e) => e.preventDefault()} onClick={() => applyAlign("right")} aria-label="Align right"><AlignRight className="w-3.5 h-3.5" /></button>
-              <button type="button" className={btn(editor.isActive({ textAlign: "justify" }))} onMouseDown={(e) => e.preventDefault()} onClick={() => applyAlign("justify")} aria-label="Justify"><AlignJustify className="w-3.5 h-3.5" /></button>
+              <button type="button" className={btn(editor.isActive({ textAlign: "left" }))} onMouseDown={(e) => e.preventDefault()} onClick={() => applyAlign("left")} aria-label={t("editor:toolbar.alignLeft")}><AlignLeft className="w-3.5 h-3.5" /></button>
+              <button type="button" className={btn(editor.isActive({ textAlign: "center" }))} onMouseDown={(e) => e.preventDefault()} onClick={() => applyAlign("center")} aria-label={t("editor:toolbar.alignCenter")}><AlignCenter className="w-3.5 h-3.5" /></button>
+              <button type="button" className={btn(editor.isActive({ textAlign: "right" }))} onMouseDown={(e) => e.preventDefault()} onClick={() => applyAlign("right")} aria-label={t("editor:toolbar.alignRight")}><AlignRight className="w-3.5 h-3.5" /></button>
+              <button type="button" className={btn(editor.isActive({ textAlign: "justify" }))} onMouseDown={(e) => e.preventDefault()} onClick={() => applyAlign("justify")} aria-label={t("editor:toolbar.justify")}><AlignJustify className="w-3.5 h-3.5" /></button>
             </div>
           )}
         </div>
@@ -303,6 +313,7 @@ export function EditorBubbleMenu({ editor }: Props) {
             position: "fixed",
             top: popover.anchor.top,
             left: popover.anchor.left,
+            right: popover.anchor.right,
             zIndex: 60,
           }}
         >

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, CloudDownload, FolderOpen, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UpdateCheckResult } from "@/types";
+import { useLocale } from "@/i18n/use-locale";
 
 export interface CreateBackupOptions {
   includeEnvKeys?: boolean;
@@ -49,6 +50,7 @@ export function UpdateSummary({
   onCreateBackup,
   onOpenDataDir,
 }: UpdateSummaryProps) {
+  const { t } = useLocale();
   const state = update.updateStatus.state;
   const [includeEnvKeys, setIncludeEnvKeys] = useState(false);
   const [includeSkills, setIncludeSkills] = useState(false);
@@ -59,7 +61,7 @@ export function UpdateSummary({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <CloudDownload className="h-4 w-4" />
-            <h3 className="text-sm font-semibold">Cabinet Updates</h3>
+            <h3 className="text-sm font-semibold">{t("updateSummary:cabinetUpdates")}</h3>
           </div>
           <p className="text-xs text-muted-foreground">
             Current {update.current.version}
@@ -74,11 +76,11 @@ export function UpdateSummary({
 
       <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
         <div className="rounded-lg border border-border/70 bg-background/60 p-3">
-          <p className="font-medium text-foreground">Data directory</p>
+          <p className="font-medium text-foreground">{t("updateSummary:dataDirectory")}</p>
           <p className="mt-1 break-all font-mono text-[11px]">{update.dataDir}</p>
         </div>
         <div className="rounded-lg border border-border/70 bg-background/60 p-3">
-          <p className="font-medium text-foreground">Backups</p>
+          <p className="font-medium text-foreground">{t("updateSummary:backups")}</p>
           <p className="mt-1 break-all font-mono text-[11px]">{update.backupRoot}</p>
         </div>
       </div>
@@ -106,7 +108,7 @@ export function UpdateSummary({
 
       {update.dirtyAppFiles.length > 0 && (
         <div className="rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-xs text-destructive">
-          <p className="font-medium">Local app-code changes detected</p>
+          <p className="font-medium">{t("updateSummaryPlus:dirtyDetected")}</p>
           <p className="mt-1 break-all font-mono text-[11px]">
             {update.dirtyAppFiles.slice(0, 8).join(", ")}
             {update.dirtyAppFiles.length > 8 ? ` +${update.dirtyAppFiles.length - 8} more` : ""}

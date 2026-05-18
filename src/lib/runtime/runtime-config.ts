@@ -155,6 +155,42 @@ export function getPublicDaemonWsOrigin(): string {
   return origin.replace(/^http:/, "ws:");
 }
 
+/**
+ * Browser-visible daemon WS origin: explicit public override wins; otherwise
+ * use the request host with the daemon port so LAN/remote browsers connect to
+ * the same hostname they reached the app on.
+ */
+export function getPublicDaemonWsOriginForRequest(
+  request: { headers: Headers } | null | undefined
+): string {
+  const explicit = normalizeOrigin(process.env.CABINET_PUBLIC_DAEMON_ORIGIN);
+  if (explicit) {
+    if (explicit.startsWith("ws://") || explicit.startsWith("wss://")) return explicit;
+    if (explicit.startsWith("https://")) return explicit.replace(/^https:/, "wss:");
+    if (explicit.startsWith("http://")) return explicit.replace(/^http:/, "ws:");
+    // Scheme-less value (e.g. "cabinet.example.com") would be rejected by the
+    // browser's WebSocket constructor. Treat as malformed and fall through
+    // to Host-derived defaulting below.
+  }
+
+  const rawHost = request?.headers.get("host")?.trim();
+  if (rawHost) {
+    try {
+      const proto = request?.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+      // Use new URL() so IPv6 hosts like "[::1]:4000" parse correctly.
+      const url = new URL(`${proto === "https" ? "https" : "http"}://${rawHost}`);
+      url.protocol = proto === "https" ? "wss:" : "ws:";
+      url.port = String(getDaemonPort());
+      url.pathname = "";
+      return url.origin;
+    } catch {
+      // Malformed Host — fall through to loopback fallback.
+    }
+  }
+
+  return getPublicDaemonWsOrigin();
+}
+
 export function getDaemonUrl(): string {
   return (
     normalizeOrigin(process.env.CABINET_DAEMON_URL) ||

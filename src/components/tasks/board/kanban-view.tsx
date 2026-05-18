@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Inbox,
   Loader2,
@@ -13,6 +14,7 @@ import {
   Square,
   type LucideIcon,
 } from "lucide-react";
+import { DirIcon } from "@/components/ui/dir-icon";
 import { restartConversation, stopConversation } from "./board-actions";
 import { useDroppable } from "@dnd-kit/core";
 import {
@@ -26,8 +28,10 @@ import type { TaskMeta } from "@/types/tasks";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { LaneKey } from "./lane-rules";
 import { TaskCard } from "./task-card";
+import { IconHint } from "./icon-hint";
 import { CARD_DROP_PREFIX, laneDropId } from "./dnd-keys";
 import { usePersistentState } from "./use-persistent-state";
+import { useLocale } from "@/i18n/use-locale";
 
 interface LaneDef {
   key: LaneKey;
@@ -37,12 +41,22 @@ interface LaneDef {
   spin?: boolean;
 }
 
-const LANES: LaneDef[] = [
-  { key: "inbox", label: "Inbox", hint: "Drafted — waiting for you to start", icon: Inbox },
-  { key: "needs", label: "Your turn", hint: "Agent asked a question or needs approval", icon: MessageCircleQuestion },
-  { key: "running", label: "Running", hint: "Agents working right now", icon: Loader2, spin: true },
-  { key: "done", label: "Just Finished", hint: "Completed in the last hour", icon: CheckCircle2 },
-  { key: "archive", label: "Archive", hint: "Older and acknowledged", icon: Archive },
+interface LaneDefRaw {
+  key: LaneDef["key"];
+  labelKey: string;
+  hintKey: string;
+  icon: LucideIcon;
+  spin?: boolean;
+}
+
+// Translation keys for lane labels/hints. Real `LaneDef[]` (with `label`
+// and `hint` strings) is built inside the component via `t()`.
+const LANES_RAW: LaneDefRaw[] = [
+  { key: "inbox", labelKey: "kanban:laneInbox", hintKey: "kanban:laneInboxHint", icon: Inbox },
+  { key: "needs", labelKey: "kanban:laneNeeds", hintKey: "kanban:laneNeedsHint", icon: MessageCircleQuestion },
+  { key: "running", labelKey: "kanban:laneRunning", hintKey: "kanban:laneRunningHint", icon: Loader2, spin: true },
+  { key: "done", labelKey: "kanban:laneDone", hintKey: "kanban:laneDoneHint", icon: CheckCircle2 },
+  { key: "archive", labelKey: "kanban:laneArchive", hintKey: "kanban:laneArchiveHint", icon: Archive },
 ];
 
 function LaneHeader({
@@ -61,61 +75,70 @@ function LaneHeader({
   onKillAll?: () => void;
   onRestartAll?: () => void;
 }) {
+  const { t } = useLocale();
   const LaneIcon = lane.icon;
   return (
-    <div className="flex w-full items-center gap-2 px-3 py-2 text-left">
-      <div className="flex flex-1 items-center gap-2">
-        <LaneIcon
-          className={cn("size-3.5 text-muted-foreground", lane.spin && "animate-spin [animation-duration:3s]")}
-        />
-        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {lane.label}
-        </span>
-        <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-          {count}
-        </span>
-      </div>
+    <div className="flex w-full items-center gap-2 px-3 py-2 text-start">
+      <IconHint label={lane.hint} side="bottom">
+        <div className="flex flex-1 items-center gap-2">
+          <LaneIcon
+            className={cn("size-3.5 text-muted-foreground", lane.spin && "animate-spin [animation-duration:3s]")}
+          />
+          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {lane.label}
+          </span>
+          <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+            {count}
+          </span>
+        </div>
+      </IconHint>
       {onKillAll ? (
-        <button
-          type="button"
-          onClick={onKillAll}
-          className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
-          title="Stop all running tasks in this lane"
-        >
-          <Square className="size-2.5" />
-          Kill
-        </button>
+        <IconHint label={t("kanban:stopAllInLane")} side="bottom">
+          <button
+            type="button"
+            onClick={onKillAll}
+            className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+          >
+            <Square className="size-2.5" />
+            {t("kanban:kill")}
+          </button>
+        </IconHint>
       ) : null}
       {onRestartAll ? (
-        <button
-          type="button"
-          onClick={onRestartAll}
-          className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
-          title="Restart all tasks in this lane"
-        >
-          <RotateCcw className="size-2.5" />
-          Restart
-        </button>
+        <IconHint label={t("kanban:restartAllInLane")} side="bottom">
+          <button
+            type="button"
+            onClick={onRestartAll}
+            className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
+          >
+            <RotateCcw className="size-2.5" />
+            Restart
+          </button>
+        </IconHint>
       ) : null}
       {onAddTask ? (
-        <button
-          type="button"
-          onClick={onAddTask}
-          className="ml-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title="New task"
-        >
-          <Plus className="size-3.5" />
-        </button>
+        <IconHint label={t("kanban:newTask")} side="bottom">
+          <button
+            type="button"
+            onClick={onAddTask}
+            aria-label={t("kanban:newTask")}
+            className="ms-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Plus className="size-3.5" />
+          </button>
+        </IconHint>
       ) : null}
       {onCollapse ? (
-        <button
-          type="button"
-          onClick={onCollapse}
-          className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title="Collapse column"
-        >
-          <ChevronLeft className="size-3.5" />
-        </button>
+        <IconHint label={t("kanban:collapseColumn")} side="bottom">
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label={t("kanban:collapseColumn")}
+            className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <DirIcon ltr={ChevronLeft} rtl={ChevronRight} className="size-3.5" />
+          </button>
+        </IconHint>
       ) : null}
     </div>
   );
@@ -238,6 +261,15 @@ export function KanbanView({
   onRefresh?: () => Promise<void> | void;
   density?: "compact" | "comfortable";
 }) {
+  const { t } = useLocale();
+  // Build the LaneDef array each render using current locale.
+  const LANES: LaneDef[] = LANES_RAW.map((raw) => ({
+    key: raw.key,
+    label: t(raw.labelKey),
+    hint: t(raw.hintKey),
+    icon: raw.icon,
+    spin: raw.spin,
+  }));
   // Persisted set of collapsed lane keys. Audit #035: Archive used to be
   // collapsed by default, hiding "what the team did overnight" behind a
   // narrow vertical rail on first open. Now the default is empty (all
@@ -353,7 +385,7 @@ export function KanbanView({
   }
 
   return (
-    <div className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-4">
+    <div className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-4 snap-x snap-mandatory md:snap-none rtl:flex-row-reverse">
       {LANES.map((lane) => {
         const allItems = byLane[lane.key];
         const isArchive = lane.key === "archive";
@@ -377,8 +409,8 @@ export function KanbanView({
             key={lane.key}
             lane={lane.key}
             className={cn(
-              "flex min-h-0 shrink-0 flex-col rounded-lg border border-border/60 bg-muted/20",
-              collapsed ? "w-12" : "w-[280px]"
+              "flex min-h-0 shrink-0 flex-col rounded-lg border border-border/60 bg-muted/20 snap-start",
+              collapsed ? "w-12" : "w-[85vw] max-w-[280px] md:w-[280px]"
             )}
           >
             {collapsed ? (
@@ -481,7 +513,7 @@ export function KanbanView({
                     <button
                       type="button"
                       onClick={onAddTask}
-                      className="mt-1 w-full rounded-md px-3 py-1.5 text-[11px] text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30 transition-colors text-left"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 text-[11px] text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30 transition-colors text-start"
                     >
                       + Add task
                     </button>

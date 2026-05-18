@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Terminal } from "lucide-react";
+import { Terminal, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
+import { useTreeStore } from "@/stores/tree-store";
+import { useEditorStore } from "@/stores/editor-store";
+import {
+  artifactPathToTreePath,
+  inferPageTypeFromPath,
+  pageTypeIcon,
+} from "@/lib/ui/page-type-icons";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
 import type { ConversationMeta } from "@/types/conversations";
 import type { TaskMeta } from "@/types/tasks";
+import { useLocale } from "@/i18n/use-locale";
 
 function normalizeConversation(meta: ConversationMeta): TaskMeta {
   return conversationMetaToTaskMeta(meta);
@@ -54,6 +62,13 @@ function resolveAgentColor(
   return getAgentColor(slug).text;
 }
 
+/** Last path segment, sans `.md` / `/index.md`, for a compact artifact label. */
+function artifactLabel(p: string): string {
+  const cleaned = p.replace(/\/index\.md$/, "").replace(/\.md$/, "");
+  const parts = cleaned.split("/").filter(Boolean);
+  return parts[parts.length - 1] || p;
+}
+
 export function RecentTasks({
   active,
   padStyle,
@@ -67,10 +82,16 @@ export function RecentTasks({
   cabinetPath?: string;
   agents?: SidebarAgentRef[];
 }) {
+  const { t } = useLocale();
   const setSection = useAppStore((s) => s.setSection);
+  const focusPath = useTreeStore((s) => s.focusPath);
+  const loadPage = useEditorStore((s) => s.loadPage);
   const activeTaskId = useAppStore((s) =>
     s.section.type === "task" ? s.section.taskId : undefined
   );
+  // Artifact disclosures are expanded by default. We track the *collapsed*
+  // ids (opt-out) so newly-arrived tasks are open without any sync effect.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [tasks, setTasks] = useState<TaskMeta[] | null>(null);
   const [now, setNow] = useState(() => Date.now());
   // How many rows the user wants visible. Bumps by PAGE_STEP on "Show older".
@@ -246,50 +267,138 @@ export function RecentTasks({
           tooltip = `${task.title} — just finished`;
         }
 
+        const taskArtifacts = Array.from(
+          new Set((task.artifactPaths ?? []).filter(Boolean))
+        );
+        const hasArtifacts = taskArtifacts.length > 0;
+        const isExpanded = !collapsed.has(task.id);
+        const childIndent = `calc(${String(
+          padStyle.paddingLeft ?? "24px"
+        )} + 1rem)`;
+
         return (
-          <button
+          <div
             key={task.id}
-            onClick={() =>
-              setSection({
-                type: "task",
-                taskId: task.id,
-                cabinetPath: task.cabinetPath,
-              })
-            }
-            className={cn(
-              itemClass(isActive),
-              "animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
-            )}
+            className="animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
             style={{
-              ...padStyle,
               animationDelay: `${Math.min(index, 12) * 22}ms`,
               animationFillMode: "backwards",
             }}
-            title={tooltip}
           >
-            <span className="relative mt-[1px] inline-flex size-1.5 shrink-0">
-              {dotPulseColor && (
-                <span
-                  className="absolute inset-0 rounded-full animate-ping opacity-70"
-                  style={{ backgroundColor: dotPulseColor }}
-                />
-              )}
-              <span
-                className={cn(
-                  "relative inline-block size-1.5 rounded-full",
-                  dotClass
+            <div className="group/task relative flex items-stretch">
+              <button
+                onClick={() =>
+                  setSection({
+                    type: "task",
+                    taskId: task.id,
+                    cabinetPath: task.cabinetPath,
+                  })
+                }
+                className={cn(itemClass(isActive), "min-w-0 flex-1")}
+                style={padStyle}
+                title={tooltip}
+              >
+                <span className="relative mt-[1px] inline-flex size-1.5 shrink-0">
+                  {dotPulseColor && (
+                    <span
+                      className="absolute inset-0 rounded-full animate-ping opacity-70"
+                      style={{ backgroundColor: dotPulseColor }}
+                    />
+                  )}
+                  <span
+                    className={cn(
+                      "relative inline-block size-1.5 rounded-full",
+                      dotClass
+                    )}
+                    style={dotStyle}
+                  />
+                </span>
+                <span className="truncate">{task.title}</span>
+                {isLegacyAdapterType(task.adapterType) && (
+                  <Terminal
+                    className="ml-auto size-2.5 shrink-0 text-emerald-500"
+                    aria-label={t("recentTasks:ptyMode")}
+                  />
                 )}
-                style={dotStyle}
-              />
-            </span>
-            <span className="truncate">{task.title}</span>
-            {isLegacyAdapterType(task.adapterType) && (
-              <Terminal
-                className="ml-auto size-2.5 shrink-0 text-emerald-500"
-                aria-label="Terminal (PTY) mode"
-              />
+              </button>
+              {hasArtifacts && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCollapsed((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(task.id)) next.delete(task.id);
+                      else next.add(task.id);
+                      return next;
+                    });
+                  }}
+                  aria-expanded={isExpanded}
+                  title={
+                    isExpanded
+                      ? "Hide task files"
+                      : `Show ${taskArtifacts.length} task file${
+                          taskArtifacts.length === 1 ? "" : "s"
+                        }`
+                  }
+                  className={cn(
+                    "flex shrink-0 items-center gap-0.5 rounded-md pe-1.5 ps-1 text-[10px] tabular-nums",
+                    "text-muted-foreground/50 transition-colors hover:text-foreground",
+                    isExpanded && "text-foreground/70"
+                  )}
+                >
+                  <span>{taskArtifacts.length}</span>
+                  <ChevronRight
+                    className={cn(
+                      "size-3 shrink-0 transition-transform duration-150",
+                      isExpanded && "rotate-90"
+                    )}
+                  />
+                </button>
+              )}
+            </div>
+
+            {hasArtifacts && isExpanded && (
+              <div
+                className="mb-1 me-2 flex flex-col rounded-lg p-0.5 transition-colors hover:bg-muted/40 hover:ring-1 hover:ring-border/40"
+                style={{ marginLeft: childIndent }}
+              >
+                {taskArtifacts.map((path, ai) => {
+                  const kind = inferPageTypeFromPath(path);
+                  const Icon = pageTypeIcon(kind);
+                  return (
+                    <button
+                      key={path}
+                      type="button"
+                      onClick={() => {
+                        const treePath = artifactPathToTreePath(path);
+                        focusPath(treePath);
+                        setSection({
+                          type: "page",
+                          cabinetPath: task.cabinetPath,
+                        });
+                        void loadPage(treePath);
+                      }}
+                      className={cn(
+                        itemClass(false),
+                        "py-[3px] text-[11px] font-normal text-foreground/75",
+                        "hover:bg-foreground/[0.04] hover:text-foreground",
+                        "animate-in fade-in slide-in-from-top-0.5 duration-150 ease-out"
+                      )}
+                      style={{
+                        animationDelay: `${Math.min(ai, 8) * 18}ms`,
+                        animationFillMode: "backwards",
+                      }}
+                      title={path}
+                    >
+                      <Icon className="size-3 shrink-0 text-muted-foreground/70" />
+                      <span className="truncate">{artifactLabel(path)}</span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
-          </button>
+          </div>
         );
       })}
       {showLoadMore && (
@@ -308,10 +417,10 @@ export function RecentTasks({
             animationDelay: `${Math.min(visibleTasks.length, 12) * 22}ms`,
             animationFillMode: "backwards",
           }}
-          title="Reveal more older tasks"
+          title={t("recentTasks:revealOlder")}
         >
           <span className="size-1.5 shrink-0" aria-hidden />
-          <span>Show older</span>
+          <span>{t("recentTasks:showOlder")}</span>
         </button>
       )}
     </>

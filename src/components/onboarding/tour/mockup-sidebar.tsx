@@ -3,6 +3,7 @@
 import { type CSSProperties, type ReactNode } from "react";
 import { Archive, BookOpen, Users, SquareKanban, ChevronDown } from "lucide-react";
 import { TOUR_PALETTE as P } from "./palette";
+import { useLocale } from "@/i18n/use-locale";
 
 export type MockupTab = "data" | "agents" | "tasks";
 
@@ -52,10 +53,10 @@ interface MockupSidebarProps {
   viewTransitionName?: string;
 }
 
-const TABS: Array<{ id: MockupTab; label: string; icon: typeof BookOpen }> = [
-  { id: "data", label: "Data", icon: BookOpen },
-  { id: "agents", label: "Agents", icon: Users },
-  { id: "tasks", label: "Tasks", icon: SquareKanban },
+const TAB_DEFS: Array<{ id: MockupTab; labelKey: string; icon: typeof BookOpen }> = [
+  { id: "data", labelKey: "sidebar:drawerData", icon: BookOpen },
+  { id: "agents", labelKey: "sidebar:drawerAgents", icon: Users },
+  { id: "tasks", labelKey: "sidebar:drawerTasks", icon: SquareKanban },
 ];
 
 export function MockupSidebar({
@@ -65,11 +66,13 @@ export function MockupSidebar({
   hideBody = false,
   tabsPopIn = false,
   tabsPopInDelay = 900,
-  title = "Hila's Cabinet",
+  title,
   titleDelay = 0,
   headerBadge = "+1",
   viewTransitionName,
 }: MockupSidebarProps) {
+  const { t } = useLocale();
+  const resolvedTitle = title ?? t("slideDataCopy:mockTitle");
   const rootStyle: CSSProperties = {
     color: P.text,
     ...(viewTransitionName ? { viewTransitionName } : {}),
@@ -105,7 +108,7 @@ export function MockupSidebar({
           className="min-w-0 flex-1 truncate text-sm font-medium"
           style={{ color: P.textSecondary, ...titleAnimStyle }}
         >
-          {title}
+          {resolvedTitle}
         </span>
         {headerBadge && (
           <span
@@ -122,14 +125,14 @@ export function MockupSidebar({
       {!hideTabs && (
         <div
           role="tablist"
-          aria-label="Cabinet drawers"
+          aria-label={t("treeView:drawersAriaLabel")}
           className="mx-[9px] grid grid-cols-3 gap-1 rounded-b-lg p-1 pt-2"
           style={{
             background: "rgba(243, 237, 228, 0.7)",
             boxShadow: `inset 0 0 0 1px ${P.borderLight}`,
           }}
         >
-          {TABS.map((tab, i) => {
+          {TAB_DEFS.map((tab, i) => {
             const Icon = tab.icon;
             const active = tab.id === activeTab;
             return (
@@ -173,7 +176,7 @@ export function MockupSidebar({
                   />
                   <Icon className="h-[18px] w-[18px] shrink-0" />
                   <span className="text-[8px] font-semibold uppercase tracking-[0.1em]">
-                    {tab.label}
+                    {t(tab.labelKey)}
                   </span>
                 </div>
               </div>

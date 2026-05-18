@@ -31,11 +31,14 @@ const MAX_PILLS_MULTIDAY = 2;
 const MAX_PILLS_MONTH = 3;
 const DEFAULT_VISIBLE_START_HOUR = 5; // 5 AM
 const DEFAULT_VISIBLE_END_HOUR = 23; // 11 PM
-const DAY_NAMES_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+// Locale-aware short weekday names, Monday-first to match the calendar's
+// column order. 2024-01-01 is a Monday — walk 7 days from it and let
+// Intl.DateTimeFormat localize (Hebrew/Chinese resolve automatically from
+// the document language the browser exposes via undefined locale).
+const DAY_NAMES_SHORT = Array.from({ length: 7 }, (_, i) => {
+  const d = new Date(2024, 0, 1 + i); // Jan 1 2024 = Monday
+  return d.toLocaleDateString(undefined, { weekday: "short" });
+});
 
 /* ─── Helpers ─── */
 
@@ -382,14 +385,14 @@ function TimeGridView({
         className="grid border-b border-border/50 bg-muted/20"
         style={{ gridTemplateColumns: isMultiDay ? `56px repeat(${days.length}, 1fr)` : "56px 1fr" }}
       >
-        <div className="border-r border-border/30 px-2 py-2" />
+        <div className="border-e border-border/30 px-2 py-2" />
         {days.map((day, i) => {
           const isToday = isSameDay(day, now);
           return (
             <div
               key={i}
               className={cn(
-                "border-r border-border/30 px-2 py-2 text-center last:border-r-0",
+                "border-e border-border/30 px-2 py-2 text-center last:border-e-0",
                 isToday && "bg-amber-500/[0.06]"
               )}
             >
@@ -438,11 +441,11 @@ function TimeGridView({
           }}
         >
           {/* Hour labels column */}
-          <div className="relative border-r border-border/30">
+          <div className="relative border-e border-border/30">
             {Array.from({ length: TOTAL_HOURS }, (_, i) => (
               <div
                 key={i}
-                className="absolute right-2 text-[10px] tabular-nums text-muted-foreground/50"
+                className="absolute end-2 text-[10px] tabular-nums text-muted-foreground/50"
                 style={{ top: i * HOUR_HEIGHT - 6 }}
               >
                 {formatHour(visibleStartHour + i)}
@@ -457,7 +460,7 @@ function TimeGridView({
               <div
                 key={colIdx}
                 className={cn(
-                  "relative border-r border-border/30 last:border-r-0",
+                  "relative border-e border-border/30 last:border-e-0",
                   isToday && "bg-amber-500/[0.03]"
                 )}
               >
@@ -521,8 +524,8 @@ function TimeGridView({
               className="pointer-events-none absolute z-10"
               style={{
                 top: nowTop,
-                left: isMultiDay ? `calc(56px + ${(todayIndex / days.length) * 100}% * ${days.length} / ${days.length})` : 56,
-                right: 0,
+                insetInlineStart: isMultiDay ? `calc(56px + ${(todayIndex / days.length) * 100}% * ${days.length} / ${days.length})` : 56,
+                insetInlineEnd: 0,
               }}
             >
               {/* Full-width red line spanning today column to the right */}
@@ -533,11 +536,11 @@ function TimeGridView({
         {/* Current time red line (spans full width for visibility) */}
         {showNowLine && (
           <div
-            className="pointer-events-none absolute left-[56px] right-0 z-10"
+            className="pointer-events-none absolute start-[56px] end-0 z-10"
             style={{ top: nowTop }}
           >
             <div className="h-px w-full bg-red-500/60" />
-            <div className="absolute -left-1 -top-[3px] h-[7px] w-[7px] rounded-full bg-red-500" />
+            <div className="absolute -start-1 -top-[3px] h-[7px] w-[7px] rounded-full bg-red-500" />
           </div>
         )}
       </div>
@@ -633,7 +636,7 @@ function MonthView({
         {DAY_NAMES_SHORT.map((name) => (
           <div
             key={name}
-            className="border-r border-border/30 px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 last:border-r-0"
+            className="border-e border-border/30 px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 last:border-e-0"
           >
             {name}
           </div>
@@ -662,7 +665,7 @@ function MonthView({
                 }
               }}
               className={cn(
-                "min-h-[90px] cursor-pointer border-b border-r border-border/20 p-1.5 text-left transition-colors last:border-r-0",
+                "min-h-[90px] cursor-pointer border-b border-e border-border/20 p-1.5 text-start transition-colors last:border-e-0",
                 "hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
                 !isCurrentMonth && "opacity-40",
                 isToday && "bg-amber-500/[0.05]"

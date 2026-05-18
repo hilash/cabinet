@@ -30,6 +30,17 @@ export const CLIENT_DATA_LOCATIONS: DataLocation[] = [
     onboarding: true,
   },
   {
+    id: "ls-agents-explainer",
+    label: "Team page tab explainers",
+    pathOrKey: "cabinet.agents.explainer.",
+    prefix: true,
+    contains:
+      "Per-tab dismissal flag for the Team page explainer cards (Agents / Routines / Heartbeats / Schedule).",
+    leavesDevice: false,
+    scope: "localStorage",
+    onboarding: true,
+  },
+  {
     id: "ls-feedback-prompted",
     label: "Feedback popup state",
     pathOrKey: "cabinet.feedback.",

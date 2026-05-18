@@ -63,6 +63,41 @@ function writePersistedDataDir(dir) {
   }
 }
 
+function readPersistedAppPort() {
+  try {
+    const raw = fs.readFileSync(cabinetConfigPath, "utf8");
+    const parsed = JSON.parse(raw);
+    const port = parsed?.appPort;
+    if (
+      typeof port === "number" &&
+      Number.isInteger(port) &&
+      port > 0 &&
+      port < 65536
+    ) {
+      return port;
+    }
+  } catch {
+    // missing/invalid is fine
+  }
+  return null;
+}
+
+function persistAppPort(port) {
+  try {
+    fs.mkdirSync(userDataDir, { recursive: true });
+    let existing = {};
+    try {
+      existing = JSON.parse(fs.readFileSync(cabinetConfigPath, "utf8")) || {};
+    } catch {
+      // start fresh
+    }
+    existing.appPort = port;
+    fs.writeFileSync(cabinetConfigPath, JSON.stringify(existing, null, 2), "utf8");
+  } catch {
+    // best-effort
+  }
+}
+
 function dirHasContent(dir) {
   try {
     const entries = fs.readdirSync(dir);
@@ -125,6 +160,33 @@ function getFreePort() {
     });
     server.on("error", reject);
   });
+}
+
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => resolve(false));
+    server.listen(port, "127.0.0.1", () => {
+      server.close(() => resolve(true));
+    });
+  });
+}
+
+// Chromium scopes localStorage/IndexedDB/cookies by origin, and the port is
+// part of the origin. A fresh random port every launch means a fresh empty
+// storage bucket every launch, so the user's theme, locale, and other
+// persisted UI state silently reset. Reuse the last app port so the renderer
+// origin stays stable across launches; only allocate (and persist) a new port
+// if the previous one is taken. The single-instance lock means the only
+// realistic contender is an unrelated process, so this is stable in practice.
+async function getStableAppPort() {
+  const persisted = readPersistedAppPort();
+  if (persisted && (await isPortAvailable(persisted))) {
+    return persisted;
+  }
+  const fresh = await getFreePort();
+  persistAppPort(fresh);
+  return fresh;
 }
 
 async function waitForHealth(url, timeoutMs = 45_000) {
@@ -342,7 +404,10 @@ async function startEmbeddedCabinet() {
   ensureManagedData();
 
   const externalModulesDir = extractNativeModules();
-  const [appPort, daemonPort] = await Promise.all([getFreePort(), getFreePort()]);
+  const [appPort, daemonPort] = await Promise.all([
+    getStableAppPort(),
+    getFreePort(),
+  ]);
   const appOrigin = `http://127.0.0.1:${appPort}`;
   const daemonOrigin = `http://127.0.0.1:${daemonPort}`;
   const daemonWsOrigin = `ws://127.0.0.1:${daemonPort}`;

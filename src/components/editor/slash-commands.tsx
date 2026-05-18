@@ -26,6 +26,7 @@ import dynamic from "next/dynamic";
 import type { Editor } from "@tiptap/react";
 import { cn } from "@/lib/utils";
 import { useEditorStore } from "@/stores/editor-store";
+import { useLocale } from "@/i18n/use-locale";
 import { MediaPopover, type MediaKind } from "./media-popover";
 import { EmbedPopover } from "./embed-popover";
 
@@ -86,10 +87,15 @@ export function SlashCommands({ editor }: SlashCommandsProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState<{
+    top: number;
+    left?: number;
+    right?: number;
+  }>({ top: 0, left: 0 });
   const [popover, setPopover] = useState<PopoverKind>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const pagePath = useEditorStore((s) => s.currentPath);
+  const { dir } = useLocale();
 
   const filtered = commands.filter(
     (cmd) =>
@@ -134,10 +140,19 @@ export function SlashCommands({ editor }: SlashCommandsProps) {
           if (from === 1 || textBefore === "" || textBefore === "\n" || textBefore === " ") {
             const coords = editor.view.coordsAtPos(from);
             const editorRect = editor.view.dom.getBoundingClientRect();
-            setPosition({
-              top: coords.bottom - editorRect.top + 4,
-              left: coords.left - editorRect.left,
-            });
+            setPosition(
+              dir === "rtl"
+                ? {
+                    top: coords.bottom - editorRect.top + 4,
+                    // Anchor from the editor's right edge so the menu opens
+                    // toward the logical start in RTL.
+                    right: editorRect.right - coords.right,
+                  }
+                : {
+                    top: coords.bottom - editorRect.top + 4,
+                    left: coords.left - editorRect.left,
+                  }
+            );
             setOpen(true);
             setQuery("");
             setSelectedIndex(0);
@@ -174,7 +189,7 @@ export function SlashCommands({ editor }: SlashCommandsProps) {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [editor, open, query, selectedIndex, filtered, handleClose, handleSelect]);
+  }, [editor, open, query, selectedIndex, filtered, handleClose, handleSelect, dir]);
 
   useEffect(() => {
     if (!open) return;
@@ -267,7 +282,7 @@ export function SlashCommands({ editor }: SlashCommandsProps) {
         <div
           ref={menuRef}
           className="absolute z-50 w-[280px] bg-popover border border-border rounded-lg shadow-lg py-1 overflow-hidden max-h-[380px] overflow-y-auto"
-          style={{ top: position.top, left: position.left }}
+          style={{ top: position.top, left: position.left, right: position.right }}
         >
           {order.map((group) => {
             const items = byCategory.get(group.key);

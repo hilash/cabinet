@@ -227,6 +227,13 @@ export interface CreateConversationRequest extends ConversationRuntimeOverride {
   pagePath?: string;
   /** When true, creates the conversation with status "idle" without running it. */
   draftOnly?: boolean;
+  /**
+   * User's UI locale ("en" | "he"). The server adds a locale instruction to
+   * the agent system prompt so replies and generated notes land in the right
+   * language. Auto-injected by the conversation client from localStorage —
+   * callers normally do not need to set this manually.
+   */
+  locale?: string;
 }
 
 export interface CreateConversationResponse {

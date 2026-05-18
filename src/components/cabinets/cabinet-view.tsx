@@ -51,7 +51,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
   const [heartbeatDialog, setHeartbeatDialog] = useState<{
     agent: NewRoutineDialogAgent;
     initialHeartbeat?: string;
-    initialActive?: boolean;
+    initialEnabled?: boolean;
     missedRun?: { scheduledAt: string };
   } | null>(null);
 
@@ -199,7 +199,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
           cabinetPath: event.agentRef.cabinetPath || cabinetPath,
         },
         initialHeartbeat: event.agentRef.heartbeat || "0 9 * * 1-5",
-        initialActive: event.agentRef.active,
+        initialEnabled: event.agentRef.heartbeatEnabled !== false,
       });
     }
   }
@@ -207,9 +207,11 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* ── Header row ── */}
-        <header className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/95 px-4 py-2.5 sm:px-6">
+        <header
+          className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/95 py-2.5 pe-4 ps-[calc(1rem+var(--sidebar-toggle-offset,0px))] transition-[padding] duration-200 sm:pe-6 sm:ps-[calc(1.5rem+var(--sidebar-toggle-offset,0px))]"
+        >
           <div className="flex min-w-0 items-center gap-3">
-            <h1 className="truncate text-[14px] font-semibold tracking-tight text-foreground">
+            <h1 className="truncate font-ui text-[14px] font-semibold tracking-tight text-foreground">
               {cabinetName}
             </h1>
             {loading && !overview ? (
@@ -370,7 +372,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
         }}
         agent={heartbeatDialog?.agent ?? { slug: "", name: "" }}
         initialHeartbeat={heartbeatDialog?.initialHeartbeat}
-        initialActive={heartbeatDialog?.initialActive}
+        initialEnabled={heartbeatDialog?.initialEnabled}
         missedRun={heartbeatDialog?.missedRun}
         onSaved={() => {
           setHeartbeatDialog(null);

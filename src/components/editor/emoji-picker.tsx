@@ -6,7 +6,7 @@ import { Picker } from "emoji-mart";
 import { useTheme } from "@/components/theme-provider";
 
 interface Props {
-  anchor: { top: number; left: number };
+  anchor: { top: number; left?: number; right?: number };
   onSelect: (native: string) => void;
   onClose: () => void;
 }
@@ -55,7 +55,7 @@ export function EmojiPicker({ anchor, onSelect, onClose }: Props) {
     <div
       ref={containerRef}
       className="absolute z-50 shadow-xl rounded-lg overflow-hidden"
-      style={{ top: anchor.top, left: anchor.left }}
+      style={{ top: anchor.top, left: anchor.left, right: anchor.right }}
       onMouseDown={(e) => e.stopPropagation()}
     />
   );

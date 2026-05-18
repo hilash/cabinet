@@ -175,6 +175,13 @@ export interface AgentPersona {
   heartbeat: string; // cron expression
   budget: number; // max heartbeats per month
   active: boolean;
+  /**
+   * Whether the heartbeat is enabled. Independent from `active` so users can
+   * silence the heartbeat without disabling the agent's other routines.
+   * Effective scheduling = `active && heartbeatEnabled`. Defaults to true
+   * for personas missing the field (backward compat).
+   */
+  heartbeatEnabled: boolean;
   workdir: string;
   focus: string[];
   tags: string[];
@@ -367,6 +374,7 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
     heartbeat: (data.heartbeat as string) || "0 8 * * *",
     budget: (data.budget as number) || 100,
     active: data.active !== false,
+    heartbeatEnabled: data.heartbeatEnabled !== false,
     workdir: (data.workdir as string) || "/data",
     focus: (data.focus as string[]) || [],
     tags: (data.tags as string[]) || [],
@@ -429,7 +437,7 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
   }
 
   // Compute nextHeartbeat from cron expression + lastHeartbeat
-  if (persona.active && persona.heartbeat && persona.lastHeartbeat) {
+  if (persona.active && persona.heartbeatEnabled && persona.heartbeat && persona.lastHeartbeat) {
     try {
       const nextRun = computeNextCronRun(persona.heartbeat, new Date(persona.lastHeartbeat));
       if (nextRun) persona.nextHeartbeat = nextRun.toISOString();
@@ -473,6 +481,7 @@ export async function writePersona(slug: string, persona: Partial<AgentPersona> 
     heartbeat: merged.heartbeat,
     budget: merged.budget,
     active: merged.active,
+    heartbeatEnabled: merged.heartbeatEnabled !== false,
     workdir: merged.workdir,
     focus: merged.focus,
     tags: merged.tags,
@@ -687,7 +696,7 @@ export function unregisterHeartbeat(slug: string): void {
 export async function registerAllHeartbeats(): Promise<void> {
   const personas = await listPersonas();
   for (const persona of personas) {
-    if (persona.active && persona.heartbeatsUsed !== undefined && persona.heartbeatsUsed < persona.budget) {
+    if (persona.active && persona.heartbeatEnabled && persona.heartbeatsUsed !== undefined && persona.heartbeatsUsed < persona.budget) {
       registerHeartbeat(persona.slug, persona.heartbeat);
     }
   }

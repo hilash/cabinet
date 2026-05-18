@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { Send, Loader2, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,17 @@ export interface ComposerInputProps {
   attachments?: UseComposerAttachmentsReturn;
 }
 
+/**
+ * Grow a textarea to fit its content. Height is reset to "auto" so it can
+ * shrink, then set to scrollHeight; the element's CSS min/max-height (max =
+ * 50vh) clamp the result and overflow-y-auto scrolls once it hits the cap.
+ */
+function autoFitTextareaHeight(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export function ComposerInput({
   composer,
   placeholder = "Type something...",
@@ -70,7 +81,9 @@ export function ComposerInput({
   showKeyHint = true,
   className,
   minHeight = "80px",
-  maxHeight = "260px",
+  // Auto-grows with content up to half the viewport, then scrolls. Callers
+  // no longer need to pass a fixed cap; this is uniform app-wide.
+  maxHeight = "50vh",
   autoFocus = false,
   disabled = false,
   header,
@@ -91,6 +104,20 @@ export function ComposerInput({
       setTimeout(() => composer.textareaRef.current?.focus(), 100);
     }
   }, [autoFocus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-resize the textarea to fit its content. The CSS min/max-height
+  // (max = 50vh) clamp the result and overflow-y-auto scrolls past the cap;
+  // resetting to "auto" first lets it shrink when text is removed/cleared.
+  useLayoutEffect(() => {
+    autoFitTextareaHeight(composer.textareaRef.current);
+  }, [composer.input]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const onResize = () =>
+      autoFitTextareaHeight(composer.textareaRef.current);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [cardFocused, setCardFocused] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -172,7 +199,7 @@ export function ComposerInput({
         onDrop={attachmentsEnabled ? handleDrop : undefined}
       >
         {topRightOverlay ? (
-          <div className="absolute right-3 top-3 z-10">
+          <div className="absolute end-3 top-3 z-10">
             {topRightOverlay}
           </div>
         ) : null}
@@ -195,6 +222,10 @@ export function ComposerInput({
             // on agent pages, etc.) so it doubles as the accessible label.
             aria-label={typeof placeholder === "string" ? placeholder : "Compose"}
             name="composer-input"
+            // Resolve direction from the first strong character of the
+            // current value: typing Hebrew/Arabic flips the field RTL,
+            // English/code stays LTR — per input, regardless of UI locale.
+            dir="auto"
             value={composer.input}
             onChange={composer.handleChange}
             onPaste={attachmentsEnabled ? handlePaste : undefined}
@@ -210,7 +241,7 @@ export function ComposerInput({
             style={{ minHeight, maxHeight }}
             className={cn(
               "w-full resize-none overflow-y-auto bg-transparent px-4 pt-4 pb-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 disabled:cursor-not-allowed",
-              topRightOverlay && "pr-28",
+              topRightOverlay && "pe-28",
               textareaClassName
             )}
           />
@@ -252,7 +283,7 @@ export function ComposerInput({
               {actionsStart}
             </div>
           ) : null}
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex items-center gap-3 ms-auto">
             <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/35 select-none">
               <kbd className="rounded border border-border/40 bg-muted/40 px-1 py-0.5 font-mono text-[10px]">⌘</kbd>
               <kbd className="rounded border border-border/40 bg-muted/40 px-1 py-0.5 font-mono text-[10px]">↵</kbd>

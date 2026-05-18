@@ -1,3 +1,5 @@
+import { stripToolOutput } from "./tool-output-markers";
+
 const FENCE_RE = /```[\s\S]*?```/g;
 const ASK_USER_RE = /<ask_user>([\s\S]*?)<\/ask_user>/i;
 
@@ -18,7 +20,7 @@ export function looksLikeAwaitingInput(content: string): boolean {
   if (!content) return false;
   if (ASK_USER_RE.test(content)) return true;
 
-  const stripped = content.replace(FENCE_RE, "").trim();
+  const stripped = stripToolOutput(content).replace(FENCE_RE, "").trim();
   if (!stripped) return false;
   const fenceLen = (content.match(FENCE_RE) || []).reduce((a, b) => a + b.length, 0);
   if (fenceLen / Math.max(content.length, 1) > 0.7) return false;
@@ -60,7 +62,9 @@ export function deriveSummary(input: {
   const lastAgent = [...settled].reverse().find((t) => t.role === "agent");
   const firstUser = settled.find((t) => t.role === "user");
 
-  const source = lastAgent?.content?.trim() || firstUser?.content?.trim();
+  const source =
+    stripToolOutput(lastAgent?.content?.trim() || "") ||
+    firstUser?.content?.trim();
   if (!source) return input.existingSummary;
 
   const firstSentence = source

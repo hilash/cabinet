@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, Plus, Repeat, Zap } from "lucide-react";
+import { ChevronDown, FileText, MessageCircle, Repeat, Zap } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Shared "+ ▾" create button used in nav bars outside the Tasks board (KB
@@ -41,6 +42,8 @@ import { Button } from "@/components/ui/button";
  * dismissed the composer (audit #130).
  */
 export function NewTaskButton() {
+  const { t } = useLocale();
+  const openTaskPanelCompose = useAppStore((s) => s.openTaskPanelCompose);
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
   const setTaskPanelConversation = useAppStore(
@@ -136,14 +139,38 @@ export function NewTaskButton() {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-border/70 bg-card/60 px-2 text-foreground/80 transition-colors hover:bg-accent hover:text-foreground hover:border-border data-[popup-open]:bg-accent data-[popup-open]:text-foreground"
-          title="Create new..."
-          aria-label="Create new..."
-        >
-          <Plus className="size-3.5" />
-          <span className="text-[12px] font-medium">New</span>
-        </DropdownMenuTrigger>
+        {/* Split button: the primary half opens the AI Editor drawer; the
+            chevron half opens the create menu (page / task / routine). */}
+        <div className="inline-flex h-7 items-stretch overflow-hidden rounded-md">
+          <button
+            type="button"
+            onClick={() =>
+              openTaskPanelCompose(
+                section.type === "page" && selectedPath
+                  ? {
+                      source: "editor",
+                      pinnedPagePath: selectedPath,
+                      defaultAgentSlug: "editor",
+                    }
+                  : undefined
+              )
+            }
+            title={t("common:aiPanel.open")}
+            aria-label={t("common:aiPanel.open")}
+            className="inline-flex items-center gap-1.5 bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <MessageCircle className="size-3.5" />
+            <span>New Chat</span>
+          </button>
+          <div className="w-px bg-primary-foreground/20" aria-hidden />
+          <DropdownMenuTrigger
+            className="inline-flex items-center bg-primary pl-1.5 pr-1 text-primary-foreground transition-colors hover:bg-primary/90 data-[popup-open]:bg-primary/90"
+            title={t("newTaskButton:createNew")}
+            aria-label={t("newTaskButton:createNew")}
+          >
+            <ChevronDown className="size-3.5" />
+          </DropdownMenuTrigger>
+        </div>
         <DropdownMenuContent align="end" className="min-w-[240px]">
           {showPageItem && (
             <DropdownMenuItem
@@ -170,7 +197,7 @@ export function NewTaskButton() {
           >
             <Zap className="mt-0.5 size-3.5 text-foreground/70" />
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium">New task</span>
+              <span className="text-[13px] font-medium">{t("newTaskButton:newTask")}</span>
               <span className="text-[11px] text-muted-foreground">
                 Run once, right now
               </span>
@@ -182,7 +209,7 @@ export function NewTaskButton() {
           >
             <Repeat className="mt-0.5 size-3.5 text-indigo-500" />
             <div className="flex flex-col">
-              <span className="text-[13px] font-medium">New routine</span>
+              <span className="text-[13px] font-medium">{t("newTaskButton:newRoutine")}</span>
               <span className="text-[11px] text-muted-foreground">
                 Run this prompt on a schedule
               </span>
@@ -206,7 +233,7 @@ export function NewTaskButton() {
             className="flex gap-2"
           >
             <Input
-              placeholder="Page title..."
+              placeholder={t("composerExtras:pageTitlePlaceholder")}
               value={pageTitle}
               onChange={(e) => setPageTitle(e.target.value)}
               autoFocus

@@ -6,6 +6,7 @@ import { Moon, Sun, Check, Palette } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import {
   THEMES,
   applyTheme,
@@ -15,10 +16,13 @@ import {
 } from "@/lib/themes";
 
 export function ThemePicker() {
+  const { t, dir } = useLocale();
   const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeCustomTheme, setActiveCustomTheme] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  // Anchor offsets measured from both viewport edges so we can pin the menu to
+  // the inline-end edge of the trigger regardless of reading direction.
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -65,6 +69,7 @@ export function ThemePicker() {
       setMenuPos({
         top: rect.bottom + 8,
         right: window.innerWidth - rect.right,
+        left: rect.left,
       });
     }
     setMenuOpen((prev) => !prev);
@@ -96,7 +101,9 @@ export function ThemePicker() {
           className="fixed w-56 rounded-lg border border-border bg-popover shadow-2xl p-1.5 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[80vh] overflow-y-auto"
           style={{
             top: menuPos.top,
-            right: menuPos.right,
+            ...(dir === "rtl"
+              ? { left: menuPos.left }
+              : { right: menuPos.right }),
             zIndex: 99999,
           }}
         >
@@ -114,7 +121,7 @@ export function ThemePicker() {
             )}
           >
             <Sun className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 text-left">Light</span>
+            <span className="flex-1 text-left">{t("tinyExtras:light")}</span>
             {!activeCustomTheme && theme === "light" && (
               <Check className="h-3 w-3 text-primary shrink-0" />
             )}

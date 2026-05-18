@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Bot, FileText } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 import { getMentionPickerState, setMentionPickerState } from "./mention-extension";
 import type { MentionItem } from "./mention-extension";
 
@@ -15,6 +16,7 @@ export function EditorMentionPicker({ editor: _editor }: EditorMentionPickerProp
   // Re-render whenever the singleton state changes via window event.
   const [tick, setTick] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { dir } = useLocale();
 
   useEffect(() => {
     const handler = () => setTick((t) => t + 1);
@@ -91,9 +93,12 @@ export function EditorMentionPicker({ editor: _editor }: EditorMentionPickerProp
 
   if (!open || items.length === 0 || !clientRect) return null;
 
-  // Position the floating panel below the cursor.
+  // Position the floating panel below the cursor. In RTL anchor from the
+  // viewport's right edge so the panel opens toward the logical start.
   const top = clientRect.bottom + window.scrollY + 4;
-  const left = clientRect.left + window.scrollX;
+  const left = dir === "rtl" ? undefined : clientRect.left + window.scrollX;
+  const right =
+    dir === "rtl" ? window.innerWidth - clientRect.right : undefined;
 
   // Partition items by type for section headers.
   const agents = items.filter((i) => i.type === "agent");
@@ -111,7 +116,7 @@ export function EditorMentionPicker({ editor: _editor }: EditorMentionPickerProp
     <div
       ref={menuRef}
       className="fixed z-50 w-[280px] bg-popover border border-border rounded-lg shadow-lg py-1 overflow-hidden max-h-[320px] overflow-y-auto"
-      style={{ top, left }}
+      style={{ top, left, right }}
     >
       {sections.map((section) => {
         if (section.list.length === 0) return null;

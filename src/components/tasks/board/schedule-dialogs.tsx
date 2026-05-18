@@ -22,7 +22,8 @@ export interface HeartbeatDialogState {
   agentName: string;
   cabinetPath: string;
   heartbeat: string;
-  active: boolean;
+  /** Whether the heartbeat itself is enabled (independent from agent.active). */
+  enabled: boolean;
 }
 
 /**
@@ -96,7 +97,7 @@ export function ScheduleHeartbeatDialog({
         cabinetPath: state.cabinetPath,
       }}
       initialHeartbeat={state.heartbeat}
-      initialActive={state.active}
+      initialEnabled={state.enabled}
       onSaved={() => {
         onClose();
         void onRefresh();

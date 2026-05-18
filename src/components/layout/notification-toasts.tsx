@@ -157,7 +157,7 @@ export function NotificationToasts() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col-reverse gap-2">
+    <div className="fixed bottom-4 end-4 z-[100] flex flex-col-reverse gap-2">
       {toasts.map((toast) => (
         <button
           key={toast._key}
@@ -172,8 +172,8 @@ export function NotificationToasts() {
             dismiss(toast._key);
           }}
           className={cn(
-            "group flex w-[380px] items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-lg backdrop-blur-sm transition-all",
-            "animate-in slide-in-from-right-5 fade-in duration-300",
+            "group flex w-[380px] items-start gap-3 rounded-xl border px-4 py-3 text-start shadow-lg backdrop-blur-sm transition-all",
+            "animate-in slide-in-from-right-5 rtl:slide-in-from-left-5 fade-in duration-300",
             toast.status === "completed" && "border-emerald-500/20 bg-card/95",
             toast.status === "failed" && "border-red-500/20 bg-card/95",
             toast.status === "running" && "border-sky-500/20 bg-card/95"

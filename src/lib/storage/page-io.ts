@@ -181,6 +181,20 @@ export async function readPage(virtualPath: string): Promise<PageData> {
   throw new Error(`Page not found: ${virtualPath}`);
 }
 
+/**
+ * Heuristic: if a doc's text is mostly Hebrew letters, return "rtl". Used to
+ * auto-set frontmatter.dir on agent-generated notes so they render RTL on
+ * load. Examines the first ~600 chars to avoid scanning huge files.
+ */
+function inferDirFromText(content: string): "rtl" | undefined {
+  const sample = content.slice(0, 600);
+  // Hebrew block: U+0590–U+05FF. Stop counting at 600 chars sampled.
+  const hebrewMatches = sample.match(/[֐-׿]/g);
+  const letterMatches = sample.match(/[A-Za-z֐-׿]/g);
+  if (!hebrewMatches || !letterMatches) return undefined;
+  return hebrewMatches.length / letterMatches.length > 0.5 ? "rtl" : undefined;
+}
+
 export async function writePage(
   virtualPath: string,
   content: string,
@@ -203,9 +217,17 @@ export async function writePage(
     filePath = indexPath;
   }
 
+  // Auto-detect RTL when the writer didn't set `dir` explicitly and the
+  // content reads as Hebrew. Saves Hebrew users from manually toggling the
+  // editor RTL button on every agent-generated note.
+  const effectiveFrontmatter: Partial<FrontMatter> =
+    frontmatter.dir === undefined
+      ? { ...frontmatter, dir: inferDirFromText(content) }
+      : frontmatter;
+
   // Strip undefined values — js-yaml cannot serialize them
   const fm = Object.fromEntries(
-    Object.entries({ ...frontmatter, modified: new Date().toISOString() })
+    Object.entries({ ...effectiveFrontmatter, modified: new Date().toISOString() })
       .filter(([, v]) => v !== undefined)
   );
   const output = matter.stringify(content, fm);
@@ -246,6 +268,42 @@ export async function deletePage(virtualPath: string): Promise<void> {
   }
 }
 
+// Hidden dirs scaffolded next to every cabinet (cabinet-scaffold.ts:95-97).
+// A "hollow orphan" is a destination that contains only these dirs and they
+// in turn hold zero files — the daemon's leftovers from a prior cabinet move,
+// not real user content. An empty user-created folder with the same slug as
+// the moving item must NOT match (no scaffolding present).
+const CABINET_SCAFFOLD_NAMES = new Set([".agents", ".jobs", ".cabinet-state"]);
+
+async function isHollowOrphanDir(dir: string): Promise<boolean> {
+  let topEntries;
+  try {
+    topEntries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  if (topEntries.length === 0) return false;
+  for (const e of topEntries) {
+    if (!e.isDirectory()) return false;
+    if (!CABINET_SCAFFOLD_NAMES.has(e.name)) return false;
+  }
+  const stack = topEntries.map((e) => path.join(dir, e.name));
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    let entries;
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    for (const e of entries) {
+      if (e.isDirectory()) stack.push(path.join(current, e.name));
+      else return false;
+    }
+  }
+  return true;
+}
+
 export async function movePage(
   fromPath: string,
   toParentPath: string,
@@ -265,6 +323,20 @@ export async function movePage(
   }
 
   if (!isReorder) {
+    if (await fileExists(toResolved)) {
+      // Destination may be empty .agents/ scaffolding the daemon recreated at
+      // the old path after a prior cabinet move — sweep it so rename succeeds.
+      if (await isHollowOrphanDir(toResolved)) {
+        const fsp = await import("fs/promises");
+        await fsp.rm(toResolved, { recursive: true, force: true });
+      } else {
+        throw new Error(
+          `An item named "${name}" already exists in ${
+            toParentPath ? `"${toParentPath}"` : "the root"
+          }. Rename or remove it first.`
+        );
+      }
+    }
     await ensureDirectory(toDir);
     await moveResolvedEntry(fromEntry.fsPath, toResolved);
     await removeSidecarEntry(fromParentVirtual, fromEntry.virtualName).catch(() => {});

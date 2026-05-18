@@ -170,7 +170,7 @@ export function AgentPicker({
                         {agent.name}
                       </p>
                       {isMandatory && (
-                        <span className="ml-auto text-[9px] font-medium uppercase tracking-wide shrink-0 text-muted-foreground">
+                        <span className="ms-auto text-[9px] font-medium uppercase tracking-wide shrink-0 text-muted-foreground">
                           Required
                         </span>
                       )}

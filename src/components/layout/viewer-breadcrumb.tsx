@@ -6,6 +6,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { findNodeByPath } from "@/lib/cabinets/tree";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 function navigateTo(segmentPath: string) {
   useTreeStore.getState().focusPath(segmentPath);
@@ -24,6 +25,7 @@ export function ViewerBreadcrumb({
   path: string;
   className?: string;
 }) {
+  const { t } = useLocale();
   const segments = path.split("/").filter(Boolean);
   if (segments.length === 0) return null;
 
@@ -44,7 +46,7 @@ export function ViewerBreadcrumb({
         type="button"
         onClick={goHome}
         className="inline-flex shrink-0 items-center rounded px-1 py-0.5 hover:bg-muted/60 hover:text-foreground"
-        title="Home"
+        title={t("tinyExtras:home")}
       >
         <Home className="h-3 w-3" />
       </button>
@@ -58,7 +60,7 @@ export function ViewerBreadcrumb({
             <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
             {isLast ? (
               <span
-                className="truncate text-[15px] font-semibold text-foreground"
+                className="truncate text-[14px] font-semibold tracking-tight text-foreground"
                 title={leafTitle}
               >
                 {leafTitle}

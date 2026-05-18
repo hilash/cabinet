@@ -29,17 +29,24 @@ export function Markdown({
 
   if (html === null) {
     return (
-      <div className={cn("whitespace-pre-wrap", className)}>{content}</div>
+      <div
+        dir="auto"
+        className={cn("rtl-aware whitespace-pre-wrap", className)}
+      >
+        {content}
+      </div>
     );
   }
 
   return (
     <div
+      dir="auto"
       className={cn(
+        "rtl-aware",
         "prose prose-sm max-w-none dark:prose-invert",
         "prose-p:my-2 prose-p:leading-[1.65]",
-        "prose-pre:my-3 prose-pre:rounded-lg prose-pre:bg-muted/60 prose-pre:text-[12.5px]",
-        "prose-code:text-[0.9em] prose-code:bg-muted/60 prose-code:rounded prose-code:px-1 prose-code:py-px prose-code:font-mono prose-code:before:content-none prose-code:after:content-none",
+        "prose-pre:my-3 prose-pre:rounded-lg prose-pre:bg-muted/60 prose-pre:text-[12.5px] prose-pre:text-foreground",
+        "prose-code:text-[0.9em] prose-code:bg-muted/60 prose-code:rounded prose-code:px-1 prose-code:py-px prose-code:font-mono prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none",
         "prose-pre:prose-code:bg-transparent prose-pre:prose-code:p-0",
         "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
         "prose-headings:font-semibold prose-headings:tracking-tight",

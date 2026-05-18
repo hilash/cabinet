@@ -151,7 +151,20 @@ export function useBoardData({ cabinetPath, visibilityMode = "own" }: Options): 
     };
   }, [refresh, refreshOverview, refreshConversations]);
 
-  const tasks = useMemo(() => conversations.map(conversationMetaToTaskMeta), [conversations]);
+  // Safety net: a duplicate conversation id becomes a duplicate React key
+  // in the kanban, which crashes the whole board. The API dedupes at the
+  // source; this guarantees the board still renders if anything slips
+  // through (keep first — the list is already sorted).
+  const tasks = useMemo(() => {
+    const seen = new Set<string>();
+    const out: TaskMeta[] = [];
+    for (const conversation of conversations) {
+      if (seen.has(conversation.id)) continue;
+      seen.add(conversation.id);
+      out.push(conversationMetaToTaskMeta(conversation));
+    }
+    return out;
+  }, [conversations]);
 
   // Bucket `now` to the minute so byLane memo is stable between ticks.
   const nowBucket = Math.floor(now / NOW_TICK_MS);

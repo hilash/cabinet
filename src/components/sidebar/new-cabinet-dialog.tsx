@@ -9,6 +9,7 @@ import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { AgentPicker } from "@/components/agents/agent-picker";
 import { useAgentPicker } from "@/hooks/use-agent-picker";
+import { useLocale } from "@/i18n/use-locale";
 
 interface NewCabinetDialogProps {
   /** When provided, the dialog is controlled externally (context menu use case). */
@@ -26,6 +27,7 @@ function NewCabinetOverlay({
   parentPath = "",
   defaultName = "",
 }: NewCabinetDialogProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { t, locale } = useLocale();
   const [name, setName] = useState(defaultName);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,12 +69,13 @@ function NewCabinetOverlay({
           name: name.trim(),
           parentPath,
           selectedAgents: picker.selectedSlugs,
+          locale,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Failed to create cabinet");
+        setError(data.error || t("dialogs:newCabinet.createFailed"));
         setCreating(false);
         return;
       }
@@ -86,7 +89,7 @@ function NewCabinetOverlay({
       });
       onOpenChange(false);
     } catch {
-      setError("Failed to create cabinet");
+      setError(t("dialogs:newCabinet.createFailed"));
       setCreating(false);
     }
   };
@@ -104,9 +107,9 @@ function NewCabinetOverlay({
         {/* Header */}
         <div className="flex items-start justify-between px-8 pt-8 pb-4">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Create New Cabinet</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t("dialogs:newCabinet.title")}</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              A cabinet is a workspace with its own agents, jobs, and knowledge.
+              {t("dialogs:newCabinet.subtitle")}
             </p>
           </div>
           <div className="flex items-center gap-2 ml-4 shrink-0">
@@ -120,7 +123,7 @@ function NewCabinetOverlay({
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               <LayoutTemplate className="h-3.5 w-3.5" />
-              Import from Registry
+              {t("dialogs:newCabinet.importFromRegistry")}
             </button>
             <button
               onClick={() => !creating && onOpenChange(false)}
@@ -135,9 +138,9 @@ function NewCabinetOverlay({
         <form onSubmit={handleCreate} className="px-8 pb-8 space-y-6">
           {/* Cabinet name */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Cabinet name</label>
+            <label className="text-sm font-medium text-foreground">{t("dialogs:newCabinet.nameLabel")}</label>
             <Input
-              placeholder="e.g. My Startup, Marketing Team, Research Lab..."
+              placeholder={t("dialogs:newCabinet.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -149,9 +152,9 @@ function NewCabinetOverlay({
           {/* Agent picker */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-foreground">Select agents</label>
+              <label className="text-sm font-medium text-foreground">{t("dialogs:newCabinet.selectAgents")}</label>
               <span className="text-xs text-muted-foreground">
-                {picker.agents.filter((a) => a.checked).length} selected
+                {t("dialogs:newCabinet.selectedCount", { count: picker.agents.filter((a) => a.checked).length })}
               </span>
             </div>
             <AgentPicker
@@ -175,10 +178,10 @@ function NewCabinetOverlay({
               onClick={() => onOpenChange(false)}
               disabled={creating}
             >
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button type="submit" disabled={!name.trim() || creating}>
-              {creating ? "Creating..." : "Create Cabinet"}
+              {creating ? t("dialogs:newCabinet.creating") : t("dialogs:newCabinet.createCabinet")}
             </Button>
           </div>
         </form>
@@ -194,6 +197,7 @@ export function NewCabinetDialog({
   parentPath = "",
   defaultName = "",
 }: NewCabinetDialogProps) {
+  const { t } = useLocale();
   const controlled = controlledOpen !== undefined;
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlled ? controlledOpen! : internalOpen;
@@ -205,11 +209,11 @@ export function NewCabinetDialog({
       <>
         <button
           onClick={() => setInternalOpen(true)}
-          title="New Cabinet"
+          title={t("dialogs:newCabinet.trigger")}
           className="flex min-w-0 items-center gap-1.5 w-full text-xs px-2.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
         >
           <Archive className="h-4 w-4 shrink-0" />
-          <span className="min-w-0 truncate">New Cabinet</span>
+          <span className="min-w-0 truncate">{t("dialogs:newCabinet.trigger")}</span>
         </button>
         {open && (
           <NewCabinetOverlay

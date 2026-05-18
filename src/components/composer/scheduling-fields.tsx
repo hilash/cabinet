@@ -3,6 +3,7 @@
 import { ExternalLink, HeartPulse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Shared form controls used by both the unified `StartWorkDialog` (create path)
@@ -43,6 +44,7 @@ export function RoutineFields({
   /** Show the id field and timeout (hidden on create by default). */
   showAdvanced?: boolean;
 }) {
+  const { t } = useLocale();
   return (
     <div className="grid content-start gap-3 sm:grid-cols-2">
       <label className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
@@ -61,12 +63,12 @@ export function RoutineFields({
             onChange(next);
           }}
           className="w-full rounded-lg bg-muted/60 px-3 py-2.5 text-[14px] font-normal normal-case tracking-normal text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-          placeholder="Weekly strategy digest"
+          placeholder={t("schedulingFields:jobNamePlaceholder")}
         />
       </label>
 
       <div className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-        <span>Schedule</span>
+        <span>{t("schedulingFields:schedule")}</span>
         <SchedulePicker
           value={draft.schedule || "0 9 * * 1-5"}
           onChange={(cron) => onChange({ ...draft, schedule: cron })}
@@ -76,7 +78,7 @@ export function RoutineFields({
       {showAdvanced ? (
         <>
           <label className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-            <span>Job id</span>
+            <span>{t("schedulingFields:jobId")}</span>
             <input
               value={draft.id}
               disabled={isEdit}
@@ -111,7 +113,7 @@ export function RoutineFields({
           onChange={(event) => onChange({ ...draft, enabled: event.target.checked })}
           className="size-4"
         />
-        <span>Enabled — run on this schedule</span>
+        <span>{t("schedulingFields:enabled")}</span>
       </label>
     </div>
   );
@@ -127,6 +129,7 @@ export function HeartbeatFields({
   /** When present, shows an "Edit agent instructions" affordance. */
   onEditPersona?: () => void;
 }) {
+  const { t } = useLocale();
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-pink-500/30 bg-pink-500/5 px-3.5 py-3 text-[12px] leading-5 text-muted-foreground">
@@ -158,7 +161,7 @@ export function HeartbeatFields({
           onChange={(event) => onChange({ ...draft, active: event.target.checked })}
           className="size-4"
         />
-        <span>Active — wake the agent on this schedule</span>
+        <span>{t("composerExtras:active")}</span>
       </label>
 
       {onEditPersona ? (

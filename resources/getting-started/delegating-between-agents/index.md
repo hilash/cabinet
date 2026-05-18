@@ -28,9 +28,9 @@ Under the hood, agents wrap proposals in a fenced `cabinet` block at the end of 
 **Inline — one action per line:**
 
 ```cabinet
-LAUNCH_TASK: editor | Draft hero copy | Outline the hero section for the spring launch
-SCHEDULE_TASK: researcher | 2026-04-23T09:00:00Z | Competitor scan | Pull pricing from the three closest competitors
-SCHEDULE_JOB: growth | Weekly digest | 0 9 * * MON | Summarize last week's growth metrics
+LAUNCH_TASK: <agent-slug> | <title> | <one-line prompt>
+SCHEDULE_TASK: <agent-slug> | <ISO datetime> | <title> | <prompt>
+SCHEDULE_JOB: <agent-slug> | <name> | <cron> | <prompt>
 ```
 
 **JSON — multi-line prompts or large fan-out (over ~5 actions):**
@@ -38,8 +38,8 @@ SCHEDULE_JOB: growth | Weekly digest | 0 9 * * MON | Summarize last week's growt
 ````markdown
 ```cabinet-actions
 [
-  { "type": "LAUNCH_TASK", "agent": "editor", "title": "Draft hero copy", "prompt": "Outline the hero section...", "effort": "high" },
-  { "type": "LAUNCH_TASK", "agent": "researcher", "title": "Benchmark", "prompt": "Pull pricing...", "effort": "low" }
+  { "type": "LAUNCH_TASK", "agent": "<agent-slug>", "title": "<title>", "prompt": "<prompt>", "effort": "high" },
+  { "type": "LAUNCH_TASK", "agent": "<agent-slug>", "title": "<title>", "prompt": "<prompt>", "effort": "low" }
 ]
 ```
 ````
@@ -90,14 +90,14 @@ Agents can pin runtime directly inside their proposal:
 **Inline:** append `| model=<m>` and/or `| effort=<e>` as trailing segments. Unknown key=value segments are treated as prompt text, so it's safe to leave out either.
 
 ```cabinet
-LAUNCH_TASK: editor | Draft launch copy | Outline the hero section | effort=high
-LAUNCH_TASK: researcher | Benchmark | Pull pricing... | model=claude-sonnet | effort=low
+LAUNCH_TASK: <agent-slug> | <title> | <one-line prompt> | effort=high
+LAUNCH_TASK: <agent-slug> | <title> | <one-line prompt> | model=<model> | effort=low
 ```
 
 **JSON:** add `model` and/or `effort` keys.
 
 ```json
-{ "type": "LAUNCH_TASK", "agent": "editor", "title": "Draft", "prompt": "...", "effort": "high" }
+{ "type": "LAUNCH_TASK", "agent": "<agent-slug>", "title": "<title>", "prompt": "<prompt>", "effort": "high" }
 ```
 
 The CEO's dispatch prompt already reminds every dispatch-enabled agent about these fields, so you can just say "use high effort for the editor" in your ask and the agent will encode it.

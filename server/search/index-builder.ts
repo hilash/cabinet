@@ -136,8 +136,28 @@ function toVirtualPath(fsPath: string): string {
 
 export async function walkDataDir(): Promise<Array<{ fsPath: string; virtualPath: string }>> {
   const out: Array<{ fsPath: string; virtualPath: string }> = [];
+  // Resolved real paths already walked — guards against symlink cycles.
+  const visited = new Set<string>();
+
+  async function resolvesToDir(p: string): Promise<boolean> {
+    try {
+      // fs.stat follows symlinks; Dirent.isDirectory() does not.
+      return (await fs.stat(p)).isDirectory();
+    } catch {
+      return false;
+    }
+  }
 
   async function walk(dir: string): Promise<void> {
+    let real: string;
+    try {
+      real = await fs.realpath(dir);
+    } catch {
+      return;
+    }
+    if (visited.has(real)) return;
+    visited.add(real);
+
     let entries: import("fs").Dirent[];
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
@@ -164,7 +184,13 @@ export async function walkDataDir(): Promise<Array<{ fsPath: string; virtualPath
       if (isHiddenEntry(entry.name)) continue;
       if (entry.name === "CLAUDE.md") continue;
       const childPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
+      // Symlinked cabinet roots (e.g. data/cabinet-data -> ~/dev/cabinet-data)
+      // surface in the sidebar tree; index them too. Dirent.isDirectory() is
+      // false for a symlink, so resolve the target type explicitly.
+      const isDirectory =
+        entry.isDirectory() ||
+        (entry.isSymbolicLink() && (await resolvesToDir(childPath)));
+      if (isDirectory) {
         await walk(childPath);
       } else if (entry.name.endsWith(".md") && entry.name !== "index.md") {
         out.push({ fsPath: childPath, virtualPath: toVirtualPath(childPath) });

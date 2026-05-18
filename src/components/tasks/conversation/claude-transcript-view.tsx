@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 interface ClaudeTranscriptTurn {
   role: "user" | "assistant";
@@ -68,6 +69,7 @@ export function ClaudeTranscriptView({
   /** Changes trigger a refetch (e.g. status flip from running → done). */
   statusKey?: string;
 }) {
+  const { t } = useLocale();
   const [data, setData] = useState<ClaudeTranscriptResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +130,7 @@ export function ClaudeTranscriptView({
     return (
       <div className="mx-auto mt-10 max-w-md rounded-lg border border-border bg-muted/20 px-4 py-5 text-center text-[12.5px] text-muted-foreground">
         <ScrollText className="mx-auto mb-2 size-5" />
-        <p className="font-medium text-foreground">No transcript found</p>
+        <p className="font-medium text-foreground">{t("tinyExtras:noTranscript")}</p>
         <p className="mt-1">
           {data?.note ||
             "Claude Code hasn't written a JSONL for this session yet."}

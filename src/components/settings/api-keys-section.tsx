@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { showError } from "@/lib/ui/toast";
 import { confirmDialog } from "@/lib/ui/confirm";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/i18n/use-locale";
 
 /**
  * Settings → Integrations → API Keys.
@@ -76,6 +77,7 @@ type FormState =
   | { mode: "editing"; key: string; value: string };
 
 export function ApiKeysSection(): React.ReactElement {
+  const { t } = useLocale();
   const [entries, setEntries] = useState<SnapshotEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -215,7 +217,7 @@ export function ApiKeysSection(): React.ReactElement {
 
           {entries.length === 0 && form.mode !== "adding" && (
             <div className="text-xs text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
-              No API keys yet. Click <strong>Add key</strong> to set one.
+              No API keys yet. Click <strong>{t("apiKeys:addKey")}</strong> to set one.
             </div>
           )}
 
@@ -256,6 +258,7 @@ function KeyRow({
   onDelete: () => void;
   disabled: boolean;
 }): React.ReactElement {
+  const { t } = useLocale();
   return (
     <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-3 py-2">
       <code className="text-[12.5px] font-medium flex-1 truncate">{entry.key}</code>
@@ -272,7 +275,7 @@ function KeyRow({
         onClick={onEdit}
         disabled={disabled}
         className="h-7 w-7 p-0"
-        title="Edit"
+        title={t("apiKeys:edit")}
       >
         <Pencil className="h-3 w-3" />
       </Button>
@@ -282,7 +285,7 @@ function KeyRow({
         onClick={onDelete}
         disabled={disabled}
         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-        title="Remove"
+        title={t("apiKeys:remove")}
       >
         <Trash2 className="h-3 w-3" />
       </Button>
@@ -305,6 +308,7 @@ function AddKeyForm({
   onCancel: () => void;
   existingKeys: Set<string>;
 }): React.ReactElement {
+  const { t } = useLocale();
   const isCustom = state.presetId === CUSTOM_PRESET_ID;
   const preset = useMemo(
     () => PRESETS.find((p) => p.id === state.presetId) ?? null,
@@ -325,11 +329,11 @@ function AddKeyForm({
   return (
     <div className="bg-card border border-border rounded-lg p-3 space-y-3">
       <div className="flex items-baseline justify-between">
-        <span className="text-[12px] font-semibold">New API key</span>
+        <span className="text-[12px] font-semibold">{t("apiKeys:newApiKey")}</span>
         <button
           onClick={onCancel}
           className="text-muted-foreground hover:text-foreground p-1 -m-1"
-          title="Cancel"
+          title={t("apiKeysSection:cancel")}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -403,7 +407,7 @@ function AddKeyForm({
           type="password"
           value={state.value}
           onChange={(e) => setState({ ...state, value: e.target.value })}
-          placeholder="paste here"
+          placeholder={t("apiKeysSection:pasteHere")}
           className="h-8 text-[12.5px] font-mono"
           autoComplete="off"
           spellCheck={false}
@@ -447,6 +451,7 @@ function EditKeyForm({
   onSubmit: (value: string) => void;
   onCancel: () => void;
 }): React.ReactElement {
+  const { t } = useLocale();
   const canSubmit = state.value.trim().length > 0;
   return (
     <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
@@ -455,7 +460,7 @@ function EditKeyForm({
         type="password"
         value={state.value}
         onChange={(e) => setState({ ...state, value: e.target.value })}
-        placeholder="paste new value"
+        placeholder={t("apiKeysSection:pasteNewValue")}
         className="h-7 text-[12.5px] font-mono flex-1"
         autoFocus
         autoComplete="off"
