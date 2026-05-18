@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import { NextResponse } from "next/server";
 import { providerRegistry } from "@/lib/agents/provider-registry";
-import { ADAPTER_RUNTIME_PATH } from "@/lib/agents/adapters/utils";
+import { getAdapterRuntimePath } from "@/lib/agents/adapters/utils";
 import { emit as emitTelemetry } from "@/lib/telemetry";
 
 type VerifyStatus =
@@ -176,13 +176,21 @@ function runShellCommand(command: string): Promise<{
   spawnError: string | null;
 }> {
   return new Promise((resolve) => {
-    const child = spawn("/bin/sh", ["-c", command], {
-      env: {
-        ...process.env,
-        PATH: ADAPTER_RUNTIME_PATH,
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const env = {
+      ...process.env,
+      PATH: getAdapterRuntimePath(),
+    };
+    const child =
+      process.platform === "win32"
+        ? spawn(command, {
+            env,
+            shell: true,
+            stdio: ["ignore", "pipe", "pipe"],
+          })
+        : spawn("/bin/sh", ["-c", command], {
+            env,
+            stdio: ["ignore", "pipe", "pipe"],
+          });
 
     let stdout = "";
     let stderr = "";

@@ -150,6 +150,7 @@ module.exports = {
     asar: {
       unpackDir: ".next/standalone",
     },
+    derefSymlinks: true,
     prune: true,
     ignore: PACKAGER_IGNORE,
     afterComplete: [codesignNativeBinaries, pruneMacLocales],
@@ -171,6 +172,7 @@ module.exports = {
   },
   makers: [
     new MakerZIP({}, ["darwin"]),
+    new MakerZIP({}, ["win32"]),
     new MakerDMG({
       format: "ULFO",
       icon: "./electron/assets/cabinet-icon.icns",

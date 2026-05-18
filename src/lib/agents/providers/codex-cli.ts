@@ -1,5 +1,6 @@
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
 import {
+  buildCommandCandidates,
   checkCliProviderAvailable,
   execCli,
   resolveCliCommand,
@@ -155,12 +156,7 @@ export const codexCliProvider: AgentProvider = {
     },
   ],
   command: "codex",
-  commandCandidates: [
-    `${process.env.HOME || ""}/.local/bin/codex`,
-    "/usr/local/bin/codex",
-    "/opt/homebrew/bin/codex",
-    "codex",
-  ],
+  commandCandidates: buildCommandCandidates("codex"),
 
   buildArgs(prompt: string, _workdir: string): string[] {
     return [

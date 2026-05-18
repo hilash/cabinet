@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { buildTaskHash, buildTasksHash } from "@/lib/navigation/task-route";
+import { normalizeVirtualPath } from "@/lib/virtual-paths";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -77,16 +78,22 @@ function isAgentsSubTab(value: string | undefined): value is AgentsSubTab {
   return !!value && (AGENTS_SUB_TABS as readonly string[]).includes(value);
 }
 
+function normalizeRoutePath(value: string): string {
+  if (value === ROOT_CABINET_PATH) return ROOT_CABINET_PATH;
+  return normalizeVirtualPath(value);
+}
+
 function buildHash(section: SectionState, pagePath: string | null): string {
-  const cabinetPath = section.cabinetPath || ROOT_CABINET_PATH;
+  const cabinetPath = normalizeRoutePath(section.cabinetPath || ROOT_CABINET_PATH);
+  const normalizedPagePath = pagePath ? normalizeRoutePath(pagePath) : null;
   const isRoot = cabinetPath === ROOT_CABINET_PATH;
 
-  if (section.type === "page" && pagePath) {
+  if (section.type === "page" && normalizedPagePath) {
     if (isRoot) {
       // Clean short form: #/p/data/audit-fix-progress
-      return `#/p/${encodePathSegment(pagePath)}`;
+      return `#/p/${encodePathSegment(normalizedPagePath)}`;
     }
-    return `#/cabinet/${encodePathSegment(cabinetPath)}/data/${encodePathSegment(pagePath)}`;
+    return `#/cabinet/${encodePathSegment(cabinetPath)}/data/${encodePathSegment(normalizedPagePath)}`;
   }
   if (section.type === "cabinet") {
     if (isRoot) return "#/home";
@@ -135,7 +142,7 @@ function parseHash(hash: string): RouteState {
   if (parts[0] === "p") {
     return {
       section: { type: "page", cabinetPath: ROOT_CABINET_PATH },
-      pagePath: decodePathSegment(parts.slice(1).join("/")),
+      pagePath: normalizeRoutePath(decodePathSegment(parts.slice(1).join("/"))),
     };
   }
 
@@ -162,12 +169,12 @@ function parseHash(hash: string): RouteState {
     // Legacy form — still accepted so old bookmarks keep working.
     return {
       section: { type: "page", cabinetPath: ROOT_CABINET_PATH },
-      pagePath: decodePathSegment(parts.slice(1).join("/")),
+      pagePath: normalizeRoutePath(decodePathSegment(parts.slice(1).join("/"))),
     };
   }
 
   if (parts[0] === "cabinet") {
-    const cabinetPath = decodePathSegment(parts[1]);
+    const cabinetPath = normalizeRoutePath(decodePathSegment(parts[1]));
     const leaf = parts[2];
 
     if (!leaf) {
@@ -223,7 +230,7 @@ function parseHash(hash: string): RouteState {
     }
 
     if (leaf === "data" && parts[3]) {
-      const pagePath = decodePathSegment(parts.slice(3).join("/"));
+      const pagePath = normalizeRoutePath(decodePathSegment(parts.slice(3).join("/")));
       return {
         section: { type: "page", cabinetPath },
         pagePath,
@@ -234,7 +241,7 @@ function parseHash(hash: string): RouteState {
     // (no /data/ segment) used to fall through to the home route, which
     // broke deep-links. Interpret the remaining segments as a page path
     // under the cabinet so reload keeps the user on the page they were on.
-    const pagePath = decodePathSegment(parts.slice(2).join("/"));
+    const pagePath = normalizeRoutePath(decodePathSegment(parts.slice(2).join("/")));
     return {
       section: { type: "page", cabinetPath },
       pagePath,

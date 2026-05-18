@@ -132,6 +132,14 @@ let mainWindow = null;
 let backendChildren = [];
 const DEV_APP_DISCOVERY_TIMEOUT_MS = 45_000;
 
+function getElectronInstallKind() {
+  return process.platform === "win32" ? "electron-windows" : "electron-macos";
+}
+
+function getBundledNodeBinaryName() {
+  return process.platform === "win32" ? "node.exe" : "node";
+}
+
 function writeUpdateStatus(status) {
   fs.mkdirSync(path.dirname(updateStatusPath), { recursive: true });
   fs.writeFileSync(updateStatusPath, JSON.stringify(status, null, 2), "utf8");
@@ -231,7 +239,7 @@ function spawnNodeBackend(args, env) {
     ".next",
     "standalone",
     "bin",
-    "node"
+    getBundledNodeBinaryName()
   );
 
   if (fs.existsSync(bundledNodePath)) {
@@ -256,6 +264,10 @@ function packagedStandalonePath(...parts) {
  * can execute, and return the external node_modules path for NODE_PATH.
  */
 function extractNativeModules() {
+  if (process.platform !== "darwin") {
+    return packagedStandalonePath(".native");
+  }
+
   const externalModulesDir = path.join(app.getPath("userData"), "native-modules");
   const externalNodePty = path.join(externalModulesDir, "node-pty");
   const bundledNodePty = packagedStandalonePath(".native", "node-pty");
@@ -405,7 +417,7 @@ async function startEmbeddedCabinet() {
     NODE_ENV: "production",
     PORT: String(appPort),
     CABINET_RUNTIME: "electron",
-    CABINET_INSTALL_KIND: "electron-macos",
+    CABINET_INSTALL_KIND: getElectronInstallKind(),
     CABINET_DATA_DIR: managedDataDir,
     CABINET_USER_DATA: userDataDir,
     CABINET_APP_PORT: String(appPort),
@@ -446,7 +458,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "failed",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Electron update setup failed.",
       error: error instanceof Error ? error.message : String(error),
     });
@@ -456,7 +468,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "checking",
       startedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Checking for a newer Cabinet desktop release...",
     });
   });
@@ -465,7 +477,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "available",
       startedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "A new Cabinet desktop release is downloading in the background.",
     });
   });
@@ -474,7 +486,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "idle",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Cabinet desktop is up to date.",
     });
   });
@@ -483,7 +495,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "failed",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Cabinet desktop update failed.",
       error: error instanceof Error ? error.message : String(error),
     });
@@ -493,7 +505,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "restart-required",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Restart Cabinet to finish applying the desktop update.",
     });
 
