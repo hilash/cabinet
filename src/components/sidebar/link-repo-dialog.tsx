@@ -157,10 +157,7 @@ export function LinkRepoDialog({ open, onOpenChange, parentPath }: LinkRepoDialo
           }}
           className="flex flex-col gap-3"
         >
-          <p className="text-xs text-muted-foreground">
-            Point Cabinet to any folder on your machine. Its contents will appear
-            in the Knowledge Base and be available to AI agents as context.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("linkRepo:intro")}</p>
 
           {parentHasContent && (
             <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
@@ -270,7 +267,7 @@ export function LinkRepoDialog({ open, onOpenChange, parentPath }: LinkRepoDialo
               Cancel
             </Button>
             <Button type="submit" disabled={!localPath.trim() || creating}>
-              {creating ? "Loading..." : "Load"}
+              {creating ? "Connecting…" : "Connect"}
             </Button>
           </div>
         </form>

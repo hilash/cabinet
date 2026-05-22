@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, memo } from "react";
 import {
   Archive,
   ChevronRight,
@@ -33,6 +33,10 @@ import {
   ArrowRightLeft,
   Loader2,
   Upload,
+  FilePlus2,
+  FolderInput,
+  Settings2,
+  Sheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TreeNode as TreeNodeType } from "@/types";
@@ -61,6 +65,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LinkRepoDialog } from "./link-repo-dialog";
 import { NewCabinetDialog } from "./new-cabinet-dialog";
+import { NewFileDialog } from "./new-file-dialog";
+import { EditSymlinkDialog } from "./edit-symlink-dialog";
+import { FileSettingsDialog } from "./file-settings-dialog";
 import { useFileImport } from "./use-file-import";
 import { getDataDir } from "@/lib/data-dir-cache";
 import { isMacPlatform, isEditableTarget, formatShortcut } from "@/lib/keys";
@@ -85,7 +92,30 @@ const ANIMATION_MAX_DELAY_MS = 360;
 const ANIMATION_CHILD_BASE_BUMP_MS = 30;
 const ANIMATION_CHILD_SIBLING_MS = 14;
 
-export function TreeNode({
+// Google embed pages are markdown pages with `google:` frontmatter, so they'd
+// otherwise show the generic page icon. Give them a kind-matching icon (doc /
+// sheet / slides, same family as the local Office icons) with a small "g"
+// badge so they read as Google at a glance.
+function GoogleNodeIcon({ kind }: { kind?: string }) {
+  const Icon =
+    kind === "sheets" ? Sheet : kind === "slides" ? Presentation : FileText;
+  const color =
+    kind === "sheets"
+      ? "text-green-600"
+      : kind === "slides"
+        ? "text-yellow-500"
+        : "text-blue-500";
+  return (
+    <span className="relative inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+      <Icon className={cn("h-3.5 w-3.5", color)} />
+      <span className="absolute -bottom-1.5 -end-1.5 rounded-[3px] bg-background px-[1.5px] text-[8px] font-bold leading-[1.2] text-foreground/70">
+        g
+      </span>
+    </span>
+  );
+}
+
+function TreeNodeImpl({
   node,
   depth,
   contextCabinetPath = null,
@@ -94,23 +124,28 @@ export function TreeNode({
   animationDelayMs,
 }: TreeNodeProps) {
   const { t } = useLocale();
-  const {
-    selectedPath,
-    expandedPaths,
-    dragOverPath,
-    dragOverZone,
-    movingPaths,
-    focusTick,
-    toggleExpand,
-    expandPath,
-    selectPage,
-    deletePage,
-    movePage,
-    setDragOver,
-    createPage,
-    renamePage,
-  } = useTreeStore();
-  const isMoving = movingPaths.has(node.path);
+  const hasChildren = !!(node.children && node.children.length > 0);
+  // Narrow store subscriptions: each row re-renders only when *its own*
+  // selected / drag-over / moving / expanded state changes — not on every
+  // drag-over tick across the whole tree (the source of the reported jank).
+  const isSelected = useTreeStore((s) => s.selectedPath === node.path);
+  const isDragOver = useTreeStore((s) => s.dragOverPath === node.path);
+  const dragOverZone = useTreeStore((s) =>
+    s.dragOverPath === node.path ? s.dragOverZone : null
+  );
+  const isMoving = useTreeStore((s) => s.movingPaths.has(node.path));
+  const isExpanded = useTreeStore(
+    (s) => hasChildren && s.expandedPaths.has(node.path)
+  );
+  const focusTick = useTreeStore((s) => s.focusTick);
+  const toggleExpand = useTreeStore((s) => s.toggleExpand);
+  const expandPath = useTreeStore((s) => s.expandPath);
+  const selectPage = useTreeStore((s) => s.selectPage);
+  const deletePage = useTreeStore((s) => s.deletePage);
+  const movePage = useTreeStore((s) => s.movePage);
+  const setDragOver = useTreeStore((s) => s.setDragOver);
+  const createPage = useTreeStore((s) => s.createPage);
+  const renamePage = useTreeStore((s) => s.renamePage);
   const rowRef = useRef<HTMLButtonElement | null>(null);
   const [blink, setBlink] = useState(false);
   const dragGhostRef = useRef<HTMLDivElement | null>(null);
@@ -127,12 +162,16 @@ export function TreeNode({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [linkRepoOpen, setLinkRepoOpen] = useState(false);
   const [createCabinetOpen, setCreateCabinetOpen] = useState(false);
+  const [newFileOpen, setNewFileOpen] = useState(false);
+  const [editSymlinkOpen, setEditSymlinkOpen] = useState(false);
+  const [fileSettingsOpen, setFileSettingsOpen] = useState(false);
 
-  const isSelected = selectedPath === node.path;
-  const isDragOver = dragOverPath === node.path;
-  const hasChildren = !!(node.children && node.children.length > 0);
-  const isExpanded = hasChildren && expandedPaths.has(node.path);
   const title = node.frontmatter?.title || node.name;
+  // Typed files that carry editable settings (Google embeds, web apps/sites).
+  const hasFileSettings =
+    !!node.frontmatter?.google ||
+    node.type === "app" ||
+    node.type === "website";
 
   const isMac = useMemo(isMacPlatform, []);
   // Hints shown on the right of the context-menu rows. Move-to is handled
@@ -146,6 +185,34 @@ export function TreeNode({
     isMac ? ["cmd", "backspace"] : ["del"],
     isMac
   );
+  const copyRelShortcut = formatShortcut(
+    isMac ? ["alt", "cmd", "C"] : ["ctrl", "alt", "C"],
+    isMac
+  );
+  const copyFullShortcut = formatShortcut(
+    isMac ? ["shift", "alt", "cmd", "C"] : ["ctrl", "shift", "alt", "C"],
+    isMac
+  );
+  const finderShortcut = formatShortcut(["cmd", "enter"], isMac);
+
+  // Shared action bodies — referenced by both the context menu and the
+  // selected-row keyboard shortcuts so the two stay in lockstep.
+  const doCopyRelative = useCallback(() => {
+    void navigator.clipboard.writeText(node.path);
+  }, [node.path]);
+
+  const doCopyFull = useCallback(async () => {
+    const dir = await getDataDir();
+    void navigator.clipboard.writeText(`${dir}/${node.path}`);
+  }, [node.path]);
+
+  const doOpenInFinder = useCallback(() => {
+    void fetch("/api/system/open-data-dir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subpath: node.path }),
+    });
+  }, [node.path]);
 
   useEffect(() => {
     if (!isSelected || focusTick === 0) return;
@@ -170,13 +237,35 @@ export function TreeNode({
       renameOpen ||
       deleteOpen ||
       linkRepoOpen ||
-      createCabinetOpen;
+      createCabinetOpen ||
+      newFileOpen ||
+      editSymlinkOpen ||
+      fileSettingsOpen;
     const onKey = (e: KeyboardEvent) => {
       if (anyDialogOpen || isEditableTarget(e.target)) return;
+      // F2 → rename, or Edit Symlink for linked ("knowledge") nodes.
       if (e.key === "F2") {
         e.preventDefault();
-        setRenameTitle(title);
-        setRenameOpen(true);
+        if (node.isLinked) {
+          setEditSymlinkOpen(true);
+        } else {
+          setRenameTitle(title);
+          setRenameOpen(true);
+        }
+        return;
+      }
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      // Letter shortcuts key off e.code — macOS Option remaps e.key
+      // (Option+C → "ç"), so the physical KeyC is the reliable signal.
+      if (mod && e.altKey && e.code === "KeyC") {
+        e.preventDefault();
+        if (e.shiftKey) void doCopyFull();
+        else doCopyRelative();
+        return;
+      }
+      if (mod && !e.altKey && !e.shiftKey && e.code === "Enter") {
+        e.preventDefault();
+        doOpenInFinder();
         return;
       }
       const isDelete = isMac
@@ -194,12 +283,19 @@ export function TreeNode({
     isMoving,
     isMac,
     title,
+    node.isLinked,
     subPageOpen,
     newFolderOpen,
     renameOpen,
     deleteOpen,
     linkRepoOpen,
     createCabinetOpen,
+    newFileOpen,
+    editSymlinkOpen,
+    fileSettingsOpen,
+    doCopyFull,
+    doCopyRelative,
+    doOpenInFinder,
   ]);
 
   const handleClick = () => {
@@ -263,6 +359,13 @@ export function TreeNode({
             }
           : { type: "page" }
       );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("cabinet:open-editor-chat", {
+            detail: { pagePath: nextPath, fileName: subPageTitle.trim() },
+          })
+        );
+      }
       setSubPageTitle("");
       setSubPageOpen(false);
     } catch (error) {
@@ -311,7 +414,13 @@ export function TreeNode({
     ? node.path
     : node.path.split("/").slice(0, -1).join("/");
 
-  const { importFiles, importFilesList, importing } = useFileImport();
+  const {
+    importFiles,
+    importFilesList,
+    importing,
+    importFolder,
+    importingFolder,
+  } = useFileImport();
 
   const computeZone = useCallback(
     (e: React.DragEvent): "before" | "into" | "after" => {
@@ -375,29 +484,29 @@ export function TreeNode({
       const isFileDrag = e.dataTransfer.types.includes("Files");
       if (isFileDrag) {
         e.dataTransfer.dropEffect = "copy";
-        if (dragOverPath !== node.path || dragOverZone !== "into") {
+        if (!isDragOver || dragOverZone !== "into") {
           setDragOver(node.path, "into");
         }
         return;
       }
       e.dataTransfer.dropEffect = "move";
       const zone = computeZone(e);
-      if (dragOverPath !== node.path || dragOverZone !== zone) {
+      if (!isDragOver || dragOverZone !== zone) {
         setDragOver(node.path, zone);
       }
     },
-    [node.path, setDragOver, computeZone, dragOverPath, dragOverZone]
+    [node.path, setDragOver, computeZone, isDragOver, dragOverZone]
   );
 
   const handleDragLeave = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (dragOverPath === node.path) {
+      if (isDragOver) {
         setDragOver(null);
       }
     },
-    [node.path, dragOverPath, setDragOver]
+    [isDragOver, setDragOver]
   );
 
   const handleDrop = useCallback(
@@ -559,7 +668,9 @@ export function TreeNode({
             ) : (
               <span className="w-3 -ms-1 shrink-0" />
             )}
-            {node.type === "csv" ? (
+            {node.frontmatter?.google ? (
+              <GoogleNodeIcon kind={node.frontmatter.google.kind} />
+            ) : node.type === "csv" ? (
               <Table className="h-3.5 w-3.5 shrink-0 text-green-400" />
             ) : node.type === "pdf" ? (
               <FileType className="h-3.5 w-3.5 shrink-0 text-red-400" />
@@ -652,20 +763,20 @@ export function TreeNode({
             )}
           </button>
         </ContextMenuTrigger>
-        <ContextMenuContent>
+        <ContextMenuContent className="w-60">
           <ContextMenuGroup>
-            <ContextMenuLabel className="font-normal text-muted-foreground/50">Add to this item</ContextMenuLabel>
+            <ContextMenuLabel className="font-normal text-muted-foreground/50">{t("treeNode:sectionAdd")}</ContextMenuLabel>
             <ContextMenuItem onClick={() => setSubPageOpen(true)}>
               <FilePlus className="h-4 w-4 me-2" />
-              Add Sub Page
+              {t("treeNode:addSubPage")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => setNewFolderOpen(true)}>
               <FolderPlus className="h-4 w-4 me-2" />
-              New Folder
+              {t("treeNode:newFolder")}
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
-              <GitBranch className="h-4 w-4 me-2" />
-              Load Knowledge
+            <ContextMenuItem onClick={() => setNewFileOpen(true)}>
+              <FilePlus2 className="h-4 w-4 me-2" />
+              {t("treeNode:createFile")}
             </ContextMenuItem>
             <ContextMenuItem
               disabled={importing}
@@ -676,48 +787,74 @@ export function TreeNode({
               ) : (
                 <Upload className="h-4 w-4 me-2" />
               )}
-              Import File…
+              {t("treeNode:importFile")}
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={importingFolder}
+              onClick={() => importFolder(importTargetPath)}
+            >
+              {importingFolder ? (
+                <Loader2 className="h-4 w-4 me-2 animate-spin" />
+              ) : (
+                <FolderInput className="h-4 w-4 me-2" />
+              )}
+              {t("treeNode:importFolder")}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
+              <GitBranch className="h-4 w-4 me-2" />
+              {t("treeNode:connectKnowledge")}
+              <ContextMenuShortcut className="text-muted-foreground/40">
+                {t("treeNode:symlinkTag")}
+              </ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem onClick={() => setCreateCabinetOpen(true)}>
               <Archive className="h-4 w-4 me-2" />
-              Create Cabinet Here
+              {t("treeNode:createCabinet")}
             </ContextMenuItem>
           </ContextMenuGroup>
           <ContextMenuSeparator />
           <ContextMenuGroup>
-            <ContextMenuLabel className="font-normal text-muted-foreground/50">This item</ContextMenuLabel>
-            <ContextMenuItem onClick={() => { setRenameTitle(title); setRenameOpen(true); }}>
-              <Pencil className="h-4 w-4 me-2" />
-              Rename
-              <ContextMenuShortcut>{renameShortcut}</ContextMenuShortcut>
-            </ContextMenuItem>
+            <ContextMenuLabel className="font-normal text-muted-foreground/50">{t("treeNode:sectionThis")}</ContextMenuLabel>
+            {node.isLinked ? (
+              <ContextMenuItem onClick={() => setEditSymlinkOpen(true)}>
+                <Link2 className="h-4 w-4 me-2" />
+                {t("treeNode:editSymlink")}
+                <ContextMenuShortcut>{renameShortcut}</ContextMenuShortcut>
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem onClick={() => { setRenameTitle(title); setRenameOpen(true); }}>
+                <Pencil className="h-4 w-4 me-2" />
+                {t("treeNode:rename")}
+                <ContextMenuShortcut>{renameShortcut}</ContextMenuShortcut>
+              </ContextMenuItem>
+            )}
+            {hasFileSettings && (
+              <ContextMenuItem onClick={() => setFileSettingsOpen(true)}>
+                <Settings2 className="h-4 w-4 me-2" />
+                {t("treeNode:settings")}
+              </ContextMenuItem>
+            )}
             {onMoveToRequest && (
               <ContextMenuItem onClick={() => onMoveToRequest(node)}>
                 <ArrowRightLeft className="h-4 w-4 me-2" />
-                Move to…
+                {t("treeNode:moveTo")}
                 <ContextMenuShortcut>{moveShortcut}</ContextMenuShortcut>
               </ContextMenuItem>
             )}
-            <ContextMenuItem onClick={() => navigator.clipboard.writeText(node.path)}>
+            <ContextMenuItem onClick={doCopyRelative}>
               <Copy className="h-4 w-4 me-2" />
-              Copy Relative Path
+              {t("treeNode:copyRelativePath")}
+              <ContextMenuShortcut>{copyRelShortcut}</ContextMenuShortcut>
             </ContextMenuItem>
-            <ContextMenuItem onClick={async () => {
-              const dir = await getDataDir();
-              navigator.clipboard.writeText(`${dir}/${node.path}`);
-            }}>
+            <ContextMenuItem onClick={() => void doCopyFull()}>
               <ClipboardCopy className="h-4 w-4 me-2" />
-              Copy Full Path
+              {t("treeNode:copyFullPath")}
+              <ContextMenuShortcut>{copyFullShortcut}</ContextMenuShortcut>
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => {
-              fetch("/api/system/open-data-dir", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ subpath: node.path }),
-              });
-            }}>
+            <ContextMenuItem onClick={doOpenInFinder}>
               <FolderOpen className="h-4 w-4 me-2" />
-              Open in Finder
+              {t("treeNode:openInFinder")}
+              <ContextMenuShortcut>{finderShortcut}</ContextMenuShortcut>
             </ContextMenuItem>
           </ContextMenuGroup>
           <ContextMenuSeparator />
@@ -727,7 +864,7 @@ export function TreeNode({
             ) : (
               <Trash2 className="h-4 w-4 me-2" />
             )}
-            {node.isLinked ? "Unlink" : "Delete"}
+            {node.isLinked ? t("treeNode:unlink") : t("treeNode:delete")}
             <ContextMenuShortcut>{deleteShortcut}</ContextMenuShortcut>
           </ContextMenuItem>
         </ContextMenuContent>
@@ -850,6 +987,27 @@ export function TreeNode({
         parentPath={node.path}
       />
 
+      <NewFileDialog
+        open={newFileOpen}
+        onOpenChange={setNewFileOpen}
+        parentPath={importTargetPath}
+        contextCabinetPath={contextCabinetPath}
+      />
+
+      <EditSymlinkDialog
+        open={editSymlinkOpen}
+        onOpenChange={setEditSymlinkOpen}
+        kbPath={node.path}
+      />
+
+      {hasFileSettings && (
+        <FileSettingsDialog
+          open={fileSettingsOpen}
+          onOpenChange={setFileSettingsOpen}
+          node={node}
+        />
+      )}
+
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -899,3 +1057,7 @@ export function TreeNode({
     </>
   );
 }
+
+// Memoised so a parent re-render doesn't cascade through the whole subtree.
+// Each row re-renders on its own state via the narrow store selectors above.
+export const TreeNode = memo(TreeNodeImpl);

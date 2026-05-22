@@ -12,6 +12,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
@@ -25,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LinkRepoDialog } from "./link-repo-dialog";
+import { NewFileDialog } from "./new-file-dialog";
 import { MoveToDialog } from "./move-to-dialog";
 import { RecentTasks } from "./recent-tasks";
 import type { TreeNode as TreeNodeType } from "@/types";
@@ -36,6 +38,7 @@ import {
   SquareKanban,
   Pencil,
   FilePlus,
+  FilePlus2,
   UserPlus,
   ListPlus,
   FolderOpen,
@@ -145,6 +148,7 @@ export function TreeView() {
   const [cabinetDeleteOpen, setCabinetDeleteOpen] = useState(false);
   const [kbCreating, setKbCreating] = useState(false);
   const [linkRepoOpen, setLinkRepoOpen] = useState(false);
+  const [newFileOpen, setNewFileOpen] = useState(false);
   const [moveToOpen, setMoveToOpen] = useState(false);
   const [moveToSource, setMoveToSource] = useState<TreeNodeType | null>(null);
   const [editingAgent, setEditingAgent] = useState<{ slug: string; cabinetPath?: string } | null>(null);
@@ -795,11 +799,18 @@ export function TreeView() {
                 <ContextMenuContent>
                   <ContextMenuItem onClick={() => setKbSubPageOpen(true)}>
                     <FilePlus className="h-4 w-4 me-2" />
-                    Add Sub Page
+                    {t("treeNode:addSubPage")}
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setNewFileOpen(true)}>
+                    <FilePlus2 className="h-4 w-4 me-2" />
+                    {t("treeNode:createFile")}
                   </ContextMenuItem>
                   <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
                     <GitBranch className="h-4 w-4 me-2" />
-                    Load Knowledge
+                    {t("treeNode:connectKnowledge")}
+                    <ContextMenuShortcut className="text-muted-foreground/40">
+                      {t("treeNode:symlinkTag")}
+                    </ContextMenuShortcut>
                   </ContextMenuItem>
                   <ContextMenuItem
                     onClick={async () => {
@@ -810,7 +821,7 @@ export function TreeView() {
                     }}
                   >
                     <ClipboardCopy className="h-4 w-4 me-2" />
-                    Copy Full Path
+                    {t("treeNode:copyFullPath")}
                   </ContextMenuItem>
                   <ContextMenuItem
                     onClick={() => {
@@ -822,7 +833,7 @@ export function TreeView() {
                     }}
                   >
                     <FolderOpen className="h-4 w-4 me-2" />
-                    Open in Finder
+                    {t("treeNode:openInFinder")}
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
@@ -886,6 +897,13 @@ export function TreeView() {
     </Dialog>
 
     <LinkRepoDialog open={linkRepoOpen} onOpenChange={setLinkRepoOpen} />
+
+    <NewFileDialog
+      open={newFileOpen}
+      onOpenChange={setNewFileOpen}
+      parentPath={dataRootPath}
+      contextCabinetPath={activeCabinet?.path || null}
+    />
 
     <MoveToDialog
       open={moveToOpen}
