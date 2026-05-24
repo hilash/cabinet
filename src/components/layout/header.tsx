@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Download, FileCode, FileDown, Sparkles, Maximize } from "lucide-react";
+import { Archive, Copy, Download, FileCode, FileDown, Globe, Layout, Sparkles, Maximize } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -19,10 +19,13 @@ export function Header() {
   const { frontmatter, content, currentPath } = useEditorStore();
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
+  const openTaskPanelCompose = useAppStore((s) => s.openTaskPanelCompose);
   const closeTaskPanel = useAppStore((s) => s.closeTaskPanel);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
   const taskPanelOpen = useAppStore((s) => s.taskPanelOpen);
+  const appMode = useAppStore((s) => s.appMode);
+  const setAppMode = useAppStore((s) => s.setAppMode);
 
   const [inFullscreen, setInFullscreen] = useState(false);
   const prevStateRef = useRef<{
@@ -46,7 +49,6 @@ export function Header() {
   const handleFocus = async () => {
     try {
       if (document.fullscreenElement) {
-        // Exiting fullscreen — restore previous pane state if available
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         }
@@ -54,32 +56,29 @@ export function Header() {
           setSidebarCollapsed(prevStateRef.current.sidebarCollapsed);
           setAiPanelCollapsed(prevStateRef.current.aiPanelCollapsed);
           if (prevStateRef.current.taskPanelOpen) {
-            // reopen task panel only if it was open before
-            // openTaskPanelCompose/other APIs exist; to keep simple, set taskPanelOpen via closeTaskPanel when closing we used close; here we toggle by setting open true via swap? There's no direct setter — use openTaskPanelCompose as an opener.
-            // We won't attempt to reopen programmatically here to avoid unintended side-effects.
+            openTaskPanelCompose();
           }
           prevStateRef.current = null;
         }
         return;
       }
 
-      // Save previous pane states and collapse
       prevStateRef.current = {
         sidebarCollapsed: sidebarCollapsed,
         aiPanelCollapsed: aiPanelCollapsed,
         taskPanelOpen: taskPanelOpen,
       };
 
-      setSidebarCollapsed(true);
-      setAiPanelCollapsed(true);
-      if (taskPanelOpen) closeTaskPanel();
-
-      // Enter browser fullscreen
       if (document.documentElement.requestFullscreen) {
         await document.documentElement.requestFullscreen();
       }
-    } catch {
-      // ignore failures
+
+      setSidebarCollapsed(true);
+      setAiPanelCollapsed(true);
+      if (taskPanelOpen) closeTaskPanel();
+    } catch (error) {
+      prevStateRef.current = null;
+      console.error(error);
     }
   };
 
@@ -136,8 +135,74 @@ export function Header() {
     URL.revokeObjectURL(url);
   };
 
+  const modeButtons = (
+    <>
+      {appMode === "edit" && (
+        <>
+          <button
+            aria-label={t("editor:header.browseMode")}
+            title={t("editor:header.browseMode")}
+            onClick={() => setAppMode("browse")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Globe className="h-4 w-4" />
+          </button>
+          <button
+            aria-label={t("editor:header.canvasMode")}
+            title={t("editor:header.canvasMode")}
+            onClick={() => setAppMode("canvas")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Layout className="h-4 w-4" />
+          </button>
+        </>
+      )}
+      {appMode === "browse" && (
+        <>
+          <button
+            aria-label={t("editor:header.editMode")}
+            title={t("editor:header.editMode")}
+            onClick={() => setAppMode("edit")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Archive className="h-4 w-4" />
+          </button>
+          <button
+            aria-label={t("editor:header.canvasMode")}
+            title={t("editor:header.canvasMode")}
+            onClick={() => setAppMode("canvas")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Layout className="h-4 w-4" />
+          </button>
+        </>
+      )}
+      {appMode === "canvas" && (
+        <>
+          <button
+            aria-label={t("editor:header.editMode")}
+            title={t("editor:header.editMode")}
+            onClick={() => setAppMode("edit")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Archive className="h-4 w-4" />
+          </button>
+          <button
+            aria-label={t("editor:header.browseMode")}
+            title={t("editor:header.browseMode")}
+            onClick={() => setAppMode("browse")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Globe className="h-4 w-4" />
+          </button>
+        </>
+      )}
+    </>
+  );
+
   return (
     <ViewerToolbar path={currentPath || undefined} showBreadcrumb={!!currentPath}>
+      {modeButtons}
       {currentPath && (
         <>
           <button

@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const net = require("net");
 const { spawn } = require("child_process");
-const { app, BrowserWindow, dialog, autoUpdater, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, autoUpdater, ipcMain, WebContentsView, session } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
 
 if (require("electron-squirrel-startup")) {
@@ -135,6 +135,38 @@ let backendChildren = [];
 // spawned at `${baseAppUrl}${hash}` without re-bootstrapping the backend.
 let baseAppUrl = null;
 const DEV_APP_DISCOVERY_TIMEOUT_MS = 45_000;
+const BROWSER_VIEW_PARTITION = "persist:cabinet-browser";
+const browserViews = new Map();
+let nextBrowserViewId = 1;
+
+function getBrowserSession() {
+  return session.fromPartition(BROWSER_VIEW_PARTITION);
+}
+
+function parseBrowserExtensions() {
+  const raw = process.env.CABINET_CHROME_EXTENSIONS;
+  if (!raw || !raw.trim()) return [];
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+async function loadBrowserExtensions() {
+  const extensionPaths = parseBrowserExtensions();
+  if (extensionPaths.length === 0) return;
+  const browserSession = getBrowserSession();
+
+  for (const extensionPath of extensionPaths) {
+    try {
+      await browserSession.loadExtension(extensionPath, { allowFileAccess: true });
+      console.log(`[cabinet] loaded browser extension: ${extensionPath}`);
+    } catch (error) {
+      console.error(`[cabinet] failed to load browser extension: ${extensionPath}`);
+      console.error(error);
+    }
+  }
+}
 
 /** The primary window if it still exists and isn't destroyed, else null. */
 function liveMainWindow() {
@@ -537,6 +569,7 @@ function configureAutoUpdates() {
 }
 
 function cleanupBackends() {
+  destroyAllBrowserViews();
   for (const child of backendChildren) {
     child.kill("SIGTERM");
   }
@@ -613,6 +646,126 @@ ipcMain.handle("cabinet:get-preferred-languages", () => {
   }
 });
 
+function isMainRendererSender(event) {
+  return !!mainWindow && event.sender.id === mainWindow.webContents.id;
+}
+
+function isAbortNavigationError(error) {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error;
+  return maybeError.code === "ERR_ABORTED" || maybeError.errno === -3;
+}
+
+async function loadBrowserViewUrlSafe(webContents, nextUrl) {
+  try {
+    await webContents.loadURL(nextUrl || "about:blank");
+    return { ok: true };
+  } catch (error) {
+    if (isAbortNavigationError(error)) {
+      return { ok: true, aborted: true };
+    }
+    throw error;
+  }
+}
+
+function destroyBrowserView(viewId) {
+  const entry = browserViews.get(viewId);
+  if (!entry || !mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    mainWindow.contentView.removeChildView(entry.view);
+  } catch {}
+  try {
+    entry.view.webContents.close();
+  } catch {}
+  browserViews.delete(viewId);
+}
+
+function destroyAllBrowserViews() {
+  for (const viewId of [...browserViews.keys()]) {
+    destroyBrowserView(viewId);
+  }
+}
+
+ipcMain.handle("cabinet:create-browser-view", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const initialUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
+  const viewId = String(nextBrowserViewId++);
+  const view = new WebContentsView({
+    webPreferences: {
+      partition: BROWSER_VIEW_PARTITION,
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+    },
+  });
+  const initialBounds = { x: 0, y: 0, width: 0, height: 0 };
+  view.setBounds(initialBounds);
+  view.setVisible(false);
+  mainWindow.contentView.addChildView(view);
+  browserViews.set(viewId, { view, ownerWebContentsId: event.sender.id });
+  await loadBrowserViewUrlSafe(view.webContents, initialUrl || "about:blank");
+  return { ok: true, viewId };
+});
+
+ipcMain.handle("cabinet:load-browser-view-url", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const nextUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  return await loadBrowserViewUrlSafe(entry.view.webContents, nextUrl || "about:blank");
+});
+
+ipcMain.handle("cabinet:set-browser-view-bounds", (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const bounds = payload?.bounds;
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  const x = Number.isFinite(bounds?.x) ? Math.max(0, Math.round(bounds.x)) : 0;
+  const y = Number.isFinite(bounds?.y) ? Math.max(0, Math.round(bounds.y)) : 0;
+  const width = Number.isFinite(bounds?.width) ? Math.max(0, Math.round(bounds.width)) : 0;
+  const height = Number.isFinite(bounds?.height) ? Math.max(0, Math.round(bounds.height)) : 0;
+  if (width >= 64 && height >= 64) {
+    const nextBounds = { x, y, width, height };
+    entry.view.setBounds(nextBounds);
+    entry.view.setVisible(true);
+  }
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.contentView.addChildView(entry.view);
+    }
+  } catch {}
+  return { ok: true };
+});
+
+ipcMain.handle("cabinet:destroy-browser-view", (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  destroyBrowserView(viewId);
+  return { ok: true };
+});
+
+function setBrowserViewVisibility(viewId, visible) {
+  const entry = browserViews.get(viewId);
+  if (!entry || !mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    entry.view.setVisible(visible);
+  } catch {}
+}
+
+ipcMain.handle("cabinet:set-browser-view-visible", (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const visible = payload?.visible === true;
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  setBrowserViewVisibility(viewId, visible);
+  return { ok: true };
+});
+
 function buildBrowserWindow() {
   return new BrowserWindow({
     width: 1480,
@@ -628,6 +781,7 @@ function buildBrowserWindow() {
       sandbox: false,
     },
   });
+  mainWindow.setWindowButtonVisibility(true);
 }
 
 // In dev, the Next server may not be ready the instant a window loads. Retry by
@@ -709,8 +863,10 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(async () => {
+  await loadBrowserExtensions();
   configureAutoUpdates();
   await createWindow();
+
 
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {

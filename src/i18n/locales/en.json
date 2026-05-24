@@ -1052,7 +1052,19 @@
       "copyAsHtml": "Copy as HTML",
       "downloadMarkdown": "Download .md",
       "downloadPdf": "Download PDF",
-      "copiedForLlmToast": "Copied {{size}} of Markdown for LLM"
+      "copiedForLlmToast": "Copied {{size}} of Markdown for LLM",
+      "editMode": "Edit mode",
+      "browseMode": "Browse mode",
+      "canvasMode": "Canvas mode"
+    },
+    "browser": {
+      "noUrl": "Built-in browser ready. Click a link in a page to open it here.",
+      "openExternally": "Open externally"
+    },
+    "canvas": {
+      "title": "Canvas",
+      "empty": "No pages available in this cabinet.",
+      "openPage": "Open page"
     },
     "toolbar": {
       "heading1": "Heading 1",

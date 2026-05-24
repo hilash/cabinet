@@ -15,89 +15,168 @@ import {
 } from "../src/lib/jobs/job-manager";
 import type { JobConfig } from "../src/types/jobs";
 
-test("cabinet discovery includes the root cabinet and nested example cabinets", () => {
-  const cabinetPaths = discoverCabinetPathsSync();
+function uniqueCabinetPath(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
-  assert.ok(cabinetPaths.includes("."), "expected the real root cabinet path '.'");
-  assert.ok(
-    cabinetPaths.includes("example-text-your-mom"),
-    "expected the example company cabinet"
+async function writeCabinetManifest(cabinetPath: string, name: string) {
+  const dir = resolveCabinetDir(cabinetPath);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(
+    path.join(dir, ".cabinet"),
+    [
+      "schemaVersion: 1",
+      `id: ${cabinetPath.replace(/[^a-zA-Z0-9-]/g, "-")}`,
+      `name: ${name}`,
+      "kind: child",
+      "entry: index.md",
+      "",
+    ].join("\n"),
+    "utf8"
   );
-  assert.ok(
-    cabinetPaths.includes("example-text-your-mom/marketing/tiktok"),
-    "expected the nested TikTok cabinet"
+}
+
+async function writeAgentPersona(cabinetPath: string, slug: string, role: string) {
+  const agentDir = path.join(resolveCabinetDir(cabinetPath), ".agents", slug);
+  await fs.mkdir(agentDir, { recursive: true });
+  await fs.writeFile(
+    path.join(agentDir, "persona.md"),
+    [
+      "---",
+      `name: ${slug.toUpperCase()}`,
+      `role: ${role}`,
+      "active: true",
+      "---",
+      "",
+      `You are ${slug}.`,
+      "",
+    ].join("\n"),
+    "utf8"
   );
-  assert.ok(
-    cabinetPaths.includes("example-text-your-mom/marketing/reddit"),
-    "expected the nested Reddit cabinet"
+}
+
+async function writeCabinetJob(
+  cabinetPath: string,
+  jobId: string,
+  ownerAgent: string,
+  prompt: string
+) {
+  const jobsDir = path.join(resolveCabinetDir(cabinetPath), ".jobs");
+  await fs.mkdir(jobsDir, { recursive: true });
+  await fs.writeFile(
+    path.join(jobsDir, `${jobId}.yaml`),
+    [
+      `id: ${jobId}`,
+      `name: ${jobId}`,
+      `ownerAgent: ${ownerAgent}`,
+      "enabled: true",
+      "schedule: '0 9 * * *'",
+      `prompt: ${JSON.stringify(prompt)}`,
+      "",
+    ].join("\n"),
+    "utf8"
   );
-  assert.ok(
-    cabinetPaths.includes("example-text-your-mom/app-development"),
-    "expected the nested app development cabinet"
-  );
+}
+
+test("cabinet discovery includes the root cabinet and nested cabinets", async () => {
+  const root = uniqueCabinetPath("__cabinet-v2-discovery");
+  const tiktok = `${root}/marketing/tiktok`;
+  const reddit = `${root}/marketing/reddit`;
+  const appDev = `${root}/app-development`;
+
+  try {
+    await writeCabinetManifest(root, "Discovery Root");
+    await writeCabinetManifest(tiktok, "TikTok");
+    await writeCabinetManifest(reddit, "Reddit");
+    await writeCabinetManifest(appDev, "App Development");
+
+    const cabinetPaths = discoverCabinetPathsSync();
+
+    assert.ok(cabinetPaths.includes("."), "expected the real root cabinet path '.'");
+    assert.ok(cabinetPaths.includes(root), "expected the temporary root fixture cabinet");
+    assert.ok(cabinetPaths.includes(tiktok), "expected the nested TikTok cabinet");
+    assert.ok(cabinetPaths.includes(reddit), "expected the nested Reddit cabinet");
+    assert.ok(cabinetPaths.includes(appDev), "expected the nested app development cabinet");
+  } finally {
+    await fs.rm(path.join(DATA_DIR, root), { recursive: true, force: true });
+  }
 });
 
 test("cabinet overview keeps own scope separate from descendant scope", async () => {
-  const ownOverview = await readCabinetOverview("example-text-your-mom", {
-    visibilityMode: "own",
-  });
-  const expandedOverview = await readCabinetOverview("example-text-your-mom", {
-    visibilityMode: "children-2",
-  });
+  const root = uniqueCabinetPath("__cabinet-v2-overview");
+  const tiktok = `${root}/marketing/tiktok`;
+  const reddit = `${root}/marketing/reddit`;
+  const appDev = `${root}/app-development`;
 
-  assert.equal(ownOverview.parent?.path, ".");
-  const ownChildPaths = ownOverview.children.map((child) => child.path).sort();
-  for (const requiredChild of [
-    "example-text-your-mom/app-development",
-    "example-text-your-mom/marketing/reddit",
-    "example-text-your-mom/marketing/tiktok",
-  ]) {
+  try {
+    await writeCabinetManifest(root, "Overview Root");
+    await writeCabinetManifest(tiktok, "TikTok");
+    await writeCabinetManifest(reddit, "Reddit");
+    await writeCabinetManifest(appDev, "App Development");
+
+    for (const slug of ["ceo", "cfo", "coo", "cto"]) {
+      await writeAgentPersona(root, slug, `Root ${slug}`);
+    }
+    await writeAgentPersona(tiktok, "trend-scout", "Scans trends");
+    await writeAgentPersona(appDev, "app-cto", "Owns app architecture");
+    await writeCabinetJob(tiktok, "daily-trend-scan", "trend-scout", "Scan daily trends.");
+
+    const ownOverview = await readCabinetOverview(root, {
+      visibilityMode: "own",
+    });
+    const expandedOverview = await readCabinetOverview(root, {
+      visibilityMode: "children-2",
+    });
+
+    const ownChildPaths = ownOverview.children.map((child) => child.path).sort();
+    for (const requiredChild of [appDev, reddit, tiktok]) {
+      assert.ok(
+        ownChildPaths.includes(requiredChild),
+        `expected child cabinet ${requiredChild} to be present`
+      );
+    }
+
+    const ownAgentSlugs = ownOverview.agents.map((agent) => agent.slug);
+    for (const requiredSlug of ["ceo", "cfo", "coo", "cto"]) {
+      assert.ok(ownAgentSlugs.includes(requiredSlug), `expected own agent ${requiredSlug}`);
+    }
     assert.ok(
-      ownChildPaths.includes(requiredChild),
-      `expected child cabinet ${requiredChild} to be present`
+      !ownAgentSlugs.includes("trend-scout"),
+      "own visibility should not include descendant cabinet agents"
     );
+
+    const expandedScopedIds = expandedOverview.agents.map((agent) => agent.scopedId);
+    assert.ok(
+      expandedScopedIds.includes(buildCabinetScopedId(root, "agent", "cto")),
+      "expected the root cabinet CTO scoped id"
+    );
+    assert.ok(
+      expandedOverview.agents.some(
+        (agent) =>
+          agent.slug === "trend-scout" &&
+          agent.cabinetPath === tiktok
+      ),
+      "expected descendant cabinet agents to appear when visibility expands"
+    );
+    assert.ok(
+      expandedOverview.agents.some(
+        (agent) =>
+          agent.slug === "app-cto" &&
+          agent.cabinetPath === appDev
+      ),
+      "expected app-development descendant agents to appear when visibility expands"
+    );
+    assert.ok(
+      expandedOverview.jobs.some(
+        (job) =>
+          job.id === "daily-trend-scan" &&
+          job.cabinetPath === tiktok
+      ),
+      "expected descendant cabinet jobs to appear when visibility expands"
+    );
+  } finally {
+    await fs.rm(path.join(DATA_DIR, root), { recursive: true, force: true });
   }
-
-  const ownAgentSlugs = ownOverview.agents.map((agent) => agent.slug);
-  assert.deepEqual(ownAgentSlugs.sort(), ["ceo", "cfo", "coo", "cto"].sort());
-  assert.ok(
-    !ownAgentSlugs.includes("trend-scout"),
-    "own visibility should not include descendant cabinet agents"
-  );
-
-  const expandedScopedIds = expandedOverview.agents.map((agent) => agent.scopedId);
-  assert.ok(
-    expandedScopedIds.includes(
-      buildCabinetScopedId("example-text-your-mom", "agent", "cto")
-    ),
-    "expected the root cabinet CTO scoped id"
-  );
-  assert.ok(
-    expandedScopedIds.includes(
-      buildCabinetScopedId(
-        "example-text-your-mom/app-development",
-        "agent",
-        "cto"
-      )
-    ),
-    "expected the child cabinet CTO scoped id"
-  );
-  assert.ok(
-    expandedOverview.agents.some(
-      (agent) =>
-        agent.slug === "trend-scout" &&
-        agent.cabinetPath === "example-text-your-mom/marketing/tiktok"
-    ),
-    "expected descendant cabinet agents to appear when visibility expands"
-  );
-  assert.ok(
-    expandedOverview.jobs.some(
-      (job) =>
-        job.id === "daily-trend-scan" &&
-        job.cabinetPath === "example-text-your-mom/marketing/tiktok"
-    ),
-    "expected descendant cabinet jobs to appear when visibility expands"
-  );
 });
 
 test("job manager reads and writes only cabinet-level .jobs files", async () => {

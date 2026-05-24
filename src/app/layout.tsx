@@ -6,6 +6,7 @@ import { RoomThemeSync } from "@/components/layout/room-theme-sync";
 import { LocaleInitializer } from "@/components/layout/locale-initializer";
 import { LocaleDirectionProvider } from "@/components/layout/locale-direction-provider";
 import "./globals.css";
+import "@tldraw/tldraw/tldraw.css";
 
 // Runs before hydration so RTL/LTR + lang are applied to <html> on first paint.
 // Mirrors next-themes' inline-script pattern. Keep this minified-ish; it ships

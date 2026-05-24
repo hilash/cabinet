@@ -92,7 +92,7 @@ function resolveInternalLink(
   const allPages = flattenTree(nodes);
 
   // Clean up the href: strip .md extension, leading ./ or /
-  let linkPath = href
+  const linkPath = href
     .replace(/\.md$/, "")
     .replace(/^\.\//, "")
     .replace(/^\//, "");
@@ -212,8 +212,14 @@ export function KBEditor() {
           }
 
           // Internal links: relative paths to .md files or other KB pages
-          // Skip external URLs and API asset links (PDFs, images)
-          if (/^https?:\/\//.test(href) || href.startsWith("/api/")) return false;
+          // Skip API asset links (PDFs, images); open external URLs in built-in browser.
+          if (href.startsWith("/api/")) return false;
+          if (/^https?:\/\//.test(href) || href.startsWith("//")) {
+            event.preventDefault();
+            event.stopPropagation();
+            useAppStore.getState().setAppMode("browse", href);
+            return true;
+          }
           if (href.startsWith("mailto:") || href.startsWith("tel:")) return false;
 
           event.preventDefault();
