@@ -298,7 +298,7 @@ function CardPreview({
 }) {
   if (node.type === "image") {
     return (
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg bg-muted/40">
+      <div className="pointer-events-none min-h-0 flex-1 overflow-hidden rounded-lg bg-muted/40">
         <img
           src={assetUrl(node.path)}
           alt={title}
@@ -316,7 +316,7 @@ function CardPreview({
 
   if (node.type === "video") {
     return (
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg bg-black/80">
+      <div className="pointer-events-none min-h-0 flex-1 overflow-hidden rounded-lg bg-black/80">
         <video
           src={assetUrl(node.path)}
           className="h-full w-full object-cover"
@@ -337,7 +337,7 @@ function CardPreview({
       <iframe
         src={`${assetUrl(node.path)}#toolbar=0&navpanes=0`}
         title={title}
-        className="min-h-0 flex-1 rounded-lg border-0 bg-muted/40"
+        className="pointer-events-none min-h-0 flex-1 rounded-lg border-0 bg-muted/40"
       />
     );
   }
@@ -380,6 +380,8 @@ export function CanvasView() {
   const { t } = useLocale();
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
+  const setCanvasSelectedCardPaths = useAppStore((s) => s.setCanvasSelectedCardPaths);
+  const clearCanvasSelectedCardPaths = useAppStore((s) => s.clearCanvasSelectedCardPaths);
   const nodes = useTreeStore((s) => s.nodes);
   const selectedPath = useTreeStore((s) => s.selectedPath);
   const selectPage = useTreeStore((s) => s.selectPage);
@@ -412,6 +414,7 @@ export function CanvasView() {
   const [boardZoom, setBoardZoom] = useState(WHITEBOARD_DEFAULT_ZOOM);
   const [minimapViewport, setMinimapViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [showMinimap, setShowMinimap] = useState(false);
+  const [selectedCardPaths, setSelectedCardPaths] = useState<string[]>([]);
   const resizingRef = useRef<ResizeState | null>(null);
   const draggingRef = useRef<DragState | null>(null);
   const panningRef = useRef<PanState | null>(null);
@@ -420,15 +423,18 @@ export function CanvasView() {
   const didCenterBoardRef = useRef(false);
   const pendingZoomCenterRef = useRef<{ zoom: number; centerX: number; centerY: number } | null>(null);
 
-  const setZoomCenteredOnBoard = useCallback((nextZoom: number) => {
-    const zoom = clamp(nextZoom, WHITEBOARD_MIN_ZOOM, WHITEBOARD_MAX_ZOOM);
+  const getBoardCenter = useCallback(() => {
+    const boardPositions = cardPositionsByBoardPath[boardScopePath] ?? {};
     const cards = boardCards.map((node, index) => {
       const scopedPath = makeScopedCardKey(boardScopePath, node.path);
       const size = cardSizeByPath[scopedPath] ?? cardSizeByPath[node.path] ?? {
         width: CARD_DEFAULT_WIDTH,
         height: CARD_DEFAULT_HEIGHT,
       };
-      const position = cardPositionByPath[node.path] ?? getDefaultCardPosition(index);
+      const position =
+        cardPositionByPath[node.path] ??
+        boardPositions[node.path] ??
+        getDefaultCardPosition(index);
       return {
         left: position.x,
         top: position.y,
@@ -440,13 +446,37 @@ export function CanvasView() {
     const maxRight = cards.length > 0 ? Math.max(...cards.map((card) => card.right)) : WHITEBOARD_CANVAS_ORIGIN_OFFSET;
     const minTop = cards.length > 0 ? Math.min(...cards.map((card) => card.top)) : WHITEBOARD_CANVAS_ORIGIN_OFFSET;
     const maxBottom = cards.length > 0 ? Math.max(...cards.map((card) => card.bottom)) : WHITEBOARD_CANVAS_ORIGIN_OFFSET;
-    pendingZoomCenterRef.current = {
-      zoom,
+    return {
       centerX: (minLeft + maxRight) / 2,
       centerY: (minTop + maxBottom) / 2,
     };
+  }, [boardCards, boardScopePath, cardPositionByPath, cardPositionsByBoardPath, cardSizeByPath]);
+
+  const singleCardCenterKey = useMemo(() => {
+    if (boardCards.length !== 1) return null;
+    const node = boardCards[0];
+    const scopedPath = makeScopedCardKey(boardScopePath, node.path);
+    const size = cardSizeByPath[scopedPath] ?? cardSizeByPath[node.path] ?? {
+      width: CARD_DEFAULT_WIDTH,
+      height: CARD_DEFAULT_HEIGHT,
+    };
+    const boardPositions = cardPositionsByBoardPath[boardScopePath] ?? {};
+    const position = cardPositionByPath[node.path] ?? boardPositions[node.path] ?? getDefaultCardPosition(0);
+    return `${node.path}:${position.x}:${position.y}:${size.width}:${size.height}`;
+  }, [boardCards, boardScopePath, cardPositionByPath, cardPositionsByBoardPath, cardSizeByPath]);
+
+  const centerResetKey = `${boardScopePath}::${singleCardCenterKey ?? ""}`;
+
+  const setZoomCenteredOnBoard = useCallback((nextZoom: number) => {
+    const zoom = clamp(nextZoom, WHITEBOARD_MIN_ZOOM, WHITEBOARD_MAX_ZOOM);
+    const center = getBoardCenter();
+    pendingZoomCenterRef.current = {
+      zoom,
+      centerX: center.centerX,
+      centerY: center.centerY,
+    };
     setBoardZoom(zoom);
-  }, [boardCards, boardScopePath, cardPositionByPath, cardSizeByPath]);
+  }, [getBoardCenter]);
 
   useLayoutEffect(() => {
     const pending = pendingZoomCenterRef.current;
@@ -479,16 +509,18 @@ export function CanvasView() {
 
   useEffect(() => {
     didCenterBoardRef.current = false;
-  }, [boardScopePath]);
+  }, [centerResetKey]);
 
   useEffect(() => {
     if (!sizesLoaded || didCenterBoardRef.current) return;
     const scrollArea = scrollAreaRef.current;
     if (!scrollArea) return;
-    scrollArea.scrollLeft = Math.max(0, (scrollArea.scrollWidth - scrollArea.clientWidth) / 2);
-    scrollArea.scrollTop = Math.max(0, (scrollArea.scrollHeight - scrollArea.clientHeight) / 2);
+    const center = getBoardCenter();
+    const targetLeft = center.centerX * boardZoom - scrollArea.clientWidth / 2;
+    const targetTop = center.centerY * boardZoom - scrollArea.clientHeight / 2;
+    scrollArea.scrollTo({ left: Math.max(0, targetLeft), top: Math.max(0, targetTop) });
     didCenterBoardRef.current = true;
-  }, [sizesLoaded, boardScopePath, boardZoom]);
+  }, [sizesLoaded, boardScopePath, boardZoom, getBoardCenter]);
 
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
@@ -519,6 +551,31 @@ export function CanvasView() {
   useEffect(() => {
     setShowMinimap(false);
   }, [boardScopePath]);
+
+  useEffect(() => {
+    setSelectedCardPaths([]);
+    clearCanvasSelectedCardPaths();
+  }, [boardScopePath, clearCanvasSelectedCardPaths]);
+
+  useEffect(() => {
+    setSelectedCardPaths((prev) => {
+      const allowed = new Set(boardCards.map((node) => node.path));
+      const next = prev.filter((path) => allowed.has(path));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [boardCards]);
+
+  const selectedContextCardPaths = useMemo(() => {
+    const cardByPath = new Map(boardCards.map((node) => [node.path, node]));
+    return selectedCardPaths.filter((path) => {
+      const node = cardByPath.get(path);
+      return !!node && (isPreviewFile(node) || isFolderObject(node));
+    });
+  }, [boardCards, selectedCardPaths]);
+
+  useEffect(() => {
+    setCanvasSelectedCardPaths(selectedContextCardPaths);
+  }, [selectedContextCardPaths, setCanvasSelectedCardPaths]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1085,36 +1142,34 @@ export function CanvasView() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header />
       <div className="flex-1 flex min-h-0 flex-col">
-        <div className="mb-4 flex flex-col gap-2 px-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-lg font-semibold">{t("editor:canvas.title")}</h1>
-            <p className="text-sm text-muted-foreground">{t("editor:canvas.openPage")}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setZoomCenteredOnBoard(boardZoom - 0.1)}
-              className="rounded-full border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
-            >
-              -
-            </button>
-            <div className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              {Math.round(boardZoom * 100)}%
-            </div>
-            <button
-              type="button"
-              onClick={() => setZoomCenteredOnBoard(boardZoom + 0.1)}
-              className="rounded-full border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
-            >
-              +
-            </button>
-            <div className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              {boardNode ? boardNode.path : cabinetPath === ROOT_CABINET_PATH ? "root" : cabinetPath}
-            </div>
-          </div>
-        </div>
-
         <div className="relative flex-1 min-h-0">
+          <div className="pointer-events-none absolute inset-x-4 top-4 z-20 flex items-start justify-between gap-2">
+            <h1 className="rounded-full border border-border/40 bg-background/30 px-3 py-1 text-sm font-semibold text-foreground backdrop-blur-sm">
+              {t("editor:canvas.title")}
+            </h1>
+            <div className="pointer-events-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setZoomCenteredOnBoard(boardZoom - 0.1)}
+                className="rounded-full border border-border/40 bg-background/30 px-2 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm hover:bg-background/45"
+              >
+                -
+              </button>
+              <div className="rounded-full border border-border/40 bg-background/30 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+                {Math.round(boardZoom * 100)}%
+              </div>
+              <button
+                type="button"
+                onClick={() => setZoomCenteredOnBoard(boardZoom + 0.1)}
+                className="rounded-full border border-border/40 bg-background/30 px-2 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm hover:bg-background/45"
+              >
+                +
+              </button>
+              <div className="rounded-full border border-border/40 bg-background/30 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+                {boardNode ? boardNode.path : cabinetPath === ROOT_CABINET_PATH ? "root" : cabinetPath}
+              </div>
+            </div>
+          </div>
           <div
             ref={scrollAreaRef}
             className="h-full w-full overflow-auto px-4 pb-4"
@@ -1138,6 +1193,8 @@ export function CanvasView() {
             if (!(target instanceof Element)) return;
             if (target.closest("button[data-canvas-card='true']")) return;
             if (target.closest("[data-whiteboard-minimap='true']")) return;
+            setSelectedCardPaths([]);
+            clearCanvasSelectedCardPaths();
             panningRef.current = {
               pointerId: event.pointerId,
               startX: event.clientX,
@@ -1172,6 +1229,7 @@ export function CanvasView() {
                   const composed = isComposedCard(node);
                   const kind = getNodeKind(node);
                   const scopedPath = makeScopedCardKey(boardScopePath, node.path);
+                  const isSelected = selectedCardPaths.includes(node.path);
 
                   return (
                     <button
@@ -1180,6 +1238,16 @@ export function CanvasView() {
                         const target = event.target;
                         if (target instanceof Element && target.closest("[data-resize-handle='true']")) {
                           return;
+                        }
+                        const allowMultiSelect = event.metaKey || event.ctrlKey;
+                        if (allowMultiSelect) {
+                          setSelectedCardPaths((prev) =>
+                            prev.includes(node.path)
+                              ? prev.filter((path) => path !== node.path)
+                              : [...prev, node.path]
+                          );
+                        } else {
+                          setSelectedCardPaths([node.path]);
                         }
                         const position = cardPositionByPath[node.path] ?? getDefaultCardPosition(index);
                         draggingRef.current = {
@@ -1199,12 +1267,6 @@ export function CanvasView() {
                       onClick={() => {
                         if (suppressNextCardClickRef.current) {
                           suppressNextCardClickRef.current = false;
-                          return;
-                        }
-                        selectPage(node.path);
-                        void loadPage(node.path);
-                        if (composed && isFolderObject(node)) {
-                          setSection({ type: "page", cabinetPath: node.path });
                         }
                       }}
                       style={{
@@ -1215,15 +1277,31 @@ export function CanvasView() {
                       }}
                       className={
                         composed
-                          ? "group absolute flex shrink-0 flex-col rounded-2xl border border-border/70 bg-muted/40 p-4 text-left transition-colors hover:bg-muted"
-                          : "group absolute flex shrink-0 flex-col rounded-2xl border border-border/70 bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                          ? `group absolute flex shrink-0 flex-col rounded-2xl border bg-muted/40 p-4 text-left transition-colors hover:bg-muted ${isSelected ? "border-violet-600 border-2" : "border-border/70"}`
+                          : `group absolute flex shrink-0 flex-col rounded-2xl border bg-background p-4 text-left transition-colors hover:bg-muted/40 ${isSelected ? "border-violet-600 border-2" : "border-border/70"}`
                       }
                       data-canvas-card="true"
                     >
                       <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {composed ? `Composed ${kind}` : `Simple ${kind}`}
                       </div>
-                      <div className="mb-2 line-clamp-2 text-base font-semibold">{title}</div>
+                      <button
+                        type="button"
+                        className="mb-2 line-clamp-2 self-start text-left text-base font-semibold hover:underline"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (event.metaKey || event.ctrlKey) {
+                            return;
+                          }
+                          selectPage(node.path);
+                          void loadPage(node.path);
+                          if (composed && isFolderObject(node)) {
+                            setSection({ type: "page", cabinetPath: node.path });
+                          }
+                        }}
+                      >
+                        {title}
+                      </button>
                       <div className="mb-2 text-xs text-muted-foreground">{node.path}</div>
                       <CardPreview
                         node={node}

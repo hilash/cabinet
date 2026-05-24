@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Copy, Download, FileCode, FileDown, Globe, Layout, Sparkles, Maximize } from "lucide-react";
+import { Copy, Download, FileCode, FileDown, Sparkles, Maximize } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -24,8 +24,6 @@ export function Header() {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
   const taskPanelOpen = useAppStore((s) => s.taskPanelOpen);
-  const appMode = useAppStore((s) => s.appMode);
-  const setAppMode = useAppStore((s) => s.setAppMode);
 
   const [inFullscreen, setInFullscreen] = useState(false);
   const prevStateRef = useRef<{
@@ -135,74 +133,8 @@ export function Header() {
     URL.revokeObjectURL(url);
   };
 
-  const modeButtons = (
-    <>
-      {appMode === "edit" && (
-        <>
-          <button
-            aria-label={t("editor:header.browseMode")}
-            title={t("editor:header.browseMode")}
-            onClick={() => setAppMode("browse")}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-          >
-            <Globe className="h-4 w-4" />
-          </button>
-          <button
-            aria-label={t("editor:header.canvasMode")}
-            title={t("editor:header.canvasMode")}
-            onClick={() => setAppMode("canvas")}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-          >
-            <Layout className="h-4 w-4" />
-          </button>
-        </>
-      )}
-      {appMode === "browse" && (
-        <>
-          <button
-            aria-label={t("editor:header.editMode")}
-            title={t("editor:header.editMode")}
-            onClick={() => setAppMode("edit")}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-          >
-            <Archive className="h-4 w-4" />
-          </button>
-          <button
-            aria-label={t("editor:header.canvasMode")}
-            title={t("editor:header.canvasMode")}
-            onClick={() => setAppMode("canvas")}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-          >
-            <Layout className="h-4 w-4" />
-          </button>
-        </>
-      )}
-      {appMode === "canvas" && (
-        <>
-          <button
-            aria-label={t("editor:header.editMode")}
-            title={t("editor:header.editMode")}
-            onClick={() => setAppMode("edit")}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-          >
-            <Archive className="h-4 w-4" />
-          </button>
-          <button
-            aria-label={t("editor:header.browseMode")}
-            title={t("editor:header.browseMode")}
-            onClick={() => setAppMode("browse")}
-            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-          >
-            <Globe className="h-4 w-4" />
-          </button>
-        </>
-      )}
-    </>
-  );
-
   return (
     <ViewerToolbar path={currentPath || undefined} showBreadcrumb={!!currentPath}>
-      {modeButtons}
       {currentPath && (
         <>
           <button
