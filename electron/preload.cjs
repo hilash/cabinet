@@ -4,6 +4,15 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("CabinetDesktop", {
   runtime: "electron",
   platform: process.platform,
+  createBrowserView: (url) => ipcRenderer.invoke("cabinet:create-browser-view", { url }),
+  loadBrowserViewUrl: (viewId, url) =>
+    ipcRenderer.invoke("cabinet:load-browser-view-url", { viewId, url }),
+  setBrowserViewBounds: (viewId, bounds) =>
+    ipcRenderer.invoke("cabinet:set-browser-view-bounds", { viewId, bounds }),
+  setBrowserViewVisible: (viewId, visible) =>
+    ipcRenderer.invoke("cabinet:set-browser-view-visible", { viewId, visible }),
+  destroyBrowserView: (viewId) =>
+    ipcRenderer.invoke("cabinet:destroy-browser-view", { viewId }),
   /**
    * Trigger the in-app macOS uninstall flow. Returns
    * `{ ok: true, dataPath }` on success — the renderer should show a

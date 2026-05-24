@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } fr
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/layout/header";
 import { KBEditor } from "@/components/editor/editor";
+import { BrowserView } from "@/components/layout/browser-view";
+import { CanvasView } from "@/components/layout/canvas-view";
 import { WebsiteViewer } from "@/components/editor/website-viewer";
 import { PdfViewer } from "@/components/editor/pdf-viewer";
 import { CsvViewer } from "@/components/editor/csv-viewer";
@@ -158,6 +160,8 @@ export function AppShell() {
   const nodes = useTreeStore((s) => s.nodes);
   const selectedPath = useTreeStore((s) => s.selectedPath);
   const section = useAppStore((s) => s.section);
+  const appMode = useAppStore((s) => s.appMode);
+  const setAppMode = useAppStore((s) => s.setAppMode);
   const setSection = useAppStore((s) => s.setSection);
   const terminalOpen = useAppStore((s) => s.terminalOpen);
   const terminalPosition = useAppStore((s) => s.terminalPosition);
@@ -365,6 +369,12 @@ export function AppShell() {
     }, 1000);
     return () => window.clearTimeout(id);
   }, [selectedPath, section.cabinetPath]);
+
+  useEffect(() => {
+    if (section.type !== "page" && section.type !== "cabinet" && appMode !== "edit") {
+      setAppMode("edit");
+    }
+  }, [section.type, appMode, setAppMode]);
 
   // Dynamic document.title — reflects the current section and page.
   useEffect(() => {
@@ -721,6 +731,7 @@ export function AppShell() {
   const nodeType = selectedNode?.type || inferredType;
   const isWebsite = nodeType === "website";
   const isApp = nodeType === "app";
+  const prevIsApp = useRef(false);
   const isPdf = nodeType === "pdf";
   const isCsv = nodeType === "csv";
   const isCode = nodeType === "code";
@@ -748,8 +759,6 @@ export function AppShell() {
   const effectiveUpdateDialogOpen =
     updateDialogOpen || hasPersistentUpdateState || shouldPromptForUpdate;
 
-  // Auto-collapse sidebar + AI panel when entering app mode
-  const prevIsApp = useRef(false);
   useEffect(() => {
     if (isApp && !prevIsApp.current) {
       setSidebarCollapsed(true);
@@ -771,6 +780,12 @@ export function AppShell() {
     if (section.type === "settings") return <SettingsPage />;
     if (section.type === "integrations") return <IntegrationsHubPage />;
     if (section.type === "help") return <HelpPage />;
+    if ((section.type === "cabinet" || section.type === "page") && appMode === "browse") {
+      return <BrowserView />;
+    }
+    if ((section.type === "cabinet" || section.type === "page") && appMode === "canvas") {
+      return <CanvasView />;
+    }
     if (section.type === "cabinet" && section.cabinetPath) {
       return <CabinetView cabinetPath={section.cabinetPath} />;
     }
@@ -994,7 +1009,7 @@ export function AppShell() {
         and the fixed, full-height rail lives in that gutter. */}
     <div
       className={`flex h-screen bg-background text-foreground transition-[padding] duration-200 ease-out${
-        taskRailOpen && !isMobile ? " pe-[30px]" : ""
+        taskRailOpen && !isMobile ? " pe-7.5" : ""
       }`}
     >
       {/* Audit #031: SR-only live region announcing the active page title

@@ -146,6 +146,9 @@ interface AppState {
   defaultEffort: string | null;
   providersLoading: boolean;
   providersLoaded: boolean;
+  appMode: "edit" | "browse" | "canvas";
+  browseUrl: string | null;
+  setAppMode: (mode: "edit" | "browse" | "canvas", url?: string | null) => void;
   loadProviders: () => Promise<void>;
   /**
    * Hydrate one provider's real, entitlement-gated model list from
@@ -258,6 +261,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   defaultEffort: null,
   providersLoading: false,
   providersLoaded: false,
+  appMode: "edit",
+  browseUrl: null,
+  setAppMode: (mode, url) =>
+    set((state) => ({
+      appMode: mode,
+      browseUrl: url !== undefined ? url : state.browseUrl,
+    })),
 
   loadProviders: async () => {
     const { providersLoading, providersLoaded } = get();
