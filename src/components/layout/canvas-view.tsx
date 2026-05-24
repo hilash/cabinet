@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -70,6 +70,8 @@ const WHITEBOARD_DEFAULT_ZOOM = 1;
 const WHITEBOARD_CANVAS_BASE_SIZE = 12000;
 const WHITEBOARD_CANVAS_ORIGIN_OFFSET = WHITEBOARD_CANVAS_BASE_SIZE / 2;
 const WHITEBOARD_CENTER_VERSION = 3;
+const WHITEBOARD_MINIMAP_WIDTH = 300;
+const WHITEBOARD_MINIMAP_REVEAL_DISTANCE = 150;
 
 function isCardSize(value: unknown): value is CardSize {
   if (!value || typeof value !== "object") return false;
@@ -408,12 +410,72 @@ export function CanvasView() {
   const [sizesLoaded, setSizesLoaded] = useState(false);
   const [persistTick, setPersistTick] = useState(0);
   const [boardZoom, setBoardZoom] = useState(WHITEBOARD_DEFAULT_ZOOM);
+  const [minimapViewport, setMinimapViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  const [showMinimap, setShowMinimap] = useState(false);
   const resizingRef = useRef<ResizeState | null>(null);
   const draggingRef = useRef<DragState | null>(null);
   const panningRef = useRef<PanState | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const suppressNextCardClickRef = useRef(false);
   const didCenterBoardRef = useRef(false);
+  const pendingZoomCenterRef = useRef<{ zoom: number; centerX: number; centerY: number } | null>(null);
+
+  const setZoomCenteredOnBoard = useCallback((nextZoom: number) => {
+    const zoom = clamp(nextZoom, WHITEBOARD_MIN_ZOOM, WHITEBOARD_MAX_ZOOM);
+    const cards = boardCards.map((node, index) => {
+      const scopedPath = makeScopedCardKey(boardScopePath, node.path);
+      const size = cardSizeByPath[scopedPath] ?? cardSizeByPath[node.path] ?? {
+        width: CARD_DEFAULT_WIDTH,
+        height: CARD_DEFAULT_HEIGHT,
+      };
+      const position = cardPositionByPath[node.path] ?? getDefaultCardPosition(index);
+      return {
+        left: position.x,
+        top: position.y,
+        right: position.x + size.width,
+        bottom: position.y + size.height,
+      };
+    });
+    const minLeft = cards.length > 0 ? Math.min(...cards.map((card) => card.left)) : WHITEBOARD_CANVAS_ORIGIN_OFFSET;
+    const maxRight = cards.length > 0 ? Math.max(...cards.map((card) => card.right)) : WHITEBOARD_CANVAS_ORIGIN_OFFSET;
+    const minTop = cards.length > 0 ? Math.min(...cards.map((card) => card.top)) : WHITEBOARD_CANVAS_ORIGIN_OFFSET;
+    const maxBottom = cards.length > 0 ? Math.max(...cards.map((card) => card.bottom)) : WHITEBOARD_CANVAS_ORIGIN_OFFSET;
+    pendingZoomCenterRef.current = {
+      zoom,
+      centerX: (minLeft + maxRight) / 2,
+      centerY: (minTop + maxBottom) / 2,
+    };
+    setBoardZoom(zoom);
+  }, [boardCards, boardScopePath, cardPositionByPath, cardSizeByPath]);
+
+  useLayoutEffect(() => {
+    const pending = pendingZoomCenterRef.current;
+    if (!pending) return;
+    const scrollArea = scrollAreaRef.current;
+    if (!scrollArea) return;
+    const targetLeft = pending.centerX * pending.zoom - scrollArea.clientWidth / 2;
+    const targetTop = pending.centerY * pending.zoom - scrollArea.clientHeight / 2;
+    scrollArea.scrollTo({ left: targetLeft, top: targetTop });
+    pendingZoomCenterRef.current = null;
+  }, [boardZoom]);
+
+  const minimapMetrics = useMemo(() => {
+    return {
+      minX: 0,
+      minY: 0,
+      maxX: WHITEBOARD_CANVAS_BASE_SIZE,
+      maxY: WHITEBOARD_CANVAS_BASE_SIZE,
+      width: WHITEBOARD_CANVAS_BASE_SIZE,
+      height: WHITEBOARD_CANVAS_BASE_SIZE,
+      viewportLeft: minimapViewport.left,
+      viewportTop: minimapViewport.top,
+      viewportWidth: minimapViewport.width,
+      viewportHeight: minimapViewport.height,
+    };
+  }, [minimapViewport]);
+
+  const minimapScale = WHITEBOARD_MINIMAP_WIDTH / minimapMetrics.width;
+  const minimapHeight = Math.max(1, Math.round(minimapMetrics.height * minimapScale));
 
   useEffect(() => {
     didCenterBoardRef.current = false;
@@ -427,6 +489,36 @@ export function CanvasView() {
     scrollArea.scrollTop = Math.max(0, (scrollArea.scrollHeight - scrollArea.clientHeight) / 2);
     didCenterBoardRef.current = true;
   }, [sizesLoaded, boardScopePath, boardZoom]);
+
+  useEffect(() => {
+    const scrollArea = scrollAreaRef.current;
+    if (!scrollArea) {
+      setMinimapViewport({ left: 0, top: 0, width: 0, height: 0 });
+      return;
+    }
+
+    const updateViewport = () => {
+      setMinimapViewport({
+        left: scrollArea.scrollLeft / boardZoom,
+        top: scrollArea.scrollTop / boardZoom,
+        width: scrollArea.clientWidth / boardZoom,
+        height: scrollArea.clientHeight / boardZoom,
+      });
+    };
+
+    updateViewport();
+    scrollArea.addEventListener("scroll", updateViewport);
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      scrollArea.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("resize", updateViewport);
+    };
+  }, [boardZoom, boardScopePath, sizesLoaded]);
+
+  useEffect(() => {
+    setShowMinimap(false);
+  }, [boardScopePath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -928,7 +1020,8 @@ export function CanvasView() {
       if (!target.closest("[data-whiteboard-scroll-area='true']")) return;
       event.preventDefault();
       const direction = event.deltaY > 0 ? -1 : 1;
-      setBoardZoom((prev) => clamp(Number((prev + direction * 0.08).toFixed(2)), WHITEBOARD_MIN_ZOOM, WHITEBOARD_MAX_ZOOM));
+      const nextZoom = Number((boardZoom + direction * 0.08).toFixed(2));
+      setZoomCenteredOnBoard(nextZoom);
     };
 
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -936,7 +1029,7 @@ export function CanvasView() {
     return () => {
       window.removeEventListener("wheel", onWheel);
     };
-  }, []);
+  }, [boardZoom, setZoomCenteredOnBoard]);
 
   useEffect(() => {
     if (!sizesLoaded) return;
@@ -1000,7 +1093,7 @@ export function CanvasView() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setBoardZoom((prev) => clamp(prev - 0.1, WHITEBOARD_MIN_ZOOM, WHITEBOARD_MAX_ZOOM))}
+              onClick={() => setZoomCenteredOnBoard(boardZoom - 0.1)}
               className="rounded-full border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
             >
               -
@@ -1010,7 +1103,7 @@ export function CanvasView() {
             </div>
             <button
               type="button"
-              onClick={() => setBoardZoom((prev) => clamp(prev + 0.1, WHITEBOARD_MIN_ZOOM, WHITEBOARD_MAX_ZOOM))}
+              onClick={() => setZoomCenteredOnBoard(boardZoom + 0.1)}
               className="rounded-full border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
             >
               +
@@ -1021,14 +1114,30 @@ export function CanvasView() {
           </div>
         </div>
 
-        <div
-          ref={scrollAreaRef}
-          className="flex-1 min-h-0 overflow-auto px-4 pb-4"
-          data-whiteboard-scroll-area="true"
-          onPointerDown={(event) => {
+        <div className="relative flex-1 min-h-0">
+          <div
+            ref={scrollAreaRef}
+            className="h-full w-full overflow-auto px-4 pb-4"
+            data-whiteboard-scroll-area="true"
+            onPointerMove={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              const withinCorner =
+                rect.right - event.clientX <= WHITEBOARD_MINIMAP_REVEAL_DISTANCE &&
+                rect.bottom - event.clientY <= WHITEBOARD_MINIMAP_REVEAL_DISTANCE;
+              setShowMinimap(withinCorner);
+            }}
+            onPointerLeave={(event) => {
+              const nextTarget = event.relatedTarget;
+              if (nextTarget instanceof Element && nextTarget.closest("[data-whiteboard-minimap='true']")) {
+                return;
+              }
+              setShowMinimap(false);
+            }}
+            onPointerDown={(event) => {
             const target = event.target;
             if (!(target instanceof Element)) return;
             if (target.closest("button[data-canvas-card='true']")) return;
+            if (target.closest("[data-whiteboard-minimap='true']")) return;
             panningRef.current = {
               pointerId: event.pointerId,
               startX: event.clientX,
@@ -1047,133 +1156,201 @@ export function CanvasView() {
               {t("editor:canvas.empty")}
             </div>
           ) : (
-            <div
-              className="relative min-h-full"
-              style={{
-                transform: `scale(${boardZoom})`,
-                transformOrigin: "top left",
-                width: `${WHITEBOARD_CANVAS_BASE_SIZE}px`,
-                height: `${WHITEBOARD_CANVAS_BASE_SIZE}px`,
+            <>
+              <div
+                className="relative min-h-full"
+                style={{
+                  transform: `scale(${boardZoom})`,
+                  transformOrigin: "top left",
+                  width: `${WHITEBOARD_CANVAS_BASE_SIZE}px`,
+                  height: `${WHITEBOARD_CANVAS_BASE_SIZE}px`,
+                }}
+              >
+                {boardCards.map((node, index) => {
+                  const title = node.frontmatter?.title || node.name;
+                  const content = pageContentByPath[node.path] ?? "";
+                  const composed = isComposedCard(node);
+                  const kind = getNodeKind(node);
+                  const scopedPath = makeScopedCardKey(boardScopePath, node.path);
+
+                  return (
+                    <button
+                      key={node.path}
+                      onPointerDown={(event) => {
+                        const target = event.target;
+                        if (target instanceof Element && target.closest("[data-resize-handle='true']")) {
+                          return;
+                        }
+                        const position = cardPositionByPath[node.path] ?? getDefaultCardPosition(index);
+                        draggingRef.current = {
+                          path: node.path,
+                          pointerId: event.pointerId,
+                          startX: event.clientX,
+                          startY: event.clientY,
+                          startCardX: position.x,
+                          startCardY: position.y,
+                          moved: false,
+                        };
+                        if (typeof document !== "undefined") {
+                          document.body.style.cursor = "grabbing";
+                          document.body.style.userSelect = "none";
+                        }
+                      }}
+                      onClick={() => {
+                        if (suppressNextCardClickRef.current) {
+                          suppressNextCardClickRef.current = false;
+                          return;
+                        }
+                        selectPage(node.path);
+                        void loadPage(node.path);
+                        if (composed && isFolderObject(node)) {
+                          setSection({ type: "page", cabinetPath: node.path });
+                        }
+                      }}
+                      style={{
+                        width: cardSizeByPath[scopedPath]?.width ?? cardSizeByPath[node.path]?.width ?? CARD_DEFAULT_WIDTH,
+                        height: cardSizeByPath[scopedPath]?.height ?? cardSizeByPath[node.path]?.height ?? CARD_DEFAULT_HEIGHT,
+                        left: (cardPositionByPath[node.path] ?? getDefaultCardPosition(index)).x,
+                        top: (cardPositionByPath[node.path] ?? getDefaultCardPosition(index)).y,
+                      }}
+                      className={
+                        composed
+                          ? "group absolute flex shrink-0 flex-col rounded-2xl border border-border/70 bg-muted/40 p-4 text-left transition-colors hover:bg-muted"
+                          : "group absolute flex shrink-0 flex-col rounded-2xl border border-border/70 bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                      }
+                      data-canvas-card="true"
+                    >
+                      <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {composed ? `Composed ${kind}` : `Simple ${kind}`}
+                      </div>
+                      <div className="mb-2 line-clamp-2 text-base font-semibold">{title}</div>
+                      <div className="mb-2 text-xs text-muted-foreground">{node.path}</div>
+                      <CardPreview
+                        node={node}
+                        content={content}
+                        title={title}
+                        onMediaMeasure={(size) => {
+                          const scopedPath = makeScopedCardKey(boardScopePath, size.path);
+                          setMediaSizeByPath((prev) => {
+                            const current = prev[scopedPath] ?? prev[size.path];
+                            if (current && current.width === size.width && current.height === size.height) {
+                              return prev;
+                            }
+                            return { ...prev, [scopedPath]: { ...size, path: scopedPath } };
+                          });
+                        }}
+                      />
+                      {([
+                        ["n", "ns-resize", "top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 h-2.5 w-10"],
+                        ["s", "ns-resize", "bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 h-2.5 w-10"],
+                        ["e", "ew-resize", "right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-10 w-2.5"],
+                        ["w", "ew-resize", "left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-10 w-2.5"],
+                        ["ne", "nesw-resize", "right-0 top-0 translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5"],
+                        ["nw", "nwse-resize", "left-0 top-0 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5"],
+                        ["se", "nwse-resize", "right-0 bottom-0 translate-x-1/2 translate-y-1/2 h-3.5 w-3.5"],
+                        ["sw", "nesw-resize", "left-0 bottom-0 -translate-x-1/2 translate-y-1/2 h-3.5 w-3.5"],
+                      ] as const).map(([handle, cursor, placement]) => (
+                        <span
+                          key={`${node.path}-${handle}`}
+                          role="presentation"
+                          onPointerDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const size = cardSizeByPath[scopedPath] ?? cardSizeByPath[node.path] ?? {
+                              width: CARD_DEFAULT_WIDTH,
+                              height: CARD_DEFAULT_HEIGHT,
+                            };
+                            resizingRef.current = {
+                              path: node.path,
+                              handle,
+                              pointerId: event.pointerId,
+                              startX: event.clientX,
+                              startY: event.clientY,
+                              startWidth: size.width,
+                              startHeight: size.height,
+                            };
+                            if (typeof document !== "undefined") {
+                              document.body.style.cursor = cursor;
+                              document.body.style.userSelect = "none";
+                            }
+                          }}
+                          className={`absolute z-10 rounded-full border border-border/70 bg-background/95 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 ${placement}`}
+                          style={{ cursor }}
+                          data-resize-handle="true"
+                        />
+                      ))}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          </div>
+          {showMinimap && boardCards.length > 0 ? (
+            <button
+              type="button"
+              data-whiteboard-minimap="true"
+              onPointerEnter={() => {
+                setShowMinimap(true);
+              }}
+              onPointerLeave={(event) => {
+                const nextTarget = event.relatedTarget;
+                if (nextTarget instanceof Element && nextTarget.closest("[data-whiteboard-scroll-area='true']")) {
+                  return;
+                }
+                setShowMinimap(false);
+              }}
+              className="absolute bottom-6 right-6 z-20 overflow-hidden rounded-lg border border-border/70 bg-background/20 backdrop-blur-sm"
+              style={{ width: WHITEBOARD_MINIMAP_WIDTH, height: minimapHeight }}
+              onClick={(event) => {
+                event.stopPropagation();
+                const scrollArea = scrollAreaRef.current;
+                if (!scrollArea) return;
+                const rect = event.currentTarget.getBoundingClientRect();
+                const ratioX = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+                const ratioY = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+                const targetCanvasX = minimapMetrics.minX + ratioX * minimapMetrics.width;
+                const targetCanvasY = minimapMetrics.minY + ratioY * minimapMetrics.height;
+                const targetLeft = targetCanvasX * boardZoom - scrollArea.clientWidth / 2;
+                const targetTop = targetCanvasY * boardZoom - scrollArea.clientHeight / 2;
+                scrollArea.scrollTo({
+                  left: clamp(targetLeft, 0, Math.max(0, scrollArea.scrollWidth - scrollArea.clientWidth)),
+                  top: clamp(targetTop, 0, Math.max(0, scrollArea.scrollHeight - scrollArea.clientHeight)),
+                });
               }}
             >
-              {boardCards.map((node, index) => {
-                const title = node.frontmatter?.title || node.name;
-                const content = pageContentByPath[node.path] ?? "";
-                const composed = isComposedCard(node);
-                const kind = getNodeKind(node);
-                const scopedPath = makeScopedCardKey(boardScopePath, node.path);
-
-                return (
-                  <button
-                    key={node.path}
-                    onPointerDown={(event) => {
-                      const target = event.target;
-                      if (target instanceof Element && target.closest("[data-resize-handle='true']")) {
-                        return;
-                      }
-                      const position = cardPositionByPath[node.path] ?? getDefaultCardPosition(index);
-                      draggingRef.current = {
-                        path: node.path,
-                        pointerId: event.pointerId,
-                        startX: event.clientX,
-                        startY: event.clientY,
-                        startCardX: position.x,
-                        startCardY: position.y,
-                        moved: false,
-                      };
-                      if (typeof document !== "undefined") {
-                        document.body.style.cursor = "grabbing";
-                        document.body.style.userSelect = "none";
-                      }
-                    }}
-                    onClick={() => {
-                      if (suppressNextCardClickRef.current) {
-                        suppressNextCardClickRef.current = false;
-                        return;
-                      }
-                      selectPage(node.path);
-                      void loadPage(node.path);
-                      if (composed && isFolderObject(node)) {
-                        setSection({ type: "page", cabinetPath: node.path });
-                      }
-                    }}
-                    style={{
-                      width: cardSizeByPath[scopedPath]?.width ?? cardSizeByPath[node.path]?.width ?? CARD_DEFAULT_WIDTH,
-                      height: cardSizeByPath[scopedPath]?.height ?? cardSizeByPath[node.path]?.height ?? CARD_DEFAULT_HEIGHT,
-                      left: (cardPositionByPath[node.path] ?? getDefaultCardPosition(index)).x,
-                      top: (cardPositionByPath[node.path] ?? getDefaultCardPosition(index)).y,
-                    }}
-                    className={
-                      composed
-                        ? "group absolute flex shrink-0 flex-col rounded-2xl border border-border/70 bg-muted/40 p-4 text-left transition-colors hover:bg-muted"
-                        : "group absolute flex shrink-0 flex-col rounded-2xl border border-border/70 bg-background p-4 text-left transition-colors hover:bg-muted/40"
-                    }
-                    data-canvas-card="true"
-                  >
-                    <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {composed ? `Composed ${kind}` : `Simple ${kind}`}
-                    </div>
-                    <div className="mb-2 line-clamp-2 text-base font-semibold">{title}</div>
-                    <div className="mb-2 text-xs text-muted-foreground">{node.path}</div>
-                    <CardPreview
-                      node={node}
-                      content={content}
-                      title={title}
-                      onMediaMeasure={(size) => {
-                        const scopedPath = makeScopedCardKey(boardScopePath, size.path);
-                        setMediaSizeByPath((prev) => {
-                          const current = prev[scopedPath] ?? prev[size.path];
-                          if (current && current.width === size.width && current.height === size.height) {
-                            return prev;
-                          }
-                          return { ...prev, [scopedPath]: { ...size, path: scopedPath } };
-                        });
-                      }}
+              <div className="relative h-full w-full bg-background/5">
+                {boardCards.map((node, index) => {
+                  const scopedPath = makeScopedCardKey(boardScopePath, node.path);
+                  const cardSize = cardSizeByPath[scopedPath] ?? cardSizeByPath[node.path] ?? {
+                    width: CARD_DEFAULT_WIDTH,
+                    height: CARD_DEFAULT_HEIGHT,
+                  };
+                  const cardPosition = cardPositionByPath[node.path] ?? getDefaultCardPosition(index);
+                  const left = (cardPosition.x - minimapMetrics.minX) * minimapScale;
+                  const top = (cardPosition.y - minimapMetrics.minY) * minimapScale;
+                  const width = Math.max(3, cardSize.width * minimapScale);
+                  const height = Math.max(3, cardSize.height * minimapScale);
+                  return (
+                    <span
+                      key={`${node.path}-minimap`}
+                      className="absolute rounded-sm border border-foreground/35 bg-foreground/20"
+                      style={{ left, top, width, height }}
                     />
-                    {([
-                      ["n", "ns-resize", "top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 h-2.5 w-10"],
-                      ["s", "ns-resize", "bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 h-2.5 w-10"],
-                      ["e", "ew-resize", "right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-10 w-2.5"],
-                      ["w", "ew-resize", "left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-10 w-2.5"],
-                      ["ne", "nesw-resize", "right-0 top-0 translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5"],
-                      ["nw", "nwse-resize", "left-0 top-0 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5"],
-                      ["se", "nwse-resize", "right-0 bottom-0 translate-x-1/2 translate-y-1/2 h-3.5 w-3.5"],
-                      ["sw", "nesw-resize", "left-0 bottom-0 -translate-x-1/2 translate-y-1/2 h-3.5 w-3.5"],
-                    ] as const).map(([handle, cursor, placement]) => (
-                      <span
-                        key={`${node.path}-${handle}`}
-                        role="presentation"
-                        onPointerDown={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          const size = cardSizeByPath[scopedPath] ?? cardSizeByPath[node.path] ?? {
-                            width: CARD_DEFAULT_WIDTH,
-                            height: CARD_DEFAULT_HEIGHT,
-                          };
-                          resizingRef.current = {
-                            path: node.path,
-                            handle,
-                            pointerId: event.pointerId,
-                            startX: event.clientX,
-                            startY: event.clientY,
-                            startWidth: size.width,
-                            startHeight: size.height,
-                          };
-                          if (typeof document !== "undefined") {
-                            document.body.style.cursor = cursor;
-                            document.body.style.userSelect = "none";
-                          }
-                        }}
-                        className={`absolute z-10 rounded-full border border-border/70 bg-background/95 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 ${placement}`}
-                        style={{ cursor }}
-                        data-resize-handle="true"
-                      />
-                    ))}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+                <span
+                  className="pointer-events-none absolute rounded-sm border border-primary/80 bg-transparent"
+                  style={{
+                    left: (minimapMetrics.viewportLeft - minimapMetrics.minX) * minimapScale,
+                    top: (minimapMetrics.viewportTop - minimapMetrics.minY) * minimapScale,
+                    width: Math.max(8, minimapMetrics.viewportWidth * minimapScale),
+                    height: Math.max(8, minimapMetrics.viewportHeight * minimapScale),
+                  }}
+                />
+              </div>
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

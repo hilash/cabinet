@@ -148,6 +148,15 @@ const BROWSER_VIEW_PARTITION = "persist:cabinet-browser";
 const browserViews = new Map();
 let nextBrowserViewId = 1;
 
+function sendBrowserViewNavigateEvent(ownerWebContentsId, viewId, url) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const wc = mainWindow.webContents;
+  if (!wc || wc.id !== ownerWebContentsId || wc.isDestroyed()) return;
+  try {
+    wc.send("cabinet:browser-view-navigated", { viewId, url });
+  } catch {}
+}
+
 function getBrowserSession() {
   return session.fromPartition(BROWSER_VIEW_PARTITION);
 }
@@ -677,15 +686,30 @@ function isAbortNavigationError(error) {
   return maybeError.code === "ERR_ABORTED" || maybeError.errno === -3;
 }
 
+function normalizeBrowserTargetUrl(value) {
+  if (typeof value !== "string") return "about:blank";
+  const trimmed = value.trim();
+  if (!trimmed) return "about:blank";
+  if (trimmed === "about:blank") return trimmed;
+  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(trimmed) || trimmed.startsWith("//")) return trimmed;
+  return `https://${trimmed}`;
+}
+
 async function loadBrowserViewUrlSafe(webContents, nextUrl) {
+  const targetUrl = normalizeBrowserTargetUrl(nextUrl);
   try {
-    await webContents.loadURL(nextUrl || "about:blank");
+    await webContents.loadURL(targetUrl);
     return { ok: true };
   } catch (error) {
     if (isAbortNavigationError(error)) {
       return { ok: true, aborted: true };
     }
-    throw error;
+    try {
+      await webContents.loadURL("about:blank");
+      return { ok: true, recovered: true };
+    } catch {
+      return { ok: false, error: "load-failed" };
+    }
   }
 }
 
@@ -724,17 +748,42 @@ ipcMain.handle("cabinet:create-browser-view", async (event, payload) => {
   view.setVisible(false);
   mainWindow.contentView.addChildView(view);
   browserViews.set(viewId, { view, ownerWebContentsId: event.sender.id });
+  view.webContents.on("did-navigate", (_navEvent, nextUrl) => {
+    sendBrowserViewNavigateEvent(event.sender.id, viewId, String(nextUrl || "about:blank"));
+  });
+  view.webContents.on("did-navigate-in-page", (_navEvent, nextUrl) => {
+    sendBrowserViewNavigateEvent(event.sender.id, viewId, String(nextUrl || "about:blank"));
+  });
   await loadBrowserViewUrlSafe(view.webContents, initialUrl || "about:blank");
   return { ok: true, viewId };
 });
 
 ipcMain.handle("cabinet:load-browser-view-url", async (event, payload) => {
-  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
-  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
-  const nextUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
-  const entry = browserViews.get(viewId);
-  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
-  return await loadBrowserViewUrlSafe(entry.view.webContents, nextUrl || "about:blank");
+  try {
+    if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+    const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+    const nextUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
+    const entry = browserViews.get(viewId);
+    if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+    const wc = entry.view.webContents;
+    if (nextUrl === "__cabinet_nav_back__") {
+      if (!wc.canGoBack()) return { ok: true, skipped: true };
+      wc.goBack();
+      return { ok: true };
+    }
+    if (nextUrl === "__cabinet_nav_forward__") {
+      if (!wc.canGoForward()) return { ok: true, skipped: true };
+      wc.goForward();
+      return { ok: true };
+    }
+    if (nextUrl === "__cabinet_nav_reload__") {
+      wc.reload();
+      return { ok: true };
+    }
+    return await loadBrowserViewUrlSafe(wc, nextUrl || "about:blank");
+  } catch {
+    return { ok: false, error: "handler-failed" };
+  }
 });
 
 ipcMain.handle("cabinet:set-browser-view-bounds", (event, payload) => {
@@ -784,6 +833,37 @@ ipcMain.handle("cabinet:set-browser-view-visible", (event, payload) => {
   const entry = browserViews.get(viewId);
   if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
   setBrowserViewVisibility(viewId, visible);
+  return { ok: true };
+});
+
+ipcMain.handle("cabinet:browser-view-go-back", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  const wc = entry.view.webContents;
+  if (!wc.canGoBack()) return { ok: true, skipped: true };
+  wc.goBack();
+  return { ok: true };
+});
+
+ipcMain.handle("cabinet:browser-view-go-forward", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  const wc = entry.view.webContents;
+  if (!wc.canGoForward()) return { ok: true, skipped: true };
+  wc.goForward();
+  return { ok: true };
+});
+
+ipcMain.handle("cabinet:browser-view-reload", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  entry.view.webContents.reload();
   return { ok: true };
 });
 
