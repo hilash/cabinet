@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive } from "lucide-react";
+import { Archive, Palette } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { useAppStore } from "@/stores/app-store";
@@ -23,7 +23,10 @@ type CanvasSnapshot = {
   whiteboardZoom?: number;
   whiteboardManualResizedByPath?: Record<string, boolean>;
   whiteboardAutoSizedByPath?: Record<string, boolean>;
+  whiteboardCardBackgroundColorByPath?: Record<string, string>;
 };
+
+type ColorPalettesMap = Record<string, string[]>;
 type ResizeHandle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 type ResizeState = {
   path: string;
@@ -73,6 +76,7 @@ const WHITEBOARD_CANVAS_ORIGIN_OFFSET = WHITEBOARD_CANVAS_BASE_SIZE / 2;
 const WHITEBOARD_CENTER_VERSION = 3;
 const WHITEBOARD_MINIMAP_WIDTH = 300;
 const WHITEBOARD_MINIMAP_REVEAL_DISTANCE = 150;
+const CANVAS_SELECTED_PALETTES_KEY = "cabinet-canvas-selected-palettes";
 
 function isCardSize(value: unknown): value is CardSize {
   if (!value || typeof value !== "object") return false;
@@ -200,6 +204,39 @@ function makeScopedCardKey(boardPath: string, nodePath: string): string {
   return `${boardPath}::${nodePath}`;
 }
 
+function isHexColor(value: string): boolean {
+  return /^#[0-9A-Fa-f]{6}$/.test(value);
+}
+
+function pickRandom<T>(items: T[]): T | null {
+  if (items.length === 0) return null;
+  const index = Math.floor(Math.random() * items.length);
+  return items[index] ?? null;
+}
+
+function loadSelectedPaletteNames(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(CANVAS_SELECTED_PALETTES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    return [];
+  }
+}
+
+function isMarkdownCard(node: TreeNode, content = ""): boolean {
+  if (node.type === "file") return true;
+  if (node.type === "code") {
+    return /\.mdx?$/i.test(node.name) || /\.mdx?$/i.test(node.path);
+  }
+  if (isFolderObject(node)) {
+    return content.trim().length > 0;
+  }
+  return false;
+}
 function getDefaultCardPosition(index: number): CardPosition {
   const column = index % CARD_CANVAS_COLUMNS;
   const row = Math.floor(index / CARD_CANVAS_COLUMNS);
@@ -372,7 +409,11 @@ function CardPreview({
   }
 
   return (
-    <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap wrap-break-word rounded-lg bg-muted/40 p-3 text-xs text-foreground/90">
+    <pre
+      className={`min-h-0 flex-1 overflow-auto whitespace-pre-wrap wrap-break-word rounded-lg p-3 text-xs text-foreground/90 ${
+        node.type === "file" ? "bg-transparent" : "bg-muted/40"
+      }`}
+    >
       {content}
     </pre>
   );
@@ -412,6 +453,9 @@ export function CanvasView() {
   const [manualResizedByPath, setManualResizedByPath] = useState<Record<string, boolean>>({});
   const [autoSizedByPath, setAutoSizedByPath] = useState<Record<string, boolean>>({});
   const [mediaSizeByPath, setMediaSizeByPath] = useState<Record<string, AutoSizeState>>({});
+  const [cardBackgroundColorByPath, setCardBackgroundColorByPath] = useState<Record<string, string>>({});
+  const [selectedPaletteColors, setSelectedPaletteColors] = useState<string[]>([]);
+  const [openColorPickerForPath, setOpenColorPickerForPath] = useState<string | null>(null);
   const [sizesLoaded, setSizesLoaded] = useState(false);
   const [persistTick, setPersistTick] = useState(0);
   const [boardZoom, setBoardZoom] = useState(WHITEBOARD_DEFAULT_ZOOM);
@@ -558,6 +602,7 @@ export function CanvasView() {
   useEffect(() => {
     setSelectedCardPaths([]);
     clearCanvasSelectedCardPaths();
+    setOpenColorPickerForPath(null);
   }, [boardScopePath, clearCanvasSelectedCardPaths]);
 
   useEffect(() => {
@@ -568,6 +613,24 @@ export function CanvasView() {
     });
   }, [boardCards]);
 
+  useEffect(() => {
+    if (!openColorPickerForPath) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        setOpenColorPickerForPath(null);
+        return;
+      }
+      if (target.closest("[data-card-color-picker='true']")) return;
+      if (target.closest("[data-card-color-trigger='true']")) return;
+      setOpenColorPickerForPath(null);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [openColorPickerForPath]);
+
   const selectedContextCardPaths = useMemo(() => {
     const cardByPath = new Map(boardCards.map((node) => [node.path, node]));
     return selectedCardPaths.filter((path) => {
@@ -576,6 +639,17 @@ export function CanvasView() {
     });
   }, [boardCards, selectedCardPaths]);
   const lastPushedSelectedContextRef = useRef<string[]>([]);
+  const selectedPaletteSwatches = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          selectedPaletteColors
+            .map((color) => color.toUpperCase())
+            .filter(isHexColor)
+        )
+      ),
+    [selectedPaletteColors]
+  );
 
   useEffect(() => {
     const previous = lastPushedSelectedContextRef.current;
@@ -588,6 +662,56 @@ export function CanvasView() {
     lastPushedSelectedContextRef.current = selectedContextCardPaths;
     setCanvasSelectedCardPaths(selectedContextCardPaths);
   }, [selectedContextCardPaths, setCanvasSelectedCardPaths]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPaletteColors = async () => {
+      const selectedNames = loadSelectedPaletteNames();
+      if (selectedNames.length === 0) {
+        if (!cancelled) setSelectedPaletteColors([]);
+        return;
+      }
+      try {
+        const res = await fetch("/api/color-palettes", { cache: "no-store" });
+        if (!res.ok) {
+          if (!cancelled) setSelectedPaletteColors([]);
+          return;
+        }
+        const data = (await res.json()) as { palettes?: Record<string, string[]> };
+        const palettes = data.palettes ?? {};
+        const merged = selectedNames.flatMap((name) => palettes[name] ?? []).filter(isHexColor);
+        if (!cancelled) setSelectedPaletteColors(merged);
+      } catch {
+        if (!cancelled) setSelectedPaletteColors([]);
+      }
+    };
+
+    void loadPaletteColors();
+
+    const onFocus = () => {
+      void loadPaletteColors();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === CANVAS_SELECTED_PALETTES_KEY) {
+        void loadPaletteColors();
+      }
+    };
+    const onSelectedPalettesChanged = () => {
+      void loadPaletteColors();
+    };
+
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("cabinet:canvas-selected-palettes-changed", onSelectedPalettesChanged);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("cabinet:canvas-selected-palettes-changed", onSelectedPalettesChanged);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -606,6 +730,7 @@ export function CanvasView() {
             setPositionCenterVersionByBoardPath({});
             setManualResizedByPath({});
             setAutoSizedByPath({});
+            setCardBackgroundColorByPath({});
             setBoardZoom(WHITEBOARD_DEFAULT_ZOOM);
             setSizesLoaded(true);
           }
@@ -617,6 +742,7 @@ export function CanvasView() {
         const nextPositionsByBoardPath: Record<string, Record<string, CardPosition>> = {};
         const nextManual: Record<string, boolean> = {};
         const nextAuto: Record<string, boolean> = {};
+        const nextBackgroundColors: Record<string, string> = {};
         const nextCenteredByBoardPath: Record<string, boolean> =
           snapshot.whiteboardCardPositionsCenteredByBoardPath &&
           typeof snapshot.whiteboardCardPositionsCenteredByBoardPath === "object"
@@ -680,6 +806,12 @@ export function CanvasView() {
             if (value === true) nextAuto[path] = true;
           }
         }
+        if (snapshot.whiteboardCardBackgroundColorByPath && typeof snapshot.whiteboardCardBackgroundColorByPath === "object") {
+          for (const [path, color] of Object.entries(snapshot.whiteboardCardBackgroundColorByPath)) {
+            if (typeof color !== "string" || !isHexColor(color)) continue;
+            nextBackgroundColors[path] = color.toUpperCase();
+          }
+        }
         for (const [path, size] of Object.entries(nextSizes)) {
           if (nextManual[path] || nextAuto[path]) continue;
           if (size.width !== CARD_DEFAULT_WIDTH || size.height !== CARD_DEFAULT_HEIGHT) {
@@ -700,6 +832,7 @@ export function CanvasView() {
         const nextSizesScoped: Record<string, CardSize> = {};
         const nextManualScoped: Record<string, boolean> = {};
         const nextAutoScoped: Record<string, boolean> = {};
+        const nextBackgroundScoped: Record<string, string> = {};
         for (const [path, size] of Object.entries(nextSizes)) {
           const key = path.includes("::") ? path : makeScopedCardKey(boardScopePath, path);
           nextSizesScoped[key] = size;
@@ -714,6 +847,10 @@ export function CanvasView() {
           const key = path.includes("::") ? path : makeScopedCardKey(boardScopePath, path);
           nextAutoScoped[key] = true;
         }
+        for (const [path, color] of Object.entries(nextBackgroundColors)) {
+          const key = path.includes("::") ? path : makeScopedCardKey(boardScopePath, path);
+          nextBackgroundScoped[key] = color;
+        }
         if (!cancelled) {
           setCardSizeByPath(nextSizesScoped);
           setCardPositionsByBoardPath(resolvedPositionsByBoardPath);
@@ -722,6 +859,7 @@ export function CanvasView() {
           setPositionCenterVersionByBoardPath(nextCenterVersionByBoardPath);
           setManualResizedByPath(nextManualScoped);
           setAutoSizedByPath(nextAutoScoped);
+          setCardBackgroundColorByPath(nextBackgroundScoped);
           setBoardZoom(persistedZoom);
           setSizesLoaded(true);
         }
@@ -733,9 +871,10 @@ export function CanvasView() {
           setPositionsCenteredByBoardPath({});
           setPositionCenterVersionByBoardPath({});
           setManualResizedByPath({});
-          setAutoSizedByPath({});
-          setBoardZoom(WHITEBOARD_DEFAULT_ZOOM);
-          setSizesLoaded(true);
+            setAutoSizedByPath({});
+            setCardBackgroundColorByPath({});
+            setBoardZoom(WHITEBOARD_DEFAULT_ZOOM);
+            setSizesLoaded(true);
         }
       }
     })();
@@ -823,6 +962,31 @@ export function CanvasView() {
       return next;
     });
   }, [boardCards, boardScopePath, sizesLoaded]);
+
+  useEffect(() => {
+    if (!sizesLoaded || selectedPaletteColors.length === 0 || boardCards.length === 0) return;
+    const paletteColors = selectedPaletteColors
+      .map((color) => color.toUpperCase())
+      .filter(isHexColor);
+    if (paletteColors.length === 0) return;
+    const paletteColorSet = new Set(paletteColors);
+    setCardBackgroundColorByPath((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const node of boardCards) {
+        const content = pageContentByPath[node.path] ?? "";
+        if (!isMarkdownCard(node, content)) continue;
+        const scopedPath = makeScopedCardKey(boardScopePath, node.path);
+        const currentColor = (next[scopedPath] ?? "").toUpperCase();
+        if (isHexColor(currentColor) && paletteColorSet.has(currentColor)) continue;
+        const randomColor = pickRandom(paletteColors);
+        if (!randomColor) continue;
+        next[scopedPath] = randomColor;
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [boardCards, boardScopePath, selectedPaletteColors, pageContentByPath, sizesLoaded]);
 
   useEffect(() => {
     if (!sizesLoaded || boardCards.length === 0) return;
@@ -953,6 +1117,7 @@ export function CanvasView() {
           snapshot.whiteboardCardPositionsCenterVersionByBoardPath = positionCenterVersionByBoardPath;
           snapshot.whiteboardManualResizedByPath = manualResizedByPath;
           snapshot.whiteboardAutoSizedByPath = autoSizedByPath;
+          snapshot.whiteboardCardBackgroundColorByPath = cardBackgroundColorByPath;
           snapshot.whiteboardZoom = boardZoom;
           if (!cancelled) {
             await fetch(`/api/canvas?${query.toString()}`, {
@@ -970,7 +1135,7 @@ export function CanvasView() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [cardSizeByPath, cardPositionByPath, cardPositionsByBoardPath, positionsCenteredByBoardPath, positionCenterVersionByBoardPath, manualResizedByPath, autoSizedByPath, cabinetPath, sizesLoaded, persistTick, boardZoom]);
+  }, [cardSizeByPath, cardPositionByPath, cardPositionsByBoardPath, positionsCenteredByBoardPath, positionCenterVersionByBoardPath, manualResizedByPath, autoSizedByPath, cardBackgroundColorByPath, cabinetPath, sizesLoaded, persistTick, boardZoom]);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
@@ -1277,6 +1442,9 @@ export function CanvasView() {
                   const kind = getNodeKind(node);
                   const scopedPath = makeScopedCardKey(boardScopePath, node.path);
                   const isSelected = selectedCardPaths.includes(node.path);
+                  const markdownCard = isMarkdownCard(node, content);
+                  const cardBackgroundColor = cardBackgroundColorByPath[scopedPath] ?? "";
+                  const hasCardBackgroundColor = markdownCard && isHexColor(cardBackgroundColor);
 
                   return (
                     <div
@@ -1321,6 +1489,7 @@ export function CanvasView() {
                         height: cardSizeByPath[scopedPath]?.height ?? cardSizeByPath[node.path]?.height ?? CARD_DEFAULT_HEIGHT,
                         left: (cardPositionByPath[node.path] ?? getDefaultCardPosition(index)).x,
                         top: (cardPositionByPath[node.path] ?? getDefaultCardPosition(index)).y,
+                        ...(hasCardBackgroundColor ? { backgroundColor: cardBackgroundColor } : {}),
                       }}
                       className={
                         composed
@@ -1336,6 +1505,64 @@ export function CanvasView() {
                         }
                       }}
                     >
+                      {markdownCard ? (
+                        <>
+                          <button
+                            type="button"
+                            aria-label="Change markdown card color"
+                            title="Change markdown card color"
+                            className="absolute right-12 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/70 bg-background/80 text-muted-foreground hover:bg-background"
+                            data-card-color-trigger="true"
+                            onPointerDown={(event) => {
+                              event.stopPropagation();
+                            }}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setOpenColorPickerForPath((prev) => (prev === scopedPath ? null : scopedPath));
+                            }}
+                          >
+                            <Palette className="h-3.5 w-3.5" />
+                          </button>
+                          {openColorPickerForPath === scopedPath ? (
+                            <div
+                              className="absolute right-12 top-11 z-20 flex max-w-[220px] flex-wrap gap-1 rounded-md border border-border/70 bg-background p-2 shadow-lg"
+                              data-card-color-picker="true"
+                              onPointerDown={(event) => {
+                                event.stopPropagation();
+                              }}
+                            >
+                              {selectedPaletteSwatches.length > 0 ? (
+                                selectedPaletteSwatches.map((swatch) => {
+                                  const active = hasCardBackgroundColor && cardBackgroundColor.toUpperCase() === swatch;
+                                  return (
+                                    <button
+                                      key={`${scopedPath}-${swatch}`}
+                                      type="button"
+                                      aria-label={`Set markdown card color ${swatch}`}
+                                      title={swatch}
+                                      className={`h-6 w-6 rounded border ${active ? "border-foreground" : "border-border/70"}`}
+                                      style={{ backgroundColor: swatch }}
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        setCardBackgroundColorByPath((prev) => {
+                                          if (prev[scopedPath] === swatch) return prev;
+                                          return { ...prev, [scopedPath]: swatch };
+                                        });
+                                        setPersistTick((tick) => tick + 1);
+                                        setOpenColorPickerForPath(null);
+                                      }}
+                                    />
+                                  );
+                                })
+                              ) : (
+                                <div className="px-1 py-0.5 text-xs text-muted-foreground">No checked palette colors</div>
+                              )}
+                            </div>
+                          ) : null}
+                        </>
+                      ) : null}
                       <button
                         type="button"
                         aria-label="Open in cabinet mode"
