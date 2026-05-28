@@ -43,6 +43,7 @@ type SectionState = ReturnType<typeof useAppStore.getState>["section"];
 interface RouteState {
   section: SectionState;
   pagePath: string | null;
+  appMode?: "edit" | "browse" | "canvas";
 }
 
 // Audit #011: encode each path segment individually so the joining `/`
@@ -77,93 +78,110 @@ function isAgentsSubTab(value: string | undefined): value is AgentsSubTab {
   return !!value && (AGENTS_SUB_TABS as readonly string[]).includes(value);
 }
 
-function buildHash(section: SectionState, pagePath: string | null): string {
+function buildHash(
+  section: SectionState,
+  pagePath: string | null,
+  appMode?: "edit" | "browse" | "canvas"
+): string {
   const cabinetPath = section.cabinetPath || ROOT_CABINET_PATH;
   const isRoot = cabinetPath === ROOT_CABINET_PATH;
+
+  const appendMode = (hash: string): string => {
+    if (appMode === "browse") return `${hash}${hash.includes("?") ? "&" : "?"}mode=browse`;
+    if (appMode === "canvas") return `${hash}${hash.includes("?") ? "&" : "?"}mode=canvas`;
+    return hash;
+  };
 
   if (section.type === "page" && pagePath) {
     if (isRoot) {
       // Clean short form: #/p/data/audit-fix-progress
-      return `#/p/${encodePathSegment(pagePath)}`;
+      return appendMode(`#/p/${encodePathSegment(pagePath)}`);
     }
-    return `#/cabinet/${encodePathSegment(cabinetPath)}/data/${encodePathSegment(pagePath)}`;
+    return appendMode(`#/cabinet/${encodePathSegment(cabinetPath)}/data/${encodePathSegment(pagePath)}`);
   }
   if (section.type === "cabinet") {
-    if (isRoot) return "#/home";
-    return `#/cabinet/${encodePathSegment(cabinetPath)}`;
+    if (isRoot) return appendMode("#/home");
+    return appendMode(`#/cabinet/${encodePathSegment(cabinetPath)}`);
   }
   if (section.type === "agent" && section.slug) {
     if (isRoot) {
       // Clean short form: #/a/harel
-      return `#/a/${encodePathSegment(section.slug)}`;
+      return appendMode(`#/a/${encodePathSegment(section.slug)}`);
     }
-    return `#/cabinet/${encodePathSegment(cabinetPath)}/agents/${encodePathSegment(section.slug)}`;
+    return appendMode(`#/cabinet/${encodePathSegment(cabinetPath)}/agents/${encodePathSegment(section.slug)}`);
   }
   if (section.type === "agents") {
     const tabSuffix =
       section.agentsTab && section.agentsTab !== "agents"
         ? `/${section.agentsTab}`
         : "";
-    if (isRoot) return `#/agents${tabSuffix}`;
-    return `#/cabinet/${encodePathSegment(cabinetPath)}/agents${tabSuffix}`;
+    if (isRoot) return appendMode(`#/agents${tabSuffix}`);
+    return appendMode(`#/cabinet/${encodePathSegment(cabinetPath)}/agents${tabSuffix}`);
   }
   if (section.type === "task" && section.taskId) {
-    return buildTaskHash(section.taskId, cabinetPath);
+    return appendMode(buildTaskHash(section.taskId, cabinetPath));
   }
   if (section.type === "tasks") {
-    return buildTasksHash(cabinetPath);
+    return appendMode(buildTasksHash(cabinetPath));
   }
   if (section.type === "settings") {
-    return section.slug
-      ? `#/settings/${encodePathSegment(section.slug)}`
-      : "#/settings";
+    return appendMode(
+      section.slug
+        ? `#/settings/${encodePathSegment(section.slug)}`
+        : "#/settings"
+    );
   }
-  if (section.type === "help") return "#/help";
-  if (section.type === "home") return "#/home";
-  return "#/home";
+  if (section.type === "help") return appendMode("#/help");
+  if (section.type === "home") return appendMode("#/home");
+  return appendMode("#/home");
 }
 
 function parseHash(hash: string): RouteState {
-  const raw = hash.replace(/^#\/?/, "");
-  const parts = raw.split("/").filter(Boolean);
+  const [rawPath, rawQuery] = hash.replace(/^#\/?/, "").split("?");
+  const parts = rawPath.split("/").filter(Boolean);
+  const mode = new URLSearchParams(rawQuery ?? "").get("mode");
+  const appMode = mode === "browse" || mode === "canvas" ? mode : undefined;
+  const withMode = (section: SectionState, pagePath: string | null): RouteState => {
+    if (appMode) {
+      return { section, pagePath, appMode };
+    }
+    return { section, pagePath };
+  };
 
   if (parts.length === 0 || parts[0] === "home") {
-    return { section: { type: "home" }, pagePath: null };
+    return withMode({ type: "home" }, null);
   }
 
   // New canonical short forms (audit #122)
   if (parts[0] === "p") {
-    return {
-      section: { type: "page", cabinetPath: ROOT_CABINET_PATH },
-      pagePath: decodePathSegment(parts.slice(1).join("/")),
-    };
+    return withMode(
+      { type: "page", cabinetPath: ROOT_CABINET_PATH },
+      decodePathSegment(parts.slice(1).join("/"))
+    );
   }
 
   if (parts[0] === "a") {
     if (parts[1]) {
       const slug = decodePathSegment(parts[1]);
-      return {
-        section: {
+      return withMode(
+        {
           type: "agent",
           cabinetPath: ROOT_CABINET_PATH,
           slug,
           agentScopedId: `${ROOT_CABINET_PATH}::agent::${slug}`,
         },
-        pagePath: null,
-      };
+        null
+      );
     }
-    return {
-      section: { type: "agents", cabinetPath: ROOT_CABINET_PATH },
-      pagePath: null,
-    };
+    return withMode({ type: "agents", cabinetPath: ROOT_CABINET_PATH }, null);
   }
 
   if (parts[0] === "page") {
     // Legacy form — still accepted so old bookmarks keep working.
-    return {
-      section: { type: "page", cabinetPath: ROOT_CABINET_PATH },
-      pagePath: decodePathSegment(parts.slice(1).join("/")),
-    };
+    return withMode(
+      { type: "page", cabinetPath: ROOT_CABINET_PATH },
+      decodePathSegment(parts.slice(1).join("/"))
+    );
   }
 
   if (parts[0] === "cabinet") {
@@ -171,63 +189,48 @@ function parseHash(hash: string): RouteState {
     const leaf = parts[2];
 
     if (!leaf) {
-      return {
-        section: { type: "cabinet", cabinetPath },
-        pagePath: null,
-      };
+      return withMode({ type: "cabinet", cabinetPath }, null);
     }
 
     if (leaf === "agents" && parts[3] && isAgentsSubTab(parts[3])) {
-      return {
-        section: { type: "agents", cabinetPath, agentsTab: parts[3] },
-        pagePath: null,
-      };
+      return withMode({ type: "agents", cabinetPath, agentsTab: parts[3] }, null);
     }
 
     if (leaf === "agents" && parts[3]) {
       const slug = decodePathSegment(parts[3]);
-      return {
-        section: {
+      return withMode(
+        {
           type: "agent",
           cabinetPath,
           slug,
           agentScopedId: `${cabinetPath}::agent::${slug}`,
         },
-        pagePath: null,
-      };
+        null
+      );
     }
 
     if (leaf === "agents") {
-      return {
-        section: { type: "agents", cabinetPath },
-        pagePath: null,
-      };
+      return withMode({ type: "agents", cabinetPath }, null);
     }
 
     if (leaf === "tasks" && parts[3]) {
-      return {
-        section: {
+      return withMode(
+        {
           type: "task",
           cabinetPath,
           taskId: decodePathSegment(parts[3]),
         },
-        pagePath: null,
-      };
+        null
+      );
     }
 
     if (leaf === "tasks") {
-      return {
-        section: { type: "tasks", cabinetPath },
-        pagePath: null,
-      };
+      return withMode({ type: "tasks", cabinetPath }, null);
     }
 
     if (leaf === "data" && parts[3]) {
       const pagePath = decodePathSegment(parts.slice(3).join("/"));
-      return {
-        section: { type: "page", cabinetPath },
-        pagePath,
-      };
+      return withMode({ type: "page", cabinetPath }, pagePath);
     }
 
     // Audit #021: legacy / shorter form `#/cabinet/{cabinetPath}/{pagePath}`
@@ -235,24 +238,21 @@ function parseHash(hash: string): RouteState {
     // broke deep-links. Interpret the remaining segments as a page path
     // under the cabinet so reload keeps the user on the page they were on.
     const pagePath = decodePathSegment(parts.slice(2).join("/"));
-    return {
-      section: { type: "page", cabinetPath },
-      pagePath,
-    };
+    return withMode({ type: "page", cabinetPath }, pagePath);
   }
 
   if (parts[0] === "settings") {
-    return {
-      section: {
+    return withMode(
+      {
         type: "settings",
         slug: parts[1] ? decodePathSegment(parts[1]) : undefined,
       },
-      pagePath: null,
-    };
+      null
+    );
   }
 
   if (parts[0] === "help") {
-    return { section: { type: "help" }, pagePath: null };
+    return withMode({ type: "help" }, null);
   }
 
   // Bare-route aliases scoped to the root cabinet. Lets every shared link of
@@ -262,51 +262,45 @@ function parseHash(hash: string): RouteState {
     // `#/agents/{sub-tab}` for the new V2 layout — sub-tab takes priority
     // over the legacy `#/agents/{slug}` form (which is now under `#/a/`).
     if (parts[1] && isAgentsSubTab(parts[1])) {
-      return {
-        section: {
+      return withMode(
+        {
           type: "agents",
           cabinetPath: ROOT_CABINET_PATH,
           agentsTab: parts[1],
         },
-        pagePath: null,
-      };
+        null
+      );
     }
     if (parts[1]) {
       const slug = decodePathSegment(parts[1]);
-      return {
-        section: {
+      return withMode(
+        {
           type: "agent",
           cabinetPath: ROOT_CABINET_PATH,
           slug,
           agentScopedId: `${ROOT_CABINET_PATH}::agent::${slug}`,
         },
-        pagePath: null,
-      };
+        null
+      );
     }
-    return {
-      section: { type: "agents", cabinetPath: ROOT_CABINET_PATH },
-      pagePath: null,
-    };
+    return withMode({ type: "agents", cabinetPath: ROOT_CABINET_PATH }, null);
   }
 
   if (parts[0] === "tasks") {
     if (parts[1]) {
-      return {
-        section: {
+      return withMode(
+        {
           type: "task",
           cabinetPath: ROOT_CABINET_PATH,
           taskId: decodePathSegment(parts[1]),
         },
-        pagePath: null,
-      };
+        null
+      );
     }
-    return {
-      section: { type: "tasks", cabinetPath: ROOT_CABINET_PATH },
-      pagePath: null,
-    };
+    return withMode({ type: "tasks", cabinetPath: ROOT_CABINET_PATH }, null);
   }
 
-  return { section: { type: "home" }, pagePath: null };
+  return withMode({ type: "home" }, null);
 }
 
 function saveToLocalStorage(hash: string) {
@@ -334,11 +328,12 @@ function expandParents(pagePath: string) {
 }
 
 async function applyRoute(route: RouteState) {
-  const { setSection } = useAppStore.getState();
+  const { setSection, setAppMode } = useAppStore.getState();
   const { selectPage } = useTreeStore.getState();
   const { loadPage, clear } = useEditorStore.getState();
 
   setSection(route.section);
+  setAppMode(route.appMode ?? "edit");
 
   if (route.pagePath) {
     selectPage(route.pagePath);
@@ -407,7 +402,8 @@ export function useHashRoute() {
       // would otherwise stay on the legacy form for the user's session.
       const canonical = buildHash(
         useAppStore.getState().section,
-        useTreeStore.getState().selectedPath
+        useTreeStore.getState().selectedPath,
+        useAppStore.getState().appMode
       );
       if (window.location.hash && window.location.hash !== canonical) {
         window.history.replaceState(null, "", canonical);
@@ -430,12 +426,13 @@ export function useHashRoute() {
         state.section.type !== prev.section.type ||
         state.section.slug !== prev.section.slug ||
         state.section.cabinetPath !== prev.section.cabinetPath ||
-        state.section.agentsTab !== prev.section.agentsTab
+        state.section.agentsTab !== prev.section.agentsTab ||
+        state.appMode !== prev.appMode
       ) {
         const selectedPath = useTreeStore.getState().selectedPath;
-        const hash = buildHash(state.section, selectedPath);
+        const hash = buildHash(state.section, selectedPath, state.appMode);
         if (window.location.hash !== hash) {
-          window.history.replaceState(null, "", hash);
+          window.location.hash = hash;
           saveToLocalStorage(hash);
           useAppStore.getState().recordNav(hash);
         }
@@ -445,9 +442,13 @@ export function useHashRoute() {
     const unsubTree = useTreeStore.subscribe((state, prev) => {
       if (suppressHashUpdate.current) return;
       if (state.selectedPath !== prev.selectedPath && state.selectedPath) {
-        const hash = buildHash(useAppStore.getState().section, state.selectedPath);
+        const hash = buildHash(
+          useAppStore.getState().section,
+          state.selectedPath,
+          useAppStore.getState().appMode
+        );
         if (window.location.hash !== hash) {
-          window.history.replaceState(null, "", hash);
+          window.location.hash = hash;
           saveToLocalStorage(hash);
           useAppStore.getState().recordNav(hash);
         }

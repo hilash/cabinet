@@ -151,6 +151,8 @@ function TreeNodeImpl({
   const dragGhostRef = useRef<HTMLDivElement | null>(null);
   const loadPage = useEditorStore((s) => s.loadPage);
   const setSection = useAppStore((s) => s.setSection);
+  const appMode = useAppStore((s) => s.appMode);
+  const setAppMode = useAppStore((s) => s.setAppMode);
   const [subPageOpen, setSubPageOpen] = useState(false);
   const [subPageTitle, setSubPageTitle] = useState("");
   const [creating, setCreating] = useState(false);
@@ -307,6 +309,20 @@ function TreeNodeImpl({
     // is the explicit affordance for switching into the cabinet view.
     if (node.type === "file" || node.type === "directory" || node.type === "cabinet") {
       loadPage(node.path);
+    }
+
+    const assetUrl = `/api/assets/${node.path.split("/").map(encodeURIComponent).join("/")}`;
+    const browseFileUrl =
+      node.type === "website" || node.type === "app"
+        ? `${assetUrl}/index.html`
+        : node.type === "directory" || node.type === "cabinet"
+          ? `${assetUrl}/index.md`
+          : node.type === "file" && node.name.toLowerCase().endsWith(".md")
+            ? `${assetUrl}.md`
+            : assetUrl;
+
+    if (appMode === "browse") {
+      setAppMode("browse", browseFileUrl);
     }
 
     setSection(
@@ -596,13 +612,13 @@ function TreeNodeImpl({
       >
       {showInsertBefore && (
         <div
-          className="pointer-events-none absolute -top-px end-1.5 z-10 h-0.5 rounded-full bg-primary"
+          className="pointer-events-none absolute -top-px inset-e-1.5 z-10 h-0.5 rounded-full bg-primary"
           style={{ insetInlineStart: `${depth * 16 + 8}px` }}
         />
       )}
       {showInsertAfter && (
         <div
-          className="pointer-events-none absolute -bottom-px end-1.5 z-10 h-0.5 rounded-full bg-primary"
+          className="pointer-events-none absolute -bottom-px inset-e-1.5 z-10 h-0.5 rounded-full bg-primary"
           style={{ insetInlineStart: `${depth * 16 + 8}px` }}
         />
       )}
@@ -620,7 +636,7 @@ function TreeNodeImpl({
             disabled={isMoving}
             className={cn(
               "group relative flex items-center gap-2 w-full text-start py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
-              "hover:bg-foreground/[0.03] hover:text-foreground !cursor-grab active:!cursor-grabbing",
+              "hover:bg-foreground/3 hover:text-foreground cursor-grab! active:cursor-grabbing!",
               // Override the ContextMenuTrigger wrapper's user-select:none so HTML5 dragstart fires on first mousedown (Chromium quirk: draggable rows inheriting user-select:none need a focus pass before drag initiates).
               "select-text",
               // Audit #015: active row needs two cues, not just background.
@@ -631,11 +647,11 @@ function TreeNodeImpl({
               // Uses logical start/rounded-e so the bar flips to the
               // right edge in RTL and stays rounded on its inner side.
               isSelected &&
-                "bg-accent/70 text-accent-foreground font-semibold before:absolute before:start-0 before:top-1 before:bottom-1 before:w-[2px] before:rounded-e-full before:bg-primary",
+                "bg-accent/70 text-accent-foreground font-semibold before:absolute before:inset-s-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-e-full before:bg-primary",
               showInto &&
                 "bg-primary/10 ring-1 ring-primary/30 ring-inset",
               blink && "cabinet-tree-blink",
-              isMoving && "opacity-60 !cursor-progress pointer-events-none"
+              isMoving && "opacity-60 cursor-progress! pointer-events-none"
             )}
             style={{ paddingInlineStart: `${depth * 16 + 8}px` }}
           >
@@ -753,7 +769,7 @@ function TreeNodeImpl({
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
                 className={cn(
-                  "ms-auto shrink-0 rounded-md bg-foreground/[0.04] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80 transition-[opacity,background-color,color]",
+                  "ms-auto shrink-0 rounded-md bg-foreground/4 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80 transition-[opacity,background-color,color]",
                   "opacity-0 group-hover:opacity-100 focus:opacity-100",
                   "hover:bg-accent hover:text-accent-foreground cursor-pointer"
                 )}

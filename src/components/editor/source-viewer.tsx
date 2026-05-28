@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { ExternalLink, Download, WrapText, Copy, Check } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { ExternalLink, Download, WrapText, Copy, Check, Save, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ViewerToolbar } from "@/components/layout/viewer-toolbar";
 import { common, createLowlight } from "lowlight";
@@ -45,9 +45,15 @@ function formatBadge(filename: string): string {
 export function SourceViewer({ path }: SourceViewerProps) {
   const { t } = useLocale();
   const [content, setContent] = useState<string | null>(null);
+  const [rawText, setRawText] = useState("");
   const [loading, setLoading] = useState(true);
   const [wrap, setWrap] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sourceMode, setSourceMode] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const editInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const editOverlayRef = useRef<HTMLDivElement | null>(null);
 
   const assetUrl = `/api/assets/${path}`;
   const filename = path.split("/").pop() || path;
@@ -60,6 +66,8 @@ export function SourceViewer({ path }: SourceViewerProps) {
       if (res.ok) {
         const text = await res.text();
         setContent(text);
+        setRawText(text);
+        setDirty(false);
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -76,15 +84,56 @@ export function SourceViewer({ path }: SourceViewerProps) {
         ? lowlight.highlight(language, content)
         : lowlight.highlightAuto(content);
       const html = toHtml(tree);
-      // Split by newlines while preserving HTML tags that span lines
       return html.split("\n");
     } catch {
-      // Fallback: no highlighting
       return content.split("\n").map((line) =>
         line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       );
     }
   }, [content, language]);
+
+  const editHighlightedLines = useMemo(() => {
+    if (!rawText) return [" "];
+    try {
+      const tree = language
+        ? lowlight.highlight(language, rawText)
+        : lowlight.highlightAuto(rawText);
+      const html = toHtml(tree);
+      return html.split("\n");
+    } catch {
+      return rawText.split("\n").map((line) =>
+        line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      );
+    }
+  }, [rawText, language]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(assetUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "text/plain" },
+        body: rawText,
+      });
+      if (!res.ok) {
+        throw new Error(`Save failed: ${res.status}`);
+      }
+      setContent(rawText);
+      setDirty(false);
+      setSourceMode(false);
+    } catch {
+    }
+    setSaving(false);
+  };
+
+  const toggleSourceMode = () => {
+    if (sourceMode) {
+      setSourceMode(false);
+      return;
+    }
+    setRawText(content || "");
+    setSourceMode(true);
+  };
 
   const copyToClipboard = () => {
     if (!content) return;
@@ -96,16 +145,41 @@ export function SourceViewer({ path }: SourceViewerProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <ViewerToolbar path={path} badge={formatBadge(filename)} sublabel={language || undefined}>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-7 gap-1.5 text-xs ${wrap ? "bg-muted" : ""}`}
-          onClick={() => setWrap((v) => !v)}
-          title={wrap ? "Disable line wrap" : "Enable line wrap"}
+        {dirty && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 text-xs"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            <Save className="h-3.5 w-3.5" />
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        )}
+        <button
+          onClick={toggleSourceMode}
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-md transition-colors border border-border ${
+            sourceMode
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent"
+          }`}
         >
-          <WrapText className="h-3.5 w-3.5" />
-          Wrap
-        </Button>
+          <Code2 className="h-3 w-3" />
+          {sourceMode ? "Preview" : "Edit"}
+        </button>
+        {!sourceMode && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-7 gap-1.5 text-xs ${wrap ? "bg-muted" : ""}`}
+            onClick={() => setWrap((v) => !v)}
+            title={wrap ? "Disable line wrap" : "Enable line wrap"}
+          >
+            <WrapText className="h-3.5 w-3.5" />
+            Wrap
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -147,6 +221,39 @@ export function SourceViewer({ path }: SourceViewerProps) {
         {loading ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
             Loading...
+          </div>
+        ) : sourceMode ? (
+          <div className="relative h-full min-h-0 overflow-auto p-0">
+            <div
+              ref={editOverlayRef}
+              className="pointer-events-none absolute inset-0 overflow-auto"
+            >
+              <div className="relative min-h-full">
+                <pre className="absolute inset-y-0 left-0 m-0 w-[4rem] select-none bg-[#1e1e1e] pr-4 text-right font-mono text-[13px] leading-relaxed text-[#858585]">{Array.from({ length: editHighlightedLines.length }, (_, i) => i + 1).join("\n")}</pre>
+                <pre
+                  className="m-0 min-h-full whitespace-pre bg-transparent p-0 pl-[4rem] font-mono text-[13px] leading-relaxed text-[#d4d4d4]"
+                  dangerouslySetInnerHTML={{ __html: editHighlightedLines.join("\n") }}
+                />
+              </div>
+            </div>
+            <textarea
+              ref={editInputRef}
+              value={rawText}
+              onChange={(e) => {
+                setRawText(e.target.value);
+                setDirty(true);
+              }}
+              onScroll={(e) => {
+                const target = e.currentTarget;
+                if (editOverlayRef.current) {
+                  editOverlayRef.current.scrollTop = target.scrollTop;
+                  editOverlayRef.current.scrollLeft = target.scrollLeft;
+                }
+              }}
+              className="absolute inset-y-0 left-[4rem] right-0 z-10 min-h-[calc(100vh-12rem)] resize-none bg-transparent p-0 font-mono text-[13px] leading-relaxed text-transparent caret-[#d4d4d4] focus:outline-none"
+              wrap="off"
+              spellCheck={false}
+            />
           </div>
         ) : (
           <table className="w-full border-collapse text-[13px] leading-relaxed font-mono">

@@ -1026,6 +1026,8 @@
   "editor": {
     "header": {
       "exportPage": "ייצוא דף",
+      "focus": "מיקוד",
+      "exitFocus": "צא מהמיקוד",
       "copyMarkdown": "העתקה כ-Markdown",
       "copyForLlms": "העתקה עבור LLM",
       "copyAsHtml": "העתקה כ-HTML",

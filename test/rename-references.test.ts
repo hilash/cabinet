@@ -113,6 +113,42 @@ test("undo restores directory, title and every rewritten file byte-for-byte", as
   }
 });
 
+test("renaming a typed file without extension preserves its original extension", async () => {
+  const root = uniqueRoot();
+  try {
+    const oldPath = path.join(DATA_DIR, root, "photo.jpg");
+    await fs.mkdir(path.dirname(oldPath), { recursive: true });
+    await fs.writeFile(oldPath, "jpeg-bytes", "utf8");
+
+    const { newPath } = await renamePage(`${root}/photo.jpg`, "holiday");
+
+    assert.equal(newPath, `${root}/holiday.jpg`);
+    await assert.rejects(() => fs.stat(path.join(DATA_DIR, root, "photo.jpg")));
+    const nextBytes = await fs.readFile(path.join(DATA_DIR, root, "holiday.jpg"), "utf8");
+    assert.equal(nextBytes, "jpeg-bytes");
+  } finally {
+    await fs.rm(path.join(DATA_DIR, root), { recursive: true, force: true });
+  }
+});
+
+test("renaming a typed file with a new extension uses the provided extension", async () => {
+  const root = uniqueRoot();
+  try {
+    const oldPath = path.join(DATA_DIR, root, "photo.jpg");
+    await fs.mkdir(path.dirname(oldPath), { recursive: true });
+    await fs.writeFile(oldPath, "jpeg-bytes", "utf8");
+
+    const { newPath } = await renamePage(`${root}/photo.jpg`, "holiday.png");
+
+    assert.equal(newPath, `${root}/holiday.png`);
+    await assert.rejects(() => fs.stat(path.join(DATA_DIR, root, "photo.jpg")));
+    const nextBytes = await fs.readFile(path.join(DATA_DIR, root, "holiday.png"), "utf8");
+    assert.equal(nextBytes, "jpeg-bytes");
+  } finally {
+    await fs.rm(path.join(DATA_DIR, root), { recursive: true, force: true });
+  }
+});
+
 test("no-op rename (same slug) reports nothing and no undo token", async () => {
   const root = uniqueRoot();
   try {

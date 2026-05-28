@@ -320,10 +320,16 @@ export async function renamePage(
 ): Promise<RenameResult> {
   const fromResolved = resolveContentPath(virtualPath);
   const parentDir = path.dirname(fromResolved);
-  const slug = slugifyPageName(newName);
-  const toResolved = path.join(parentDir, slug);
-  const parentVirtual = virtualPath.split("/").slice(0, -1).join("/");
   const oldSlug = path.basename(fromResolved);
+  const oldExt = path.extname(oldSlug);
+  const requestedExt = path.extname(newName);
+  const stem = requestedExt ? newName.slice(0, -requestedExt.length) : newName;
+  const stemSlug = slugifyPageName(stem);
+  const finalSlug = oldExt
+    ? `${stemSlug}${(requestedExt || oldExt).toLowerCase()}`
+    : slugifyPageName(newName);
+  const toResolved = path.join(parentDir, finalSlug);
+  const parentVirtual = virtualPath.split("/").slice(0, -1).join("/");
 
   // Resolve the previous display name for the toast: prefer the page's own
   // frontmatter title, fall back to the directory slug.
@@ -373,7 +379,7 @@ export async function renamePage(
     await writeFileContent(indexMd, output);
   }
 
-  const newPath = parentVirtual ? `${parentVirtual}/${slug}` : slug;
+  const newPath = parentVirtual ? `${parentVirtual}/${finalSlug}` : finalSlug;
 
   const rewrite = await rewriteReferencesForRename({
     oldPagePath: virtualPath,

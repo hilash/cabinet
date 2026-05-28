@@ -2,9 +2,10 @@
 const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { pathToFileURL } = require("url");
 const net = require("net");
 const { spawn } = require("child_process");
-const { app, BrowserWindow, dialog, autoUpdater, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, autoUpdater, ipcMain, Menu, WebContentsView, session } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
 
 if (require("electron-squirrel-startup")) {
@@ -135,6 +136,103 @@ let backendChildren = [];
 // spawned at `${baseAppUrl}${hash}` without re-bootstrapping the backend.
 let baseAppUrl = null;
 const DEV_APP_DISCOVERY_TIMEOUT_MS = 45_000;
+const BROWSER_VIEW_PARTITION = "persist:cabinet-browser";
+const browserViews = new Map();
+let nextBrowserViewId = 1;
+
+function sendBrowserViewNavigateEvent(ownerWebContentsId, viewId, url) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const wc = mainWindow.webContents;
+  if (!wc || wc.id !== ownerWebContentsId || wc.isDestroyed()) return;
+  try {
+    wc.send("cabinet:browser-view-navigated", { viewId, url });
+  } catch {}
+}
+
+function sendBrowserViewLoadFailedEvent(ownerWebContentsId, viewId, payload) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const wc = mainWindow.webContents;
+  if (!wc || wc.id !== ownerWebContentsId || wc.isDestroyed()) return;
+  try {
+    wc.send("cabinet:browser-view-load-failed", { viewId, ...payload });
+  } catch {}
+}
+
+function getBrowserSession() {
+  return session.fromPartition(BROWSER_VIEW_PARTITION);
+}
+
+function getMainRendererSession() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const wc = mainWindow.webContents;
+    if (wc && !wc.isDestroyed()) {
+      return wc.session;
+    }
+  }
+  return session.defaultSession;
+}
+
+async function syncBrowserAuthCookie() {
+  const sourceSession = getMainRendererSession();
+  const targetSession = getBrowserSession();
+  let origin;
+  try {
+    origin = new URL(getBrowserBaseUrl()).origin;
+  } catch {
+    return;
+  }
+
+  try {
+    const sourceCookies = await sourceSession.cookies.get({ url: origin, name: "kb-auth" });
+    const authCookie = sourceCookies.find((cookie) => cookie && typeof cookie.value === "string");
+    if (!authCookie) {
+      try {
+        await targetSession.cookies.remove(origin, "kb-auth");
+      } catch {}
+      return;
+    }
+
+    const cookieUrl = `${origin}${authCookie.path || "/"}`;
+    const cookiePayload = {
+      url: cookieUrl,
+      name: authCookie.name,
+      value: authCookie.value,
+      path: authCookie.path || "/",
+      secure: authCookie.secure,
+      httpOnly: authCookie.httpOnly,
+      sameSite: authCookie.sameSite,
+    };
+    if (typeof authCookie.expirationDate === "number") {
+      cookiePayload.expirationDate = authCookie.expirationDate;
+    }
+    await targetSession.cookies.set(cookiePayload);
+  } catch {}
+}
+
+function parseBrowserExtensions() {
+  const raw = process.env.CABINET_CHROME_EXTENSIONS;
+  if (!raw || !raw.trim()) return [];
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+async function loadBrowserExtensions() {
+  const extensionPaths = parseBrowserExtensions();
+  if (extensionPaths.length === 0) return;
+  const browserSession = getBrowserSession();
+
+  for (const extensionPath of extensionPaths) {
+    try {
+      await browserSession.loadExtension(extensionPath, { allowFileAccess: true });
+      console.log(`[cabinet] loaded browser extension: ${extensionPath}`);
+    } catch (error) {
+      console.error(`[cabinet] failed to load browser extension: ${extensionPath}`);
+      console.error(error);
+    }
+  }
+}
 
 /** The primary window if it still exists and isn't destroyed, else null. */
 function liveMainWindow() {
@@ -537,6 +635,7 @@ function configureAutoUpdates() {
 }
 
 function cleanupBackends() {
+  destroyAllBrowserViews();
   for (const child of backendChildren) {
     child.kill("SIGTERM");
   }
@@ -613,6 +712,535 @@ ipcMain.handle("cabinet:get-preferred-languages", () => {
   }
 });
 
+function isMainRendererSender(event) {
+  return !!mainWindow && event.sender.id === mainWindow.webContents.id;
+}
+
+function isAbortNavigationError(error) {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error;
+  return maybeError.code === "ERR_ABORTED" || maybeError.errno === -3;
+}
+
+function getBrowserBaseUrl() {
+  return (
+    (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.getURL()) ||
+    runtime.appUrl ||
+    "http://127.0.0.1"
+  );
+}
+
+function toAbsoluteHttpUrl(value) {
+  try {
+    return new URL(value, getBrowserBaseUrl()).toString();
+  } catch {
+    return null;
+  }
+}
+
+function resolveAssetFsPath(value) {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const parsed = new URL(value, getBrowserBaseUrl());
+    if (!parsed.pathname.startsWith("/api/assets/")) return null;
+    const decodePathPart = (entry) => {
+      try {
+        return decodeURIComponent(entry);
+      } catch {
+        return entry;
+      }
+    };
+    const encodedPath = parsed.pathname.slice("/api/assets/".length);
+    const decodedPath = decodePathPart(encodedPath);
+    return {
+      ext: path.extname(decodedPath).toLowerCase(),
+      fsPath: path.join(managedDataDir, ...encodedPath.split("/").map((entry) => decodePathPart(entry))),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isInlineCsvAssetUrl(value) {
+  if (typeof value !== "string" || !value) return false;
+  try {
+    const parsed = new URL(value, getBrowserBaseUrl());
+    if (!parsed.pathname.startsWith("/api/assets/")) return false;
+    if (parsed.searchParams.get("cabinet-inline") !== "1") return false;
+    const asset = resolveAssetFsPath(value);
+    return asset?.ext === ".csv";
+  } catch {
+    return false;
+  }
+}
+
+function resolveBrowserTarget(value) {
+  if (typeof value !== "string") return { primaryUrl: null, fallbackUrl: null };
+  const trimmed = value.trim();
+  if (!trimmed) return { primaryUrl: null, fallbackUrl: null };
+  if (trimmed === "about:blank") return { primaryUrl: trimmed, fallbackUrl: null };
+  if (trimmed.startsWith("file://")) return { primaryUrl: trimmed, fallbackUrl: null };
+  if (trimmed.startsWith("/api/assets/")) {
+    const httpUrl = toAbsoluteHttpUrl(trimmed);
+    const suffix = trimmed.slice("/api/assets/".length);
+    const suffixPathOnly = suffix.split(/[?#]/)[0] || "";
+    const decodePathPart = (value) => {
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
+    };
+    const decodedSuffix = decodePathPart(suffixPathOnly);
+    const ext = path.extname(decodedSuffix).toLowerCase();
+    const fsPath = path.join(
+      managedDataDir,
+      ...suffixPathOnly.split("/").map((segment) => decodePathPart(segment))
+    );
+    const fileUrl = pathToFileURL(fsPath).toString();
+    if (ext === ".csv") {
+      if (!httpUrl) {
+        return { primaryUrl: null, fallbackUrl: null };
+      }
+      try {
+        const csvUrl = new URL(httpUrl);
+        csvUrl.searchParams.set("cabinet-inline", "1");
+        return { primaryUrl: csvUrl.toString(), fallbackUrl: fileUrl };
+      } catch {
+        return { primaryUrl: httpUrl, fallbackUrl: fileUrl };
+      }
+    }
+    if (isDev) {
+      return { primaryUrl: httpUrl, fallbackUrl: null };
+    }
+    if (ext === ".pdf" || ext === ".md" || ext === ".markdown") {
+      return { primaryUrl: httpUrl, fallbackUrl: fileUrl };
+    }
+    return { primaryUrl: fileUrl, fallbackUrl: httpUrl };
+  }
+  if (trimmed.startsWith("/") || trimmed.startsWith("./") || trimmed.startsWith("../")) {
+    return { primaryUrl: toAbsoluteHttpUrl(trimmed), fallbackUrl: null };
+  }
+  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(trimmed) || trimmed.startsWith("//")) {
+    return { primaryUrl: trimmed, fallbackUrl: null };
+  }
+  return { primaryUrl: `https://${trimmed}`, fallbackUrl: null };
+}
+
+async function loadBrowserViewUrlSafe(webContents, nextUrl) {
+  const { primaryUrl, fallbackUrl } = resolveBrowserTarget(nextUrl);
+  if (!primaryUrl) {
+    console.error("[cabinet] browser-view invalid target url", {
+      requestedUrl: typeof nextUrl === "string" ? nextUrl : "",
+    });
+    return {
+      ok: false,
+      error: "invalid-target-url",
+      requestedUrl: typeof nextUrl === "string" ? nextUrl : "",
+      primaryUrl: "",
+      fallbackUrl: fallbackUrl || null,
+      primaryError: "invalid-target-url",
+    };
+  }
+  try {
+    await webContents.loadURL(primaryUrl);
+    return { ok: true, loadedUrl: primaryUrl };
+  } catch (error) {
+    if (isAbortNavigationError(error)) {
+      return { ok: true, aborted: true, loadedUrl: primaryUrl };
+    }
+    const primaryError = error instanceof Error ? error.message : String(error);
+    if (fallbackUrl && fallbackUrl !== primaryUrl) {
+      try {
+        await webContents.loadURL(fallbackUrl);
+        return {
+          ok: true,
+          recovered: true,
+          loadedUrl: fallbackUrl,
+          primaryUrl,
+          primaryError,
+        };
+      } catch (fallbackError) {
+        const fallbackMessage =
+          fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        return {
+          ok: false,
+          error: "load-failed",
+          requestedUrl: typeof nextUrl === "string" ? nextUrl : "",
+          primaryUrl,
+          fallbackUrl,
+          primaryError,
+          fallbackError: fallbackMessage,
+        };
+      }
+    }
+    return {
+      ok: false,
+      error: "load-failed",
+      requestedUrl: typeof nextUrl === "string" ? nextUrl : "",
+      primaryUrl,
+      fallbackUrl: null,
+      primaryError,
+    };
+  }
+}
+
+function destroyBrowserView(viewId) {
+  const entry = browserViews.get(viewId);
+  if (!entry || !mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    mainWindow.contentView.removeChildView(entry.view);
+  } catch {}
+  try {
+    entry.view.webContents.close();
+  } catch {}
+  browserViews.delete(viewId);
+}
+
+function destroyAllBrowserViews() {
+  for (const viewId of [...browserViews.keys()]) {
+    destroyBrowserView(viewId);
+  }
+}
+
+ipcMain.handle("cabinet:create-browser-view", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const initialUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
+  const viewId = String(nextBrowserViewId++);
+  const view = new WebContentsView({
+    webPreferences: {
+      partition: BROWSER_VIEW_PARTITION,
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+    },
+  });
+  const initialBounds = { x: 0, y: 0, width: 0, height: 0 };
+  view.setBounds(initialBounds);
+  view.setVisible(false);
+  mainWindow.contentView.addChildView(view);
+  browserViews.set(viewId, { view, ownerWebContentsId: event.sender.id });
+  view.webContents.on("did-navigate", (_navEvent, nextUrl) => {
+    sendBrowserViewNavigateEvent(event.sender.id, viewId, String(nextUrl || "about:blank"));
+  });
+  view.webContents.on("did-navigate-in-page", (_navEvent, nextUrl) => {
+    sendBrowserViewNavigateEvent(event.sender.id, viewId, String(nextUrl || "about:blank"));
+  });
+  view.webContents.on("did-fail-load", (_navEvent, errorCode, errorDescription, validatedUrl) => {
+    if (errorCode === -3) return;
+    sendBrowserViewLoadFailedEvent(event.sender.id, viewId, {
+      errorCode,
+      errorDescription: String(errorDescription || "load-failed"),
+      validatedUrl: String(validatedUrl || ""),
+    });
+  });
+  view.webContents.setWindowOpenHandler(({ url: nextUrl, disposition }) => {
+    const load = () =>
+      loadBrowserViewUrlSafe(view.webContents, nextUrl).then((result) => {
+        if (result?.ok) return;
+        sendBrowserViewLoadFailedEvent(event.sender.id, viewId, {
+          requestedUrl: typeof nextUrl === "string" ? nextUrl : "",
+          primaryUrl: result?.primaryUrl || "",
+          fallbackUrl: result?.fallbackUrl || "",
+          primaryError: result?.primaryError || result?.error || "load-failed",
+          fallbackError: result?.fallbackError || "",
+        });
+      });
+    if (disposition === "save-to-disk" && isInlineCsvAssetUrl(nextUrl)) {
+      void syncBrowserAuthCookie().then(load).catch(load);
+      return { action: "deny" };
+    }
+    void syncBrowserAuthCookie().then(load).catch(load);
+    return { action: "deny" };
+  });
+  view.webContents.on("did-create-window", (childWindow, details) => {
+    const nextUrl = typeof details?.url === "string" ? details.url : "";
+    if (nextUrl.trim().length > 0) {
+      void syncBrowserAuthCookie()
+        .then(() => loadBrowserViewUrlSafe(view.webContents, nextUrl))
+        .then((result) => {
+          if (result?.ok) return;
+          sendBrowserViewLoadFailedEvent(event.sender.id, viewId, {
+            requestedUrl: nextUrl,
+            primaryUrl: result?.primaryUrl || "",
+            fallbackUrl: result?.fallbackUrl || "",
+            primaryError: result?.primaryError || result?.error || "load-failed",
+            fallbackError: result?.fallbackError || "",
+          });
+        })
+        .catch(() => {});
+    }
+    try {
+      childWindow.close();
+    } catch {}
+  });
+  view.webContents.on("context-menu", (_menuEvent, params) => {
+    const devToolsOpen =
+      mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.isDevToolsOpened();
+    const canInspect = isDev || devToolsOpen;
+
+    const template = [
+      { role: "copy" },
+      { role: "paste" },
+      { role: "selectAll" },
+    ];
+
+    if (canInspect) {
+      template.push({ type: "separator" });
+      template.push({
+        label: "Inspect Element",
+        click: () => {
+          if (!view.webContents.isDevToolsOpened()) {
+            view.webContents.openDevTools({ mode: "detach" });
+          }
+          view.webContents.inspectElement(params.x, params.y);
+        },
+      });
+    }
+
+    const menu = Menu.buildFromTemplate(template);
+    const popupWindow = BrowserWindow.fromWebContents(event.sender);
+    menu.popup({ window: popupWindow || undefined });
+  });
+  await syncBrowserAuthCookie();
+  await loadBrowserViewUrlSafe(view.webContents, initialUrl);
+  return { ok: true, viewId };
+});
+
+ipcMain.handle("cabinet:load-browser-view-url", async (event, payload) => {
+  try {
+    if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+    const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+    const nextUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
+    const entry = browserViews.get(viewId);
+    if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+    const wc = entry.view.webContents;
+    if (nextUrl === "__cabinet_nav_back__") {
+      if (!wc.canGoBack()) return { ok: true, skipped: true };
+      wc.goBack();
+      return { ok: true };
+    }
+    if (nextUrl === "__cabinet_nav_forward__") {
+      if (!wc.canGoForward()) return { ok: true, skipped: true };
+      wc.goForward();
+      return { ok: true };
+    }
+    if (nextUrl === "__cabinet_nav_reload__") {
+      wc.reload();
+      return { ok: true };
+    }
+    await syncBrowserAuthCookie();
+    const result = await loadBrowserViewUrlSafe(wc, nextUrl);
+    if (!result.ok) {
+      console.error("[cabinet] browser-view load failed", {
+        viewId,
+        requestedUrl: nextUrl,
+        primaryUrl: result.primaryUrl || "",
+        fallbackUrl: result.fallbackUrl || "",
+        primaryError: result.primaryError || "",
+        fallbackError: result.fallbackError || "",
+      });
+      sendBrowserViewLoadFailedEvent(event.sender.id, viewId, {
+        requestedUrl: nextUrl,
+        primaryUrl: result.primaryUrl || "",
+        fallbackUrl: result.fallbackUrl || "",
+        primaryError: result.primaryError || "",
+        fallbackError: result.fallbackError || "",
+      });
+    }
+    return result;
+  } catch {
+    return { ok: false, error: "handler-failed" };
+  }
+});
+
+ipcMain.handle("cabinet:set-browser-view-bounds", (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const bounds = payload?.bounds;
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  const x = Number.isFinite(bounds?.x) ? Math.max(0, Math.round(bounds.x)) : 0;
+  const y = Number.isFinite(bounds?.y) ? Math.max(0, Math.round(bounds.y)) : 0;
+  const width = Number.isFinite(bounds?.width) ? Math.max(0, Math.round(bounds.width)) : 0;
+  const height = Number.isFinite(bounds?.height) ? Math.max(0, Math.round(bounds.height)) : 0;
+  if (width >= 64 && height >= 64) {
+    const nextBounds = { x, y, width, height };
+    entry.view.setBounds(nextBounds);
+  }
+  return { ok: true };
+});
+
+ipcMain.handle("cabinet:destroy-browser-view", (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  destroyBrowserView(viewId);
+  return { ok: true };
+});
+
+function setBrowserViewVisibility(viewId, visible) {
+  const entry = browserViews.get(viewId);
+  if (!entry || !mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    entry.view.setVisible(visible);
+  } catch {}
+}
+
+ipcMain.handle("cabinet:set-browser-view-visible", (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const visible = payload?.visible === true;
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  setBrowserViewVisibility(viewId, visible);
+  return { ok: true };
+});
+
+ipcMain.handle("cabinet:browser-view-go-back", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  const wc = entry.view.webContents;
+  if (!wc.canGoBack()) return { ok: true, skipped: true };
+  wc.goBack();
+  return { ok: true };
+});
+
+ipcMain.handle("cabinet:browser-view-go-forward", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  const wc = entry.view.webContents;
+  if (!wc.canGoForward()) return { ok: true, skipped: true };
+  wc.goForward();
+  return { ok: true };
+});
+
+ipcMain.handle("cabinet:browser-view-reload", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const viewId = typeof payload?.viewId === "string" ? payload.viewId : "";
+  const entry = browserViews.get(viewId);
+  if (!entry || entry.ownerWebContentsId !== event.sender.id) return { ok: false, error: "not-found" };
+  entry.view.webContents.reload();
+  return { ok: true };
+});
+
+function buildBookmarkSubmenuTemplate(items) {
+  if (!Array.isArray(items)) return [];
+  const template = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const id = typeof item.id === "string" ? item.id : "";
+    const name = typeof item.name === "string" && item.name.trim() ? item.name.trim() : "Untitled";
+    const type = item.type === "folder" ? "folder" : "url";
+    if (type === "folder") {
+      const children = buildBookmarkSubmenuTemplate(item.children);
+      template.push({
+        id,
+        label: name,
+        submenu: children.length > 0 ? children : [{ label: "Empty", enabled: false }],
+      });
+      continue;
+    }
+    const url = typeof item.url === "string" ? item.url.trim() : "";
+    if (!url) continue;
+    template.push({
+      id,
+      label: name,
+      click: () => {},
+    });
+  }
+  return template;
+}
+
+ipcMain.handle("cabinet:show-browser-bookmarks-menu", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win.isDestroyed()) return { ok: false, error: "window-unavailable" };
+
+  const x = Number.isFinite(payload?.x) ? Math.max(0, Math.round(payload.x)) : 0;
+  const y = Number.isFinite(payload?.y) ? Math.max(0, Math.round(payload.y)) : 0;
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const template = buildBookmarkSubmenuTemplate(items);
+
+  if (template.length === 0) {
+    return { ok: true, cancelled: true };
+  }
+
+  return await new Promise((resolve) => {
+    let resolved = false;
+    const resolveOnce = (value) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(value);
+    };
+
+    const withClicks = template.map((entry) => {
+      if (!entry.submenu) {
+        return {
+          ...entry,
+          click: () => {
+            const selected = findMenuItemById(items, entry.id);
+            resolveOnce({ ok: true, id: entry.id, url: selected?.url });
+          },
+        };
+      }
+      return {
+        ...entry,
+        submenu: applyClicksToSubmenu(entry.submenu, items, resolveOnce),
+      };
+    });
+
+    const menu = Menu.buildFromTemplate(withClicks);
+    menu.popup({
+      window: win,
+      x,
+      y,
+      callback: () => {
+        resolveOnce({ ok: true, cancelled: true });
+      },
+    });
+  });
+});
+
+function applyClicksToSubmenu(submenu, items, resolveOnce) {
+  if (!Array.isArray(submenu)) return [];
+  return submenu.map((entry) => {
+    if (!entry || typeof entry !== "object") return entry;
+    if (entry.submenu) {
+      return {
+        ...entry,
+        submenu: applyClicksToSubmenu(entry.submenu, items, resolveOnce),
+      };
+    }
+    if (!entry.id) return entry;
+    return {
+      ...entry,
+      click: () => {
+        const selected = findMenuItemById(items, entry.id);
+        resolveOnce({ ok: true, id: entry.id, url: selected?.url });
+      },
+    };
+  });
+}
+
+function findMenuItemById(items, id) {
+  if (!Array.isArray(items) || typeof id !== "string") return null;
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    if (item.id === id) return item;
+    if (item.type === "folder") {
+      const nested = findMenuItemById(item.children, id);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
 function buildBrowserWindow() {
   return new BrowserWindow({
     width: 1480,
@@ -628,6 +1256,7 @@ function buildBrowserWindow() {
       sandbox: false,
     },
   });
+  mainWindow.setWindowButtonVisibility(true);
 }
 
 // In dev, the Next server may not be ready the instant a window loads. Retry by
@@ -709,8 +1338,10 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(async () => {
+  await loadBrowserExtensions();
   configureAutoUpdates();
   await createWindow();
+
 
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {

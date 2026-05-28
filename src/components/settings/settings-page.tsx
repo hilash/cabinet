@@ -40,6 +40,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { SkillLibrary } from "@/components/skills/skill-library";
 import { ApiKeysSection } from "@/components/settings/api-keys-section";
 import { DataLocationsSection } from "@/components/settings/data-locations-section";
@@ -92,6 +99,7 @@ import {
   type AvatarPreset,
 } from "@/lib/agents/avatar-catalog";
 import Image from "next/image";
+import palettesSeed from "@/components/settings/color-palettes.json";
 import { sendTelemetry } from "@/lib/telemetry/browser";
 import {
   recordWaitlistView,
@@ -131,6 +139,8 @@ interface IntegrationConfig {
     pause_on_error: boolean;
   };
 }
+
+type ColorPalettesMap = Record<string, string[]>;
 
 type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
 
@@ -367,6 +377,25 @@ function LanguageSection() {
 }
 
 const REQUESTED_LOCALES_KEY = "cabinet-requested-locales";
+const CANVAS_SELECTED_PALETTES_KEY = "cabinet-canvas-selected-palettes";
+
+function formatPaletteDisplayName(name: string): string {
+  return name
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function normalizePaletteName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+function normalizeHexColor(value: string): string {
+  const next = value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(next)) return next.toUpperCase();
+  if (/^[0-9a-fA-F]{6}$/.test(next)) return `#${next.toUpperCase()}`;
+  return "";
+}
 
 export function SettingsPage() {
   const { t } = useLocale();
@@ -466,6 +495,16 @@ export function SettingsPage() {
   const [telemetryEnabled, setTelemetryEnabled] = useState<boolean | null>(null);
   const [telemetryEnvDisabled, setTelemetryEnvDisabled] = useState(false);
   const [telemetrySaving, setTelemetrySaving] = useState(false);
+  const [colorPalettes, setColorPalettes] = useState<ColorPalettesMap>(() => palettesSeed as ColorPalettesMap);
+  const [selectedPalettes, setSelectedPalettes] = useState<Set<string>>(new Set());
+  const selectedPalettesLoadedRef = useRef(false);
+  const [addPaletteOpen, setAddPaletteOpen] = useState(false);
+  const [resetPalettesOpen, setResetPalettesOpen] = useState(false);
+  const [newPaletteName, setNewPaletteName] = useState("");
+  const [newPaletteColors, setNewPaletteColors] = useState<string[]>(["#000000", "#000000", "#000000", "#000000", "#000000", "#000000"]);
+  const [paletteSaving, setPaletteSaving] = useState(false);
+  const [paletteResetting, setPaletteResetting] = useState(false);
+  const [paletteError, setPaletteError] = useState<string | null>(null);
   const { setTheme: setNextTheme } = useTheme();
   const {
     update,
@@ -593,6 +632,154 @@ export function SettingsPage() {
     }
   }, []);
 
+  const loadColorPalettes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/color-palettes");
+      if (!res.ok) return;
+      const data = (await res.json()) as { palettes?: ColorPalettesMap };
+      if (data.palettes && typeof data.palettes === "object") {
+        setColorPalettes(data.palettes);
+      }
+    } catch {
+      // ignore
+    }
+    if (typeof window !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem(CANVAS_SELECTED_PALETTES_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) {
+            const names = parsed.filter((item): item is string => typeof item === "string");
+            setSelectedPalettes(new Set(names));
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        selectedPalettesLoadedRef.current = true;
+      }
+    }
+  }, []);
+
+  const saveColorPalettes = useCallback(async (nextPalettes: ColorPalettesMap) => {
+    setPaletteSaving(true);
+    setPaletteError(null);
+    try {
+      const res = await fetch("/api/color-palettes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ palettes: nextPalettes }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setPaletteError(data?.error || "Failed to save color palettes");
+        return false;
+      }
+      return true;
+    } catch {
+      setPaletteError("Failed to save color palettes");
+      return false;
+    } finally {
+      setPaletteSaving(false);
+    }
+  }, []);
+
+  const resetColorPalettes = useCallback(async () => {
+    setPaletteResetting(true);
+    setPaletteError(null);
+    try {
+      const res = await fetch("/api/color-palettes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset" }),
+      });
+      const data = (await res.json().catch(() => null)) as { palettes?: ColorPalettesMap; error?: string } | null;
+      if (!res.ok || !data?.palettes) {
+        setPaletteError(data?.error || "Failed to reset color palettes");
+        return false;
+      }
+      const palettes = data.palettes;
+      setColorPalettes(palettes);
+      setSelectedPalettes((prev) => {
+        const allowed = new Set(Object.keys(palettes));
+        return new Set(Array.from(prev).filter((name) => allowed.has(name)));
+      });
+      window.dispatchEvent(
+        new CustomEvent("cabinet:toast", {
+          detail: {
+            kind: "success",
+            message: "Canvas color palettes reset",
+          },
+        })
+      );
+      return true;
+    } catch {
+      setPaletteError("Failed to reset color palettes");
+      return false;
+    } finally {
+      setPaletteResetting(false);
+    }
+  }, []);
+
+  const togglePaletteSelection = useCallback((name: string, checked: boolean) => {
+    setSelectedPalettes((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(name);
+      else next.delete(name);
+      return next;
+    });
+  }, []);
+
+  const deletePalette = useCallback(async (name: string) => {
+    const nextPalettes = { ...colorPalettes };
+    delete nextPalettes[name];
+    const ok = await saveColorPalettes(nextPalettes);
+    if (!ok) return;
+    setColorPalettes(nextPalettes);
+    setSelectedPalettes((prev) => {
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
+  }, [colorPalettes, saveColorPalettes]);
+
+  const saveNewPalette = useCallback(async () => {
+    const normalizedName = normalizePaletteName(newPaletteName);
+    if (!normalizedName) {
+      setPaletteError("Palette name is required");
+      return;
+    }
+    const normalizedColors = newPaletteColors.map(normalizeHexColor);
+    if (normalizedColors.some((color) => !color)) {
+      setPaletteError("All colors must be valid hex values");
+      return;
+    }
+    if (colorPalettes[normalizedName]) {
+      setPaletteError("A palette with this name already exists");
+      return;
+    }
+    const nextPalettes = {
+      ...colorPalettes,
+      [normalizedName]: normalizedColors,
+    };
+    const ok = await saveColorPalettes(nextPalettes);
+    if (!ok) return;
+    setColorPalettes(nextPalettes);
+    setAddPaletteOpen(false);
+    setNewPaletteName("");
+    setNewPaletteColors(["#000000", "#000000", "#000000", "#000000", "#000000", "#000000"]);
+    setPaletteError(null);
+  }, [newPaletteName, newPaletteColors, colorPalettes, saveColorPalettes]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !selectedPalettesLoadedRef.current) return;
+    window.localStorage.setItem(
+      CANVAS_SELECTED_PALETTES_KEY,
+      JSON.stringify(Array.from(selectedPalettes))
+    );
+    window.dispatchEvent(new CustomEvent("cabinet:canvas-selected-palettes-changed"));
+  }, [selectedPalettes]);
+
   const selectTheme = (themeDef: ThemeDefinition) => {
     applyTheme(themeDef);
     setActiveThemeName(themeDef.name);
@@ -608,6 +795,10 @@ export function SettingsPage() {
 
   const darkThemes = THEMES.filter((t) => t.type === "dark");
   const lightThemes = THEMES.filter((t) => t.type === "light");
+  const paletteEntries = useMemo(
+    () => Object.entries(colorPalettes).sort(([a], [b]) => a.localeCompare(b)),
+    [colorPalettes]
+  );
 
   const refresh = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -733,7 +924,8 @@ export function SettingsPage() {
     refresh();
     loadConfig();
     loadDataDir();
-  }, [refresh, loadConfig, loadDataDir]);
+    loadColorPalettes();
+  }, [refresh, loadConfig, loadDataDir, loadColorPalettes]);
 
   const toggleReveal = (key: string) => {
     setRevealedKeys((prev) => {
@@ -1071,6 +1263,65 @@ export function SettingsPage() {
                 </div>
               </div>
 
+              <div className="border-t border-border pt-6 space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-[13px] font-semibold">Canvas Color Palettes</h3>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={paletteSaving || paletteResetting}
+                      onClick={() => {
+                        setPaletteError(null);
+                        setResetPalettesOpen(true);
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setPaletteError(null); setAddPaletteOpen(true); }}>
+                      Add color palette
+                    </Button>
+                  </div>
+                </div>
+                {paletteError && <p className="text-[12px] text-rose-500">{paletteError}</p>}
+                <div className="space-y-2">
+                  {paletteEntries.map(([paletteName, colors]) => (
+                    <div
+                      key={paletteName}
+                      className="flex items-center gap-3 rounded-lg border border-border px-3 py-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedPalettes.has(paletteName)}
+                        onChange={(e) => togglePaletteSelection(paletteName, e.target.checked)}
+                        className="h-4 w-4 rounded border-border accent-primary"
+                      />
+                      <span className="text-[12px] font-medium min-w-[180px]">{formatPaletteDisplayName(paletteName)}</span>
+                      <div className="flex items-center gap-0.5 rounded-full border border-border p-1 bg-muted/20">
+                        {colors.slice(0, 6).map((color, index) => (
+                          <div
+                            key={`${paletteName}-${index}`}
+                            className="h-4 w-8 rounded-sm border border-black/10"
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="ms-auto text-muted-foreground hover:text-rose-500"
+                        disabled={paletteSaving}
+                        onClick={() => void deletePalette(paletteName)}
+                        title="Delete color palette"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="border-t border-border pt-6">
                 <h3 className="text-[13px] font-semibold mb-1">{t("settings:appearance.sidebar")}</h3>
                 <p className="text-[12px] text-muted-foreground mb-4">
@@ -1103,6 +1354,95 @@ export function SettingsPage() {
                   </kbd>
                 </label>
               </div>
+
+              <Dialog open={resetPalettesOpen} onOpenChange={setResetPalettesOpen}>
+                <DialogContent showCloseButton={false}>
+                  <DialogHeader>
+                    <DialogTitle>Reset canvas color palettes?</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-[12px] text-muted-foreground">
+                    This will remove all custom color palettes. Only the original pastel color palettes will remain.
+                  </p>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setResetPalettesOpen(false)}
+                      disabled={paletteResetting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        const ok = await resetColorPalettes();
+                        if (!ok) return;
+                        setResetPalettesOpen(false);
+                      }}
+                      disabled={paletteResetting}
+                    >
+                      OK
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={addPaletteOpen} onOpenChange={setAddPaletteOpen}>
+                <DialogContent showCloseButton={false}>
+                  <DialogHeader>
+                    <DialogTitle>Add color palette</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[12px] font-medium">Name</label>
+                      <Input
+                        value={newPaletteName}
+                        onChange={(e) => setNewPaletteName(e.target.value)}
+                        placeholder="e.g. sunset dream"
+                      />
+                    </div>
+                    {newPaletteColors.map((color, index) => (
+                      <div key={`new-palette-color-${index}`} className="space-y-1">
+                        <label className="text-[12px] font-medium">Color {index + 1}</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={normalizeHexColor(color) || "#000000"}
+                            onChange={(e) => {
+                              const next = [...newPaletteColors];
+                              next[index] = e.target.value.toUpperCase();
+                              setNewPaletteColors(next);
+                            }}
+                            className="h-9 w-12 cursor-pointer rounded border border-border bg-background p-1"
+                          />
+                          <Input
+                            value={color}
+                            onChange={(e) => {
+                              const next = [...newPaletteColors];
+                              next[index] = e.target.value;
+                              setNewPaletteColors(next);
+                            }}
+                            placeholder="#000000"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setAddPaletteOpen(false);
+                        setPaletteError(null);
+                      }}
+                      disabled={paletteSaving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={() => void saveNewPalette()} disabled={paletteSaving}>
+                      Save
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <div className="border-t border-border pt-6">
                 <LanguageSection />

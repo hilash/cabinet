@@ -28,12 +28,14 @@ const MIME_TYPES: Record<string, string> = {
   ".css": "text/css",
   ".js": "application/javascript",
   ".html": "text/html",
-  ".csv": "text/csv",
+  ".csv": "text/plain",
   ".json": "application/json",
   ".xml": "application/xml",
   ".yaml": "text/yaml",
   ".yml": "text/yaml",
   ".txt": "text/plain",
+  ".md": "text/plain",
+  ".markdown": "text/plain",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
@@ -55,6 +57,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     const ext = path.extname(resolved).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    const contentDisposition = ext === ".csv" ? "inline" : null;
     const stat = await fs.stat(resolved);
     const totalSize = stat.size;
     // HTML assets back in-Cabinet apps/websites that the user re-generates
@@ -94,6 +97,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                 "Content-Range": `bytes ${start}-${end}/${totalSize}`,
                 "Accept-Ranges": "bytes",
                 "Cache-Control": cacheControl,
+                ...(contentDisposition ? { "Content-Disposition": contentDisposition } : {}),
               },
             });
           } finally {
@@ -114,6 +118,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         "Content-Length": String(totalSize),
         "Accept-Ranges": "bytes",
         "Cache-Control": cacheControl,
+        ...(contentDisposition ? { "Content-Disposition": contentDisposition } : {}),
       },
     });
   } catch (error) {
