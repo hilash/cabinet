@@ -13,6 +13,7 @@ import {
   Icon,
   Plus,
   RefreshCw,
+  Tags,
   Trash2,
 } from "lucide-react";
 import type { IconNode } from "lucide-react";
@@ -93,6 +94,7 @@ type BookmarkUrlNode = {
   url: string;
   date_added: string;
   date_last_used: string;
+  tags: string[];
 };
 
 type BookmarkFolderNode = {
@@ -113,6 +115,11 @@ type BookmarkFile = {
     other: BookmarkFolderNode;
   };
   version: number;
+};
+
+type BookmarkFolderOption = {
+  id: string;
+  label: string;
 };
 
 const BROWSER_SESSION_STORAGE_KEY = "cabinet.browser.session";
@@ -157,6 +164,13 @@ function getBridge(): Partial<BrowserBridge> & { runtime?: "electron" } {
     .CabinetDesktop ?? {};
 }
 
+const TAG_CLOUD_DATA_URL_PREFIX = "data:text/html;cabinet-tag-cloud=1;charset=utf-8,";
+
+function isTagCloudDataUrl(value: string | null | undefined): boolean {
+  if (!value) return false;
+  return value.startsWith(TAG_CLOUD_DATA_URL_PREFIX);
+}
+
 function normalizeEnteredUrl(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -174,6 +188,362 @@ function normalizeEnteredUrl(value: string): string | null {
   return `https://${trimmed}`;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+type TagBookmarkEntry = {
+  name: string;
+  url: string;
+};
+
+type TagCloudEntry = {
+  key: string;
+  label: string;
+  bookmarks: TagBookmarkEntry[];
+};
+
+function collectBookmarkTagEntries(nodes: BookmarkNode[]): TagCloudEntry[] {
+  const tagsMap = new Map<string, TagCloudEntry>();
+  const walk = (items: BookmarkNode[]) => {
+    for (const node of items) {
+      if (node.type === "folder") {
+        walk(node.children);
+        continue;
+      }
+      const bookmarkName = node.name.trim() || node.url;
+      const bookmarkUrl = node.url.trim();
+      if (!bookmarkUrl) continue;
+      for (const rawTag of node.tags) {
+        const label = rawTag.trim();
+        if (!label) continue;
+        const key = label.toLocaleLowerCase();
+        const existing = tagsMap.get(key);
+        if (!existing) {
+          tagsMap.set(key, {
+            key,
+            label,
+            bookmarks: [{ name: bookmarkName, url: bookmarkUrl }],
+          });
+          continue;
+        }
+        const duplicate = existing.bookmarks.some((bookmark) => bookmark.url === bookmarkUrl && bookmark.name === bookmarkName);
+        if (!duplicate) {
+          existing.bookmarks.push({ name: bookmarkName, url: bookmarkUrl });
+        }
+      }
+    }
+  };
+  walk(nodes);
+  const entries = Array.from(tagsMap.values()).map((entry) => ({
+    ...entry,
+    bookmarks: [...entry.bookmarks].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })),
+  }));
+  return entries.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+}
+
+function buildTagCloudHtml(entries: TagCloudEntry[]): string {
+  const tagAnchors = entries
+    .map((entry) => `  <a class="tag" href="#" data-tag-key="${escapeHtml(entry.key)}">${escapeHtml(entry.label)}</a>`)
+    .join("\n");
+  const tagsPayload = JSON.stringify(
+    entries.map((entry) => ({
+      key: entry.key,
+      label: entry.label,
+      bookmarks: entry.bookmarks,
+    }))
+  ).replaceAll("</", "<\\/");
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmark Tags</title>
+<style>
+:root {
+  --tag-bg-sat: 72%;
+  --tag-bg-light: 68%;
+  --tag-text: rgba(255,255,255,0.92);
+  --tag-shadow:
+    0 2px 6px rgba(72, 76, 160, 0.18),
+    0 10px 18px rgba(72, 76, 160, 0.08);
+  --tag-highlight:
+    inset 0 1px 1px rgba(255,255,255,0.45),
+    inset 0 -1px 1px rgba(255,255,255,0.08);
+  --tag-blur: blur(10px);
+  --cloud-bg: #efedf7;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px;
+  background: var(--cloud-bg);
+  box-sizing: border-box;
+}
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  width: min(95%, 1200px);
+  padding: 32px;
+  border-radius: 28px;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(248, 238, 255, 0.9),
+      rgb(224, 216, 255)
+    );
+  font-family:
+    Inter,
+    SF Pro Display,
+    system-ui,
+    sans-serif;
+}
+.tag {
+  --hue: 240;
+  --sat-multiplier: 1;
+  --lightness: var(--tag-bg-light);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 22px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  color: var(--tag-text);
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  backdrop-filter: var(--tag-blur);
+  background:
+    linear-gradient(
+      145deg,
+      hsla(
+        var(--hue),
+        calc(var(--tag-bg-sat) * var(--sat-multiplier)),
+        calc(var(--lightness) + 6%),
+        0.92
+      ),
+      hsla(
+        var(--hue),
+        calc(var(--tag-bg-sat) * var(--sat-multiplier)),
+        var(--lightness),
+        0.95
+      )
+    );
+  box-shadow:
+    var(--tag-shadow),
+    var(--tag-highlight);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease;
+}
+.tag::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.22),
+      rgba(255,255,255,0.02)
+    );
+  pointer-events: none;
+}
+.tag:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08);
+  box-shadow:
+    0 6px 16px rgba(72, 76, 160, 0.22),
+    0 14px 30px rgba(72, 76, 160, 0.14),
+    var(--tag-highlight);
+}
+.tag:nth-child(8n + 1) { --hue: 225; }
+.tag:nth-child(8n + 2) { --hue: 232; }
+.tag:nth-child(8n + 3) { --hue: 238; }
+.tag:nth-child(8n + 4) { --hue: 245; }
+.tag:nth-child(8n + 5) { --hue: 252; }
+.tag:nth-child(8n + 6) { --hue: 258; }
+.tag:nth-child(8n + 7) { --hue: 235; }
+.tag:nth-child(8n + 8) { --hue: 248; }
+.tag:nth-child(3n) {
+  --sat-multiplier: 0.92;
+}
+.tag:nth-child(5n) {
+  --lightness: 72%;
+}
+.tag:nth-child(7n) {
+  --lightness: 64%;
+}
+.tag[data-weight="high"] {
+  font-weight: 600;
+  padding-inline: 26px;
+  --lightness: 60%;
+}
+.tag[data-weight="low"] {
+  opacity: 0.72;
+  --sat-multiplier: 0.72;
+}
+.tag.is-selected {
+  border: 2px solid #6d28d9;
+}
+.tag-cloud.is-filtering {
+  opacity: 0.55;
+}
+.tag-results {
+  margin-top: 16px;
+  width: min(95%, 1200px);
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(6px);
+  font-family:
+    Inter,
+    SF Pro Display,
+    system-ui,
+    sans-serif;
+}
+.tag-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+  color: rgba(50, 54, 110, 0.95);
+}
+.tag-results-close {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(72, 76, 160, 0.12);
+  color: rgba(36, 38, 93, 0.95);
+  cursor: pointer;
+}
+.tag-results-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tag-result-link {
+  color: rgba(48, 52, 128, 0.96);
+  text-decoration: none;
+  font-size: 0.92rem;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.62);
+}
+.tag-result-link:hover {
+  background: rgba(255,255,255,0.88);
+}
+.tag-results-empty {
+  color: rgba(70, 74, 138, 0.7);
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+<div class="tag-cloud" id="tagCloud">
+${tagAnchors}
+</div>
+<div class="tag-results" id="tagResults" hidden>
+  <div class="tag-results-header">
+    <span id="tagResultsTitle"></span>
+    <button type="button" id="tagResultsClose" class="tag-results-close">Close</button>
+  </div>
+  <div id="tagResultsBody" class="tag-results-body"></div>
+</div>
+<script id="tag-data" type="application/json">${tagsPayload}</script>
+<script>
+function stringToHue(str) {
+  let hash = 0;
+
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  return 220 + (Math.abs(hash) % 40);
+}
+
+const tagsData = (() => {
+  const el = document.getElementById("tag-data");
+  if (!el) return [];
+  try {
+    return JSON.parse(el.textContent || "[]");
+  } catch {
+    return [];
+  }
+})();
+
+const tagCloud = document.getElementById("tagCloud");
+const resultsPanel = document.getElementById("tagResults");
+const resultsTitle = document.getElementById("tagResultsTitle");
+const resultsBody = document.getElementById("tagResultsBody");
+const resultsClose = document.getElementById("tagResultsClose");
+let selectedTag = null;
+
+document.querySelectorAll(".tag").forEach((element) => {
+  const text = (element.textContent || "").trim();
+  element.style.setProperty("--hue", String(stringToHue(text)));
+  element.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (selectedTag) {
+      selectedTag.classList.remove("is-selected");
+    }
+    element.classList.add("is-selected");
+    selectedTag = element;
+    const tagKey = element.getAttribute("data-tag-key") || "";
+    const match = tagsData.find((entry) => String(entry.key || "") === tagKey);
+    if (!match) return;
+    const bookmarks = Array.isArray(match.bookmarks) ? match.bookmarks : [];
+    resultsTitle.textContent = String(match.label || "Tag") + " (" + String(bookmarks.length) + ")";
+    resultsBody.innerHTML = "";
+    if (bookmarks.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "tag-results-empty";
+      empty.textContent = "No bookmarks";
+      resultsBody.appendChild(empty);
+    } else {
+      bookmarks.forEach((bookmark) => {
+        const link = document.createElement("a");
+        link.className = "tag-result-link";
+        link.href = String(bookmark.url || "about:blank");
+        link.textContent = String(bookmark.name || bookmark.url || "Untitled");
+        link.title = String(bookmark.url || "");
+        resultsBody.appendChild(link);
+      });
+    }
+    resultsPanel.hidden = false;
+    tagCloud.classList.add("is-filtering");
+  });
+});
+
+resultsClose.addEventListener("click", () => {
+  resultsPanel.hidden = true;
+  tagCloud.classList.remove("is-filtering");
+  if (selectedTag) {
+    selectedTag.classList.remove("is-selected");
+    selectedTag = null;
+  }
+});
+</script>
+</body>
+</html>`;
+}
+
 const folderBookmarkIconNode: IconNode = [
   ["path", { d: "M12 6v8l3-3 3 3V6", key: "v0froi" }],
   [
@@ -188,6 +558,11 @@ const folderBookmarkIconNode: IconNode = [
 function normalizeSessionUrl(value: string | null | undefined): string {
   const trimmed = (value || "about:blank").trim();
   return trimmed || "about:blank";
+}
+
+function toAddressBarValue(value: string | null | undefined): string {
+  const normalized = normalizeSessionUrl(value);
+  return isTagCloudDataUrl(normalized) ? "" : normalized;
 }
 
 function loadBrowserSessionState(): BrowserSessionState {
@@ -238,7 +613,7 @@ export function BrowserView() {
   const url = useAppStore((s) => s.browseUrl);
   const setAppMode = useAppStore((s) => s.setAppMode);
   const initialSessionRef = useRef<BrowserSessionState>(loadBrowserSessionState());
-  const [addressValue, setAddressValue] = useState(url ?? initialSessionRef.current.url ?? "");
+  const [addressValue, setAddressValue] = useState(toAddressBarValue(url ?? initialSessionRef.current.url ?? ""));
   const [browserMode, setBrowserMode] = useState<"initializing" | "electron" | "iframe">(() => {
     const bridge = getBridge();
     return bridge.createBrowserView && bridge.destroyBrowserView ? "initializing" : "iframe";
@@ -267,14 +642,24 @@ export function BrowserView() {
   const [managerOpen, setManagerOpen] = useState(false);
   const [bookmarksMenuOpen, setBookmarksMenuOpen] = useState(false);
   const [bookmarksMenuPosition, setBookmarksMenuPosition] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editUrl, setEditUrl] = useState("");
+  const [managerEditDialogOpen, setManagerEditDialogOpen] = useState(false);
+  const [managerEditNodeId, setManagerEditNodeId] = useState<string | null>(null);
+  const [managerEditNodeType, setManagerEditNodeType] = useState<"url" | "folder">("url");
+  const [managerEditTitle, setManagerEditTitle] = useState("");
+  const [managerEditUrl, setManagerEditUrl] = useState("");
+  const [managerEditTags, setManagerEditTags] = useState("");
+  const [managerEditParentId, setManagerEditParentId] = useState("1");
   const [bookmarksBarVisible, setBookmarksBarVisible] = useState(true);
+  const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
+  const [bookmarkTitle, setBookmarkTitle] = useState("");
+  const [bookmarkUrl, setBookmarkUrl] = useState("");
+  const [bookmarkTags, setBookmarkTags] = useState("");
+  const [bookmarkParentId, setBookmarkParentId] = useState("1");
+  const bookmarkTitleRequestRef = useRef(0);
 
   useEffect(() => {
     if (url == null) return;
-    setAddressValue(url);
+    setAddressValue(toAddressBarValue(url));
   }, [url]);
 
   const fetchBookmarks = async () => {
@@ -289,30 +674,102 @@ export function BrowserView() {
     }
   };
 
-  const addCurrentPageAsBookmark = async () => {
+  const resolveCurrentPageTitle = async (currentUrl: string): Promise<string> => {
+    if (browserMode === "iframe") {
+      try {
+        const iframeTitle = iframeRef.current?.contentDocument?.title?.trim();
+        if (iframeTitle) return iframeTitle;
+      } catch {}
+    }
+    try {
+      const response = await fetch("/api/browser/bookmarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resolveTitle", url: currentUrl }),
+      });
+      if (!response.ok) return "";
+      const data = (await response.json()) as { title?: string | null };
+      return typeof data.title === "string" ? data.title : "";
+    } catch {
+      return "";
+    }
+  };
+
+  const openBookmarkDialog = async () => {
     if (!url || url === "about:blank") return;
-    const payload = {
-      action: "addBookmark",
-      name: (() => {
-        if (browserMode === "iframe") {
-          try {
-            return iframeRef.current?.contentDocument?.title || url;
-          } catch {
-            return url;
-          }
-        }
-        return url;
-      })(),
-      url,
-    };
+    const currentUrl = addressValue || url;
+    const requestId = bookmarkTitleRequestRef.current + 1;
+    bookmarkTitleRequestRef.current = requestId;
+    setBookmarkUrl(currentUrl);
+    setBookmarkTitle("");
+    setBookmarkTags("");
+    setBookmarkParentId(bookmarks?.roots.bookmark_bar.id ?? "1");
+    setBookmarkDialogOpen(true);
+    const nextTitle = await resolveCurrentPageTitle(currentUrl);
+    if (bookmarkTitleRequestRef.current !== requestId) return;
+    setBookmarkTitle(nextTitle);
+  };
+
+  const saveBookmarkFromDialog = async () => {
+    const normalizedUrl = normalizeBookmarkUrl(bookmarkUrl);
+    const tags = bookmarkTags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
     const response = await fetch("/api/browser/bookmarks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        action: "addBookmark",
+        name: bookmarkTitle,
+        url: normalizedUrl,
+        parentId: bookmarkParentId,
+        tags,
+      }),
     });
     if (!response.ok) return;
     const data = (await response.json()) as { bookmarks?: BookmarkFile };
     if (data.bookmarks) setBookmarks(data.bookmarks);
+    setBookmarkDialogOpen(false);
+  };
+
+  const openManagerEditDialog = (node: BookmarkNode, parentId: string) => {
+    setManagerEditNodeId(node.id);
+    setManagerEditNodeType(node.type);
+    setManagerEditTitle(node.name);
+    setManagerEditUrl(node.type === "url" ? node.url : "");
+    setManagerEditTags(node.type === "url" ? node.tags.join(", ") : "");
+    setManagerEditParentId(parentId);
+    setManagerOpen(false);
+    setManagerEditDialogOpen(true);
+  };
+
+  const saveManagerEditDialog = async () => {
+    if (!managerEditNodeId) return;
+    const response = await fetch("/api/browser/bookmarks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: managerEditNodeId,
+        name: managerEditTitle,
+        ...(managerEditNodeType === "url"
+          ? {
+              url: normalizeBookmarkUrl(managerEditUrl),
+              tags: managerEditTags
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter((tag) => tag.length > 0),
+              parentId: managerEditParentId,
+            }
+          : {}),
+      }),
+    });
+    if (!response.ok) return;
+    const data = (await response.json()) as { bookmarks?: BookmarkFile };
+    if (data.bookmarks) setBookmarks(data.bookmarks);
+    setManagerEditDialogOpen(false);
+    setManagerEditNodeId(null);
+    setManagerOpen(true);
   };
 
   const markBookmarkUsed = async (id: string) => {
@@ -330,7 +787,28 @@ export function BrowserView() {
     await markBookmarkUsed(node.id);
     setBookmarksMenuOpen(false);
     setAppMode("browse", node.url);
-    setAddressValue(node.url);
+    setAddressValue(toAddressBarValue(node.url));
+  };
+
+  const setElectronOverlayVisibility = async (visible: boolean) => {
+    if (browserMode !== "electron") return;
+    const bridge = getBridge();
+    const viewId = viewIdRef.current;
+    const setBrowserViewVisible = bridge.setBrowserViewVisible;
+    if (!viewId || !setBrowserViewVisible) return;
+    try {
+      const result = await setBrowserViewVisible(viewId, visible);
+      if (visible) {
+        updateBoundsRef.current();
+      }
+      if (visible && !result?.ok) {
+        setInitAttempt((value) => value + 1);
+      }
+    } catch {
+      if (visible) {
+        setInitAttempt((value) => value + 1);
+      }
+    }
   };
 
   const openBookmarksNativeMenu = async () => {
@@ -361,8 +839,21 @@ export function BrowserView() {
     }
     if (typeof result.url === "string" && result.url.trim().length > 0) {
       setAppMode("browse", result.url);
-      setAddressValue(result.url);
+      setAddressValue(toAddressBarValue(result.url));
     }
+  };
+
+  const openTagsCloud = () => {
+    const entries = bookmarks
+      ? collectBookmarkTagEntries([
+          ...bookmarks.roots.bookmark_bar.children,
+          ...bookmarks.roots.other.children,
+        ])
+      : [];
+    const html = buildTagCloudHtml(entries);
+    const pageUrl = `${TAG_CLOUD_DATA_URL_PREFIX}${encodeURIComponent(html)}`;
+    setAppMode("browse", pageUrl);
+    setAddressValue(toAddressBarValue(pageUrl));
   };
 
   const createFolder = async () => {
@@ -370,17 +861,6 @@ export function BrowserView() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "createFolder", name: "New Folder" }),
-    });
-    if (!response.ok) return;
-    const data = (await response.json()) as { bookmarks?: BookmarkFile };
-    if (data.bookmarks) setBookmarks(data.bookmarks);
-  };
-
-  const updateNode = async (id: string, payload: { name: string; url?: string }) => {
-    const response = await fetch("/api/browser/bookmarks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...payload }),
     });
     if (!response.ok) return;
     const data = (await response.json()) as { bookmarks?: BookmarkFile };
@@ -574,7 +1054,7 @@ export function BrowserView() {
         failToIframe("bridge-method-missing");
         return;
       }
-      void createBrowserView(url || "about:blank")
+      void createBrowserView(useAppStore.getState().browseUrl || "about:blank")
         .then((result) => {
           if (cancelled) return;
           if (!result?.ok || !result.viewId) {
@@ -699,7 +1179,7 @@ export function BrowserView() {
         iframeHistoryIndexRef.current = nextIndex;
         const nextHistory = iframeHistoryRef.current;
         persistBrowserSessionState({ history: nextHistory, index: nextIndex, url: nextUrl });
-        setAddressValue(nextUrl);
+        setAddressValue(toAddressBarValue(nextUrl));
         if (useAppStore.getState().browseUrl !== nextUrl) {
           suppressNextElectronLoadRef.current = true;
           setAppMode("browse", nextUrl);
@@ -708,7 +1188,7 @@ export function BrowserView() {
       }
       if (currentIndex >= 0 && history[currentIndex] === nextUrl) {
         persistBrowserSessionState({ history, index: currentIndex, url: nextUrl });
-        setAddressValue(nextUrl);
+        setAddressValue(toAddressBarValue(nextUrl));
         return;
       }
       const nextHistory = currentIndex >= 0 ? history.slice(0, currentIndex + 1) : [];
@@ -720,7 +1200,7 @@ export function BrowserView() {
         index: iframeHistoryIndexRef.current,
         url: nextUrl,
       });
-      setAddressValue(nextUrl);
+      setAddressValue(toAddressBarValue(nextUrl));
       if (useAppStore.getState().browseUrl !== nextUrl) {
         suppressNextElectronLoadRef.current = true;
         setAppMode("browse", nextUrl);
@@ -788,6 +1268,8 @@ export function BrowserView() {
     };
   }, [browserMode]);
 
+  const isDialogOpen = managerOpen || bookmarkDialogOpen || managerEditDialogOpen;
+
   useEffect(() => {
     const bridge = getBridge();
     const viewId = viewIdRef.current;
@@ -796,7 +1278,7 @@ export function BrowserView() {
     }
     const setBrowserViewVisible = bridge.setBrowserViewVisible;
     if (!setBrowserViewVisible) return;
-    const shouldShow = !managerOpen;
+    const shouldShow = !isDialogOpen;
     if (shouldShow) {
       updateBoundsRef.current();
     }
@@ -816,7 +1298,7 @@ export function BrowserView() {
           setInitAttempt((value) => value + 1);
         }
       });
-  }, [browserMode, managerOpen]);
+  }, [browserMode, isDialogOpen]);
 
   useEffect(() => {
     if (browserMode !== "iframe") {
@@ -962,6 +1444,24 @@ export function BrowserView() {
       )
     : [];
 
+  const bookmarkFolderOptions: BookmarkFolderOption[] = (() => {
+    if (!bookmarks) return [];
+    const options: BookmarkFolderOption[] = [];
+    const pushFolderOptions = (nodes: BookmarkNode[], parentLabel: string) => {
+      for (const node of normalizeBookmarkNodes(nodes)) {
+        if (node.type !== "folder") continue;
+        const label = `${parentLabel} / ${node.name}`;
+        options.push({ id: node.id, label });
+        pushFolderOptions(node.children, label);
+      }
+    };
+    options.push({ id: bookmarks.roots.bookmark_bar.id, label: bookmarks.roots.bookmark_bar.name });
+    pushFolderOptions(bookmarks.roots.bookmark_bar.children, bookmarks.roots.bookmark_bar.name);
+    options.push({ id: bookmarks.roots.other.id, label: bookmarks.roots.other.name });
+    pushFolderOptions(bookmarks.roots.other.children, bookmarks.roots.other.name);
+    return options;
+  })();
+
   const renderDropdownNodes = (nodes: BookmarkNode[], depth = 0): ReactNode => {
     return normalizeBookmarkNodes(nodes).map((node) => {
       if (node.type === "folder") {
@@ -1000,79 +1500,38 @@ export function BrowserView() {
     });
   };
 
-  const renderManagerNodes = (nodes: BookmarkNode[], depth = 0): ReactNode => {
+  const renderManagerNodes = (nodes: BookmarkNode[], parentId: string, depth = 0): ReactNode => {
     return normalizeBookmarkNodes(nodes).map((node) => {
-      const isEditing = editingNodeId === node.id;
       return (
         <div key={node.id} className="space-y-1">
           <div className="flex items-center gap-2 rounded border border-border/70 px-2 py-1">
             <div style={{ marginLeft: `${depth * 14}px` }} className="flex items-center gap-1.5 min-w-0 flex-1">
-              {isEditing ? (
-                <>
-                  <input
-                    value={editName}
-                    onChange={(event) => setEditName(event.target.value)}
-                    className="h-7 min-w-0 flex-1 rounded border border-border bg-background px-2 text-xs"
-                  />
-                  {node.type === "url" ? (
-                    <input
-                      value={editUrl}
-                      onChange={(event) => setEditUrl(event.target.value)}
-                      className="h-7 min-w-0 flex-1 rounded border border-border bg-background px-2 text-xs"
-                    />
-                  ) : null}
-                  <button
-                    type="button"
-                    className="inline-flex h-7 items-center rounded border border-border px-2 text-xs hover:bg-muted"
-                    onClick={() => {
-                      void updateNode(node.id, {
-                        name: editName,
-                        ...(node.type === "url" ? { url: normalizeBookmarkUrl(editUrl) } : {}),
-                      }).then(() => {
-                        setEditingNodeId(null);
-                      });
-                    }}
-                  >
-                    Save
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="truncate text-xs text-foreground">{node.name}</span>
-                  {node.type === "url" ? (
-                    <span className="truncate text-[11px] text-muted-foreground">{node.url}</span>
-                  ) : null}
-                </>
-              )}
+              <span className="truncate text-xs text-foreground">{node.name}</span>
             </div>
-            {!isEditing ? (
-              <>
-                <button
-                  type="button"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted"
-                  onClick={() => {
-                    setEditingNodeId(node.id);
-                    setEditName(node.name);
-                    setEditUrl(node.type === "url" ? node.url : "");
-                  }}
-                  title="Edit"
-                  aria-label="Edit"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded border border-border text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    void deleteNode(node.id);
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </>
-            ) : null}
+            <button
+              type="button"
+              className="inline-flex h-7 w-7 items-center justify-center rounded border border-border hover:bg-muted"
+              onClick={() => {
+                openManagerEditDialog(node, parentId);
+              }}
+              title="Edit"
+              aria-label="Edit"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-7 w-7 items-center justify-center rounded border border-border text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                void deleteNode(node.id);
+              }}
+              title="Delete"
+              aria-label="Delete"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           </div>
-          {node.type === "folder" && node.children.length > 0 ? renderManagerNodes(node.children, depth + 1) : null}
+          {node.type === "folder" && node.children.length > 0 ? renderManagerNodes(node.children, node.id, depth + 1) : null}
         </div>
       );
     });
@@ -1131,25 +1590,26 @@ export function BrowserView() {
                 event.preventDefault();
                 const nextUrl = normalizeEnteredUrl(addressValue);
                 setAppMode("browse", nextUrl);
-                setAddressValue(nextUrl ?? "");
+                setAddressValue(toAddressBarValue(nextUrl));
               }}
               placeholder={t("editor:browser.noUrl")}
               className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
             />
-            <button
-              type="button"
-              onClick={() => void addCurrentPageAsBookmark()}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-foreground hover:border-border hover:bg-muted"
-              title="Save bookmark"
-              aria-label="Save bookmark"
-            >
+              <button
+                type="button"
+                onClick={openBookmarkDialog}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-foreground hover:border-border hover:bg-muted"
+                title="Save bookmark"
+                aria-label="Save bookmark"
+              >
               <Bookmark className="h-4 w-4" />
             </button>
             <button
               type="button"
               onClick={() => {
-                setManagerOpen(true);
-                setEditingNodeId(null);
+                void setElectronOverlayVisibility(false).then(() => {
+                  setManagerOpen(true);
+                });
               }}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-foreground hover:border-border hover:bg-muted"
               title="Bookmark manager"
@@ -1169,6 +1629,15 @@ export function BrowserView() {
               aria-expanded={bookmarksMenuOpen}
             >
               <Icon iconNode={folderBookmarkIconNode} className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={openTagsCloud}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-foreground hover:border-border hover:bg-muted"
+              title="Tags"
+              aria-label="Tags"
+            >
+              <Tags className="h-4 w-4" />
             </button>
           </div>
           <div className="flex justify-end gap-2">
@@ -1196,7 +1665,7 @@ export function BrowserView() {
                     onClick={() => {
                       void openBookmarkUrl(node);
                     }}
-                    className="inline-flex h-7 max-w-[220px] shrink-0 items-center rounded-md border border-transparent px-2 text-xs text-foreground hover:border-border hover:bg-muted"
+                    className="inline-flex h-7 max-w-55 shrink-0 items-center rounded-md border border-transparent px-2 text-xs text-foreground hover:border-border hover:bg-muted"
                     title={node.name}
                     aria-label={node.name}
                   >
@@ -1256,7 +1725,7 @@ export function BrowserView() {
       {bookmarksMenuOpen && bookmarksMenuPosition ? (
         <div
           ref={bookmarksMenuRef}
-          className="fixed z-[120] w-[320px] rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+          className="fixed z-120 w-[320px] rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
           style={{ top: bookmarksMenuPosition.top, left: bookmarksMenuPosition.left }}
         >
           <div className="overflow-auto" style={{ maxHeight: `${bookmarksMenuPosition.maxHeight}px` }}>
@@ -1270,6 +1739,154 @@ export function BrowserView() {
           </div>
         </div>
       ) : null}
+      <Dialog open={bookmarkDialogOpen} onOpenChange={setBookmarkDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Bookmark</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Title</div>
+              <input
+                value={bookmarkTitle}
+                onChange={(event) => setBookmarkTitle(event.target.value)}
+                className="h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">URL</div>
+              <input
+                value={bookmarkUrl}
+                onChange={(event) => setBookmarkUrl(event.target.value)}
+                className="h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Tags</div>
+              <input
+                value={bookmarkTags}
+                onChange={(event) => setBookmarkTags(event.target.value)}
+                placeholder="tag1, tag2"
+                className="h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Folder</div>
+              <select
+                value={bookmarkParentId}
+                onChange={(event) => setBookmarkParentId(event.target.value)}
+                className="h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+              >
+                {bookmarkFolderOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <button
+              type="button"
+              className="inline-flex h-8 items-center rounded border border-border px-2 text-xs hover:bg-muted"
+              onClick={() => {
+                setBookmarkDialogOpen(false);
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-8 items-center rounded border border-border px-2 text-xs hover:bg-muted"
+              onClick={() => {
+                void saveBookmarkFromDialog();
+              }}
+            >
+              Save
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={managerEditDialogOpen} onOpenChange={(open) => {
+        setManagerEditDialogOpen(open);
+        if (!open) {
+          setManagerEditNodeId(null);
+          setManagerOpen(true);
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit bookmark</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Title</div>
+              <input
+                value={managerEditTitle}
+                onChange={(event) => setManagerEditTitle(event.target.value)}
+                className="h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+              />
+            </div>
+            {managerEditNodeType === "url" ? (
+              <>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">URL</div>
+                  <input
+                    value={managerEditUrl}
+                    onChange={(event) => setManagerEditUrl(event.target.value)}
+                    className="h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Tags</div>
+                  <input
+                    value={managerEditTags}
+                    onChange={(event) => setManagerEditTags(event.target.value)}
+                    placeholder="tag1, tag2"
+                    className="h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Folder</div>
+                  <select
+                    value={managerEditParentId}
+                    onChange={(event) => setManagerEditParentId(event.target.value)}
+                    className="h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+                  >
+                    {bookmarkFolderOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2">
+            <button
+              type="button"
+              className="inline-flex h-8 items-center rounded border border-border px-2 text-xs hover:bg-muted"
+              onClick={() => {
+                setManagerEditDialogOpen(false);
+                setManagerEditNodeId(null);
+                setManagerOpen(true);
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-8 items-center rounded border border-border px-2 text-xs hover:bg-muted"
+              onClick={() => {
+                void saveManagerEditDialog();
+              }}
+            >
+              Save
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={managerOpen} onOpenChange={setManagerOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -1282,7 +1899,7 @@ export function BrowserView() {
                 <div className="space-y-1">
                   <div className="text-xs font-medium text-muted-foreground">Bookmarks bar</div>
                   {bookmarks.roots.bookmark_bar.children.length > 0 ? (
-                    renderManagerNodes(bookmarks.roots.bookmark_bar.children)
+                    renderManagerNodes(bookmarks.roots.bookmark_bar.children, bookmarks.roots.bookmark_bar.id)
                   ) : (
                     <div className="rounded border border-dashed border-border px-2 py-2 text-xs text-muted-foreground">Empty</div>
                   )}
@@ -1290,7 +1907,7 @@ export function BrowserView() {
                 <div className="space-y-1">
                   <div className="text-xs font-medium text-muted-foreground">Other bookmarks</div>
                   {bookmarks.roots.other.children.length > 0 ? (
-                    renderManagerNodes(bookmarks.roots.other.children)
+                    renderManagerNodes(bookmarks.roots.other.children, bookmarks.roots.other.id)
                   ) : (
                     <div className="rounded border border-dashed border-border px-2 py-2 text-xs text-muted-foreground">Empty</div>
                   )}

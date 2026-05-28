@@ -13,6 +13,7 @@ type BookmarkUrlNode = {
   date_added: string;
   date_last_used: string;
   url: string;
+  tags: string[];
   meta_info?: Record<string, string>;
 };
 
@@ -43,6 +44,7 @@ type AddBookmarkPayload = {
   name?: string;
   url: string;
   parentId?: string;
+  tags?: string[];
 };
 
 type CreateFolderPayload = {
@@ -56,7 +58,12 @@ type MarkUsedPayload = {
   id: string;
 };
 
-type PostPayload = AddBookmarkPayload | CreateFolderPayload | MarkUsedPayload;
+type ResolveTitlePayload = {
+  action: "resolveTitle";
+  url: string;
+};
+
+type PostPayload = AddBookmarkPayload | CreateFolderPayload | MarkUsedPayload | ResolveTitlePayload;
 
 const BOOKMARKS_PATH = path.join(DATA_DIR, "bookmarks.json");
 const EPOCH_OFFSET_US = BigInt("11644473600000000");
@@ -96,6 +103,14 @@ function makeDefaultBookmarks(): BookmarkFile {
   };
 }
 
+function normalizeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
 function sanitizeNode(input: unknown): BookmarkNode | null {
   const node = input as Partial<BookmarkNode> | null;
   if (!node || typeof node !== "object") return null;
@@ -103,19 +118,20 @@ function sanitizeNode(input: unknown): BookmarkNode | null {
     if (typeof node.id !== "string") return null;
     if (typeof node.name !== "string") return null;
     if (typeof (node as Partial<BookmarkUrlNode>).url !== "string") return null;
-    return {
-      id: node.id,
-      name: node.name,
-      type: "url",
-      url: (node as Partial<BookmarkUrlNode>).url || "about:blank",
-      date_added: typeof node.date_added === "string" ? node.date_added : chromeNow(),
-      date_last_used: typeof (node as Partial<BookmarkUrlNode>).date_last_used === "string"
-        ? (node as Partial<BookmarkUrlNode>).date_last_used as string
-        : "0",
-      meta_info: typeof (node as Partial<BookmarkUrlNode>).meta_info === "object"
-        ? (node as Partial<BookmarkUrlNode>).meta_info as Record<string, string>
-        : undefined,
-    };
+      return {
+        id: node.id,
+        name: node.name,
+        type: "url",
+        url: (node as Partial<BookmarkUrlNode>).url || "about:blank",
+        date_added: typeof node.date_added === "string" ? node.date_added : chromeNow(),
+        date_last_used: typeof (node as Partial<BookmarkUrlNode>).date_last_used === "string"
+          ? (node as Partial<BookmarkUrlNode>).date_last_used as string
+          : "0",
+        tags: normalizeTags((node as Partial<BookmarkUrlNode>).tags),
+        meta_info: typeof (node as Partial<BookmarkUrlNode>).meta_info === "object"
+          ? (node as Partial<BookmarkUrlNode>).meta_info as Record<string, string>
+          : undefined,
+      };
   }
   if (node.type === "folder") {
     if (typeof node.id !== "string") return null;
@@ -360,6 +376,7 @@ export async function POST(request: NextRequest) {
         url: nextUrl,
         date_added: now,
         date_last_used: "0",
+        tags: normalizeTags(payload.tags),
       };
       targetFolder.children.push(node);
       targetFolder.date_modified = now;
@@ -394,6 +411,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, bookmarks });
     }
 
+    if (payload.action === "resolveTitle") {
+      const nextUrl = normalizeUrl(payload.url);
+      const title = await resolveBookmarkTitle(nextUrl);
+      return NextResponse.json({ ok: true, title });
+    }
+
     return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update bookmarks";
@@ -403,7 +426,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const payload = (await request.json()) as { id?: string; name?: string; url?: string };
+    const payload = (await request.json()) as { id?: string; name?: string; url?: string; tags?: unknown; parentId?: string };
     if (!payload.id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
@@ -414,8 +437,21 @@ export async function PATCH(request: NextRequest) {
     }
     const now = chromeNow();
     found.node.name = normalizeName(payload.name, found.node.name);
-    if (found.node.type === "url" && typeof payload.url === "string") {
-      found.node.url = normalizeUrl(payload.url);
+    if (found.node.type === "url") {
+      if (typeof payload.url === "string") {
+        found.node.url = normalizeUrl(payload.url);
+      }
+      if (payload.tags !== undefined) {
+        found.node.tags = normalizeTags(payload.tags);
+      }
+      if (typeof payload.parentId === "string") {
+        const targetFolder = findFolderById(bookmarks, payload.parentId);
+        if (targetFolder.id !== found.parent.id) {
+          found.parent.children = found.parent.children.filter((child) => child.id !== found.node.id);
+          targetFolder.children.push(found.node);
+          targetFolder.date_modified = now;
+        }
+      }
     }
     found.parent.date_modified = now;
     await writeBookmarks(bookmarks);

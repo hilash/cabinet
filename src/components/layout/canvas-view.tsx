@@ -1493,8 +1493,8 @@ export function CanvasView() {
                       }}
                       className={
                         composed
-                          ? `group absolute flex shrink-0 flex-col rounded-2xl border bg-muted/40 p-4 text-left transition-colors hover:bg-muted ${isSelected ? "border-violet-600 border-2" : "border-border/70"}`
-                          : `group absolute flex shrink-0 flex-col rounded-2xl border bg-background p-4 text-left transition-colors hover:bg-muted/40 ${isSelected ? "border-violet-600 border-2" : "border-border/70"}`
+                          ? `group absolute flex shrink-0 flex-col rounded-2xl border bg-muted/40 p-4 text-left transition-colors hover:bg-muted ${isSelected ? "border-violet-600 border-[3px]" : "border-border/70"}`
+                          : `group absolute flex shrink-0 flex-col rounded-2xl border bg-background p-4 text-left transition-colors hover:bg-muted/40 ${isSelected ? "border-violet-600 border-[3px]" : "border-border/70"}`
                       }
                       data-canvas-card="true"
                       role="button"
