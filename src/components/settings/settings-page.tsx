@@ -35,6 +35,7 @@ import {
   ArrowRight,
   CheckCircle2,
   ShieldAlert,
+  Blocks,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ import {
 import { SkillLibrary } from "@/components/skills/skill-library";
 import { DataLocationsSection } from "@/components/settings/data-locations-section";
 import { UninstallSection } from "@/components/settings/uninstall-section";
+import { ExtensionsSection } from "@/components/settings/extensions-section";
 import { UpdateSummary } from "@/components/system/update-summary";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useTheme } from "@/components/theme-provider";
@@ -138,7 +140,7 @@ interface IntegrationConfig {
 
 type ColorPalettesMap = Record<string, string[]>;
 
-type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
+type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about" | "extensions";
 
 function TerminalCommand({ command }: { command: string }) {
   const { t } = useLocale();
@@ -443,7 +445,7 @@ export function SettingsPage() {
   const [dataDirBrowsing, setDataDirBrowsing] = useState(false);
   const [dataDirSaving, setDataDirSaving] = useState(false);
   const [dataDirRestartNeeded, setDataDirRestartNeeded] = useState(false);
-  const VALID_TABS: Tab[] = ["profile", "providers", "skills", "storage", "notifications", "appearance", "updates", "about"];
+  const VALID_TABS: Tab[] = ["profile", "providers", "skills", "storage", "notifications", "appearance", "extensions", "updates", "about"];
   const initialTab = (() => {
     const slug = useAppStore.getState().section.slug as Tab | undefined;
     return slug && VALID_TABS.includes(slug) ? slug : "profile";
@@ -973,6 +975,7 @@ export function SettingsPage() {
         { id: "providers", label: t("settings:tabs.providers"), icon: <Cpu className="h-3.5 w-3.5" /> },
         { id: "skills", label: t("settings:tabs.skills"), icon: <Sparkles className="h-3.5 w-3.5" /> },
         { id: "storage", label: t("settings:tabs.storage"), icon: <HardDrive className="h-3.5 w-3.5" /> },
+        { id: "extensions", label: "Extensions", icon: <Blocks className="h-3.5 w-3.5" /> },
       ],
     },
     {
@@ -2006,6 +2009,21 @@ export function SettingsPage() {
           {/* Skills Tab */}
           {tab === "skills" && <SkillsSettings />}
 
+          {/* Extensions Tab */}
+          {tab === "extensions" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-[15px] font-semibold tracking-[-0.02em] mb-1">
+                  Extensions
+                </h2>
+                <p className="text-[13px] text-muted-foreground leading-relaxed">
+                  Manage Chrome Web Store extensions for Cabinet's built-in browser.
+                </p>
+              </div>
+              <ExtensionsSection />
+            </div>
+          )}
+
           {/* Notifications Tab */}
           {tab === "notifications" && (
             <div className="relative">
@@ -2634,7 +2652,7 @@ function wcagContrastVsWhite(hex: string): number | null {
     const v = c / 255;
     return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
   });
-  const l = 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  const l = 0.2126 * rs + 0.7152 * gs + 0.722 * bs;
   // Avatar fallback uses white icon — only warn when white-on-color contrast is low.
   return (1.05) / (l + 0.05);
 }

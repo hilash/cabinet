@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 const browserViewNavigateListeners = new Set();
 const browserViewLoadFailedListeners = new Set();
+const extensionInstalledListeners = new Set();
 
 ipcRenderer.on("cabinet:browser-view-navigated", (_event, payload) => {
   for (const listener of browserViewNavigateListeners) {
@@ -14,6 +15,14 @@ ipcRenderer.on("cabinet:browser-view-navigated", (_event, payload) => {
 
 ipcRenderer.on("cabinet:browser-view-load-failed", (_event, payload) => {
   for (const listener of browserViewLoadFailedListeners) {
+    try {
+      listener(payload);
+    } catch {}
+  }
+});
+
+ipcRenderer.on("cabinet:extension-installed", (_event, payload) => {
+  for (const listener of extensionInstalledListeners) {
     try {
       listener(payload);
     } catch {}
@@ -95,4 +104,17 @@ contextBridge.exposeInMainWorld("CabinetDesktop", {
    * hash route, so two windows can sit in different rooms at once.
    */
   openWindow: (hash) => ipcRenderer.invoke("cabinet:open-window", hash),
+  installExtension: (urlOrId) => ipcRenderer.invoke("cabinet:install-extension", { urlOrId }),
+  uninstallExtension: (id) => ipcRenderer.invoke("cabinet:uninstall-extension", { id }),
+  toggleExtension: (id, enabled) => ipcRenderer.invoke("cabinet:toggle-extension", { id, enabled }),
+  getExtensions: () => ipcRenderer.invoke("cabinet:get-extensions"),
+  updateExtension: (id, updates) => ipcRenderer.invoke("cabinet:update-extension", { id, updates }),
+  showExtensionPopup: (payload) => ipcRenderer.invoke("cabinet:show-extension-popup", payload),
+  onExtensionInstalled: (listener) => {
+    if (typeof listener !== "function") return () => {};
+    extensionInstalledListeners.add(listener);
+    return () => {
+      extensionInstalledListeners.delete(listener);
+    };
+  },
 });

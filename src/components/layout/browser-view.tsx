@@ -15,6 +15,9 @@ import {
   RefreshCw,
   Tags,
   Trash2,
+  Blocks,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import type { IconNode } from "lucide-react";
 import {
@@ -25,6 +28,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Header } from "@/components/layout/header";
 import { useAppStore } from "@/stores/app-store";
 import { useLocale } from "@/i18n/use-locale";
@@ -79,6 +88,21 @@ type BrowserBridge = {
     }) => void
   ) => () => void;
   destroyBrowserView: (viewId: string) => Promise<{ ok: boolean }>;
+  getExtensions?: () => Promise<BrowserExtension[]>;
+  updateExtension?: (id: string, updates: Partial<BrowserExtension>) => Promise<{ ok: boolean }>;
+  showExtensionPopup?: (payload: { extensionId: string; x: number; y: number }) => Promise<{ ok: boolean }>;
+};
+
+type BrowserExtension = {
+  id: string;
+  name: string;
+  version: string;
+  path: string;
+  description: string;
+  enabled?: boolean;
+  pinned?: boolean;
+  iconDataUrl?: string | null;
+  popupHtml?: string | null;
 };
 
 type BrowserSessionState = {
@@ -618,7 +642,6 @@ export function BrowserView() {
     const bridge = getBridge();
     return bridge.createBrowserView && bridge.destroyBrowserView ? "initializing" : "iframe";
   });
-  const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [initAttempt, setInitAttempt] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bookmarksMenuRef = useRef<HTMLDivElement | null>(null);
@@ -656,11 +679,19 @@ export function BrowserView() {
   const [bookmarkTags, setBookmarkTags] = useState("");
   const [bookmarkParentId, setBookmarkParentId] = useState("1");
   const bookmarkTitleRequestRef = useRef(0);
+  const [extensions, setExtensions] = useState<BrowserExtension[]>([]);
 
   useEffect(() => {
     if (url == null) return;
     setAddressValue(toAddressBarValue(url));
   }, [url]);
+
+  useEffect(() => {
+    const bridge = getBridge();
+    if (bridge.getExtensions) {
+      bridge.getExtensions().then(setExtensions);
+    }
+  }, []);
 
   const fetchBookmarks = async () => {
     setBookmarksLoading(true);
@@ -846,14 +877,35 @@ export function BrowserView() {
   const openTagsCloud = () => {
     const entries = bookmarks
       ? collectBookmarkTagEntries([
-          ...bookmarks.roots.bookmark_bar.children,
-          ...bookmarks.roots.other.children,
+          bookmarks.roots.bookmark_bar,
+          bookmarks.roots.other,
         ])
       : [];
     const html = buildTagCloudHtml(entries);
-    const pageUrl = `${TAG_CLOUD_DATA_URL_PREFIX}${encodeURIComponent(html)}`;
-    setAppMode("browse", pageUrl);
-    setAddressValue(toAddressBarValue(pageUrl));
+    const dataUrl = `${TAG_CLOUD_DATA_URL_PREFIX}${encodeURIComponent(html)}`;
+    setAppMode("browse", dataUrl);
+    setAddressValue("");
+  };
+
+  const handleToggleExtensionPin = async (ext: BrowserExtension) => {
+    const bridge = getBridge();
+    const newPinned = !ext.pinned;
+    if (bridge.updateExtension) {
+      await bridge.updateExtension(ext.id, { pinned: newPinned });
+      setExtensions(prev => prev.map(e => e.id === ext.id ? { ...e, pinned: newPinned } : e));
+    }
+  };
+
+  const handleRunExtension = async (ext: BrowserExtension, event: React.MouseEvent) => {
+    const bridge = getBridge();
+    if (bridge.showExtensionPopup) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      await bridge.showExtensionPopup({
+        extensionId: ext.id,
+        x: Math.round(rect.left),
+        y: Math.round(rect.bottom + 8),
+      });
+    }
   };
 
   const createFolder = async () => {
@@ -1025,9 +1077,8 @@ export function BrowserView() {
       }
     };
 
-    const failToIframe = (reason: string) => {
+    const failToIframe = () => {
       setBrowserMode("iframe");
-      setFallbackReason(reason);
     };
 
     const hasElectronBrowserBridge = () => {
@@ -1041,7 +1092,7 @@ export function BrowserView() {
       if (!hasElectronBrowserBridge()) {
         retries += 1;
         if (retries >= maxRetries) {
-          failToIframe("bridge-unavailable");
+          failToIframe();
           return;
         }
         retryTimer = window.setTimeout(attemptInit, 100);
@@ -1051,18 +1102,17 @@ export function BrowserView() {
       const destroyBrowserView = bridge.destroyBrowserView;
       const loadBrowserViewUrl = bridge.loadBrowserViewUrl;
       if (!createBrowserView || !destroyBrowserView) {
-        failToIframe("bridge-method-missing");
+        failToIframe();
         return;
       }
       void createBrowserView(useAppStore.getState().browseUrl || "about:blank")
         .then((result) => {
           if (cancelled) return;
           if (!result?.ok || !result.viewId) {
-            failToIframe("create-browser-view-failed");
+            failToIframe();
             return;
           }
           setBrowserMode("electron");
-          setFallbackReason(null);
           setElectronFailure(null);
           viewIdRef.current = result.viewId;
           updateBoundsRef.current();
@@ -1080,7 +1130,7 @@ export function BrowserView() {
           }
         })
         .catch(() => {
-          if (!cancelled) failToIframe("create-browser-view-threw");
+          if (!cancelled) failToIframe();
         });
     };
 
@@ -1099,7 +1149,6 @@ export function BrowserView() {
     }
 
     setBrowserMode(hasElectronBrowserBridge() ? "initializing" : "iframe");
-    setFallbackReason(null);
     attemptInit();
 
     return () => {
@@ -1639,6 +1688,64 @@ export function BrowserView() {
             >
               <Tags className="h-4 w-4" />
             </button>
+            
+            {/* Pinned Extensions */}
+            {extensions.filter(ext => ext.enabled !== false && ext.pinned).map(ext => (
+              <button
+                key={ext.id}
+                type="button"
+                onClick={(e) => handleRunExtension(ext, e)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-foreground hover:border-border hover:bg-muted"
+                title={ext.name}
+                aria-label={ext.name}
+              >
+                {ext.iconDataUrl ? (
+                  <img src={ext.iconDataUrl} alt="" className="w-4 h-4 object-contain" />
+                ) : (
+                  <Blocks className="h-4 w-4" />
+                )}
+              </button>
+            ))}
+
+            {/* Extensions Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-foreground hover:border-border hover:bg-muted cursor-pointer"
+                title="Extensions"
+                aria-label="Extensions"
+              >
+                <Blocks className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                {extensions.filter(ext => ext.enabled !== false).length === 0 ? (
+                  <div className="p-3 text-xs text-muted-foreground text-center">No extensions enabled</div>
+                ) : (
+                  extensions.filter(ext => ext.enabled !== false).map(ext => (
+                    <div key={ext.id} className="flex items-center justify-between px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer group">
+                      <div className="flex items-center gap-2 flex-1 overflow-hidden" onClick={(e) => handleRunExtension(ext, e)}>
+                        {ext.iconDataUrl ? (
+                          <img src={ext.iconDataUrl} alt="" className="w-4 h-4 object-contain shrink-0" />
+                        ) : (
+                          <Blocks className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
+                        <span className="truncate">{ext.name}</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleExtensionPin(ext);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded text-muted-foreground"
+                        title={ext.pinned ? "Unpin extension" : "Pin extension"}
+                      >
+                        {ext.pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="flex justify-end gap-2">
             {url ? (
@@ -1699,11 +1806,6 @@ export function BrowserView() {
                     <div>This page can’t be rendered in an iframe.</div>
                     <div className="mt-1">Use “Open externally”.</div>
                   </div>
-                </div>
-              ) : null}
-              {fallbackReason ? (
-                <div className="pointer-events-none absolute bottom-3 right-3 rounded border border-border bg-background/90 px-2 py-1 text-[10px] text-muted-foreground">
-                  fallback: {fallbackReason}
                 </div>
               ) : null}
             </>

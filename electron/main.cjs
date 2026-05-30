@@ -7,6 +7,7 @@ const net = require("net");
 const { spawn } = require("child_process");
 const { app, BrowserWindow, dialog, autoUpdater, ipcMain, Menu, WebContentsView, session } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
+const JSZip = require("jszip");
 
 if (require("electron-squirrel-startup")) {
   app.quit();
@@ -58,6 +59,35 @@ function writePersistedDataDir(dir) {
       // start fresh
     }
     existing.dataDir = dir;
+    fs.writeFileSync(cabinetConfigPath, JSON.stringify(existing, null, 2), "utf8");
+  } catch {
+    // best-effort
+  }
+}
+
+function readPersistedExtensions() {
+  try {
+    const raw = fs.readFileSync(cabinetConfigPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed?.extensions)) {
+      return parsed.extensions;
+    }
+  } catch {
+    // missing/invalid is fine
+  }
+  return [];
+}
+
+function writePersistedExtensions(extensions) {
+  try {
+    fs.mkdirSync(userDataDir, { recursive: true });
+    let existing = {};
+    try {
+      existing = JSON.parse(fs.readFileSync(cabinetConfigPath, "utf8")) || {};
+    } catch {
+      // start fresh
+    }
+    existing.extensions = extensions;
     fs.writeFileSync(cabinetConfigPath, JSON.stringify(existing, null, 2), "utf8");
   } catch {
     // best-effort
@@ -171,6 +201,20 @@ function getBrowserSession() {
   return session.fromPartition(BROWSER_VIEW_PARTITION);
 }
 
+function setupBrowserSession() {
+  const browserSession = getBrowserSession();
+  const filter = { urls: ['*://*.google.com/*'] };
+  browserSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
+    details.requestHeaders['Sec-CH-UA'] = '"Google Chrome";v="136", "Chromium";v="136", "Not_A Brand";v="24"';
+    details.requestHeaders['Sec-CH-UA-Mobile'] = '?0';
+    details.requestHeaders['Sec-CH-UA-Platform'] = '"macOS"';
+    // Fallback user agent just in case
+    details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
+    
+    callback({ requestHeaders: details.requestHeaders });
+  });
+}
+
 function getMainRendererSession() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     const wc = mainWindow.webContents;
@@ -227,15 +271,33 @@ function parseBrowserExtensions() {
     .filter(Boolean);
 }
 
+const runtimeExtensionIds = new Map();
+
 async function loadBrowserExtensions() {
   const extensionPaths = parseBrowserExtensions();
+  
+  const persisted = readPersistedExtensions();
+  for (const ext of persisted) {
+    if (ext.enabled === false) continue;
+    if (ext.path && !extensionPaths.includes(ext.path)) {
+      extensionPaths.push(ext.path);
+    }
+  }
+
   if (extensionPaths.length === 0) return;
   const browserSession = getBrowserSession();
 
   for (const extensionPath of extensionPaths) {
     try {
-      await browserSession.loadExtension(extensionPath, { allowFileAccess: true });
-      console.log(`[cabinet] loaded browser extension: ${extensionPath}`);
+      // session.loadExtension is deprecated, fallback to session.extensions.loadExtension if available
+      let ext;
+      if (browserSession.extensions && browserSession.extensions.loadExtension) {
+        ext = await browserSession.extensions.loadExtension(extensionPath, { allowFileAccess: true });
+      } else {
+        ext = await browserSession.loadExtension(extensionPath, { allowFileAccess: true });
+      }
+      runtimeExtensionIds.set(extensionPath, ext.id);
+      console.log(`[cabinet] loaded browser extension: ${extensionPath} (Runtime ID: ${ext.id})`);
     } catch (error) {
       console.error(`[cabinet] failed to load browser extension: ${extensionPath}`);
       console.error(error);
@@ -934,11 +996,16 @@ ipcMain.handle("cabinet:create-browser-view", async (event, payload) => {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, "browser-preload.cjs"),
     },
   });
   const initialBounds = { x: 0, y: 0, width: 0, height: 0 };
   view.setBounds(initialBounds);
   view.setVisible(false);
+  
+  const defaultUA = view.webContents.userAgent || "";
+  view.webContents.userAgent = defaultUA.replace(/Electron\/[\d\.]+ ?/g, "").replace(/cabinet\/[\d\.]+ ?/g, "");
+
   mainWindow.contentView.addChildView(view);
   browserViews.set(viewId, { view, ownerWebContentsId: event.sender.id });
   view.webContents.on("did-navigate", (_navEvent, nextUrl) => {
@@ -1334,6 +1401,337 @@ async function openRoomWindow(suffix) {
 
 ipcMain.handle("cabinet:open-window", (_event, suffix) => openRoomWindow(suffix));
 
+async function installExtensionFromWebStore(extensionId) {
+  const url = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=114.0.0.0&acceptformat=crx2,crx3&x=id%3D${extensionId}%26uc`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to download extension CRX");
+  const arrayBuffer = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  let zipDataOffset = 0;
+  const magic = buffer.readUInt32LE(0);
+  if (magic === 0x34327243) { // 'Cr24'
+    const version = buffer.readUInt32LE(4);
+    if (version === 3) {
+      const headerSize = buffer.readUInt32LE(8);
+      zipDataOffset = 12 + headerSize;
+    } else if (version === 2) {
+      const pubKeyLength = buffer.readUInt32LE(8);
+      const sigLength = buffer.readUInt32LE(12);
+      zipDataOffset = 16 + pubKeyLength + sigLength;
+    } else {
+      throw new Error("Unknown CRX version: " + version);
+    }
+  } else {
+    zipDataOffset = 0;
+  }
+
+  const zipData = buffer.slice(zipDataOffset);
+  const zip = await JSZip.loadAsync(zipData);
+
+  const outDir = path.join(userDataDir, "extensions", extensionId);
+  fs.mkdirSync(outDir, { recursive: true });
+
+  for (const [relativePath, file] of Object.entries(zip.files)) {
+    if (file.dir) {
+      fs.mkdirSync(path.join(outDir, relativePath), { recursive: true });
+    } else {
+      fs.mkdirSync(path.dirname(path.join(outDir, relativePath)), { recursive: true });
+      const content = await file.async('nodebuffer');
+      fs.writeFileSync(path.join(outDir, relativePath), content);
+    }
+  }
+
+  const manifestPath = path.join(outDir, "manifest.json");
+  let manifest = {};
+  if (fs.existsSync(manifestPath)) {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  }
+
+  const resolveI18n = (str) => {
+    if (!str || typeof str !== "string" || !str.startsWith("__MSG_") || !str.endsWith("__")) return str;
+    const msgKey = str.slice(6, -2);
+    const defaultLocale = manifest.default_locale || "en";
+    const messagesPath = path.join(outDir, "_locales", defaultLocale, "messages.json");
+    if (fs.existsSync(messagesPath)) {
+      try {
+        const messages = JSON.parse(fs.readFileSync(messagesPath, "utf8"));
+        // sometimes keys are case insensitive in chrome, but let's try exact first, then lower
+        let match = messages[msgKey];
+        if (!match) {
+          const lowerKey = msgKey.toLowerCase();
+          for (const key of Object.keys(messages)) {
+            if (key.toLowerCase() === lowerKey) {
+              match = messages[key];
+              break;
+            }
+          }
+        }
+        if (match && match.message) {
+          return match.message;
+        }
+      } catch (e) {}
+    }
+    return str;
+  };
+
+  const popupHtml = manifest.action?.default_popup || manifest.browser_action?.default_popup || null;
+  
+  let iconDataUrl = null;
+  const icons = manifest.icons || {};
+  const iconPathRef = icons["128"] || icons["48"] || icons["16"] || manifest.action?.default_icon || manifest.browser_action?.default_icon;
+  if (iconPathRef && typeof iconPathRef === "string") {
+    const fullIconPath = path.join(outDir, iconPathRef);
+    if (fs.existsSync(fullIconPath)) {
+      try {
+        const ext = path.extname(fullIconPath).slice(1) || "png";
+        const base64 = fs.readFileSync(fullIconPath).toString("base64");
+        iconDataUrl = `data:image/${ext};base64,${base64}`;
+      } catch (e) {}
+    }
+  } else if (iconPathRef && typeof iconPathRef === "object") {
+    // sometimes default_icon is an object { "16": "...", "32": "..." }
+    const firstIcon = Object.values(iconPathRef)[0];
+    if (firstIcon && typeof firstIcon === "string") {
+      const fullIconPath = path.join(outDir, firstIcon);
+      if (fs.existsSync(fullIconPath)) {
+        try {
+          const ext = path.extname(fullIconPath).slice(1) || "png";
+          const base64 = fs.readFileSync(fullIconPath).toString("base64");
+          iconDataUrl = `data:image/${ext};base64,${base64}`;
+        } catch (e) {}
+      }
+    }
+  }
+
+  const browserSession = getBrowserSession();
+  let loadedExt;
+  if (browserSession.extensions && browserSession.extensions.loadExtension) {
+    loadedExt = await browserSession.extensions.loadExtension(outDir, { allowFileAccess: true });
+  } else {
+    loadedExt = await browserSession.loadExtension(outDir, { allowFileAccess: true });
+  }
+  runtimeExtensionIds.set(outDir, loadedExt.id);
+
+  const extData = {
+    id: extensionId,
+    name: resolveI18n(manifest.name) || extensionId,
+    version: manifest.version || "unknown",
+    path: outDir,
+    description: resolveI18n(manifest.description) || "",
+    popupHtml,
+    iconDataUrl,
+  };
+
+  const persisted = readPersistedExtensions();
+  const existingIndex = persisted.findIndex((e) => e.id === extensionId);
+  if (existingIndex >= 0) {
+    persisted[existingIndex] = extData;
+  } else {
+    persisted.push(extData);
+  }
+  writePersistedExtensions(persisted);
+
+  return extData;
+}
+
+ipcMain.handle("cabinet:web-store-install", async (event, payload) => {
+  try {
+    const ext = await installExtensionFromWebStore(payload.extensionId);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("cabinet:extension-installed", ext);
+    }
+    return { ok: true, extension: ext };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle("cabinet:install-extension", async (event, payload) => {
+  try {
+    let extensionId = payload.urlOrId;
+    if (extensionId.includes("/")) {
+      const parts = extensionId.split("/");
+      extensionId = parts[parts.length - 1];
+    }
+    const ext = await installExtensionFromWebStore(extensionId);
+    return { ok: true, extension: ext };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle("cabinet:toggle-extension", async (event, payload) => {
+  try {
+    const { id, enabled } = payload;
+    let persisted = readPersistedExtensions();
+    const extIndex = persisted.findIndex(e => e.id === id);
+    if (extIndex < 0) return { ok: false, error: "Not found" };
+    
+    persisted[extIndex].enabled = enabled;
+    writePersistedExtensions(persisted);
+
+    const browserSession = getBrowserSession();
+    const outDir = path.join(userDataDir, "extensions", id);
+    
+    if (enabled) {
+      let loadedExt;
+      if (browserSession.extensions && browserSession.extensions.loadExtension) {
+        loadedExt = await browserSession.extensions.loadExtension(outDir, { allowFileAccess: true });
+      } else {
+        loadedExt = await browserSession.loadExtension(outDir, { allowFileAccess: true });
+      }
+      runtimeExtensionIds.set(outDir, loadedExt.id);
+    } else {
+      const runtimeId = runtimeExtensionIds.get(outDir);
+      if (runtimeId) {
+        if (browserSession.extensions && browserSession.extensions.removeExtension) {
+          browserSession.extensions.removeExtension(runtimeId);
+        } else {
+          browserSession.removeExtension(runtimeId);
+        }
+        runtimeExtensionIds.delete(outDir);
+      }
+    }
+    
+    return { ok: true, extension: persisted[extIndex] };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle("cabinet:update-extension", async (event, payload) => {
+  try {
+    const { id, updates } = payload;
+    let persisted = readPersistedExtensions();
+    const extIndex = persisted.findIndex(e => e.id === id);
+    if (extIndex < 0) return { ok: false, error: "Not found" };
+    
+    persisted[extIndex] = { ...persisted[extIndex], ...updates };
+    writePersistedExtensions(persisted);
+    return { ok: true, extension: persisted[extIndex] };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+let currentExtensionPopup = null;
+
+ipcMain.handle("cabinet:show-extension-popup", async (event, payload) => {
+  if (!isMainRendererSender(event)) return { ok: false, error: "unauthorized" };
+  try {
+    const { extensionId, x, y } = payload;
+    let persisted = readPersistedExtensions();
+    const ext = persisted.find(e => e.id === extensionId);
+    if (!ext || !ext.popupHtml) return { ok: false, error: "No popup defined" };
+
+    if (currentExtensionPopup) {
+      try {
+        mainWindow.contentView.removeChildView(currentExtensionPopup);
+      } catch {}
+      currentExtensionPopup = null;
+    }
+
+    const runtimeId = runtimeExtensionIds.get(ext.path) || extensionId;
+    const popupUrl = `chrome-extension://${runtimeId}/${ext.popupHtml}`;
+    const view = new WebContentsView({
+      webPreferences: {
+        partition: BROWSER_VIEW_PARTITION,
+        contextIsolation: false,
+        sandbox: true,
+        nodeIntegration: false,
+        enablePreferredSizeMode: true,
+      },
+    });
+
+    let currentWidth = 360;
+    let currentHeight = 480;
+    const paddingX = 8;
+    const paddingY = 8;
+    
+    const updateBounds = (w, h) => {
+      // Chrome extension popups have a max size of 800x600
+      const width = Math.min(Math.max(w, 100), 800);
+      const height = Math.min(Math.max(h, 100), 600);
+      
+      const winBounds = mainWindow.getContentBounds();
+      let finalX = x;
+      let finalY = y;
+      
+      // align to the right side if the popup is too wide, similar to Chrome
+      if (finalX + width > winBounds.width) finalX = winBounds.width - width - paddingX;
+      if (finalY + height > winBounds.height) finalY = winBounds.height - height - paddingY;
+
+      view.setBounds({ x: finalX, y: finalY, width, height });
+    };
+
+    view.webContents.on('preferred-size-changed', (event, size) => {
+      updateBounds(size.width, size.height);
+    });
+
+    updateBounds(currentWidth, currentHeight);
+    mainWindow.contentView.addChildView(view);
+    
+    currentExtensionPopup = view;
+
+    view.webContents.loadURL(popupUrl);
+    view.webContents.focus();
+
+    view.webContents.on("blur", () => {
+      if (currentExtensionPopup === view) {
+        try {
+          mainWindow.contentView.removeChildView(view);
+        } catch {}
+        currentExtensionPopup = null;
+      }
+    });
+
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle("cabinet:uninstall-extension", async (event, payload) => {
+  try {
+    const { id } = payload;
+    let persisted = readPersistedExtensions();
+    const extIndex = persisted.findIndex(e => e.id === id);
+    if (extIndex >= 0) {
+      persisted.splice(extIndex, 1);
+      writePersistedExtensions(persisted);
+    }
+
+    const browserSession = getBrowserSession();
+    const outDir = path.join(userDataDir, "extensions", id);
+    const runtimeId = runtimeExtensionIds.get(outDir);
+    if (runtimeId) {
+      try {
+        if (browserSession.extensions && browserSession.extensions.removeExtension) {
+          browserSession.extensions.removeExtension(runtimeId);
+        } else {
+          browserSession.removeExtension(runtimeId);
+        }
+      } catch {}
+      runtimeExtensionIds.delete(outDir);
+    }
+
+    fs.rmSync(outDir, { recursive: true, force: true });
+    
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("cabinet:extension-uninstalled", { id });
+    }
+    
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle("cabinet:get-extensions", () => {
+  return readPersistedExtensions();
+});
+
 app.on("window-all-closed", () => {
   cleanupBackends();
   if (process.platform !== "darwin") {
@@ -1361,6 +1759,10 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(async () => {
+  const defaultUA = app.userAgentFallback || "";
+  app.userAgentFallback = defaultUA.replace(/Electron\/[\d\.]+ ?/g, "").replace(/cabinet\/[\d\.]+ ?/g, "").replace(/\s+/g, " ").trim() || "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
+
+  setupBrowserSession();
   await loadBrowserExtensions();
   configureAutoUpdates();
   await createWindow();
