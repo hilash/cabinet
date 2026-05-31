@@ -31,11 +31,14 @@
   <a href="https://github.com/hilash/cabinet/stargazers" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/github/stars/hilash/cabinet?style=for-the-badge&logo=github&logoColor=white&label=Star%20the%20vision%20%F0%9F%98%8D%F0%9F%8C%9F&labelColor=4b4b4b&color=f5b301" alt="Star Cabinet on GitHub" valign="middle">
   </a>&nbsp;
-  <a href="https://discord.gg/rxd8BYnN" target="_blank" rel="noopener noreferrer">
+  <a href="https://discord.gg/hJa5TRTbTH" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=4b4b4b" alt="Join the Discord" valign="middle">
   </a>&nbsp;
   <a href="https://runcabinet.com/waitlist" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/%F0%9F%97%84%EF%B8%8F%20Cabinet-Cloud%20Waitlist-55c938?style=for-the-badge&labelColor=4b4b4b" alt="Cabinet Cloud Waitlist" valign="middle">
+  </a>&nbsp;
+  <a href="https://coderabbit.ai" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/coderabbit/prs/github/hilash/cabinet?utm_source=oss&utm_medium=github&utm_campaign=hilash%2Fcabinet&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Pull Request Reviews" valign="middle">
   </a>
 </p>
 
@@ -49,7 +52,52 @@ cd cabinet
 npm run dev:all
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The onboarding wizard builds your custom AI team in 5 questions.
+Open [http://localhost:4000](http://localhost:4000). The onboarding wizard builds your custom AI team in 5 questions.
+
+---
+
+## Install, update, uninstall
+
+Cabinet runs entirely through `npx` — no global install needed. The CLI is the [`cabinetai`](https://www.npmjs.com/package/cabinetai) package; `create-cabinet` is a thin wrapper around it.
+
+### Install / create
+
+```bash
+npx create-cabinet@latest          # create a cabinet and start it
+npx cabinetai create my-startup    # just create, don't start
+npx cabinetai run                  # start Cabinet in the current dir
+```
+
+On first run, Cabinet downloads the app to `~/.cabinet/app/v{version}/` and installs its dependencies there. Your cabinet directory is just a folder of markdown files — put it anywhere.
+
+### Update
+
+```bash
+npx cabinetai update               # check for and install a newer app version
+```
+
+The CLI compares your installed app version against `cabinet-release.json` from the latest GitHub Release.
+
+### Uninstall / remove
+
+```bash
+npx cabinetai uninstall            # remove cached app versions only
+npx cabinetai uninstall --all      # also remove global state + telemetry data
+npx cabinetai uninstall --yes      # skip the confirmation prompt
+npx cabinetai remove               # alias for uninstall
+```
+
+The command prints a summary of what will be deleted and asks for confirmation before doing anything. **Your cabinet directories and their data are never touched — those you'd delete manually.**
+
+`--all` additionally removes the platform-specific telemetry directory:
+
+- macOS: `~/Library/Application Support/cabinet-telemetry/`
+- Windows: `%APPDATA%\cabinet-telemetry\`
+- Linux: `$XDG_CONFIG_HOME/cabinet/` (falls back to `~/.config/cabinet/`)
+
+To wipe Cabinet completely, run `uninstall --all` and then `rm -rf` your cabinet directories yourself.
+
+See [docs/CABINETAI.md](docs/CABINETAI.md) for the full CLI reference.
 
 ---
 
@@ -82,9 +130,10 @@ Cabinet is built around a few principles that we think matter deeply for the fut
 |---|---|
 | **WYSIWYG + Markdown** | Rich text editing with Tiptap. Tables, code blocks, slash commands. |
 | **AI Agents** | Each has goals, skills, scheduled jobs. Watch them work like a real team. |
+| **Skills** | Browse and install from skills.sh or any GitHub repo. Attach per agent, or `@`-mention in the composer to scope to a single task. |
 | **Scheduled Jobs** | Cron-based agent automation. Reddit scout every 6 hours. Weekly reports on Monday. |
 | **Embedded HTML Apps** | Drop an `index.html` in any folder — it renders as an iframe. Full-screen mode. |
-| **Web Terminal** | Full local AI CLI terminal in the browser. xterm.js + node-pty. |
+| **Web Terminal** | Interactive local AI CLI terminal in the browser. Kept for direct sessions, debugging, and future terminal-native features such as tmux-style Cabinet workflows. |
 | **File-Based Everything** | No database. Markdown on disk. Your data is always yours, always portable. |
 | **Git-Backed History** | Every save auto-commits. Full diff viewer. Restore any page to any point in time. |
 | **Missions & Tasks** | Break goals into missions. Track progress with Kanban boards. |
@@ -118,7 +167,7 @@ This is the biggest difference between Cabinet and tools like Obsidian or Notion
 
 ## Hire your AI team in 5 questions
 
-Cabinet ships with 20 pre-built agent templates. Each has a role, recurring jobs, and a workspace in the knowledge base.
+Cabinet ships with 20 pre-built agent templates. Each has a role, recurring jobs, recommended skills, and a workspace in the knowledge base.
 
 | Department | Agents |
 |---|---|
@@ -141,6 +190,17 @@ Cabinet ships with 20 pre-built agent templates. Each has a role, recurring jobs
 
 ---
 
+## AI Runtime Today
+
+Cabinet no longer treats the browser terminal as the only way to run AI work.
+
+- **Tasks, jobs, and heartbeats** now run through a provider adapter layer with persisted conversations and transcript-driven live views.
+- **Per-run overrides** can choose provider, model, and reasoning effort, while personas and jobs can still inherit defaults.
+- **Current defaults** are structured local adapters: `claude_local` for Claude Code and `codex_local` for Codex CLI.
+- **The web terminal is staying** as a first-class interactive surface for direct CLI sessions and future terminal-native features such as Cabinet-managed tmux-like workspaces.
+
+---
+
 ## Architecture
 
 ```
@@ -151,7 +211,8 @@ cabinet/
     stores/          -> Zustand state management
     lib/             -> Storage, markdown, git, agents, jobs
   server/
-    cabinet-daemon.ts -> WebSocket + job scheduler + agent executor
+    cabinet-daemon.ts -> WebSocket + job scheduler + structured adapters + agent executor
+    pty/              -> PTY session module (spawn, Claude lifecycle, ansi)
   data/
     .agents/.library/ -> 20 pre-built agent templates
     getting-started/  -> Default KB page
@@ -163,7 +224,7 @@ cabinet/
 
 ## Requirements
 
-- **Node.js** 20+
+- **Node.js** 22+ (LTS). The repo ships an `.nvmrc` — run `nvm use` to auto-switch. Node 20 still works but produces an `EBADENGINE` warning from a transitive `chevrotain@12` pulled in by mermaid.
 - At least one supported CLI provider:
   - **Claude Code CLI** (`npm install -g @anthropic-ai/claude-code`)
   - **Codex CLI** (`npm install -g @openai/codex` or `brew install --cask codex`)
@@ -183,8 +244,8 @@ cp .env.example .env.local
 ## Commands
 
 ```bash
-npm run dev          # Next.js dev server (port 3000)
-npm run dev:daemon   # Terminal + job scheduler (port 3001)
+npm run dev          # Next.js dev server (port 4000 by default)
+npm run dev:daemon   # Unified daemon: structured runs, terminal sessions, WebSockets, scheduler (port 4100 by default)
 npm run dev:all      # Both servers
 npm run build        # Production build
 npm run start        # Production mode (both servers)
@@ -208,9 +269,27 @@ npx create-cabinet my-startup
 
 See [CHANGELOG.md](CHANGELOG.md) for breaking changes, or follow the full release history on the [documentation site](https://runcabinet.com).
 
+## Privacy
+
+Cabinet sends anonymous usage telemetry by default (event counts, versions,
+platform — never file contents, paths, prompts, or secrets).
+
+To turn it off, pick one:
+
+```bash
+export CABINET_TELEMETRY_DISABLED=1   # env var (any shell session)
+```
+
+…or open **Settings → Privacy** and toggle **Send anonymous usage telemetry**
+off. To also wipe the local install ID and queue, run
+`npx cabinetai uninstall --all`.
+
+See [TELEMETRY.md](TELEMETRY.md) for the full event list, payload schema,
+and where data is stored.
+
 ## Community
 
-Questions, ideas, feedback, screenshots, wild experiments — bring them to the [Discord](https://discord.gg/rxd8BYnN). That’s where the Cabinet community hangs out and where a lot of the product direction gets shaped in real time.
+Questions, ideas, feedback, screenshots, wild experiments — bring them to the [Discord](https://discord.gg/hJa5TRTbTH). That’s where the Cabinet community hangs out and where a lot of the product direction gets shaped in real time.
 
 ---
 
@@ -218,7 +297,7 @@ Questions, ideas, feedback, screenshots, wild experiments — bring them to the 
 
 Cabinet is moving fast right now. We’d love thoughtful contributors who want to help shape it early.
 
-If you’re thinking about opening a PR, please start by joining the [Discord](https://discord.gg/rxd8BYnN) and talking with Hila before coding. Hila is Cabinet’s builder, and that early sync helps us keep the roadmap coherent while the product is still evolving rapidly.
+If you’re thinking about opening a PR, please start by joining the [Discord](https://discord.gg/hJa5TRTbTH) and talking with Hila before coding. Hila is Cabinet’s builder, and that early sync helps us keep the roadmap coherent while the product is still evolving rapidly.
 
 Once the direction is aligned, open your PR on [GitHub](https://github.com/hilash/cabinet). The goal is not gatekeeping — it’s making sure your energy goes into work that has a clear path to landing and shipping.
 
