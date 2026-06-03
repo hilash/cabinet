@@ -19,7 +19,13 @@ function readCodexConfigBedrockMode(): boolean {
     if (!home) return false;
     const configPath = path.join(home, ".codex", "config.toml");
     const text = fs.readFileSync(configPath, "utf8");
-    return /^\s*model_provider\s*=\s*["']amazon-bedrock["']/m.test(text);
+    // Only consider the top-level `model_provider` key — i.e. assignments
+    // before the first `[section]` header. A `model_provider` set inside a
+    // profile or other table doesn't determine the default provider for
+    // runs that don't activate that table, so trusting it here would
+    // wrongly Bedrock-namespace --model for non-Bedrock runs.
+    const topLevel = text.split(/^\s*\[/m, 1)[0] ?? "";
+    return /^\s*model_provider\s*=\s*["']amazon-bedrock["']/m.test(topLevel);
   } catch {
     return false;
   }
