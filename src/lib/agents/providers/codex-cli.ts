@@ -1,9 +1,48 @@
+import fs from "fs";
+import os from "os";
+import path from "path";
 import type { AgentProvider, ProviderStatus } from "../provider-interface";
 import {
   checkCliProviderAvailable,
   execCli,
   resolveCliCommand,
 } from "../provider-cli";
+
+// Codex on Amazon Bedrock requires vendor-prefixed model IDs (e.g.
+// `openai.gpt-5.5`), but our model picker exposes the OpenAI-direct IDs
+// (`gpt-5.5`). When the user has configured `model_provider = "amazon-bedrock"`
+// in ~/.codex/config.toml, prefix outgoing `--model` values so Bedrock's
+// router accepts them. Cached because config.toml rarely changes mid-process.
+function readCodexConfigBedrockMode(): boolean {
+  try {
+    const home = process.env.HOME || os.homedir();
+    if (!home) return false;
+    const configPath = path.join(home, ".codex", "config.toml");
+    const text = fs.readFileSync(configPath, "utf8");
+    return /^\s*model_provider\s*=\s*["']amazon-bedrock["']/m.test(text);
+  } catch {
+    return false;
+  }
+}
+
+let cachedBedrockMode: boolean | null = null;
+function isCodexBedrockMode(): boolean {
+  if (cachedBedrockMode === null) {
+    cachedBedrockMode = readCodexConfigBedrockMode();
+  }
+  return cachedBedrockMode;
+}
+
+// Known Bedrock vendor prefixes — used to detect whether a model id was
+// already supplied in Bedrock-namespaced form (so we don't double-prefix).
+// Version-style dots like `gpt-5.5` are NOT vendor prefixes.
+const BEDROCK_VENDOR_PREFIXES = ["openai.", "anthropic.", "amazon.", "meta.", "cohere.", "ai21.", "mistral."];
+
+export function applyBedrockModelPrefix(model: string): string {
+  if (!isCodexBedrockMode()) return model;
+  if (BEDROCK_VENDOR_PREFIXES.some((p) => model.startsWith(p))) return model;
+  return `openai.${model}`;
+}
 
 const CODEX_REASONING_LEVELS = [
   { id: "low", name: "Low", description: "Faster, lighter reasoning" },
@@ -176,7 +215,7 @@ export const codexCliProvider: AgentProvider = {
     const baseArgs = this.buildArgs ? this.buildArgs(prompt, workdir) : [];
     const args = [...baseArgs];
     if (opts?.model) {
-      args.unshift("--model", opts.model);
+      args.unshift("--model", applyBedrockModelPrefix(opts.model));
     }
     if (opts?.effort) {
       args.unshift("-c", `model_reasoning_effort=${opts.effort}`);
