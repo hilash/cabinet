@@ -4,7 +4,9 @@ import type {
   LaunchTaskAction,
   ScheduleJobAction,
   ScheduleTaskAction,
+  SendEmailAction,
 } from "@/types/actions";
+import { sendEmail } from "@/lib/gmail/smtp-client";
 import type { ConversationMeta } from "@/types/conversations";
 import type { JobConfig } from "@/types/jobs";
 import { readPersona, type AgentPersona } from "./persona-manager";
@@ -158,6 +160,8 @@ export async function dispatchApprovedActions(
         const out = await dispatchScheduleTask(meta, item);
         results.push(out);
         if (out.status === "dispatched" && out.jobId) scheduledAny = true;
+      } else if (item.action.type === "SEND_EMAIL") {
+        results.push(await dispatchSendEmail(item));
       }
     } catch (err) {
       const reason = err instanceof Error ? err.message : "dispatch failed";
@@ -337,6 +341,19 @@ async function dispatchScheduleTask(
     status: "dispatched",
     jobId: saved.id,
   });
+}
+
+async function dispatchSendEmail(
+  item: DispatchInput
+): Promise<DispatchedAction> {
+  const action = item.action as SendEmailAction;
+  await sendEmail({
+    to: action.to,
+    subject: action.subject,
+    body: action.body,
+    replyToMessageId: action.replyToMessageId,
+  });
+  return makeDispatched({ id: item.id, action, status: "dispatched" });
 }
 
 /**

@@ -47,6 +47,7 @@ import { UninstallSection } from "@/components/settings/uninstall-section";
 import { CliMcpSection } from "@/components/settings/cli-mcp-section";
 import { IntegrationsHubSection } from "@/components/settings/integrations-hub-section";
 import { GoogleDriveSection } from "@/components/settings/google-drive-section";
+import { GmailSection } from "@/components/settings/gmail-section";
 import { BuiltInToolsSection } from "@/components/settings/built-in-tools-section";
 import { UpdateSummary } from "@/components/system/update-summary";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
@@ -1677,6 +1678,10 @@ export function SettingsPage() {
 
               <div className="border-t border-border pt-6">
                 <GoogleDriveSection />
+              </div>
+
+              <div className="border-t border-border pt-6">
+                <GmailSection />
               </div>
 
               {/* Integrations + Built-in tools — coming soon (blurred preview) */}
