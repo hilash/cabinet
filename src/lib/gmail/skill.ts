@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { PROJECT_ROOT } from "@/lib/runtime/runtime-config";
+import { listPersonas, writePersona } from "@/lib/agents/persona-manager";
 
 const SKILL_DIR = path.join(PROJECT_ROOT, ".agents", "skills", "gmail");
 const SKILL_MD = path.join(SKILL_DIR, "SKILL.md");
@@ -73,17 +74,41 @@ For multi-line bodies, use a \`\`\`cabinet-actions JSON block instead:
 - Connection check: \`curl -s http://localhost:3000/api/gmail/status | jq .\`
 `;
 
-/** Create the Gmail skill in the cabinet-root skills directory. Called after successful connect. */
+/** Create the Gmail skill and add it to all active personas. Called after successful connect. */
 export async function installGmailSkill(): Promise<void> {
   await fs.mkdir(SKILL_DIR, { recursive: true });
   await fs.writeFile(SKILL_MD, SKILL_CONTENT, "utf-8");
+  await updatePersonaSkills("add");
 }
 
-/** Remove the Gmail skill from the skills directory. Called on disconnect. */
+/** Remove the Gmail skill and remove it from all personas. Called on disconnect. */
 export async function uninstallGmailSkill(): Promise<void> {
   try {
     await fs.rm(SKILL_DIR, { recursive: true, force: true });
   } catch {
     // ignore — skill may not exist
+  }
+  await updatePersonaSkills("remove");
+}
+
+/** Add or remove the "gmail" skill key from every persona's skills list. */
+async function updatePersonaSkills(op: "add" | "remove"): Promise<void> {
+  try {
+    const personas = await listPersonas();
+    await Promise.all(
+      personas.map(async (persona) => {
+        const current = persona.skills ?? [];
+        let updated: string[];
+        if (op === "add") {
+          if (current.includes("gmail")) return;
+          updated = [...current, "gmail"];
+        } else {
+          updated = current.filter((s) => s !== "gmail");
+        }
+        await writePersona(persona.slug, { skills: updated }, persona.cabinetPath ?? undefined);
+      })
+    );
+  } catch {
+    // Non-fatal — skill file still exists; agents can @mention it manually
   }
 }
