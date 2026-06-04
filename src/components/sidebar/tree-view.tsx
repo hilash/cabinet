@@ -48,7 +48,11 @@ import {
   Copy,
   Trash2,
   TriangleAlert,
+  Cloud,
+  RefreshCw,
+  Settings,
 } from "lucide-react";
+import { GoogleDriveTreeSection } from "./google-drive-tree";
 import { cn } from "@/lib/utils";
 import { AgentAvatar, getAgentDisplayName } from "@/components/agents/agent-avatar";
 import { EditAgentIdentityDialog } from "@/components/agents/edit-agent-identity-dialog";
@@ -877,6 +881,9 @@ export function TreeView() {
                 </ContextMenuContent>
               </ContextMenu>
             )}
+            {/* Google Drive section lives OUTSIDE the cabinet ContextMenuTrigger
+                so right-clicking Drive nodes doesn't bubble up to the cabinet menu. */}
+            <GoogleDriveTreeSection depth={1} padFn={pad} itemClass={itemClass} />
           </div>
         )}
       </div>

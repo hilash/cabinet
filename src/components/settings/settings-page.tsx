@@ -46,6 +46,7 @@ import { DataLocationsSection } from "@/components/settings/data-locations-secti
 import { UninstallSection } from "@/components/settings/uninstall-section";
 import { CliMcpSection } from "@/components/settings/cli-mcp-section";
 import { IntegrationsHubSection } from "@/components/settings/integrations-hub-section";
+import { GoogleDriveSection } from "@/components/settings/google-drive-section";
 import { BuiltInToolsSection } from "@/components/settings/built-in-tools-section";
 import { UpdateSummary } from "@/components/system/update-summary";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
@@ -1673,6 +1674,10 @@ export function SettingsPage() {
           {tab === "integrations" && (
             <div className="space-y-8">
               <ApiKeysSection />
+
+              <div className="border-t border-border pt-6">
+                <GoogleDriveSection />
+              </div>
 
               {/* Integrations + Built-in tools — coming soon (blurred preview) */}
               <div className="relative">
