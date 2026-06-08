@@ -96,9 +96,18 @@ export function inferPageTypeFromPath(path: string): PageTypeKind {
  * drop `.md` / `/index.md` extensions, so e.g. `data/have-fun/bellatrix.md`
  * must be rewritten to `have-fun/bellatrix` before calling `selectPage`.
  *
- * Idempotent — safe to apply twice.
+ * Agents writing inside a sub-cabinet record paths CABINET-relative
+ * ("kb/reports/foo.md"), not DATA_DIR-relative
+ * ("zeropoint-capital/kb/reports/foo.md"). Pass `cabinetPath` so the
+ * cabinet prefix gets added when it's missing — without this,
+ * `loadPage("kb/reports/foo")` fetches `/api/pages/kb/...` which 404s
+ * under any non-root cabinet (manifested as a permanently blank editor
+ * when an artifact is clicked from a task panel).
+ *
+ * Idempotent — safe to apply twice. Safe to call with `cabinetPath`
+ * omitted for root-cabinet (".") paths.
  */
-export function artifactPathToTreePath(path: string): string {
+export function artifactPathToTreePath(path: string, cabinetPath?: string): string {
   if (!path) return path;
   let next = path.trim();
   next = next.replace(/^\/+/, "");
@@ -106,5 +115,63 @@ export function artifactPathToTreePath(path: string): string {
   next = next.replace(/\/index\.md$/, "");
   next = next.replace(/\/index\.html$/, "");
   next = next.replace(/\.md$/, "");
+  // External (absolute-system) artifact paths must NOT get the cabinet
+  // prefix — they live outside DATA_DIR and the page API can't read them.
+  // See isExternalArtifactPath for the heuristic. Callers should check
+  // isExternalArtifactPath first and short-circuit the navigation; this
+  // guard is a backstop in case they don't.
+  if (
+    !isExternalArtifactPath(path) &&
+    cabinetPath &&
+    cabinetPath !== "." &&
+    next !== cabinetPath &&
+    !next.startsWith(`${cabinetPath}/`)
+  ) {
+    next = `${cabinetPath}/${next}`;
+  }
   return next;
+}
+
+/**
+ * macOS/Linux system-root segments that an artifact path under DATA_DIR
+ * could never legitimately start with. Used to detect absolute filesystem
+ * paths an agent recorded as artifacts (e.g. files it wrote to Claude
+ * Code's auto-memory dir at `/Users/.../.claude/projects/.../memory/`).
+ * The page API path-traversal guard refuses anything outside DATA_DIR, so
+ * these would silently 404 if we tried to render them through the editor.
+ */
+const EXTERNAL_PATH_ROOTS = new Set([
+  "Users",
+  "home",
+  "private",
+  "tmp",
+  "var",
+  "etc",
+  "opt",
+  "bin",
+  "sbin",
+  "lib",
+  "usr",
+  "dev",
+  "Volumes",
+  "Library",
+  "Applications",
+  "System",
+]);
+
+/**
+ * True when an artifact path points outside the cabinet's DATA_DIR. Such
+ * paths can't be rendered through the page API — callers should either
+ * disable navigation or surface a clear "outside cabinet" message instead
+ * of letting the editor render blank.
+ */
+export function isExternalArtifactPath(path: string): boolean {
+  if (!path) return false;
+  const trimmed = path.trim();
+  // Windows drive prefixes (C:/, D:\, ...) are unambiguously absolute.
+  if (/^[a-zA-Z]:[\\/]/.test(trimmed)) return true;
+  const noSlashes = trimmed.replace(/^\/+/, "");
+  if (noSlashes.startsWith("data/")) return false;
+  const firstSeg = noSlashes.split("/", 1)[0] ?? "";
+  return EXTERNAL_PATH_ROOTS.has(firstSeg);
 }

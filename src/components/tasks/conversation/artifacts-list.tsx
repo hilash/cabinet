@@ -8,6 +8,7 @@ import { useTreeStore } from "@/stores/tree-store";
 import {
   artifactPathToTreePath,
   inferPageTypeFromPath,
+  isExternalArtifactPath,
   pageTypeColor,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
@@ -79,8 +80,23 @@ export function ArtifactsList({
             key={path}
             type="button"
             onClick={() => {
-              const treePath = artifactPathToTreePath(path);
+              if (isExternalArtifactPath(path)) {
+                // Artifact lives outside DATA_DIR (e.g. an agent wrote to
+                // Claude Code's auto-memory dir). The page API would 404
+                // and the editor would render blank — surface the path
+                // instead so the user can open it manually.
+                window.dispatchEvent(
+                  new CustomEvent("cabinet:toast", {
+                    detail: {
+                      kind: "info",
+                      message: `Outside cabinet — ${path}`,
+                    },
+                  }),
+                );
+                return;
+              }
               const from = returnContext ?? useAppStore.getState().section;
+              const treePath = artifactPathToTreePath(path, from.cabinetPath);
               focusPath(treePath);
               pushSection({ type: "page", cabinetPath: from.cabinetPath }, from);
               void loadPage(treePath);

@@ -9,6 +9,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import {
   artifactPathToTreePath,
   inferPageTypeFromPath,
+  isExternalArtifactPath,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
@@ -376,7 +377,18 @@ export function RecentTasks({
                       key={path}
                       type="button"
                       onClick={() => {
-                        const treePath = artifactPathToTreePath(path);
+                        if (isExternalArtifactPath(path)) {
+                          window.dispatchEvent(
+                            new CustomEvent("cabinet:toast", {
+                              detail: {
+                                kind: "info",
+                                message: `Outside cabinet — ${path}`,
+                              },
+                            }),
+                          );
+                          return;
+                        }
+                        const treePath = artifactPathToTreePath(path, task.cabinetPath);
                         focusPath(treePath);
                         setSection({
                           type: "page",
