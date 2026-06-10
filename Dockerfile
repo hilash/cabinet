@@ -8,7 +8,7 @@
 #      (the repo's existing .dockerignore already excludes node_modules,
 #      .next, .git, data, and most *.md files from the build context).
 #   2. From that repo's root:
-#        docker build -t ghcr.io/j0nathontayl0r/cabinet:0.4.4 .
+#        docker build -t ghcr.io/j0nathontayl0r/cabinet:0.4.6 .
 #
 # Runtime model:
 #   - The image's default CMD starts BOTH the Next.js app (`npm run
@@ -78,6 +78,14 @@ ENV NODE_ENV=production
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
+
+# AI agent CLIs that Cabinet drives as subprocesses. Installed globally to
+# /usr/local/bin, which is on Cabinet's ADAPTER_RUNTIME_PATH so the daemon
+# resolves them automatically. Authenticate at runtime via env vars
+# (ANTHROPIC_API_KEY / OPENAI_API_KEY from the cabinet-agent-keys Secret) —
+# not interactive `claude login` / `codex login`, whose tokens land under
+# $HOME and are lost on pod restart.
+RUN npm install -g @anthropic-ai/claude-code @openai/codex
 
 # Pruned production node_modules (tsx, node-pty, better-sqlite3, simple-git,
 # next, react, etc.) and the Next.js build output.
