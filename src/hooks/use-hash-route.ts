@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { ROOT_CABINET_PATH, ensureCabinetPrefixedPagePath } from "@/lib/cabinets/paths";
 import { buildTaskHash, buildTasksHash } from "@/lib/navigation/task-route";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -223,7 +223,10 @@ function parseHash(hash: string): RouteState {
     }
 
     if (leaf === "data" && parts[3]) {
-      const pagePath = decodePathSegment(parts.slice(3).join("/"));
+      const pagePath = ensureCabinetPrefixedPagePath(
+        cabinetPath,
+        decodePathSegment(parts.slice(3).join("/"))
+      );
       return {
         section: { type: "page", cabinetPath },
         pagePath,
@@ -234,7 +237,10 @@ function parseHash(hash: string): RouteState {
     // (no /data/ segment) used to fall through to the home route, which
     // broke deep-links. Interpret the remaining segments as a page path
     // under the cabinet so reload keeps the user on the page they were on.
-    const pagePath = decodePathSegment(parts.slice(2).join("/"));
+    const pagePath = ensureCabinetPrefixedPagePath(
+      cabinetPath,
+      decodePathSegment(parts.slice(2).join("/"))
+    );
     return {
       section: { type: "page", cabinetPath },
       pagePath,

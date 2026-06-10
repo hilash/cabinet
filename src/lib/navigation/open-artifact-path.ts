@@ -3,6 +3,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { findNodeByPath } from "@/lib/cabinets/tree";
 import { artifactPathToTreePath } from "@/lib/ui/page-type-icons";
+import { ensureCabinetPrefixedPagePath } from "@/lib/cabinets/paths";
 
 const NON_TEXT_ARTIFACT_EXTENSIONS = [
   ".pdf",
@@ -46,7 +47,10 @@ export async function openArtifactPath(
   const { focusPath, loadTree } = useTreeStore.getState();
   const { loadPage } = useEditorStore.getState();
 
-  const treePath = artifactPathToTreePath(path);
+  const treePath = ensureCabinetPrefixedPagePath(
+    section.cabinetPath,
+    artifactPathToTreePath(path)
+  );
 
   setSection(section);
   focusPath(treePath);
