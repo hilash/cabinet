@@ -1,0 +1,89 @@
+# Build and publish the Cabinet Docker image to GHCR.
+#
+# This file is a ready-to-copy artifact maintained in the `portainer` repo at
+# ai-agents-wd/cabinet/.github/workflows/docker-publish.yml.
+# Copy it into j0nathontayl0r/cabinet at .github/workflows/docker-publish.yml.
+#
+# Triggers:
+#   - Tag push matching v0.0.0 or 0.0.0 (bare semver) → builds that version
+#   - workflow_dispatch with a manual tag input → one-off build without a tag
+#
+# The resulting image is pushed to:
+#   ghcr.io/j0nathontayl0r/cabinet:<version>   (e.g. 0.4.4)
+#   ghcr.io/j0nathontayl0r/cabinet:latest
+#
+# Authentication uses the automatic GITHUB_TOKEN — no extra secrets needed.
+# After the first push, set the package visibility to Public in GitHub package
+# settings so the cluster can pull without an imagePullSecret (consistent with
+# every other GHCR image used in the portainer GitOps repo).
+#
+# Once a new tag is pushed and the image lands in GHCR, the portainer repo's
+# hosted-app-image-refresh-pr.yml workflow picks it up within 24 hours and
+# opens a PR to bump k8s/cabinet/cabinet.yaml + the digest annotation.
+
+name: Publish Docker image
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish (e.g. 0.4.5)"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve image tag
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            # Strip the leading 'v' if present (v0.4.4 → 0.4.4)
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${VERSION}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Target the cluster's node architecture (Talos on Proxmox = amd64).
+          # Cross-build from the runner if needed (e.g. arm64 dev machine).
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/j0nathontayl0r/cabinet:${{ steps.meta.outputs.version }}
+            ghcr.io/j0nathontayl0r/cabinet:latest
+          # No persistent build cache (no cache-from/cache-to). A cross-run
+          # cache (type=gha or type=registry) was repeatedly restoring a stale
+          # `COPY . .` layer, so the build compiled old source even after the
+          # fix was committed — e.g. a corrected file still failing typecheck
+          # at the same line. This image builds only on release tags, so a cold
+          # ~70s build (npm ci + next build) is an acceptable price for builds
+          # that always reflect exactly what was checked out. Re-introduce
+          # caching later only with a content-scoped key if build time matters.

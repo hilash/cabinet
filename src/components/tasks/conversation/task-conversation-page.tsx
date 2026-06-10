@@ -883,7 +883,10 @@ export function TaskConversationPage({
     // Fast ticks for the first 30s after open — that's when quick failures
     // happen and the user is staring at the drawer waiting.
     tick();
-    let slowInterval: ReturnType<typeof setInterval> | null = null;
+    // Typed as number (not ReturnType<typeof setInterval>): @types/node adds a
+    // global overload returning NodeJS.Timeout, and ReturnType picks that last
+    // overload — but window.setInterval actually returns number in the browser.
+    let slowInterval: number | null = null;
     const fastInterval = window.setInterval(tick, 500);
     const slowSwitch = window.setTimeout(() => {
       window.clearInterval(fastInterval);
