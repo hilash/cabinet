@@ -13,7 +13,9 @@ function parsePort(value: string | undefined, fallback: number): number {
 }
 
 function normalizeOrigin(value: string | undefined): string | null {
-  const trimmed = value?.trim();
+  // CABINET_APP_ORIGIN may be a comma-separated allowlist; the first entry is
+  // the canonical origin used for building absolute URLs.
+  const trimmed = value?.split(",")[0]?.trim();
   if (!trimmed) return null;
   return trimmed.replace(/\/+$/, "");
 }

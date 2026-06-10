@@ -6,13 +6,23 @@ import type { NextConfig } from "next";
 // in which case the operator sets CABINET_APP_ORIGIN. Auto-allow its host.
 function resolveAllowedDevOrigins(): string[] {
   const origins = new Set<string>(["127.0.0.1", "localhost"]);
+  // CABINET_APP_ORIGIN may be a single origin OR a comma-separated allowlist
+  // (e.g. a loopback origin plus a Tailscale/LAN hostname) — the daemon CORS
+  // allowlist already parses it that way. Parse each entry independently: a
+  // single new URL() over the whole comma string throws and silently drops
+  // every host, which makes Next block /_next/* (403) from the extra origins
+  // and leaves the app non-interactive there.
   const appOrigin = process.env.CABINET_APP_ORIGIN?.trim();
   if (appOrigin) {
-    try {
-      const { hostname } = new URL(appOrigin);
-      if (hostname) origins.add(hostname);
-    } catch {
-      // Malformed CABINET_APP_ORIGIN — ignore.
+    for (const entry of appOrigin.split(",")) {
+      const value = entry.trim();
+      if (!value) continue;
+      try {
+        const { hostname } = new URL(value);
+        if (hostname) origins.add(hostname);
+      } catch {
+        // Malformed entry — ignore just this one.
+      }
     }
   }
   return Array.from(origins);
