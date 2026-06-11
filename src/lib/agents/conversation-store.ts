@@ -1295,6 +1295,9 @@ async function maybeResolveCompletedConversation(
     return meta;
   }
   const parsed = parseCabinetBlock(transcript, prompt);
+  const parsedArtifactsMissingFromMeta = parsed.artifactPaths.some(
+    (artifactPath) => !meta.artifactPaths.includes(artifactPath)
+  );
   const needsRepair =
     meta.status === "running" ||
     isPlaceholderCabinetValue(meta.summary) ||
@@ -1302,8 +1305,7 @@ async function maybeResolveCompletedConversation(
     meta.artifactPaths.some((artifactPath) => isPlaceholderCabinetValue(artifactPath)) ||
     (!!parsed.summary && parsed.summary !== meta.summary) ||
     (!!parsed.contextSummary && parsed.contextSummary !== meta.contextSummary) ||
-    (parsed.artifactPaths.length > 0 &&
-      parsed.artifactPaths.join("|") !== meta.artifactPaths.join("|"));
+    parsedArtifactsMissingFromMeta;
 
   if (!needsRepair) {
     return meta;
@@ -1478,7 +1480,10 @@ export async function finalizeConversation(
     meta.contextSummary = parsed.contextSummary;
   }
   if (artifacts.length > 0) {
-    meta.artifactPaths = artifacts.map((artifact) => artifact.path);
+    meta.artifactPaths = mergeArtifactPaths(
+      meta.artifactPaths,
+      artifacts.map((artifact) => artifact.path)
+    );
   } else if (!meta.artifactPaths) {
     meta.artifactPaths = [];
   }
@@ -1533,7 +1538,7 @@ export async function finalizeConversation(
   // instead of a blank array.
   const artifactsToWrite =
     artifacts.length > 0
-      ? artifacts
+      ? meta.artifactPaths.map((artifactPath) => ({ path: artifactPath }))
       : (meta.artifactPaths ?? []).map((artifactPath) => ({ path: artifactPath }));
   await Promise.all([
     writeConversationMeta(meta),

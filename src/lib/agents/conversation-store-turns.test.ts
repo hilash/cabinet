@@ -154,6 +154,55 @@ test("updateAgentTurn settles a pending turn", async () => {
   assert.ok(reread?.artifactPaths.includes("a.md"));
 });
 
+test("finalizeConversation preserves artifacts merged from later turns", async () => {
+  const meta = await makeSingleShotConversation(
+    "Late finalize",
+    "User request:\nstart",
+    "Initial.\n```cabinet\nSUMMARY: initial\nARTIFACT: reports/source.md\n```"
+  );
+  await store.appendUserTurn(meta.id, { content: "render as png" });
+  await store.appendAgentTurn(meta.id, {
+    content: "Rendering...",
+    pending: true,
+  });
+  await store.updateAgentTurn(meta.id, 2, {
+    content:
+      "Rendered.\n```cabinet\nSUMMARY: rendered\nARTIFACT: reports/output.png\n```",
+    pending: false,
+  });
+
+  await store.finalizeConversation(meta.id, {
+    status: "completed",
+    exitCode: 0,
+    output: "Initial.\n```cabinet\nSUMMARY: initial\nARTIFACT: reports/source.md\n```",
+  });
+
+  const reread = await store.readConversationMeta(meta.id);
+  assert.deepEqual(reread?.artifactPaths, [
+    "reports/source.md",
+    "reports/output.png",
+  ]);
+
+  const artifactFile = await fs.readFile(
+    path.join(tempRoot, ".agents", ".conversations", meta.id, "artifacts.json"),
+    "utf8"
+  );
+  assert.deepEqual(JSON.parse(artifactFile), [
+    { path: "reports/source.md" },
+    { path: "reports/output.png" },
+  ]);
+
+  const eventsBeforeRead = await store.readEventLog(meta.id);
+  const detail = await store.readConversationDetail(meta.id);
+  assert.ok(detail);
+  const eventsAfterRead = await store.readEventLog(meta.id);
+  assert.equal(
+    eventsAfterRead.length,
+    eventsBeforeRead.length,
+    "reading a repaired conversation must not append another task.updated event"
+  );
+});
+
 test("writeSession + readSession round-trip", async () => {
   const meta = await makeSingleShotConversation(
     "Session",
