@@ -1681,7 +1681,13 @@ export async function listConversationMetas(
       return (
         await Promise.all(
           entries
-            .filter((entry) => entry.isDirectory)
+            // Skip reserved/internal dirs (e.g. `_pending`, the attachment
+            // staging area) — they aren't conversations. Without this they
+            // fall through to recoverConversationMeta() and surface as a
+            // phantom "Recovered task _pending" card that can't be deleted
+            // (DELETE 404s — there's no such conversation). Real conversation
+            // ids are timestamp-prefixed, so they never start with "_".
+            .filter((entry) => entry.isDirectory && !entry.name.startsWith("_"))
             .map(async (entry) => {
               const meta = await readConversationMeta(entry.name, cabinetPath);
               if (meta) return maybeResolveCompletedConversation(meta);
