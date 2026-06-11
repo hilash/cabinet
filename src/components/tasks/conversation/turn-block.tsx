@@ -9,6 +9,7 @@ import {
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
 import { useAppStore, type SelectedSection } from "@/stores/app-store";
+import { ensureCabinetPrefixedPagePath } from "@/lib/cabinets/paths";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { cn } from "@/lib/utils";
@@ -152,8 +153,11 @@ function KbArtifactRow({
     <button
       type="button"
       onClick={() => {
-        const treePath = artifactPathToTreePath(path);
         const from = returnContext ?? useAppStore.getState().section;
+        const treePath = ensureCabinetPrefixedPagePath(
+          from.cabinetPath,
+          artifactPathToTreePath(path)
+        );
         focusPath(treePath);
         pushSection({ type: "page", cabinetPath: from.cabinetPath }, from);
         void loadPage(treePath);

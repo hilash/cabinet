@@ -12,6 +12,7 @@ import {
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
+import { ensureCabinetPrefixedPagePath } from "@/lib/cabinets/paths";
 import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
@@ -380,7 +381,10 @@ export function RecentTasks({
                       key={path}
                       type="button"
                       onClick={() => {
-                        const treePath = artifactPathToTreePath(path);
+                        const treePath = ensureCabinetPrefixedPagePath(
+                          task.cabinetPath,
+                          artifactPathToTreePath(path)
+                        );
                         focusPath(treePath);
                         setSection({
                           type: "page",

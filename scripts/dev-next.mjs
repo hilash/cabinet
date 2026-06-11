@@ -5,6 +5,30 @@ import { spawn } from "child_process";
 
 const PROJECT_ROOT = process.cwd();
 
+// dev-next.mjs is frequently launched by launchd / a process manager rather
+// than an interactive shell, so it does NOT inherit exported env and nothing
+// auto-loads `.env`. next.config.ts reads CABINET_APP_ORIGIN to allow
+// non-loopback dev origins (Tailscale / LAN) through Next's dev-origin guard;
+// without it the loopback default set on the child below wins and remote hosts
+// get 403 on /_next/* (page loads but can't hydrate). Seed it from `.env` when
+// it isn't already present in the environment.
+if (!process.env.CABINET_APP_ORIGIN) {
+  try {
+    const envRaw = fs.readFileSync(path.join(PROJECT_ROOT, ".env"), "utf8");
+    for (const line of envRaw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1 || trimmed.slice(0, eq).trim() !== "CABINET_APP_ORIGIN") continue;
+      const value = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+      if (value) process.env.CABINET_APP_ORIGIN = value;
+      break;
+    }
+  } catch {
+    // No `.env` / unreadable — fall back to the loopback default below.
+  }
+}
+
 function parsePort(value, fallback) {
   const parsed = Number.parseInt(String(value || ""), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;

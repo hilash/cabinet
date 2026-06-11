@@ -45,15 +45,21 @@ export const claudeCodeProvider: AgentProvider = {
   ],
   models: [
     {
+      id: "fable",
+      name: "Claude Fable 5",
+      description: "Most powerful model, above Opus, with configurable effort",
+      effortLevels: [...OPUS_THINKING_LEVELS],
+    },
+    {
       id: "opus",
-      name: "Claude Opus 4.7",
-      description: "Most intelligent with configurable effort",
+      name: "Claude Opus 4.8",
+      description: "Most intelligent Opus with configurable effort",
       effortLevels: [...OPUS_THINKING_LEVELS],
     },
     {
       id: "opus[1m]",
-      name: "Claude Opus 4.7 (1M context)",
-      description: "Opus 4.7 with 1M-token context for very long sessions",
+      name: "Claude Opus 4.8 (1M context)",
+      description: "Opus 4.8 with 1M-token context for very long sessions",
       effortLevels: [...OPUS_THINKING_LEVELS],
     },
     {

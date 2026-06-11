@@ -143,14 +143,21 @@ function applyTerminalPayloadToTask(
   if (typeof raw !== "string") return null;
   const taskStatus = conversationStatusToTaskStatus(raw);
   if (!taskStatus || taskStatus === "running") return null;
-  const errorHint =
-    typeof payload.errorHint === "string"
+  // Only carry an error while the task is actually failed. A transient error
+  // (e.g. a resume/session blip the runner recovers from via replay) emits a
+  // momentary failed event; when the task later resolves to a non-failed
+  // status, clear the stale errorKind/errorHint so the banner doesn't stick.
+  const isFailed = taskStatus === "failed";
+  const errorHint = isFailed
+    ? typeof payload.errorHint === "string"
       ? payload.errorHint
-      : prev.meta.errorHint;
-  const errorKind =
-    typeof payload.errorKind === "string"
+      : prev.meta.errorHint
+    : undefined;
+  const errorKind = isFailed
+    ? typeof payload.errorKind === "string"
       ? payload.errorKind
-      : prev.meta.errorKind;
+      : prev.meta.errorKind
+    : undefined;
   if (
     prev.meta.status === taskStatus &&
     prev.meta.errorHint === errorHint &&

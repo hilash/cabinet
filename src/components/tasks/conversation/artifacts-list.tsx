@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import { useAppStore, type SelectedSection } from "@/stores/app-store";
+import { ensureCabinetPrefixedPagePath } from "@/lib/cabinets/paths";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import {
@@ -79,8 +80,11 @@ export function ArtifactsList({
             key={path}
             type="button"
             onClick={() => {
-              const treePath = artifactPathToTreePath(path);
               const from = returnContext ?? useAppStore.getState().section;
+              const treePath = ensureCabinetPrefixedPagePath(
+                from.cabinetPath,
+                artifactPathToTreePath(path)
+              );
               focusPath(treePath);
               pushSection({ type: "page", cabinetPath: from.cabinetPath }, from);
               void loadPage(treePath);
