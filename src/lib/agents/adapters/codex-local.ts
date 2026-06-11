@@ -1,4 +1,4 @@
-import { codexCliProvider } from "../providers/codex-cli";
+import { applyBedrockModelPrefix, codexCliProvider } from "../providers/codex-cli";
 import { resolveCliCommand } from "../provider-cli";
 import { providerStatusToEnvironmentTest } from "./environment";
 import {
@@ -98,7 +98,7 @@ function buildCodexArgs(config: Record<string, unknown>): string[] {
 
   const model = readStringConfig(config, "model");
   if (model) {
-    args.push("--model", model);
+    args.push("--model", applyBedrockModelPrefix(model));
   }
 
   const profile = readStringConfig(config, "profile");
