@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
+import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { useAppStore } from "@/stores/app-store";
@@ -137,7 +138,6 @@ export function useTaskRailData(): TaskRailData {
 
     // Live refresh on the shared conversation SSE, debounced so a burst of
     // turn events during a run collapses into one reload.
-    const es = new EventSource("/api/agents/conversations/events");
     let reloadTimer: number | null = null;
     const scheduleReload = () => {
       if (reloadTimer !== null) return;
@@ -146,9 +146,9 @@ export function useTaskRailData(): TaskRailData {
         void load();
       }, 200);
     };
-    es.onmessage = (msg) => {
+    const unsubscribe = subscribeConversationEvents((data) => {
       try {
-        const event = JSON.parse(msg.data) as { type: string; taskId?: string };
+        const event = JSON.parse(data) as { type: string; taskId?: string };
         if (event.type === "ping") return;
         if (event.type === "task.deleted" && event.taskId) {
           setItems((prev) => prev.filter((item) => item.task.id !== event.taskId));
@@ -157,14 +157,14 @@ export function useTaskRailData(): TaskRailData {
       } catch {
         // ignore malformed frames
       }
-    };
+    });
 
     // Refresh relative timestamps in tooltips once a minute.
     const tick = window.setInterval(() => setNow(Date.now()), 60_000);
 
     return () => {
       cancelled = true;
-      es.close();
+      unsubscribe();
       if (reloadTimer !== null) window.clearTimeout(reloadTimer);
       if (flashTimerRef.current !== null) {
         window.clearTimeout(flashTimerRef.current);

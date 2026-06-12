@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { artifactPathToTreePath } from "@/lib/ui/page-type-icons";
+import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
 
 /**
  * Keeps the sidebar + open editor in sync with files that agent tasks create or
@@ -18,13 +19,11 @@ import { artifactPathToTreePath } from "@/lib/ui/page-type-icons";
  *     unsaved edits, offer a non-destructive "Reload" toast instead of
  *     clobbering them.
  *
- * Mount once (in the app shell). Rides the same global event stream the recent-
- * tasks list uses, so it costs one extra SSE subscription.
+ * Mount once (in the app shell). Rides the shared conversation event stream,
+ * so it costs no extra connection.
  */
 export function useTaskFileSync(): void {
   useEffect(() => {
-    const es = new EventSource("/api/agents/conversations/events");
-
     let pending = new Set<string>();
     let flushTimer: number | null = null;
     // Don't re-toast the same dirty page on every debounce tick during a run.
@@ -71,9 +70,9 @@ export function useTaskFileSync(): void {
       if (flushTimer === null) flushTimer = window.setTimeout(flush, 250);
     };
 
-    es.onmessage = (msg) => {
+    const unsubscribe = subscribeConversationEvents((data) => {
       try {
-        const event = JSON.parse(msg.data) as {
+        const event = JSON.parse(data) as {
           type?: string;
           payload?: { artifactPaths?: unknown; artifacts?: unknown };
         };
@@ -87,11 +86,11 @@ export function useTaskFileSync(): void {
       } catch {
         // ignore malformed events
       }
-    };
+    });
 
     return () => {
       if (flushTimer !== null) window.clearTimeout(flushTimer);
-      es.close();
+      unsubscribe();
     };
   }, []);
 }

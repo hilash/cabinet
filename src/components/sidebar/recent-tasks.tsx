@@ -13,6 +13,7 @@ import {
 } from "@/lib/ui/page-type-icons";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
+import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
 import { TelegramMark } from "@/components/integrations/telegram-mark";
@@ -145,7 +146,6 @@ export function RecentTasks({
 
     // Auto-refresh via the global conversation SSE. Debounce so a burst of
     // messages (common during a run) collapses into one reload instead of N.
-    const es = new EventSource("/api/agents/conversations/events");
     let reloadTimer: number | null = null;
     const scheduleReload = () => {
       if (reloadTimer !== null) return;
@@ -154,9 +154,9 @@ export function RecentTasks({
         void loadTasks();
       }, 200);
     };
-    es.onmessage = (msg) => {
+    const unsubscribe = subscribeConversationEvents((data) => {
       try {
-        const event = JSON.parse(msg.data) as { type: string; taskId?: string };
+        const event = JSON.parse(data) as { type: string; taskId?: string };
         if (event.type === "ping") return;
         if (event.type === "task.deleted" && event.taskId) {
           setTasks((prev) =>
@@ -167,7 +167,7 @@ export function RecentTasks({
       } catch {
         // ignore
       }
-    };
+    });
 
     // Tick once a minute so "fresh done" green dots fade back to muted without
     // waiting for the next SSE event.
@@ -175,7 +175,7 @@ export function RecentTasks({
 
     return () => {
       cancelled = true;
-      es.close();
+      unsubscribe();
       if (reloadTimer !== null) window.clearTimeout(reloadTimer);
       clearInterval(tick);
     };

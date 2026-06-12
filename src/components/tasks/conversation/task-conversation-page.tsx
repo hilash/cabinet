@@ -66,6 +66,7 @@ import type { Task, TaskEvent, TaskStatus } from "@/types/tasks";
 import type { AgentListItem } from "@/types/agents";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import { compactTask, fetchTask, patchTask, postTurn } from "@/lib/agents/task-client";
+import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
 import { peekTaskIsTerminal } from "@/lib/agents/terminal-mode-cache";
 import { buildRuntimeLabel } from "@/lib/agents/runtime-format";
 
@@ -761,7 +762,6 @@ export function TaskConversationPage({
   // per-conversation SSE reconnects late. Debounced to match the board.
   useEffect(() => {
     if (isDemo) return;
-    const es = new EventSource("/api/agents/conversations/events");
     let debounce: ReturnType<typeof setTimeout> | null = null;
     const scheduleRefetch = (_reason: string) => {
       if (debounce) clearTimeout(debounce);
@@ -773,9 +773,9 @@ export function TaskConversationPage({
           .catch(() => {});
       }, 200);
     };
-    es.onmessage = (msg) => {
+    const unsubscribe = subscribeConversationEvents((data) => {
       try {
-        const event = JSON.parse(msg.data) as TaskEvent | { type: "ping" };
+        const event = JSON.parse(data) as TaskEvent | { type: "ping" };
         if (event.type === "ping") return;
         if ("taskId" in event && event.taskId && event.taskId !== taskId) return;
         const eventPayload =
@@ -790,10 +790,10 @@ export function TaskConversationPage({
       } catch {
         // ignore malformed frames
       }
-    };
+    });
     return () => {
       if (debounce) clearTimeout(debounce);
-      es.close();
+      unsubscribe();
     };
   }, [isDemo, taskId, cabinetPath]);
 

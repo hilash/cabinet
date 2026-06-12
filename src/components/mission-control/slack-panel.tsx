@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { SlackMessage } from "@/types/agents";
 import { useLocale } from "@/i18n/use-locale";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 
 interface AgentMention {
   slug: string;
@@ -247,17 +248,18 @@ export function SlackPanel({ height: initialHeight = 200, onOpenFile }: SlackPan
   }, []);
 
   useEffect(() => {
-    loadMessages();
     // Listen for SSE slack refresh events
     const handleRefresh = () => loadMessages();
     window.addEventListener("cabinet:slack-refresh", handleRefresh);
-    // Fallback poll every 10s (was 5s, now SSE handles real-time)
-    const interval = setInterval(loadMessages, 10000);
     return () => {
-      clearInterval(interval);
       window.removeEventListener("cabinet:slack-refresh", handleRefresh);
     };
   }, [loadMessages]);
+
+  // Fallback poll every 10s (SSE handles real-time; this catches gaps).
+  // Pause polling when the tab is hidden to free per-origin connection
+  // slots for the foreground tab.
+  useVisibleInterval(loadMessages, 10000);
 
   useEffect(() => {
     if (scrollRef.current) {

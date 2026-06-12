@@ -10,6 +10,7 @@ import { StatusIcon, type CardState } from "@/components/tasks/board/status-icon
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { useProviderIcons } from "@/hooks/use-provider-icons";
 import { formatRelative } from "./cabinet-utils";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import type { ConversationMeta } from "@/types/conversations";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { TaskStatus } from "@/types/tasks";
@@ -81,11 +82,9 @@ export function ActivityFeed({
     }
   }, [cabinetPath, visibilityMode, agentSlug]);
 
-  useEffect(() => {
-    void refresh();
-    const iv = setInterval(() => void refresh(), 6000);
-    return () => clearInterval(iv);
-  }, [refresh]);
+  // Pause the 6s refresh when the tab is hidden so background tabs
+  // don't burn the per-origin HTTP/1.1 connection budget.
+  useVisibleInterval(refresh, 6000);
 
   // Pin running conversations to top
   const sorted = useMemo(() => {

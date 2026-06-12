@@ -18,6 +18,7 @@ import { useTaskRail } from "@/components/tasks/rail/task-rail-context";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { useLocale } from "@/i18n/use-locale";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import type { TFunction } from "i18next";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
@@ -367,30 +368,12 @@ export function StatusBar() {
     return () => window.clearTimeout(initialPull);
   }, [pullAndRefresh]);
 
-  // Poll git status
-  useEffect(() => {
-    const initialFetch = window.setTimeout(() => {
-      void fetchGitStatus();
-    }, 0);
-    const interval = setInterval(fetchGitStatus, 15000);
-    // Audit #058: refresh on tab focus so a banner stuck at "1 uncommitted"
-    // updates the moment the user comes back. The 15s interval still
-    // catches background changes between focus events.
-    const onFocus = () => {
-      void fetchGitStatus();
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") void fetchGitStatus();
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.clearTimeout(initialFetch);
-      clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
+  // Poll git status. Audit #058: refresh on tab focus so a banner stuck
+  // at "1 uncommitted" updates the moment the user comes back.
+  // useVisibleInterval pauses the 15s tick while the tab is hidden and
+  // also fires once on visibility change, replacing the manual focus +
+  // visibilitychange listeners that used to live here.
+  useVisibleInterval(fetchGitStatus, 15000);
 
   useEffect(() => {
     void fetchStars();
