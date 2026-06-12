@@ -1748,7 +1748,11 @@ export async function continueConversationRun(
 
   const useDaemon =
     process.env.CABINET_TASK_RUNNER !== "inprocess" &&
-    !!process.env.NEXT_RUNTIME; // only when running inside Next.js server
+    // Next.js server, or the daemon itself (CABINET_DAEMON_SELF, set at daemon
+    // boot). The daemon routes its own continues through its session machinery
+    // so callers like the Telegram gateway get an addressable run id they can
+    // poll for partials and stop — runContinueInProcess has no abort hook.
+    (!!process.env.NEXT_RUNTIME || process.env.CABINET_DAEMON_SELF === "1");
 
   if (!useDaemon) {
     return await runContinueInProcess({
