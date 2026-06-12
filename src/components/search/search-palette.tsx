@@ -329,6 +329,26 @@ export function SearchPalette() {
       commitRecentQuery(query);
       if (entry.kind === "page") {
         commitRecentPage(entry.hit.id);
+        // Derive cabinetPath from the hit's path: search hits use
+        // DATA_DIR-relative paths where the first segment is the top-level
+        // cabinet (room). Fall back to activeRoom for single-segment
+        // (root-level) paths. The hit's own cabinet is the source of truth
+        // — using activeRoom alone breaks when the result is from a
+        // different cabinet than the current view.
+        const firstSegment = entry.hit.path.split("/")[0];
+        const hitCabinetPath =
+          entry.hit.path.includes("/") && firstSegment ? firstSegment : "";
+        const cabinetPath = hitCabinetPath || activeRoom;
+        // Set the section FIRST so the section.type === "page" branch
+        // wins the render race. Order matters: if selectPage triggers
+        // the tree-store subscriber while section.type is still "cabinet"
+        // (the prior view), buildHash silently emits the cabinet URL,
+        // not the page URL.
+        setSection(
+          cabinetPath
+            ? { type: "page", cabinetPath }
+            : { type: "page" }
+        );
         selectPage(entry.hit.path);
         void loadPage(entry.hit.path);
       } else if (entry.kind === "agent") {
@@ -338,7 +358,7 @@ export function SearchPalette() {
       }
       closePalette();
     },
-    [commitRecentQuery, commitRecentPage, selectPage, loadPage, setSection, closePalette, query]
+    [commitRecentQuery, commitRecentPage, selectPage, loadPage, setSection, closePalette, query, activeRoom]
   );
 
   const runCommand = useCallback(
