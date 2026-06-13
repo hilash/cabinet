@@ -296,6 +296,13 @@ gaps. The remaining work below is the shipping contract for the rooms model.
 
 ### 10.1 Search must fail closed to a room
 
+**Status (2026-06-13): ✅ Implemented & verified.** `runSearch` fails closed (no room + no
+opt-in ⇒ no results); `/api/search` resolves a valid room when none is passed; explicit
+`includeOtherRooms` plumbed through the daemon; sidebar search now scoped (palette already was).
+Tests: `test/search-room-scope.test.ts` (5). Browser E2E: scoped query = 1 room, `includeOtherRooms=1`
+= many. Remaining nice-to-haves: the visible "Search other rooms" checkbox + source-room labels in
+the palette UI (the backend contract is done).
+
 **Decision.** Search defaults to the current room. A user can explicitly enable cross-room search
 with a checkbox/toggle labelled "Search other rooms". Cross-room results must show the source room.
 
@@ -365,6 +372,14 @@ rename the directory slug.
 
 ### 10.5 Reopen to the last valid path
 
+**Status (2026-06-13): ✅ Implemented (server + room-level landing); deep-path restore lands with §11.**
+`home.json.lastActivePath` + `setLastActive()` + `resolveReopen()` (lastActivePath → lastActiveRoom →
+defaultRoom → first room); `GET /api/rooms` returns a reopen target; `POST /api/rooms/active` persists
+it; app-shell persists the current path (debounced) and lands on the last active room. API E2E: persist
+a nested path → reopen returns it; unknown room and `.` ignored. The full deepest-path cold restore
+(not just the room) completes with the §11 route layer; within a returning tab the persisted route
+already restores the deep path.
+
 **Decision.** On app reopen, restore the deepest valid path the user was using, not merely the room.
 
 **Required behavior.**
@@ -398,6 +413,18 @@ Add focused tests for:
 
 > **Sequenced after §10.** Phase 2 reuses the `lastActivePath` persistence from §10.5 as its single
 > source of truth for reopen (replacing the legacy `cabinet.last-route` hash). Build §10 first.
+
+> **Status (2026-06-13): 🚧 partially shipped.** ✅ The **nested-cabinet reload bug is fixed**:
+> `parseHash` now marker-scans for the first `data`/`agents`/`tasks` segment, so deep cabinet paths
+> round-trip instead of collapsing to the first segment (`buildHash` exported; 14 tests in
+> `test/hash-route.test.ts` incl. the exact production repro + a `buildHash∘parseHash` identity
+> property; browser E2E: a deep page reloads to the same URL and renders). Reserved cabinet names:
+> `data`/`agents`/`tasks`. The legacy no-`/data/` page form now resolves to a cabinet root (accepted
+> back-compat change; the canonical builder always emits `/data/`).
+> ⏳ **Remaining (the cutover):** the `/room` rename, dropping `/data/` + the doubled prefix from live
+> URLs, `useHashRoute → useRoute` (pathname + History API), the `[[...slug]]` catch-all + Electron
+> `main.cjs` clean-path serving, section anchors (`rehype-slug` + scroll-to-`#`), and the legacy-hash
+> redirect. This is one focused, app-wide change best verified step-by-step in the browser.
 
 ### 11.1 Problem
 
