@@ -6,13 +6,18 @@ import type { NextConfig } from "next";
 // in which case the operator sets CABINET_APP_ORIGIN. Auto-allow its host.
 function resolveAllowedDevOrigins(): string[] {
   const origins = new Set<string>(["127.0.0.1", "localhost"]);
-  const appOrigin = process.env.CABINET_APP_ORIGIN?.trim();
-  if (appOrigin) {
-    try {
-      const { hostname } = new URL(appOrigin);
-      if (hostname) origins.add(hostname);
-    } catch {
-      // Malformed CABINET_APP_ORIGIN — ignore.
+  // CABINET_APP_ORIGIN may carry one URL or a comma-separated list (the
+  // daemon already supports the list form for its browser-origin allowlist;
+  // mirror that here so a single env var configures both surfaces).
+  const raw = process.env.CABINET_APP_ORIGIN?.trim();
+  if (raw) {
+    for (const candidate of raw.split(",").map((v) => v.trim()).filter(Boolean)) {
+      try {
+        const { hostname } = new URL(candidate);
+        if (hostname) origins.add(hostname);
+      } catch {
+        // Malformed entry — skip it but keep parsing the rest.
+      }
     }
   }
   return Array.from(origins);

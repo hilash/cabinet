@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("error") === "1") setError("Wrong password");
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!password) {
+      setError("Enter your password");
+      return;
+    }
     setError("");
     setLoading(true);
 
@@ -19,11 +26,16 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
+        credentials: "include",
       });
 
       if (res.ok) {
-        router.push("/");
-        router.refresh();
+        // Hard navigation rather than router.push() — gives iOS Safari time
+        // to commit the Set-Cookie that arrived in the POST response before
+        // the next request fires (otherwise the GET / arrives cookie-less
+        // and bounces back to /login).
+        window.location.assign("/");
+        return;
       } else {
         setError("Wrong password");
       }
@@ -42,13 +54,43 @@ export default function LoginPage() {
             Enter password to continue
           </p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          method="POST"
+          action="/api/auth/login"
+          className="space-y-4"
+        >
+          {/* Hidden username field so iOS classifies this as a login form
+              (not a new-account signup) and stops looping on the
+              "Save password — enter the user name for this account" prompt. */}
+          <input
+            type="text"
+            name="username"
+            value="cabinet"
+            readOnly
+            autoComplete="username"
+            tabIndex={-1}
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              width: 1,
+              height: 1,
+              padding: 0,
+              border: 0,
+              clip: "rect(0 0 0 0)",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+            }}
+            onChange={() => {}}
+          />
           <input
             type="password"
+            name="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
             placeholder="Password"
-            autoFocus
+            autoComplete="current-password"
             className="w-full px-3 py-2 rounded-md border border-border bg-background text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
           {error && (
@@ -56,7 +98,7 @@ export default function LoginPage() {
           )}
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading}
             className="w-full px-3 py-2 rounded-md bg-primary text-primary-foreground text-[14px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {loading ? "..." : "Sign in"}

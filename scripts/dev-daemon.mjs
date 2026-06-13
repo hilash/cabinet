@@ -5,6 +5,31 @@ import { spawn } from "child_process";
 
 const PROJECT_ROOT = process.cwd();
 
+// Load .env into process.env so the spawned daemon inherits user-set vars
+// (KB_PASSWORD, CABINET_APP_ORIGIN, CABINET_PUBLIC_DAEMON_ORIGIN). The
+// upstream script otherwise only carries the current shell env, which
+// trips up users who configure auth/Tailscale via .env and restart.
+function loadDotEnv(envPath) {
+  try {
+    const raw = fs.readFileSync(envPath, "utf8");
+    for (const rawLine of raw.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+      const eq = line.indexOf("=");
+      if (eq < 0) continue;
+      const key = line.slice(0, eq).trim();
+      let value = line.slice(eq + 1).trim();
+      if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (key && !(key in process.env)) process.env[key] = value;
+    }
+  } catch {
+    // .env optional — silent on read failure
+  }
+}
+loadDotEnv(path.join(PROJECT_ROOT, ".env"));
+
 function parsePort(value, fallback) {
   const parsed = Number.parseInt(String(value || ""), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
