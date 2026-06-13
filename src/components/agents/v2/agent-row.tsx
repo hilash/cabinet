@@ -52,7 +52,7 @@ export function AgentRow({
       tabIndex={0}
       onClick={handleActivate}
       onKeyDown={handleKey}
-      className="group flex h-10 items-center gap-3 px-3 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:bg-muted/40"
+      className="group flex h-10 cursor-pointer items-center gap-3 px-3 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:bg-muted/40"
     >
       <AgentAvatar
         agent={agent}
@@ -95,7 +95,7 @@ export function AgentRow({
 
       <span
         className={cn(
-          "hidden items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] sm:inline-flex",
+          "hidden items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold sm:inline-flex",
           heartbeatOn
             ? "bg-pink-500/10 text-pink-600 dark:text-pink-400"
             : "bg-muted/40 text-muted-foreground/70"
