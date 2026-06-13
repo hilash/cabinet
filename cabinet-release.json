@@ -8,6 +8,24 @@
   "repositoryUrl": "https://github.com/hilash/cabinet",
   "releaseNotesUrl": "https://github.com/hilash/cabinet/releases/tag/v0.4.4",
   "sourceTarballUrl": "https://github.com/hilash/cabinet/archive/refs/tags/v0.4.4.tar.gz",
+  "appBundles": {
+    "darwin-arm64": {
+      "assetName": "cabinet-app-darwin-arm64-v0.4.4.tgz",
+      "url": "https://github.com/hilash/cabinet/releases/download/v0.4.4/cabinet-app-darwin-arm64-v0.4.4.tgz"
+    },
+    "darwin-x64": {
+      "assetName": "cabinet-app-darwin-x64-v0.4.4.tgz",
+      "url": "https://github.com/hilash/cabinet/releases/download/v0.4.4/cabinet-app-darwin-x64-v0.4.4.tgz"
+    },
+    "linux-arm64": {
+      "assetName": "cabinet-app-linux-arm64-v0.4.4.tgz",
+      "url": "https://github.com/hilash/cabinet/releases/download/v0.4.4/cabinet-app-linux-arm64-v0.4.4.tgz"
+    },
+    "linux-x64": {
+      "assetName": "cabinet-app-linux-x64-v0.4.4.tgz",
+      "url": "https://github.com/hilash/cabinet/releases/download/v0.4.4/cabinet-app-linux-x64-v0.4.4.tgz"
+    }
+  },
   "npmPackage": "create-cabinet",
   "createCabinetVersion": "0.4.4",
   "cabinetaiPackage": "cabinetai",

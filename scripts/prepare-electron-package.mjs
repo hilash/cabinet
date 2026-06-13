@@ -141,19 +141,43 @@ async function stageDaemonRuntime() {
   await bundleDaemon();
   await copyDirectory(path.join(projectRoot, "server", "migrations"), daemonMigrationsDir);
 
-  // Stage node-pty into .native/ (NOT node_modules/) so it ships inside the
-  // app bundle but is not resolvable by require().  At runtime, main.cjs
-  // copies it to userData where macOS allows execution.
+  let stagedArtifactPath;
+  let stagedArtifactDest;
+
+  if (process.platform === "darwin") {
+    const prebuildDir = process.arch === "arm64" ? "darwin-arm64" : process.arch === "x64" ? "darwin-x64" : null;
+    if (!prebuildDir) {
+      throw new Error(`Unsupported macOS architecture for node-pty bundle: ${process.arch}`);
+    }
+
+    stagedArtifactPath = path.join(rootNodePtyDir, "prebuilds", prebuildDir);
+    stagedArtifactDest = path.join(stagedNodePtyDir, "prebuilds", prebuildDir);
+  } else if (process.platform === "linux") {
+    stagedArtifactPath = path.join(rootNodePtyDir, "build", "Release", "pty.node");
+    stagedArtifactDest = path.join(stagedNodePtyDir, "build", "Release", "pty.node");
+  } else {
+    throw new Error(`Unsupported platform for node-pty bundle: ${process.platform}/${process.arch}`);
+  }
+
+  // Stage node-pty into .native/ (NOT node_modules/) so the standalone bundle
+  // can resolve it via NODE_PATH without an npm install.
   await Promise.all([
     copyDirectory(path.join(rootNodePtyDir, "lib"), path.join(stagedNodePtyDir, "lib")),
-    copyDirectory(
-      path.join(rootNodePtyDir, "prebuilds", "darwin-arm64"),
-      path.join(stagedNodePtyDir, "prebuilds", "darwin-arm64")
-    ),
     copyFile(path.join(rootNodePtyDir, "package.json"), path.join(stagedNodePtyDir, "package.json")),
   ]);
 
-  await fs.chmod(path.join(stagedNodePtyDir, "prebuilds", "darwin-arm64", "spawn-helper"), 0o755);
+  if (process.platform === "linux") {
+    await copyFile(stagedArtifactPath, stagedArtifactDest);
+  } else {
+    await copyDirectory(stagedArtifactPath, stagedArtifactDest);
+  }
+
+  if (process.platform === "darwin") {
+    const spawnHelper = path.join(stagedArtifactDest, "spawn-helper");
+    if (await pathExists(spawnHelper)) {
+      await fs.chmod(spawnHelper, 0o755);
+    }
+  }
 }
 
 async function stageBundledNodeRuntime() {

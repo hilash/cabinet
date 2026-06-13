@@ -1,184 +1,143 @@
-import fs from "fs";
-import path from "path";
-import os from "os";
-import { spawnSync } from "child_process";
-import { CABINET_HOME, appVersionDir, ensureCabinetHome, ensureDir, validateVersion } from "./paths.js";
-import { log, success, warning } from "./log.js";
-import { npmCommand } from "./process.js";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { pipeline } from "node:stream/promises";
+import { createHash } from "node:crypto";
+import { Transform } from "node:stream";
+import { spawnSync } from "node:child_process";
+import { CABINET_HOME, appVersionDir, ensureCabinetHome } from "./paths.js";
+import { log, success } from "./log.js";
+import { fetchReleaseManifest, resolveAppBundle, type ReleaseAppBundle } from "./release-manifest.js";
 
-const REPO_URL = "https://github.com/hilash/cabinet";
-
-function releaseTagFor(version: string): string {
-  const clean = validateVersion(version);
-  return `v${clean}`;
-}
-
-function defaultTarballUrl(version: string): string {
-  return `${REPO_URL}/archive/refs/tags/${releaseTagFor(version)}.tar.gz`;
-}
-
-/**
- * Check if the app is installed for a given version.
- */
-export function isAppInstalled(version: string): boolean {
-  const appDir = appVersionDir(version);
+function hasProductionRuntime(appDir: string): boolean {
   return (
-    fs.existsSync(path.join(appDir, "package.json")) &&
-    fs.existsSync(path.join(appDir, "node_modules", "next"))
+    fs.existsSync(path.join(appDir, "server.js")) &&
+    fs.existsSync(path.join(appDir, "server", "cabinet-daemon.cjs")) &&
+    fs.existsSync(path.join(appDir, ".next", "static")) &&
+    fs.existsSync(path.join(appDir, ".native", "node-pty", "package.json"))
   );
 }
 
-/**
- * Get the app directory for a version, checking if deps are installed.
- * Returns null if the app is not ready.
- */
+export function isAppInstalled(version: string): boolean {
+  return hasProductionRuntime(appVersionDir(version));
+}
+
 export function getAppDir(version: string): string | null {
   if (!isAppInstalled(version)) return null;
   return appVersionDir(version);
 }
 
-/**
- * Ensure the app is installed for a given version.
- * Downloads and installs if not present.
- * Returns the app directory path.
- */
-export async function ensureApp(version: string): Promise<string> {
-  ensureCabinetHome();
-
-  const appDir = appVersionDir(version);
-
-  // Check if already fully installed
-  if (isAppInstalled(version)) {
-    return appDir;
-  }
-
-  // Check if partially installed (files exist but no node_modules)
-  const hasPackageJson = fs.existsSync(path.join(appDir, "package.json"));
-
-  if (!hasPackageJson) {
-    log(`Installing Cabinet v${version}...`);
-    await downloadAndExtract(version, appDir);
-  }
-
-  // Run npm install if deps are missing
-  if (!fs.existsSync(path.join(appDir, "node_modules", "next"))) {
-    log("Installing dependencies...");
-    const result = spawnSync(npmCommand(), ["install"], {
-      cwd: appDir,
-      stdio: "inherit",
+async function resolveExpectedSha256(bundle: ReleaseAppBundle): Promise<string | null> {
+  if (bundle.sha256) return bundle.sha256;
+  try {
+    const r = await fetch(`${bundle.url}.sha256`, {
+      headers: { "user-agent": "cabinetai" },
+      signal: AbortSignal.timeout(10_000),
     });
-    if (result.status !== 0) {
-      throw new Error("Failed to install dependencies");
+    if (r.ok) {
+      const text = (await r.text()).trim().split(/\s+/)[0];
+      if (text && /^[0-9a-f]{64}$/i.test(text)) return text;
     }
+  } catch {
+    // sidecar not available, skip verification
   }
-
-  // Copy .env.example to .env.local if missing
-  const envExample = path.join(appDir, ".env.example");
-  const envLocal = path.join(appDir, ".env.local");
-  if (fs.existsSync(envExample) && !fs.existsSync(envLocal)) {
-    fs.copyFileSync(envExample, envLocal);
-  }
-
-  success(`Cabinet v${version} installed.`);
-  return appDir;
+  return null;
 }
 
-async function downloadAndExtract(version: string, appDir: string): Promise<void> {
-  const tarballUrl = defaultTarballUrl(version);
+async function downloadAndExtractBundle(appDir: string, bundle: ReleaseAppBundle): Promise<void> {
+  // Use a sibling temp dir so rename is on the same filesystem (avoids EXDEV).
+  const stagingDir = `${appDir}.installing-${process.pid}`;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "cabinet-app-"));
-  const archivePath = path.join(tempDir, "cabinet.tgz");
+  const archivePath = path.join(tempDir, "cabinet-app.tgz");
 
   try {
-    // Download
-    log(`Downloading Cabinet v${version}...`);
-    const response = await fetch(tarballUrl, {
+    log(`Downloading app bundle from ${bundle.url}...`);
+    const response = await fetch(bundle.url, {
       headers: { "user-agent": "cabinetai" },
-      signal: AbortSignal.timeout(120_000), // 2 minute timeout
+      signal: AbortSignal.timeout(120_000),
     });
 
     if (!response.ok) {
-      // Try clone fallback
-      warning(`Release tarball unavailable (${response.status}), falling back to git clone...`);
-      await cloneFallback(version, appDir, tempDir);
-      return;
+      throw new Error(`App bundle request failed (${response.status})`);
+    }
+    if (!response.body) {
+      throw new Error("App bundle response has no body");
     }
 
-    // Reject suspiciously large tarballs (> 500MB)
-    const contentLength = parseInt(response.headers.get("content-length") || "0", 10);
-    if (contentLength > 500 * 1024 * 1024) {
-      throw new Error(`Release tarball too large: ${contentLength} bytes`);
+    // Stream to disk, hashing in-flight to avoid buffering the whole bundle in memory.
+    const hash = createHash("sha256");
+    const hashTransform = new Transform({
+      transform(chunk, _enc, cb) { hash.update(chunk); cb(null, chunk); },
+    });
+    await pipeline(
+      response.body as unknown as NodeJS.ReadableStream,
+      hashTransform,
+      fs.createWriteStream(archivePath),
+    );
+
+    const actualHash = hash.digest("hex");
+    const expectedHash = await resolveExpectedSha256(bundle);
+    if (expectedHash && actualHash !== expectedHash) {
+      throw new Error(`Bundle SHA-256 mismatch (expected ${expectedHash}, got ${actualHash})`);
     }
 
-    const bytes = Buffer.from(await response.arrayBuffer());
-    fs.writeFileSync(archivePath, bytes);
+    fs.mkdirSync(stagingDir, { recursive: true });
 
-    // Extract
-    log("Extracting...");
-    spawnSync("tar", ["-xzf", archivePath, "-C", tempDir, "--no-same-owner"], { stdio: "inherit" });
-
-    // Find extracted root (GitHub tarballs have a single root dir like "cabinet-0.2.12/")
-    const entries = fs
-      .readdirSync(tempDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory() && e.name !== "." && e.name !== "..");
-
-    if (entries.length === 0) {
-      throw new Error("Empty release archive");
+    const result = spawnSync("tar", ["-xzf", archivePath, "-C", stagingDir, "--no-same-owner"], {
+      stdio: "inherit",
+    });
+    if (result.status !== 0) {
+      throw new Error("Failed to extract app bundle");
     }
 
-    const extractedRoot = path.join(tempDir, entries[0].name);
+    const missing = [
+      "server.js",
+      path.join("server", "cabinet-daemon.cjs"),
+      path.join(".next", "static"),
+      path.join(".native", "node-pty", "package.json"),
+    ].filter((f) => !fs.existsSync(path.join(stagingDir, f)));
 
-    // Copy to app dir
-    ensureDir(appDir);
-    const sourceEntries = fs.readdirSync(extractedRoot, { withFileTypes: true });
-    for (const entry of sourceEntries) {
-      // Skip data dir and git — we don't need them in the app install
-      if (entry.name === "data" || entry.name === ".git") continue;
-
-      const src = path.join(extractedRoot, entry.name);
-      const dest = path.join(appDir, entry.name);
-      fs.cpSync(src, dest, { recursive: true });
+    if (missing.length > 0) {
+      throw new Error(`App bundle missing runtime files in ${appDir}: ${missing.join(", ")}`);
     }
+
+    // Atomic promotion: rename staging dir into place. If another process
+    // already finished installing, the existing appDir is replaced atomically.
+    fs.rmSync(appDir, { recursive: true, force: true });
+    fs.renameSync(stagingDir, appDir);
   } catch (err) {
-    // Clean up partial install on failure
     fs.rmSync(appDir, { recursive: true, force: true });
     throw err;
   } finally {
+    fs.rmSync(stagingDir, { recursive: true, force: true });
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
-async function cloneFallback(version: string, appDir: string, tempDir: string): Promise<void> {
-  const cloneDir = path.join(tempDir, "cabinet-clone");
-  const tag = releaseTagFor(version);
+export async function ensureApp(version: string): Promise<string> {
+  ensureCabinetHome();
 
-  const result = spawnSync("git", ["clone", "--depth", "1", "--branch", tag, "--", `${REPO_URL}.git`, cloneDir], {
-    stdio: "inherit",
-  });
-
-  if (result.status !== 0) {
-    // Try without tag (HEAD)
-    warning("Tagged release not found, cloning HEAD...");
-    const headResult = spawnSync("git", ["clone", "--depth", "1", "--", `${REPO_URL}.git`, cloneDir], {
-      stdio: "inherit",
-    });
-    if (headResult.status !== 0) {
-      throw new Error("Failed to clone Cabinet repository");
-    }
+  const appDir = appVersionDir(version);
+  if (isAppInstalled(version)) {
+    return appDir;
   }
 
-  ensureDir(appDir);
-  const entries = fs.readdirSync(cloneDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.name === "data" || entry.name === ".git") continue;
-    const src = path.join(cloneDir, entry.name);
-    const dest = path.join(appDir, entry.name);
-    fs.cpSync(src, dest, { recursive: true });
+  log(`Installing Cabinet v${version}...`);
+  const manifest = await fetchReleaseManifest(version);
+  if (!manifest) {
+    throw new Error("Could not fetch release manifest");
   }
+
+  const bundle = resolveAppBundle(manifest);
+  if (!bundle) {
+    throw new Error(`No prebuilt app bundle available for ${process.platform}/${process.arch}`);
+  }
+
+  await downloadAndExtractBundle(appDir, bundle);
+  success(`Cabinet v${version} installed.`);
+  return appDir;
 }
 
-/**
- * List installed app versions.
- */
 export function listInstalledVersions(): string[] {
   const appParent = path.join(CABINET_HOME, "app");
   if (!fs.existsSync(appParent)) return [];

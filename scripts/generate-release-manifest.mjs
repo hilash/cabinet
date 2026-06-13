@@ -19,14 +19,21 @@ const tag = readArg("tag", `v${version}`);
 const outputPath = readArg("output", path.join(process.cwd(), "cabinet-release.json"));
 const gitCommit = readArg("git-commit", process.env.GITHUB_SHA || undefined);
 const releaseDate = readArg("release-date", new Date().toISOString());
-const repositoryUrl = "https://github.com/hilash/cabinet";
+const repositoryUrl = (
+  readArg("repository-url") ||
+  (process.env.GITHUB_REPOSITORY && `https://github.com/${process.env.GITHUB_REPOSITORY}`) ||
+  "https://github.com/hilash/cabinet"
+).replace(/\.git$/, "");
+const appBundleKeys = ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"];
 
-// Electron Forge default naming for Cabinet (productName "Cabinet"):
-//   MakerZIP (darwin):  Cabinet-darwin-${arch}-${version}.zip
-//   MakerDMG:           Cabinet-${version}-${arch}.dmg
-// arch is the build host arch — currently arm64 (electron-release.yml runs on macos-latest).
-// Confirm by running `npm run electron:make` locally if maker versions change.
-const arch = "arm64";
+function appBundleAssetName(key, tag) {
+  return `cabinet-app-${key}-${tag}.tgz`;
+}
+
+function appBundleUrl(tag, key) {
+  const assetName = appBundleAssetName(key, tag);
+  return `${repositoryUrl}/releases/download/${tag}/${assetName}`;
+}
 
 const manifest = {
   manifestVersion: 1,
@@ -38,15 +45,18 @@ const manifest = {
   repositoryUrl,
   releaseNotesUrl: `${repositoryUrl}/releases/tag/${tag}`,
   sourceTarballUrl: `${repositoryUrl}/archive/refs/tags/${tag}.tar.gz`,
+  appBundles: Object.fromEntries(
+    appBundleKeys.map((key) => [key, { assetName: appBundleAssetName(key, tag), url: appBundleUrl(tag, key) }])
+  ),
   npmPackage: "create-cabinet",
   createCabinetVersion: version,
   cabinetaiPackage: "cabinetai",
   cabinetaiVersion: version,
   electron: {
     macos: {
-      arch,
-      zipAssetName: `Cabinet-darwin-${arch}-${version}.zip`,
-      dmgAssetName: `Cabinet-${version}-${arch}.dmg`,
+      arch: "arm64",
+      zipAssetName: `Cabinet-darwin-arm64-${version}.zip`,
+      dmgAssetName: `Cabinet-${version}-arm64.dmg`,
     },
   },
 };
