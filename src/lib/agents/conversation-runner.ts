@@ -1867,10 +1867,21 @@ export async function continueConversationRun(
 
     // Fallback: session expired (Claude --resume failed). Retry in replay
     // mode with full history.
+    //
+    // Trust the daemon's classification first — the adapter-side
+    // classifyError already saw the raw stderr and returned the canonical
+    // ConversationErrorKind. The textual fallback (`result.errorMessage ||
+    // result.output`) is for adapters that don't populate
+    // adapterErrorKind, but it only matched if the keyword leaked into
+    // output/errorMessage, which for the daemon path it usually doesn't —
+    // executeViaDaemon synthesises errorMessage from `result.output`, so a
+    // session-expired stderr classified by the daemon would never trip the
+    // string check, leaving session.alive=true and re-failing every turn.
     if (
       canResume &&
       result.status === "failed" &&
-      isSessionExpiredError(result.errorMessage || result.output)
+      (result.adapterErrorKind === "session_expired" ||
+        isSessionExpiredError(result.errorMessage || result.output))
     ) {
       await writeSession(
         conversationId,
