@@ -18,7 +18,6 @@ export function resolveProviderModel(
   fallbackModel?: string | null
 ): ProviderModel | undefined {
   const models = provider?.models || [];
-  if (models.length === 0) return undefined;
 
   const direct =
     matchesId(models, requestedModel) || matchesId(models, fallbackModel);
@@ -34,6 +33,8 @@ export function resolveProviderModel(
     const preserved = requestedModel || fallbackModel;
     if (preserved) return { id: preserved, name: preserved };
   }
+
+  if (models.length === 0) return undefined;
 
   return models[0];
 }

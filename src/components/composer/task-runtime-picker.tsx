@@ -45,6 +45,17 @@ import type {
 
 export type TaskRuntimeSelection = ConversationRuntimeOverride;
 
+/** Metadata passed alongside `TaskRuntimePicker` onChange calls. Lets callers
+ *  distinguish explicit user selections (worth persisting) from the internal
+ *  normalization pass that fires once providers hydrate. */
+export interface TaskRuntimeChangeMeta {
+  userInitiated: boolean;
+  /** True when the user clicked the "App default" reset — callers that
+   *  persist the selection should clear their stored override instead of
+   *  pinning the resolved default model. */
+  isAppDefault?: boolean;
+}
+
 
 const AUTO_EFFORT_ID = "__auto__";
 
@@ -198,12 +209,20 @@ function resolveSelectedProvider(
   providerId?: string,
   fallbackProviderId?: string | null
 ): ProviderInfo | undefined {
+  // An explicitly requested provider always wins when it exists at all — even
+  // if it isn't currently "ready" (uninstalled / unauthenticated). Snapping to
+  // the ready default here would silently rewrite an agent's pinned runtime
+  // (e.g. an Editor pinned to codex-cli/gpt-5.2 would surface gemini-2.5-pro,
+  // since the fallback provider can't host gpt-5.2). Only fall back to the
+  // default when no provider was requested or the requested id is unknown.
+  if (providerId) {
+    const requested = providers.find((provider) => provider.id === providerId);
+    if (requested) return requested;
+  }
   const selectable = getSelectableProviders(providers);
   return (
-    selectable.find((provider) => provider.id === providerId) ||
     selectable.find((provider) => provider.id === fallbackProviderId) ||
     selectable[0] ||
-    providers.find((provider) => provider.id === providerId) ||
     providers.find((provider) => provider.id === fallbackProviderId)
   );
 }
@@ -983,7 +1002,20 @@ export function RuntimeMatrixPicker({
     return [...ready, ...unready];
   }, [providers, includeUnavailable]);
 
-  const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
+  // Manual tab click, remembered together with the `value.providerId` it was
+  // made under. When the actual selection changes, the override is stale and
+  // the derived value below snaps back to the requested provider — same
+  // behavior as the previous effect-based sync, but without calling setState
+  // from an effect.
+  const [tabOverride, setTabOverride] = useState<{
+    baseProviderId: string | null;
+    id: string;
+  } | null>(null);
+  const setActiveProviderId = useCallback(
+    (id: string) =>
+      setTabOverride({ baseProviderId: value.providerId ?? null, id }),
+    [value.providerId]
+  );
 
   const readyProviderIds = useMemo(
     () =>
@@ -995,38 +1027,30 @@ export function RuntimeMatrixPicker({
     [selectableProviders]
   );
 
-  useEffect(() => {
+  const activeProviderIdValue = useMemo(() => {
+    const overrideId =
+      tabOverride && tabOverride.baseProviderId === (value.providerId ?? null)
+        ? tabOverride.id
+        : null;
+    const explicit = resolveSelectedProvider(
+      selectableProviders,
+      overrideId || undefined,
+      undefined
+    );
+    if (overrideId && explicit && readyProviderIds.has(explicit.id)) {
+      return explicit.id;
+    }
     const requested = resolveSelectedProvider(
       selectableProviders,
       value.providerId ?? undefined,
       undefined
     );
-    if (requested && readyProviderIds.has(requested.id)) {
-      setActiveProviderId(requested.id);
-      return;
-    }
+    if (requested && readyProviderIds.has(requested.id)) return requested.id;
     const firstReady = selectableProviders.find((provider) =>
       readyProviderIds.has(provider.id)
     );
-    setActiveProviderId(firstReady?.id ?? requested?.id ?? null);
-  }, [readyProviderIds, selectableProviders, value.providerId]);
-
-  const activeProviderIdValue = useMemo(() => {
-    const explicit = resolveSelectedProvider(
-      selectableProviders,
-      activeProviderId || undefined,
-      undefined
-    );
-    if (explicit && readyProviderIds.has(explicit.id)) return explicit.id;
-    const requestedReady = value.providerId && readyProviderIds.has(value.providerId)
-      ? value.providerId
-      : null;
-    if (requestedReady) return requestedReady;
-    const firstReady = selectableProviders.find((provider) =>
-      readyProviderIds.has(provider.id)
-    );
-    return firstReady?.id ?? explicit?.id;
-  }, [activeProviderId, readyProviderIds, selectableProviders, value.providerId]);
+    return firstReady?.id ?? requested?.id;
+  }, [tabOverride, readyProviderIds, selectableProviders, value.providerId]);
 
   const currentProvider = useMemo(
     () =>
@@ -1370,7 +1394,7 @@ export function TaskRuntimePicker({
   compact = false,
 }: {
   value: TaskRuntimeSelection;
-  onChange: (value: TaskRuntimeSelection) => void;
+  onChange: (value: TaskRuntimeSelection, meta?: TaskRuntimeChangeMeta) => void;
   align?: "start" | "center" | "end";
   className?: string;
   /** Icon-only trigger (no model/effort labels) — used in tight surfaces
@@ -1477,21 +1501,6 @@ export function TaskRuntimePicker({
     ]
   );
 
-  const selectionSummary = currentProvider
-    ? [
-        currentModel?.name || currentProvider.name,
-        currentEffort?.name ||
-          (normalizedValue.effort
-            ? formatEffortName(normalizedValue.effort)
-            : t("runtime:defaultLabel")),
-        currentProvider.name,
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : loading
-      ? t("runtime:loadingProviders")
-      : t("runtime:noProvidersAvailable");
-
   // Audit #052: the prior tooltip "Task model: Claude Opus 4.7 · Medium ·
   // Claude Code" read as a compound model identifier, sending users to
   // search Anthropic for a non-existent product. Split the three concepts
@@ -1527,22 +1536,25 @@ export function TaskRuntimePicker({
       defaultModel,
       defaultEffort
     );
-    onChange({
-      ...normalized,
-      runtimeMode: runtimeMode ?? value.runtimeMode ?? "native",
-      // Terminal mode should not carry model/effort — PTY uses the CLI's own
-      // defaults, so clear them to keep the conversation override honest.
-      ...(runtimeMode === "terminal"
-        ? { model: undefined, effort: undefined }
-        : {}),
-    });
+    onChange(
+      {
+        ...normalized,
+        runtimeMode: runtimeMode ?? value.runtimeMode ?? "native",
+        // Terminal mode should not carry model/effort — PTY uses the CLI's own
+        // defaults, so clear them to keep the conversation override honest.
+        ...(runtimeMode === "terminal"
+          ? { model: undefined, effort: undefined }
+          : {}),
+      },
+      { userInitiated: true }
+    );
     // Only close the dropdown on provider/model selection, not when toggling
     // mode — users should see the toggle animate.
     if (runtimeMode === undefined) setOpen(false);
   }
 
   function resetToDefault() {
-    onChange(appDefaultSelection);
+    onChange(appDefaultSelection, { userInitiated: true, isAppDefault: true });
     setOpen(false);
   }
 
