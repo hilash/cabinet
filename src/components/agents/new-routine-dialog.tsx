@@ -114,6 +114,32 @@ export function NewRoutineDialog({
     };
     if (existingJob) {
       setDraft({ ...base, ...existingJob } as JobConfig);
+      // Routine lists/overview carry only summary fields (id/name/schedule/
+      // enabled), so an edit opened from there arrives without the prompt (and
+      // model/timeout). Fetch the full job config and merge the authoritative
+      // fields so the editor isn't blank. Skip when the prompt is already present.
+      if (existingJob.id && existingJob.prompt === undefined) {
+        const controller = new AbortController();
+        const jobId = existingJob.id;
+        const q = agent.cabinetPath
+          ? `?cabinetPath=${encodeURIComponent(agent.cabinetPath)}`
+          : "";
+        fetch(
+          `/api/agents/${encodeURIComponent(agent.slug)}/jobs/${encodeURIComponent(jobId)}${q}`,
+          { signal: controller.signal }
+        )
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (!data?.job) return;
+            setDraft((cur) =>
+              cur && cur.id === jobId
+                ? ({ ...base, ...data.job } as JobConfig)
+                : cur
+            );
+          })
+          .catch(() => {});
+        return () => controller.abort();
+      }
       return;
     }
     setDraft(base);
