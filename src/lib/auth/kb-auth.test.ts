@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { pbkdf2Sync } from "node:crypto";
 import {
+  authCookieHeader,
   deriveAuthToken,
   expectedToken,
   getAuthSalt,
@@ -86,6 +87,38 @@ test("isAuthEnabled / getKbPassword read env at call time", () => {
   } finally {
     if (prev === undefined) delete process.env.KB_PASSWORD;
     else process.env.KB_PASSWORD = prev;
+  }
+});
+
+test("authCookieHeader: {} when auth off, valid kb-auth cookie when on", async () => {
+  const prev = {
+    pw: process.env.KB_PASSWORD,
+    it: process.env.CABINET_LOGIN_PBKDF2_ITERS,
+    salt: process.env.CABINET_AUTH_SALT,
+  };
+  try {
+    process.env.CABINET_LOGIN_PBKDF2_ITERS = "2";
+    process.env.CABINET_AUTH_SALT = "feedface";
+    // Auth disabled -> no cookie, so the daemon's S2S calls behave as before.
+    delete process.env.KB_PASSWORD;
+    assert.deepEqual(await authCookieHeader(), {});
+    process.env.KB_PASSWORD = "";
+    assert.deepEqual(await authCookieHeader(), {});
+    // Auth enabled -> exactly the cookie the gate (expectedToken) expects.
+    process.env.KB_PASSWORD = "s3cret";
+    const header = await authCookieHeader();
+    assert.deepEqual(Object.keys(header), ["Cookie"]);
+    assert.equal(header.Cookie, `kb-auth=${await expectedToken()}`);
+    assert.equal(header.Cookie, `kb-auth=${await deriveAuthToken("s3cret", "feedface", 2)}`);
+  } finally {
+    for (const [k, v] of [
+      ["KB_PASSWORD", prev.pw],
+      ["CABINET_LOGIN_PBKDF2_ITERS", prev.it],
+      ["CABINET_AUTH_SALT", prev.salt],
+    ] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   }
 });
 

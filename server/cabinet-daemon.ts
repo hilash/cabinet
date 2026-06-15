@@ -72,6 +72,7 @@ import {
   getTokenFromAuthorizationHeader,
   isDaemonTokenValid,
 } from "../src/lib/agents/daemon-auth";
+import { authCookieHeader } from "../src/lib/auth/kb-auth";
 import {
   normalizeJobConfig,
   normalizeJobId,
@@ -1195,10 +1196,50 @@ const scheduledJobs = new Map<string, ReturnType<typeof cron.schedule>>();
 const scheduledHeartbeats = new Map<string, ReturnType<typeof cron.schedule>>();
 let scheduleReloadTimer: NodeJS.Timeout | null = null;
 
+// The app gates every /api/* route behind KB_PASSWORD (src/proxy.ts). Next
+// auto-loads `.env` so the app sees the password, but the daemon does not -- and
+// the production `start:daemon` path bypasses scripts/dev-daemon.mjs (which
+// loads it in dev). So if KB_PASSWORD isn't already in the environment, read it
+// from `.env` in the working dir (the same file the app reads) into
+// process.env. From there the shared kb-auth module is the single source of
+// truth for deriving the cookie; the per-install CABINET_AUTH_SALT it needs is
+// already in process.env via loadCabinetEnv() at boot. Resolved once: like the
+// app, a changed password/salt takes effect on the next restart.
+let kbPasswordResolved = false;
+function ensureKbPasswordFromDotEnv(): void {
+  if (kbPasswordResolved) return;
+  kbPasswordResolved = true;
+  if (process.env.KB_PASSWORD) return; // already set (dev path or real env)
+  try {
+    const envRaw = fs.readFileSync(path.join(process.cwd(), ".env"), "utf-8");
+    for (const line of envRaw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1 || trimmed.slice(0, eq).trim() !== "KB_PASSWORD") continue;
+      const value = trimmed
+        .slice(eq + 1)
+        .trim()
+        .replace(/^["']|["']$/g, "");
+      if (value) process.env.KB_PASSWORD = value;
+      break;
+    }
+  } catch {
+    // No .env / unreadable -- auth gate is presumably disabled.
+  }
+}
+
 async function putJson(url: string, body: Record<string, unknown>): Promise<void> {
+  // Attach the same `kb-auth` cookie a logged-in browser carries, so these
+  // server-to-server triggers pass the gate instead of silently 401ing. No-op
+  // when auth is disabled (authCookieHeader() returns {}).
+  ensureKbPasswordFromDotEnv();
   const response = await fetch(url, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authCookieHeader()),
+    },
     body: JSON.stringify(body),
   });
 
