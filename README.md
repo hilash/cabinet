@@ -228,7 +228,8 @@ cabinet/
 - At least one supported CLI provider:
   - **Claude Code CLI** (`npm install -g @anthropic-ai/claude-code`)
   - **Codex CLI** (`npm install -g @openai/codex` or `brew install --cask codex`)
-- macOS or Linux (Windows via WSL)
+- **Source mode:** macOS, Linux, or Windows
+- **Electron desktop packaging:** macOS and Windows
 
 ## Configuration
 
@@ -238,8 +239,20 @@ cp .env.example .env.local
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KB_PASSWORD` | _(empty)_ | Password to protect the UI. Leave empty for no auth. |
+| `KB_PASSWORD` | _(empty)_ | Password to protect the UI. Leave empty for no auth. The auth cookie is PBKDF2(password, per-install salt) with login rate-limiting; changing the password logs everyone out once. |
+| `CABINET_AUTH_SALT` | _(auto)_ | Per-install auth salt, auto-generated into `.cabinet.env` on first run. Set only to pin a value; changing it forces a one-time re-login. |
+| `CABINET_LOGIN_PBKDF2_ITERS` | `600000` | PBKDF2 iteration count for the auth token. Lower only for constrained hardware. |
+| `CABINET_LOGIN_MAX_ATTEMPTS` / `_WINDOW_MS` / `_LOCKOUT_MS` / `CABINET_LOGIN_GLOBAL_MAX` | `10` / `900000` / `900000` / `60` | Login rate-limit tuning (per-client + global failed-attempt buckets). |
 | `DOMAIN` | `localhost` | Domain for the app. |
+
+### Authentication
+
+Setting `KB_PASSWORD` turns on a single password gate for the whole UI/API
+(leave it empty for no auth). The session cookie is `PBKDF2-HMAC-SHA256` over a
+per-install salt that's auto-generated into `.cabinet.env` on first run, the
+login endpoint is rate-limited against brute force, and the gate verifies in
+constant time. Changing the password (or salt/iterations) logs everyone out
+once. Full details, threat model, and tuning: **[docs/AUTH.md](docs/AUTH.md)**.
 
 ## Commands
 
@@ -247,8 +260,10 @@ cp .env.example .env.local
 npm run dev          # Next.js dev server (port 4000 by default)
 npm run dev:daemon   # Unified daemon: structured runs, terminal sessions, WebSockets, scheduler (port 4100 by default)
 npm run dev:all      # Both servers
+npm run electron:start   # Launch Electron desktop against the local dev servers
 npm run build        # Production build
 npm run start        # Production mode (both servers)
+npm run electron:make:win  # Build a portable Windows zip
 ```
 
 ---

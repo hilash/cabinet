@@ -41,6 +41,7 @@ import { NarrowViewportHint } from "@/components/layout/narrow-viewport-hint";
 import { ConfirmDialogHost } from "@/components/ui/confirm-dialog-host";
 import { useGlobalHotkeys } from "@/hooks/use-global-hotkeys";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
+import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
 import { StatusBar } from "@/components/layout/status-bar";
 import { DaemonHealthBanner } from "@/components/layout/daemon-health-banner";
 import { TourModal } from "@/components/onboarding/tour/tour-modal";
@@ -50,6 +51,7 @@ import {
   isDataDirConfirmed,
 } from "@/components/onboarding/data-dir-prompt";
 import { FeedbackPopup } from "@/components/onboarding/feedback-popup";
+import { DiagnosticsBoot } from "@/components/feedback/diagnostics-boot";
 import { StartWorkDialog, type StartWorkMode } from "@/components/composer/start-work-dialog";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
@@ -104,6 +106,13 @@ const RegistryBrowser = dynamic(
     import("@/components/registry/registry-browser").then((m) => m.RegistryBrowser),
   { ssr: false }
 );
+const IntegrationsHubPage = dynamic(
+  () =>
+    import("@/components/integrations/hub/integrations-hub-page").then(
+      (m) => m.IntegrationsHubPage
+    ),
+  { ssr: false }
+);
 const OnboardingWizard = dynamic(
   () =>
     import("@/components/onboarding/onboarding-wizard").then(
@@ -113,7 +122,8 @@ const OnboardingWizard = dynamic(
 );
 import { findNodeByPath } from "@/lib/cabinets/tree";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
-import { useHashRoute } from "@/hooks/use-hash-route";
+import { useRoute } from "@/hooks/use-hash-route";
+import { useTaskFileSync } from "@/hooks/use-task-file-sync";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -170,8 +180,11 @@ export function AppShell() {
     applyUpdate,
   } = useCabinetUpdate({ autoRefresh: true });
 
-  // Sync navigation state with URL hash + localStorage
-  useHashRoute();
+  // Sync navigation state with the URL path (clean-path routing).
+  useRoute();
+
+  // Live-refresh the tree + open page when agent tasks create/change files.
+  useTaskFileSync();
 
   // Onboarding wizard state. We initialize to `null` on both server and first
   // client render to avoid a hydration mismatch, then synchronously rehydrate
@@ -267,7 +280,6 @@ export function AppShell() {
   // non-empty we reload the tree (debounced) so new files appear without a
   // manual refresh. App-wide so it works from any section.
   useEffect(() => {
-    const es = new EventSource("/api/agents/conversations/events");
     let timer: number | null = null;
     const scheduleRefresh = () => {
       if (timer !== null) return;
@@ -276,9 +288,9 @@ export function AppShell() {
         void loadTree();
       }, 400);
     };
-    es.onmessage = (msg) => {
+    const unsubscribe = subscribeConversationEvents((data) => {
       try {
-        const ev = JSON.parse(msg.data) as {
+        const ev = JSON.parse(data) as {
           type?: string;
           payload?: { artifactPaths?: unknown };
         };
@@ -290,9 +302,9 @@ export function AppShell() {
       } catch {
         // ignore malformed frames / pings
       }
-    };
+    });
     return () => {
-      es.close();
+      unsubscribe();
       if (timer !== null) window.clearTimeout(timer);
     };
   }, [loadTree]);
@@ -308,22 +320,51 @@ export function AppShell() {
   // carry a cabinetPath and are left untouched.
   const loadRooms = useRoomsStore((s) => s.load);
   const defaultRoom = useRoomsStore((s) => s.defaultRoom);
+  const reopen = useRoomsStore((s) => s.reopen);
   useEffect(() => {
     void loadRooms();
   }, [loadRooms]);
   useEffect(() => {
-    if (!defaultRoom || defaultRoom === ROOT_CABINET_PATH) return;
+    // Reopen into the last active room (PRD §10.5), falling back to the
+    // configured default. Phase 2 routing extends this to restore the deepest
+    // path (reopen.path); within a returning tab the persisted route already does.
+    const landingRoom = reopen?.room ?? defaultRoom;
+    if (!landingRoom || landingRoom === ROOT_CABINET_PATH) return;
     const cp = section.cabinetPath;
-    // Snap into the default room whenever a section would otherwise show the
-    // neutral home container: the bare home screen, or any content view scoped
-    // to the data-dir root ("."). You're always inside a room, never the dir
-    // above it. (settings/help/registry carry no cabinetPath, so are untouched.)
+    // Snap into the room whenever a section would otherwise show the neutral
+    // home container: the bare home screen, or any content view scoped to the
+    // data-dir root ("."). You're always inside a room, never the dir above
+    // it. (settings/help/registry carry no cabinetPath, so are untouched.)
+    // A "page" scoped to the data-dir root is a file the user explicitly opened
+    // (e.g. `#/p/foo`), not the neutral home container — don't yank it into a room.
+    // (On Windows a leading-`\` path normalized to "." made this hijack visible: #103.)
     const onHomeContainer =
-      (section.type === "home" && !cp) || cp === ROOT_CABINET_PATH;
+      (section.type === "home" && !cp) ||
+      (cp === ROOT_CABINET_PATH && section.type !== "page");
     if (onHomeContainer) {
-      setSection({ type: "cabinet", cabinetPath: defaultRoom });
+      setSection({ type: "cabinet", cabinetPath: landingRoom });
     }
-  }, [defaultRoom, section.type, section.cabinetPath, setSection]);
+  }, [reopen, defaultRoom, section.type, section.cabinetPath, setSection]);
+
+  // Persist the current location so the app reopens here next launch
+  // (PRD §10.5). Debounced; best-effort. setLastActive ignores the home
+  // container and unknown rooms server-side.
+  useEffect(() => {
+    const current =
+      selectedPath ||
+      (section.cabinetPath && section.cabinetPath !== ROOT_CABINET_PATH
+        ? section.cabinetPath
+        : "");
+    if (!current) return;
+    const id = window.setTimeout(() => {
+      void fetch("/api/rooms/active", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: current }),
+      }).catch(() => {});
+    }, 1000);
+    return () => window.clearTimeout(id);
+  }, [selectedPath, section.cabinetPath]);
 
   // Dynamic document.title — reflects the current section and page.
   useEffect(() => {
@@ -386,6 +427,9 @@ export function AppShell() {
         break;
       case "registry":
         title = `Registry — ${base}`;
+        break;
+      case "integrations":
+        title = `Integrations — ${base}`;
         break;
       default:
         title = base;
@@ -725,6 +769,7 @@ export function AppShell() {
     if (section.type === "home") return <HomeScreen />;
     if (section.type === "registry") return <RegistryBrowser />;
     if (section.type === "settings") return <SettingsPage />;
+    if (section.type === "integrations") return <IntegrationsHubPage />;
     if (section.type === "help") return <HelpPage />;
     if (section.type === "cabinet" && section.cabinetPath) {
       return <CabinetView cabinetPath={section.cabinetPath} />;
@@ -1013,6 +1058,7 @@ export function AppShell() {
       <NotificationToasts />
       <SystemToasts />
       <FeedbackPopup />
+      <DiagnosticsBoot />
       <TourModal
         open={tour.open}
         onClose={tour.close}

@@ -36,14 +36,21 @@ function NewCabinetOverlay({
   const setSection = useAppStore((s) => s.setSection);
   const picker = useAgentPicker();
 
-  // Reset state when opening
-  useEffect(() => {
+  // Reset state when opening (or when the prefill changes while open):
+  // adjust state during render instead of in an effect
+  // (react-hooks/set-state-in-effect) — the pattern from
+  // react.dev/learn/you-might-not-need-an-effect.
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevDefaultName, setPrevDefaultName] = useState(defaultName);
+  if (open !== prevOpen || defaultName !== prevDefaultName) {
+    setPrevOpen(open);
+    setPrevDefaultName(defaultName);
     if (open) {
       setName(defaultName);
       setCreating(false);
       setError(null);
     }
-  }, [open, defaultName]);
+  }
 
   // Close on Escape
   useEffect(() => {

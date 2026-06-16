@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { SlackMessage } from "@/types/agents";
 import { useLocale } from "@/i18n/use-locale";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 
 interface AgentMention {
   slug: string;
@@ -190,45 +191,44 @@ export function SlackPanel({ height: initialHeight = 200, onOpenFile }: SlackPan
 
   const [channelCounts, setChannelCounts] = useState<Record<string, number>>({});
 
-  const loadChannels = useCallback(async () => {
-    try {
-      const res = await fetch("/api/agents/slack?channels=true");
-      if (res.ok) {
+  // Load unread counts for non-active channels. setState only happens in
+  // the promise continuation (react-hooks/set-state-in-effect forbids
+  // synchronous setState in the effect body).
+  useEffect(() => {
+    if (channels.length === 0) return;
+    const fetchCounts = async () => {
+      const counts: Record<string, number> = {};
+      for (const ch of channels) {
+        if (ch === activeChannel) continue;
+        try {
+          const res = await fetch(`/api/agents/slack?channel=${ch}&limit=100`);
+          if (res.ok) {
+            const data = await res.json();
+            counts[ch] = (data.messages || []).length;
+          }
+        } catch { /* ignore */ }
+      }
+      return counts;
+    };
+    fetchCounts().then(setChannelCounts);
+  }, [channels, activeChannel]);
+
+  // Load the channel list once on mount (same setState-in-continuation shape).
+  useEffect(() => {
+    fetch("/api/agents/slack?channels=true")
+      .then(async (res) => {
+        if (!res.ok) return;
         const data = await res.json();
         // Merge discovered channels with default set
         const defaults = ["general", "marketing", "engineering", "operations", "alerts"];
         const discovered = data.channels || [];
         const merged = [...new Set([...defaults, ...discovered])];
         setChannels(merged);
-      }
-    } catch {
-      setChannels(["general", "marketing", "engineering", "operations", "alerts"]);
-    }
+      })
+      .catch(() => {
+        setChannels(["general", "marketing", "engineering", "operations", "alerts"]);
+      });
   }, []);
-
-  // Load unread counts for non-active channels
-  const loadCounts = useCallback(async () => {
-    const counts: Record<string, number> = {};
-    for (const ch of channels) {
-      if (ch === activeChannel) continue;
-      try {
-        const res = await fetch(`/api/agents/slack?channel=${ch}&limit=100`);
-        if (res.ok) {
-          const data = await res.json();
-          counts[ch] = (data.messages || []).length;
-        }
-      } catch { /* ignore */ }
-    }
-    setChannelCounts(counts);
-  }, [channels, activeChannel]);
-
-  useEffect(() => {
-    if (channels.length > 0) loadCounts();
-  }, [channels, loadCounts]);
-
-  useEffect(() => {
-    loadChannels();
-  }, [loadChannels]);
 
   // Load agents for @mention autocomplete
   useEffect(() => {
@@ -247,17 +247,18 @@ export function SlackPanel({ height: initialHeight = 200, onOpenFile }: SlackPan
   }, []);
 
   useEffect(() => {
-    loadMessages();
     // Listen for SSE slack refresh events
     const handleRefresh = () => loadMessages();
     window.addEventListener("cabinet:slack-refresh", handleRefresh);
-    // Fallback poll every 10s (was 5s, now SSE handles real-time)
-    const interval = setInterval(loadMessages, 10000);
     return () => {
-      clearInterval(interval);
       window.removeEventListener("cabinet:slack-refresh", handleRefresh);
     };
   }, [loadMessages]);
+
+  // Fallback poll every 10s (SSE handles real-time; this catches gaps).
+  // Pause polling when the tab is hidden to free per-origin connection
+  // slots for the foreground tab.
+  useVisibleInterval(loadMessages, 10000);
 
   useEffect(() => {
     if (scrollRef.current) {

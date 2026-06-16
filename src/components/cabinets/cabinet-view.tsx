@@ -21,6 +21,7 @@ import type { JobConfig } from "@/types/jobs";
 import { ActivityFeed } from "@/components/cabinets/activity-feed";
 import { DepthDropdown } from "@/components/cabinets/depth-dropdown";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -124,16 +125,10 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
     }
   }, [cabinetPath, cabinetVisibilityMode]);
 
-  useEffect(() => {
-    void loadOverview();
-    const interval = window.setInterval(() => void loadOverview(), 15000);
-    const onFocus = () => void loadOverview();
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [loadOverview]);
+  // Pause overview polling when this tab is hidden. With two Cabinet
+  // tabs open this avoids burning HTTP/1.1 connection slots on a
+  // background tab that nobody is looking at.
+  useVisibleInterval(loadOverview, 15000);
 
   // Tick `now` every minute so Next-up labels stay fresh.
   useEffect(() => {
@@ -247,7 +242,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
               ownAgents={ownAgents}
               onRefresh={() => void loadOverview()}
             />
-            <VersionHistory />
+            <VersionHistory path={cabinetPath === "." ? "index" : cabinetPath} />
             <HeaderActions />
           </div>
         </header>

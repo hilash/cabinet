@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { FolderTree } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepthDropdown } from "./depth-dropdown";
 import { sortOrgAgents, startCase } from "./cabinet-utils";
 import { AgentStatusCard } from "./agent-status-card";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import type { AgentConversationInfo } from "./agent-status-card";
 import type {
   CabinetAgentSummary,
@@ -70,11 +71,9 @@ export function AgentStatusGrid({
     }
   }, [cabinetPath, visibilityMode]);
 
-  useEffect(() => {
-    void fetchConversations();
-    const iv = setInterval(() => void fetchConversations(), 8000);
-    return () => clearInterval(iv);
-  }, [fetchConversations]);
+  // Pause polling when the tab is hidden to keep the per-origin
+  // HTTP/1.1 connection budget free for the foreground tab.
+  useVisibleInterval(fetchConversations, 8000);
 
   const sorted = useMemo(() => [...agents].sort(sortOrgAgents), [agents]);
 

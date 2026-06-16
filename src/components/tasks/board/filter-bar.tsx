@@ -1,5 +1,6 @@
 "use client";
 
+import { createElement } from "react";
 import {
   Users,
   Check,
@@ -107,7 +108,7 @@ export function AgentFilterDropdown({
     ? selected.displayName ?? selected.name
     : t("tinyExtras:allAgents");
   const hasImage = selected ? hasAgentAvatarImage(selected) : false;
-  const SelectedIcon = selected
+  const selectedIcon = selected
     ? resolveAgentIcon(selected.slug, selected.iconKey ?? null)
     : null;
   return (
@@ -124,8 +125,8 @@ export function AgentFilterDropdown({
         {selected ? (
           hasImage ? (
             <AgentAvatar agent={selected} shape="circle" size="xs" />
-          ) : SelectedIcon ? (
-            <SelectedIcon className="size-3" />
+          ) : selectedIcon ? (
+            createElement(selectedIcon, { className: "size-3" })
           ) : (
             <Users className="size-3" />
           )

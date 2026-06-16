@@ -315,16 +315,22 @@ function ImportDialog({
   onImportEnd: () => void;
 }) {
   const { t } = useLocale();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(template ? template.name : "");
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadTree = useTreeStore((s) => s.loadTree);
   const selectPage = useTreeStore((s) => s.selectPage);
   const setSection = useAppStore((s) => s.setSection);
 
-  useEffect(() => {
+  // Prefill the editable name when a different template is picked: adjust
+  // state during render instead of in an effect
+  // (react-hooks/set-state-in-effect) — the pattern from
+  // react.dev/learn/you-might-not-need-an-effect.
+  const [prevTemplate, setPrevTemplate] = useState(template);
+  if (template !== prevTemplate) {
+    setPrevTemplate(template);
     if (template) setName(template.name);
-  }, [template]);
+  }
 
   const handleImport = async () => {
     if (!template) return;

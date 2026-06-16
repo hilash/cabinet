@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/i18n/use-locale";
@@ -17,6 +17,18 @@ declare global {
   }
 }
 
+// The desktop bridge is an external value injected by the Electron preload
+// script: read it with useSyncExternalStore so the server (and the hydration
+// render) sees null and the client corrects after mount — no
+// setState-in-effect, no hydration mismatch. The snapshot is
+// reference-stable: window.CabinetDesktop is set once, before page load.
+const emptySubscribe = () => () => {};
+
+function readBridge(): CabinetDesktopBridge | null {
+  const b = window.CabinetDesktop;
+  return b && b.runtime === "electron" && b.platform === "darwin" ? b : null;
+}
+
 /**
  * Settings → About → Uninstall Cabinet (macOS Electron only).
  *
@@ -27,17 +39,9 @@ declare global {
  */
 export function UninstallSection() {
   const { t } = useLocale();
-  const [bridge, setBridge] = useState<CabinetDesktopBridge | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const b = window.CabinetDesktop;
-    if (b && b.runtime === "electron" && b.platform === "darwin") {
-      setBridge(b);
-    }
-  }, []);
+  const bridge = useSyncExternalStore(emptySubscribe, readBridge, () => null);
 
   if (!bridge) return null;
 

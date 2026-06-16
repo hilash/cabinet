@@ -66,7 +66,10 @@ function nowId() {
 
 export default function ProvidersDemoPage() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [providersLoading, setProvidersLoading] = useState(false);
+  // Starts true: the mount effect fetches immediately, so initializing in
+  // the "loading" state avoids a synchronous setState inside the effect
+  // (react-hooks/set-state-in-effect).
+  const [providersLoading, setProvidersLoading] = useState(true);
   const [providersError, setProvidersError] = useState<string | null>(null);
   const [defaultProvider, setDefaultProvider] = useState<string | null>(null);
   const [defaultModel, setDefaultModel] = useState<string | null>(null);
@@ -92,94 +95,117 @@ export default function ProvidersDemoPage() {
     setApiLog((prev) => [entry, ...prev].slice(0, 100));
   }, []);
 
+  // .then/.catch style (not async/await): the log-to-state calls live in
+  // promise continuations, so react-hooks/set-state-in-effect lets the
+  // mount effect kick off a request through here. An async body would be
+  // treated as synchronous setState even after an await.
   const callApi = useCallback(
-    async <T,>(input: {
+    <T,>(input: {
       method: string;
       url: string;
       body?: unknown;
     }): Promise<{ ok: boolean; status: number; data: T | null; error?: string; ms: number }> => {
       const id = nowId();
       const startedAt = Date.now();
-      try {
-        const res = await fetch(input.url, {
-          method: input.method,
-          headers: input.body ? { "Content-Type": "application/json" } : undefined,
-          body: input.body ? JSON.stringify(input.body) : undefined,
+      return fetch(input.url, {
+        method: input.method,
+        headers: input.body ? { "Content-Type": "application/json" } : undefined,
+        body: input.body ? JSON.stringify(input.body) : undefined,
+      })
+        .then(async (res) => {
+          const text = await res.text();
+          let data: unknown = null;
+          try {
+            data = text ? JSON.parse(text) : null;
+          } catch {
+            data = text;
+          }
+          const ms = Date.now() - startedAt;
+          appendLog({
+            id,
+            method: input.method,
+            url: input.url,
+            requestBody: input.body,
+            status: res.status,
+            ok: res.ok,
+            responseBody: data,
+            startedAt,
+            ms,
+          });
+          return { ok: res.ok, status: res.status, data: data as T, ms };
+        })
+        .catch((err: unknown) => {
+          const ms = Date.now() - startedAt;
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          appendLog({
+            id,
+            method: input.method,
+            url: input.url,
+            requestBody: input.body,
+            errorMessage,
+            startedAt,
+            ms,
+          });
+          return { ok: false, status: 0, data: null, error: errorMessage, ms };
         });
-        const text = await res.text();
-        let data: unknown = null;
-        try {
-          data = text ? JSON.parse(text) : null;
-        } catch {
-          data = text;
-        }
-        const ms = Date.now() - startedAt;
-        appendLog({
-          id,
-          method: input.method,
-          url: input.url,
-          requestBody: input.body,
-          status: res.status,
-          ok: res.ok,
-          responseBody: data,
-          startedAt,
-          ms,
-        });
-        return { ok: res.ok, status: res.status, data: data as T, ms };
-      } catch (err) {
-        const ms = Date.now() - startedAt;
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        appendLog({
-          id,
-          method: input.method,
-          url: input.url,
-          requestBody: input.body,
-          errorMessage,
-          startedAt,
-          ms,
-        });
-        return { ok: false, status: 0, data: null, error: errorMessage, ms };
-      }
     },
     [appendLog]
   );
 
-  const loadProviders = useCallback(async () => {
+  // Fetch and apply are split so the mount effect can keep every setState
+  // inside the .then continuation it builds itself — calling a helper that
+  // setStates (even post-await) from the effect body trips
+  // react-hooks/set-state-in-effect.
+  const fetchProviders = useCallback(
+    () =>
+      callApi<{
+        providers: ProviderInfo[];
+        defaultProvider: string | null;
+        defaultModel: string | null;
+        defaultEffort: string | null;
+      }>({ method: "GET", url: "/api/agents/providers" }),
+    [callApi]
+  );
+
+  const applyProviders = useCallback(
+    (res: Awaited<ReturnType<typeof fetchProviders>>) => {
+      if (res.ok && res.data) {
+        const cli = (res.data.providers || []).filter(isAgentProviderSelectable);
+        setProviders(cli);
+        setDefaultProvider(res.data.defaultProvider ?? null);
+        setDefaultModel(res.data.defaultModel ?? null);
+        setDefaultEffort(res.data.defaultEffort ?? null);
+        setModelByProvider((prev) => {
+          const next = { ...prev };
+          for (const p of cli) {
+            if (!next[p.id]) next[p.id] = p.models?.[0]?.id ?? null;
+          }
+          return next;
+        });
+        setEffortByProvider((prev) => {
+          const next = { ...prev };
+          for (const p of cli) {
+            if (!next[p.id]) {
+              next[p.id] = p.effortLevels?.[0]?.id ?? null;
+            }
+          }
+          return next;
+        });
+      } else {
+        setProvidersError(res.error || `HTTP ${res.status}`);
+      }
+      setProvidersLoading(false);
+    },
+    []
+  );
+
+  // Manual refresh (event handler): flip back into the loading state before
+  // refetching.
+  const refreshProviders = useCallback(() => {
     setProvidersLoading(true);
     setProvidersError(null);
-    const res = await callApi<{
-      providers: ProviderInfo[];
-      defaultProvider: string | null;
-      defaultModel: string | null;
-      defaultEffort: string | null;
-    }>({ method: "GET", url: "/api/agents/providers" });
-    if (res.ok && res.data) {
-      const cli = (res.data.providers || []).filter(isAgentProviderSelectable);
-      setProviders(cli);
-      setDefaultProvider(res.data.defaultProvider ?? null);
-      setDefaultModel(res.data.defaultModel ?? null);
-      setDefaultEffort(res.data.defaultEffort ?? null);
-      setModelByProvider((prev) => {
-        const next = { ...prev };
-        for (const p of cli) {
-          if (!next[p.id]) next[p.id] = p.models?.[0]?.id ?? null;
-        }
-        return next;
-      });
-      setEffortByProvider((prev) => {
-        const next = { ...prev };
-        for (const p of cli) {
-          if (!next[p.id]) {
-            next[p.id] = p.effortLevels?.[0]?.id ?? null;
-          }
-        }
-        return next;
-      });
-    } else {
-      setProvidersError(res.error || `HTTP ${res.status}`);
-    }
-    setProvidersLoading(false);
-  }, [callApi]);
+    void fetchProviders().then(applyProviders);
+  }, [fetchProviders, applyProviders]);
 
   const loadStatus = useCallback(async () => {
     setStatusLoading(true);
@@ -192,8 +218,8 @@ export default function ProvidersDemoPage() {
   }, [callApi]);
 
   useEffect(() => {
-    void loadProviders();
-  }, [loadProviders]);
+    void fetchProviders().then(applyProviders);
+  }, [fetchProviders, applyProviders]);
 
   const runVerify = useCallback(
     async (id: string) => {
@@ -249,7 +275,7 @@ export default function ProvidersDemoPage() {
         setRunState((prev) => ({ ...prev, [p.id]: { phase: "error", message: msg, ms } }));
       }
     },
-    [callApi, prompt]
+    [callApi, prompt, modelByProvider, effortByProvider]
   );
 
   const readyCount = useMemo(
@@ -269,7 +295,7 @@ export default function ProvidersDemoPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => void loadProviders()}
+              onClick={refreshProviders}
               disabled={providersLoading}
               className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-50"
             >

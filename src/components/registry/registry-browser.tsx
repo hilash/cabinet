@@ -523,9 +523,17 @@ function DetailView({
   onImported?: (template: RegistryTemplate, importedName: string) => void;
 }) {
   const { t } = useLocale();
-  const [detail, setDetail] = useState<RegistryDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Fetch result keyed by the slug it was fetched for; loading/error/detail
+  // are DERIVED so the effect never has to setState synchronously
+  // (react-hooks/set-state-in-effect). A stale slug simply reads as loading.
+  const [result, setResult] = useState<{
+    slug: string;
+    detail: RegistryDetail | null;
+    error: string | null;
+  } | null>(null);
+  const detail = result?.slug === slug ? result.detail : null;
+  const error = result?.slug === slug ? result.error : null;
+  const loading = result?.slug !== slug;
   const [importOpen, setImportOpen] = useState(false);
   const [importName, setImportName] = useState("");
   const [importing, setImporting] = useState(false);
@@ -537,19 +545,18 @@ function DetailView({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     fetch(`/api/registry/${slug}`)
       .then((r) => { if (!r.ok) throw new Error("Failed to load"); return r.json(); })
       .then((data: RegistryDetail) => {
         if (!cancelled) {
-          setDetail(data);
+          setResult({ slug, detail: data, error: null });
           setImportName(data.meta.name);
         }
       })
-      .catch((e: Error) => { if (!cancelled) setError(e.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .catch((e: Error) => {
+        if (!cancelled) setResult({ slug, detail: null, error: e.message });
+      });
 
     return () => { cancelled = true; };
   }, [slug]);

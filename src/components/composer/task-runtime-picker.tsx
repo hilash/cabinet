@@ -984,7 +984,7 @@ export function RuntimeMatrixPicker({
     return [...ready, ...unready];
   }, [providers, includeUnavailable]);
 
-  const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
+  const [pickedProviderId, setPickedProviderId] = useState<string | null>(null);
 
   const readyProviderIds = useMemo(
     () =>
@@ -996,21 +996,38 @@ export function RuntimeMatrixPicker({
     [selectableProviders]
   );
 
-  useEffect(() => {
+  // The default tab is DERIVED, not synced via an effect
+  // (react-hooks/set-state-in-effect): until the user explicitly picks a
+  // provider tab, follow the confirmed selection when it's ready, else the
+  // first ready provider — which also keeps the tab valid if the provider
+  // list changes underneath.
+  const defaultProviderId = useMemo(() => {
     const requested = resolveSelectedProvider(
       selectableProviders,
       value.providerId ?? undefined,
       undefined
     );
     if (requested && readyProviderIds.has(requested.id)) {
-      setActiveProviderId(requested.id);
-      return;
+      return requested.id;
     }
     const firstReady = selectableProviders.find((provider) =>
       readyProviderIds.has(provider.id)
     );
-    setActiveProviderId(firstReady?.id ?? requested?.id ?? null);
+    return firstReady?.id ?? requested?.id ?? null;
   }, [readyProviderIds, selectableProviders, value.providerId]);
+  const activeProviderId = pickedProviderId ?? defaultProviderId;
+
+  // Prop-driven selection: when the confirmed provider changes (e.g. the
+  // parent loads a saved default), drop the manual pick so the tab follows
+  // it — adjust state during render instead of in an effect, the pattern
+  // from react.dev/learn/you-might-not-need-an-effect.
+  const [prevValueProviderId, setPrevValueProviderId] = useState(
+    value.providerId ?? null
+  );
+  if ((value.providerId ?? null) !== prevValueProviderId) {
+    setPrevValueProviderId(value.providerId ?? null);
+    setPickedProviderId(null);
+  }
 
   const activeProviderIdValue = useMemo(() => {
     const explicit = resolveSelectedProvider(
@@ -1133,7 +1150,7 @@ export function RuntimeMatrixPicker({
       ) : (
         <Tabs
           value={activeProviderIdValue}
-          onValueChange={setActiveProviderId}
+          onValueChange={setPickedProviderId}
           className="gap-0"
         >
           <div className="overflow-hidden rounded-lg border border-border/70 bg-background">

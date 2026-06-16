@@ -21,15 +21,59 @@ const command = COMMANDS.includes(firstArg) ? firstArg : "init";
 const dirArg = COMMANDS.includes(firstArg) ? args[1] : firstArg;
 
 function resolveCabinetAI() {
-  // 1. Sibling install in our own node_modules (when create-cabinet was npm-installed)
-  const ownBin = path.join(__dirname, "node_modules", ".bin", "cabinetai");
-  if (fs.existsSync(ownBin)) return ownBin;
+  // Resolve cabinetai's real JS entrypoint (its package.json `bin`) so we can run
+  // it with `node` on every platform. The npm-generated `.bin/cabinetai` shim is a
+  // POSIX shell script on Windows; spawning it via `node` makes Node parse the shell
+  // script as JavaScript and crash with a SyntaxError (issue #81). Reading the
+  // package's own bin field sidesteps the shims entirely.
+  const packageDirs = [
+    // Sibling install in our own node_modules (create-cabinet was npm-installed)
+    path.join(__dirname, "node_modules", "cabinetai"),
+    // Hoisted install one level up
+    path.join(__dirname, "..", "cabinetai"),
+    path.join(__dirname, "..", "node_modules", "cabinetai"),
+  ];
 
-  // 2. Hoisted install one level up
-  const hoistedBin = path.join(__dirname, "..", "node_modules", ".bin", "cabinetai");
-  if (fs.existsSync(hoistedBin)) return hoistedBin;
+  for (const dir of packageDirs) {
+    const pkgPath = path.join(dir, "package.json");
+    if (!fs.existsSync(pkgPath)) continue;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+      const bin = pkg.bin;
+      const rel = typeof bin === "string" ? bin : bin && (bin.cabinetai || Object.values(bin)[0]);
+      if (!rel) continue;
+      const entry = path.join(dir, rel);
+      if (fs.existsSync(entry)) return entry;
+    } catch {
+      // Ignore a malformed package.json and try the next candidate.
+    }
+  }
 
   return null;
+}
+
+// Mirror of cabinetai's slugify (cabinetai/src/lib/paths.ts). `cabinetai create`
+// slugifies the name into the directory it writes (e.g. "My Startup" -> ./my-startup/),
+// so we must cd into the slug, not the raw argument, or `create-cabinet "My Startup"`
+// crashes with ENOENT on chdir. Kept in sync manually; resolveCreatedDir falls back
+// to the raw name if the slug isn't present on disk.
+function slugifyDir(name) {
+  return String(name)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function resolveCreatedDir(name) {
+  for (const candidate of [slugifyDir(name), name]) {
+    if (!candidate) continue;
+    const abs = path.resolve(process.cwd(), candidate);
+    if (fs.existsSync(abs)) return abs;
+  }
+  return path.resolve(process.cwd(), slugifyDir(name) || name);
 }
 
 function pinnedCabinetAIVersion() {
@@ -106,8 +150,10 @@ if (createStatus !== 0) {
   process.exit(createStatus);
 }
 
-// Step 2: Run Cabinet from the new directory
-const targetPath = path.resolve(process.cwd(), targetDir);
+// Step 2: Run Cabinet from the new directory. cabinetai create slugifies the
+// name into the directory it wrote, so resolve the actual created directory
+// rather than assuming it matches the raw argument.
+const targetPath = resolveCreatedDir(targetDir);
 process.chdir(targetPath);
 const runStatus = runCabinetAI(["run"]);
 process.exit(runStatus);

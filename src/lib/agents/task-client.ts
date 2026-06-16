@@ -66,38 +66,55 @@ export async function postTurn(
     runtime?: ConversationRuntimeOverride;
   },
   cabinetPath?: string
-): Promise<{ turn: Task["turns"][number]; task: Task }> {
+): Promise<{ turn: Task["turns"][number] | null; task: Task | null }> {
   // We only support user-role turns from the client; agent turns come
   // from the runner on the server side via SSE.
   if (input.role !== "user") {
     throw new Error(`postTurn only supports role=user, got ${input.role}`);
   }
   const runtime = input.runtime ?? {};
-  const res = await fetch(
-    `/api/agents/conversations/${encodeURIComponent(id)}/continue`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        userMessage: input.content,
-        cabinetPath,
-        mentionedPaths: input.mentionedPaths,
-        mentionedSkills: input.mentionedSkills,
-        attachmentPaths: input.attachmentPaths,
-        providerId: runtime.providerId,
-        adapterType: runtime.adapterType,
-        model: runtime.model,
-        effort: runtime.effort,
-        runtimeMode: runtime.runtimeMode,
-      }),
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/agents/conversations/${encodeURIComponent(id)}/continue`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          userMessage: input.content,
+          cabinetPath,
+          mentionedPaths: input.mentionedPaths,
+          mentionedSkills: input.mentionedSkills,
+          attachmentPaths: input.attachmentPaths,
+          providerId: runtime.providerId,
+          adapterType: runtime.adapterType,
+          model: runtime.model,
+          effort: runtime.effort,
+          runtimeMode: runtime.runtimeMode,
+        }),
+        // The endpoint replies 202 immediately (the run continues in the
+        // background), so a slow response means the server is gone or
+        // restarting — without a deadline the composer spinner hangs forever.
+        signal: AbortSignal.timeout(30_000),
+      }
+    );
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new Error(
+        "The server didn't accept the message within 30 seconds — it may be restarting. Your draft was kept; try again."
+      );
     }
-  );
+    throw err;
+  }
   await jsonOrThrow(res);
-  // Refetch the conversation to get the up-to-date view (optimistic updates
-  // arrive via SSE anyway; the return value here is the baseline).
-  const task = await fetchTask(id, cabinetPath);
-  const lastTurn = task.turns[task.turns.length - 1];
-  return { task, turn: lastTurn };
+  // The send is committed once the POST is accepted. A failed refetch must
+  // not surface as a send failure — return null and let SSE reconcile.
+  try {
+    const task = await fetchTask(id, cabinetPath);
+    return { task, turn: task.turns[task.turns.length - 1] ?? null };
+  } catch {
+    return { task: null, turn: null };
+  }
 }
 
 export async function patchTask(

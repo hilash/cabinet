@@ -41,6 +41,7 @@
     "data-old*",
     "old-data",
     "cabinetai",
-    "cli"
+    "cli",
+    "mcps"
   ]
 }

@@ -50,7 +50,7 @@ export function CabinetTaskComposer({
   onNavigate: (agentSlug: string, agentCabinetPath: string, conversationId: string) => void;
 }) {
   const { t } = useLocale();
-  const [selectedAgent, setSelectedAgent] = useState<CabinetAgentSummary | null>(null);
+  const [pickedAgent, setPickedAgent] = useState<CabinetAgentSummary | null>(null);
   const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [handoffMode, setHandoffMode] = useState<StartWorkMode>("recurring");
@@ -58,19 +58,30 @@ export function CabinetTaskComposer({
   const treeNodes = useTreeStore((state) => state.nodes);
   const pages = useMemo(() => flattenTree(treeNodes), [treeNodes]);
 
-  useEffect(() => {
-    if (agents.length === 0 || selectedAgent) return;
-    const firstAgent =
+  // The default selection is DERIVED, not synced via an effect
+  // (react-hooks/set-state-in-effect): until the user explicitly picks an
+  // agent, follow the best available one — which also keeps the selection
+  // valid if the agents list changes underneath.
+  const defaultAgent = useMemo(() => {
+    if (agents.length === 0) return null;
+    return (
       agents.find((agent) => agent.cabinetDepth === 0 && agent.active) ||
       agents.find((agent) => agent.active) ||
-      agents[0];
-    setSelectedAgent(firstAgent);
-  }, [agents, selectedAgent]);
+      agents[0]
+    );
+  }, [agents]);
+  const selectedAgent = pickedAgent ?? defaultAgent;
 
-  useEffect(() => {
-    if (!requestedAgent) return;
-    setSelectedAgent(requestedAgent);
-  }, [requestedAgent]);
+  // Prop-driven selection ("start a task with this agent"): adjust state
+  // during render instead of in an effect — the pattern from
+  // react.dev/learn/you-might-not-need-an-effect.
+  const [prevRequestedAgent, setPrevRequestedAgent] = useState(
+    requestedAgent ?? null
+  );
+  if ((requestedAgent ?? null) !== prevRequestedAgent) {
+    setPrevRequestedAgent(requestedAgent ?? null);
+    if (requestedAgent) setPickedAgent(requestedAgent);
+  }
 
   const greeting = getGreeting();
   const activeAgents = agents.filter((agent) => agent.active);
@@ -98,12 +109,12 @@ export function CabinetTaskComposer({
     [assignableAgents, skillItems, pages]
   );
 
-  const stagingClientUuid = useMemo(
-    () =>
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `c-${Date.now()}`,
-    []
+  // Lazy useState (not useMemo): the initializer runs once per mount, so
+  // the impure id generation never re-executes on re-render.
+  const [stagingClientUuid] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `c-${Date.now()}`
   );
   const attachmentsCabinetPath =
     selectedAgent?.cabinetPath || cabinetPath;
@@ -122,7 +133,7 @@ export function CabinetTaskComposer({
       const nextAgent =
         assignableAgents.find((agent) => agent.scopedId === item.id) || null;
       if (nextAgent) {
-        setSelectedAgent(nextAgent);
+        setPickedAgent(nextAgent);
       }
       return {
         replaceText: "",
@@ -207,7 +218,7 @@ export function CabinetTaskComposer({
             <AgentPickerCompact
               agents={assignableAgents}
               selected={selectedAgent}
-              onSelect={setSelectedAgent}
+              onSelect={setPickedAgent}
             />
             <TaskRuntimePicker
               value={taskRuntime}

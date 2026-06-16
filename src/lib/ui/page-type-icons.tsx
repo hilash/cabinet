@@ -108,3 +108,73 @@ export function artifactPathToTreePath(path: string): string {
   next = next.replace(/\.md$/, "");
   return next;
 }
+
+/**
+ * Resolve an agent-authored artifact path to the full, `data/`-rooted tree path
+ * the sidebar + `/room/<path>` URL scheme expect.
+ *
+ * Agents run with cwd `DATA_DIR/<cabinetPath>` (see conversation-runner's
+ * `baseCwd`), so the artifact paths they report are RELATIVE TO that cwd —
+ * e.g. `github/contributors.md` for a task whose `cabinetPath` is
+ * `hilas-home/cabinet-data/dev`. Tree nodes are rooted at `data/`, so the
+ * cwd-relative path must be re-rooted to
+ * `hilas-home/cabinet-data/dev/github/contributors` before it can address the
+ * tree. Without this the first segment is mistaken for a top-level room
+ * (`/room/github/...`) and the page 404s to a "create page" prompt.
+ *
+ * Idempotent and defensive:
+ *   - normalizes via {@link artifactPathToTreePath} (strips `data/`, `.md`, …)
+ *   - no-ops when `cabinetPath` is missing or the root cabinet (`.`)
+ *   - never double-prefixes a path that is already cabinet-rooted
+ *   - never prefixes an external (absolute-system) path — see
+ *     {@link isExternalArtifactPath}
+ */
+export function resolveArtifactTreePath(
+  path: string,
+  cabinetPath?: string | null
+): string {
+  const treePath = artifactPathToTreePath(path);
+  if (!treePath) return treePath;
+  // External (absolute-system) paths live outside DATA_DIR; the page API
+  // can't read them, so grafting a cabinet prefix on would just produce a
+  // bogus tree path. Callers should short-circuit navigation via
+  // isExternalArtifactPath; this is a backstop so resolution never lies.
+  if (isExternalArtifactPath(path)) return treePath;
+  const base = (cabinetPath ?? "").trim().replace(/^\/+|\/+$/g, "");
+  if (!base || base === ".") return treePath;
+  if (treePath === base || treePath.startsWith(`${base}/`)) return treePath;
+  return `${base}/${treePath}`;
+}
+
+/**
+ * True when an artifact path points outside the cabinet's DATA_DIR — i.e. it's
+ * an *absolute* filesystem path rather than a cabinet-relative one. Such paths
+ * (e.g. files an agent wrote to Claude Code's auto-memory at
+ * `/Users/.../.claude/projects/.../memory/`) can't be read through the page
+ * API, whose path-traversal guard refuses anything outside DATA_DIR — so
+ * callers should surface an "outside cabinet" message instead of letting the
+ * editor render blank.
+ *
+ * This tests the *logical* property "is this absolute?", not a denylist of
+ * system directory names. The forms that are unambiguously absolute:
+ *   - POSIX-absolute (`/…`), except the `/data` cabinet-root alias
+ *   - home-relative (`~/…`)
+ *   - Windows drive (`C:\…`, `C:/…`) or UNC (`\\host\share`)
+ * Anything else is cabinet-relative and therefore internal — even when its
+ * first segment happens to be a name like `var`, `lib`, or `dev` (which a
+ * denylist would wrongly flag, breaking a real in-cabinet folder).
+ */
+export function isExternalArtifactPath(path: string): boolean {
+  const p = path?.trim();
+  if (!p) return false;
+  // Home-relative and Windows drive / UNC paths are unambiguously absolute.
+  if (p.startsWith("~")) return true;
+  if (/^[a-zA-Z]:[\\/]/.test(p) || p.startsWith("\\\\")) return true;
+  // POSIX-absolute. `/data` (and `/data/…`) is the cabinet-root alias and is
+  // internal; any other absolute path points outside DATA_DIR.
+  if (p.startsWith("/")) {
+    const rooted = p.replace(/^\/+/, "");
+    return rooted !== "data" && !rooted.startsWith("data/");
+  }
+  return false;
+}

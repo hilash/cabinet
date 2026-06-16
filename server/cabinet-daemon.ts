@@ -22,6 +22,17 @@ ensureBetterSqlite3();
 import { loadCabinetEnv } from "../src/lib/runtime/cabinet-env";
 loadCabinetEnv();
 
+// Diagnostic logging: console capture + crash markers into
+// .cabinet-state/logs/daemon.log (docs/LOGGING_AND_FILE_HISTORY_PRD.md §3).
+import { initProcessLogging } from "../src/lib/log/logger";
+initProcessLogging("daemon");
+
+// Mark this process as the daemon itself. conversation-runner reads this to
+// route continued turns through the daemon's session machinery (addressable,
+// stoppable run ids) instead of the un-cancellable in-process path — the
+// Telegram gateway depends on that for /stop and partial streaming.
+process.env.CABINET_DAEMON_SELF = "1";
+
 import { WebSocketServer, WebSocket } from "ws";
 import path from "path";
 import http from "http";
@@ -46,7 +57,7 @@ import {
   agentAdapterRegistry,
   resolveLegacyExecutionProviderId,
 } from "../src/lib/agents/adapters";
-import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
+import { getRuntimePath } from "../src/lib/agents/provider-cli";
 import {
   appendConversationTranscript,
   cleanupStaleStagingAttachments,
@@ -61,6 +72,7 @@ import {
   getTokenFromAuthorizationHeader,
   isDaemonTokenValid,
 } from "../src/lib/agents/daemon-auth";
+import { authCookieHeader } from "../src/lib/auth/kb-auth";
 import {
   normalizeJobConfig,
   normalizeJobId,
@@ -79,6 +91,10 @@ import type { BaseSession, CompletedOutputEntry, PtySession } from "./pty/types"
 import { SearchIndex, buildPageRecord, walkDataDir } from "./search/index-builder";
 import { runSearch } from "./search/search-service";
 import { startWatcher } from "./search/watcher";
+import {
+  initTelegramGateway,
+  shutdownTelegramGateway,
+} from "./telegram/gateway";
 import { loadAgentDocs, loadTaskDocs } from "./search/index-agents-tasks";
 import type { SearchScope } from "./search/types";
 import {
@@ -320,14 +336,7 @@ console.log("Initializing Cabinet database...");
 getDb();
 console.log("Database ready.");
 
-const nvmBin = getNvmNodeBin();
-const enrichedPath = [
-  `${process.env.HOME}/.local/bin`,
-  "/usr/local/bin",
-  "/opt/homebrew/bin",
-  ...(nvmBin ? [nvmBin] : []),
-  process.env.PATH,
-].join(":");
+const enrichedPath = getRuntimePath();
 
 // ===== Session orchestration =====
 // PTY-specific types + lifecycle helpers live in server/pty/*. The daemon
@@ -1187,10 +1196,61 @@ const scheduledJobs = new Map<string, ReturnType<typeof cron.schedule>>();
 const scheduledHeartbeats = new Map<string, ReturnType<typeof cron.schedule>>();
 let scheduleReloadTimer: NodeJS.Timeout | null = null;
 
+// The app gates every /api/* route behind KB_PASSWORD (src/proxy.ts), deriving
+// the cookie from PBKDF2(password, CABINET_AUTH_SALT, CABINET_LOGIN_PBKDF2_ITERS)
+// via the shared kb-auth module. The daemon must derive the IDENTICAL value, so
+// all three inputs have to be visible in its process.env -- if any one drifts,
+// every trigger 401s. Next auto-loads `.env` for the app, but the daemon does
+// not, and the production `start:daemon` path bypasses scripts/dev-daemon.mjs
+// (which loads it in dev). CABINET_AUTH_SALT is normally already present via
+// loadCabinetEnv() at boot (it lives in .cabinet.env); the password and any
+// iteration override may exist only in `.env`. So backfill any of these auth
+// inputs not already set, from `.env` in the working dir (the same file the app
+// reads). Resolved once: like the app, changes take effect on the next restart.
+const AUTH_ENV_KEYS = [
+  "KB_PASSWORD",
+  "CABINET_AUTH_SALT",
+  "CABINET_LOGIN_PBKDF2_ITERS",
+] as const;
+let authEnvResolved = false;
+function ensureAuthEnvFromDotEnv(): void {
+  if (authEnvResolved) return;
+  authEnvResolved = true;
+  const missing: Set<string> = new Set(
+    AUTH_ENV_KEYS.filter((k) => !process.env[k]),
+  );
+  if (missing.size === 0) return; // all already set (dev path or real env)
+  try {
+    const envRaw = fs.readFileSync(path.join(process.cwd(), ".env"), "utf-8");
+    for (const line of envRaw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      if (!missing.has(key)) continue;
+      const value = trimmed
+        .slice(eq + 1)
+        .trim()
+        .replace(/^["']|["']$/g, "");
+      if (value) process.env[key] = value;
+    }
+  } catch {
+    // No .env / unreadable -- auth gate is presumably disabled.
+  }
+}
+
 async function putJson(url: string, body: Record<string, unknown>): Promise<void> {
+  // Attach the same `kb-auth` cookie a logged-in browser carries, so these
+  // server-to-server triggers pass the gate instead of silently 401ing. No-op
+  // when auth is disabled (authCookieHeader() returns {}).
+  ensureAuthEnvFromDotEnv();
   const response = await fetch(url, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authCookieHeader()),
+    },
     body: JSON.stringify(body),
   });
 
@@ -1219,34 +1279,39 @@ function scheduleJob(job: JobConfig): void {
   const task = cron.schedule(job.schedule, () => {
     const scheduledAt = new Date(Math.round(Date.now() / 60000) * 60000).toISOString();
     console.log(`Triggering scheduled job ${key} @ ${scheduledAt}`);
+    // Disable a one-shot after it has fired — on BOTH success and failure. A
+    // one-off cron (`m h dom mon *`) would otherwise re-match a year later; a
+    // failed run must not leave it armed for that rollover.
+    const disableIfOneShot = async () => {
+      if (!job.oneShot) return;
+      try {
+        await putJson(
+          `${getAppOrigin()}/api/agents/${job.agentSlug}/jobs/${job.id}`,
+          {
+            action: "update",
+            cabinetPath: job.cabinetPath,
+            enabled: false,
+          }
+        );
+      } catch (error) {
+        console.error(`Failed to disable one-shot job ${key}:`, error);
+      }
+      const existing = scheduledJobs.get(key);
+      if (existing) existing.stop();
+      scheduledJobs.delete(key);
+      console.log(`  One-shot job fired and disabled: ${key}`);
+    };
     void putJson(`${getAppOrigin()}/api/agents/${job.agentSlug}/jobs/${job.id}`, {
       action: "run",
       source: "scheduler",
       cabinetPath: job.cabinetPath,
       scheduledAt,
     })
-      .then(async () => {
-        if (job.oneShot) {
-          try {
-            await putJson(
-              `${getAppOrigin()}/api/agents/${job.agentSlug}/jobs/${job.id}`,
-              {
-                action: "update",
-                cabinetPath: job.cabinetPath,
-                enabled: false,
-              }
-            );
-          } catch (error) {
-            console.error(`Failed to disable one-shot job ${key}:`, error);
-          }
-          const existing = scheduledJobs.get(key);
-          if (existing) existing.stop();
-          scheduledJobs.delete(key);
-          console.log(`  One-shot job fired and disabled: ${key}`);
-        }
-      })
       .catch((error) => {
         console.error(`Failed to trigger scheduled job ${key}:`, error);
+      })
+      .finally(() => {
+        void disableIfOneShot();
       });
   });
 
@@ -1882,6 +1947,9 @@ const server = http.createServer(async (req, res) => {
       const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "", 10);
       const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 50;
       const cabinet = url.searchParams.get("cabinet") || undefined;
+      // Explicit, opt-in cross-room search (PRD §10.1). Absent ⇒ scoped to
+      // the room; runSearch fails closed when no room is resolved.
+      const includeOtherRooms = url.searchParams.get("includeOtherRooms") === "1";
 
       const needsAgents = scope === "all" || scope === "agents";
       const needsTasks = scope === "all" || scope === "tasks";
@@ -1901,7 +1969,8 @@ const server = http.createServer(async (req, res) => {
         q,
         scope,
         limit,
-        cabinet
+        cabinet,
+        includeOtherRooms
       );
 
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -2035,6 +2104,21 @@ server.listen(PORT, () => {
   void guardAgainstBigTree().then(() =>
     bootstrapSearchIndex().then(() => startSearchWatcher())
   );
+  // Telegram remote-control gateway (docs/TELEGRAM_REMOTE_CONTROL_PRD.md).
+  // No-op unless TELEGRAM_BOT_TOKEN + TELEGRAM_ALLOWED_USERS are set; watches
+  // .cabinet.env so connecting from the UI takes effect without a restart.
+  initTelegramGateway({
+    boundPort: PORT,
+    getSearchSources: async () => {
+      const [agents, tasks] = await Promise.all([loadAgentDocs(), loadTaskDocs()]);
+      return {
+        pages: searchIndex,
+        agents: () => agents,
+        tasks: () => tasks,
+        indexReady: () => searchIndexReady,
+      };
+    },
+  });
   void (async () => {
     try {
       const { loadExternalAdapters } = await import(
@@ -2068,6 +2152,7 @@ function shutdown(): void {
     } catch {}
   }
   void scheduleWatcher.close();
+  void shutdownTelegramGateway();
   closeDb();
   server.close();
   process.exit(0);

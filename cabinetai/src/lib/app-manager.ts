@@ -112,9 +112,24 @@ async function downloadAndExtract(version: string, appDir: string): Promise<void
     const bytes = Buffer.from(await response.arrayBuffer());
     fs.writeFileSync(archivePath, bytes);
 
-    // Extract
+    // Extract. Windows ships bsdtar at %SystemRoot%\System32\tar.exe, which handles
+    // `C:\…` paths and does NOT understand GNU's `--no-same-owner` (ownership is moot
+    // on Windows anyway). Invoking it explicitly also avoids a GNU `tar` earlier on
+    // PATH (Git Bash / MSYS / WSL) misreading the `C:\…` archive path as a remote
+    // `host:path` SSH spec and failing with "Cannot connect to C:".
     log("Extracting...");
-    spawnSync("tar", ["-xzf", archivePath, "-C", tempDir, "--no-same-owner"], { stdio: "inherit" });
+    const isWin = process.platform === "win32";
+    const winTar = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe");
+    const tarBin = isWin && fs.existsSync(winTar) ? winTar : "tar";
+    const tarArgs = isWin
+      ? ["-xf", archivePath, "-C", tempDir]
+      : ["-xzf", archivePath, "-C", tempDir, "--no-same-owner"];
+    const tarResult = spawnSync(tarBin, tarArgs, { stdio: "inherit" });
+    if (tarResult.error || tarResult.status !== 0) {
+      throw new Error(
+        `tar extraction failed: ${tarResult.error?.message ?? `exited with code ${tarResult.status}`}`
+      );
+    }
 
     // Find extracted root (GitHub tarballs have a single root dir like "cabinet-0.2.12/")
     const entries = fs

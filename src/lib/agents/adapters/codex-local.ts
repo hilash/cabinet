@@ -1,4 +1,4 @@
-import { codexCliProvider } from "../providers/codex-cli";
+import { applyBedrockModelPrefix, codexCliProvider } from "../providers/codex-cli";
 import { resolveCliCommand } from "../provider-cli";
 import { providerStatusToEnvironmentTest } from "./environment";
 import {
@@ -16,7 +16,7 @@ import {
 import { readStringConfig, readEffortConfig } from "./_shared/cli-args";
 import type { AdapterSessionCodec, AgentExecutionAdapter } from "./types";
 import type { ConversationErrorClassification } from "@/types/conversations";
-import { ADAPTER_RUNTIME_PATH, runChildProcess } from "./utils";
+import { getAdapterRuntimePath, runChildProcess } from "./utils";
 
 /**
  * Match codex's backend-rejection events for "this model isn't available on
@@ -98,7 +98,7 @@ function buildCodexArgs(config: Record<string, unknown>): string[] {
 
   const model = readStringConfig(config, "model");
   if (model) {
-    args.push("--model", model);
+    args.push("--model", applyBedrockModelPrefix(model));
   }
 
   const profile = readStringConfig(config, "profile");
@@ -167,7 +167,7 @@ export const codexLocalAdapter: AgentExecutionAdapter = {
       commandArgs: args,
       cwd: ctx.cwd,
       env: {
-        PATH: ADAPTER_RUNTIME_PATH,
+        PATH: getAdapterRuntimePath(),
       },
     });
 

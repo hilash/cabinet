@@ -1,7 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
 import yaml from "js-yaml";
+import simpleGit from "simple-git";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { fileExists } from "@/lib/storage/fs-operations";
 import { CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
 import { ROOT_CABINET_PATH, normalizeCabinetPath } from "@/lib/cabinets/paths";
 
@@ -122,6 +124,8 @@ export async function listRooms(): Promise<RoomMeta[]> {
 export interface HomeConfig {
   defaultRoom: string | null;
   lastActiveRoom: string | null;
+  /** Deepest valid path the user was on, restored on reopen (PRD §10.5). */
+  lastActivePath: string | null;
 }
 
 const HOME_CONFIG_PATH = path.join(DATA_DIR, ".home", "home.json");
@@ -138,9 +142,13 @@ export async function getHomeConfig(): Promise<HomeConfig> {
         typeof parsed.lastActiveRoom === "string"
           ? parsed.lastActiveRoom
           : null,
+      lastActivePath:
+        typeof parsed.lastActivePath === "string"
+          ? parsed.lastActivePath
+          : null,
     };
   } catch {
-    return { defaultRoom: null, lastActiveRoom: null };
+    return { defaultRoom: null, lastActiveRoom: null, lastActivePath: null };
   }
 }
 
@@ -169,6 +177,10 @@ async function patchHomeConfig(patch: Partial<HomeConfig>): Promise<void> {
   if (patch.lastActiveRoom !== undefined) {
     if (patch.lastActiveRoom === null) delete current.lastActiveRoom;
     else current.lastActiveRoom = patch.lastActiveRoom;
+  }
+  if (patch.lastActivePath !== undefined) {
+    if (patch.lastActivePath === null) delete current.lastActivePath;
+    else current.lastActivePath = patch.lastActivePath;
   }
   const tmp = `${HOME_CONFIG_PATH}.tmp-${process.pid}-${Date.now()}`;
   await fs.writeFile(tmp, JSON.stringify(current, null, 2), "utf-8");
@@ -213,6 +225,55 @@ export async function resolveDefaultRoom(): Promise<string | null> {
   }
 
   return resolved;
+}
+
+/**
+ * Record the user's current location for reopen (PRD §10.5). Persists both
+ * the full `lastActivePath` (deepest path) and its owning `lastActiveRoom`
+ * (first segment). No-ops for the home container and for a path whose room
+ * doesn't exist, so a stale client can't poison the config. Best-effort.
+ */
+export async function setLastActive(cabinetPath: string): Promise<void> {
+  const normalized =
+    normalizeCabinetPath(cabinetPath, true) || ROOT_CABINET_PATH;
+  if (normalized === ROOT_CABINET_PATH) return; // home has no content of its own
+  const room = normalized.split("/")[0];
+  const rooms = await listRooms();
+  if (!rooms.some((r) => r.path === room)) return; // unknown room — ignore
+  await patchHomeConfig({ lastActiveRoom: room, lastActivePath: normalized });
+}
+
+export interface ReopenTarget {
+  /** The room (first path segment) to land in. */
+  room: string;
+  /** The deepest path to restore; equals `room` when only a room is known. */
+  path: string;
+}
+
+/**
+ * Resolve where the app should reopen (PRD §10.5). Fallback chain:
+ * valid `lastActivePath` → valid `lastActiveRoom` → `defaultRoom`
+ * (self-healing) → first room. Returns null only when no rooms exist.
+ * "Valid" here means the path's owning room still exists; a missing deeper
+ * page degrades to the room root at load time, not an error.
+ */
+export async function resolveReopen(): Promise<ReopenTarget | null> {
+  const [rooms, home] = await Promise.all([listRooms(), getHomeConfig()]);
+  if (rooms.length === 0) return null;
+  const paths = new Set(rooms.map((r) => r.path));
+  const roomOf = (p: string | null): string | null =>
+    p ? p.split("/")[0] : null;
+
+  const lapRoom = roomOf(home.lastActivePath);
+  if (home.lastActivePath && lapRoom && paths.has(lapRoom)) {
+    return { room: lapRoom, path: home.lastActivePath };
+  }
+  if (home.lastActiveRoom && paths.has(home.lastActiveRoom)) {
+    return { room: home.lastActiveRoom, path: home.lastActiveRoom };
+  }
+  const def = await resolveDefaultRoom();
+  if (def) return { room: def.split("/")[0], path: def };
+  return { room: rooms[0].path, path: rooms[0].path };
 }
 
 function resolveRoomDir(normalizedPath: string): string {
@@ -364,15 +425,39 @@ export async function deleteRoom(cabinetPath: string): Promise<DeleteRoomResult>
 
   await fs.rename(dir, finalTarget);
 
-  // Repoint home.json if the deleted slug was the default or last-active.
+  // Repoint home.json if the deleted slug was the default / last-active /
+  // owner of the last-active path (§10.3 step 8, §10.5).
   const home = await getHomeConfig();
   const patch: Partial<HomeConfig> = {};
   const nextDefault = remaining[0].path;
   if (home.defaultRoom === normalized) patch.defaultRoom = nextDefault;
   if (home.lastActiveRoom === normalized) patch.lastActiveRoom = nextDefault;
+  const lapRoom = home.lastActivePath ? home.lastActivePath.split("/")[0] : null;
+  if (lapRoom === normalized) patch.lastActivePath = null;
   const homeConfigUpdated = Object.keys(patch).length > 0;
   if (homeConfigUpdated) {
     await patchHomeConfig(patch);
+  }
+
+  // Best-effort scoped git checkpoint of the deletion (§10.3): stage ONLY the
+  // moved room + its trash target + home config — never `git add .`, so
+  // unrelated dirty files are left alone. The soft-delete already moved the
+  // directory, so any git failure here is non-fatal (recoverable from .trash).
+  try {
+    if (await fileExists(path.join(DATA_DIR, ".git"))) {
+      const git = simpleGit(DATA_DIR);
+      await git.raw([
+        "add",
+        "--all",
+        "--",
+        normalized,
+        path.relative(DATA_DIR, finalTarget),
+        path.join(".home", "home.json"),
+      ]);
+      await git.commit(`delete room ${slug}`);
+    }
+  } catch {
+    // non-fatal — the room directory is already safely in .trash/
   }
 
   return {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Moon, Sun, Check, Palette } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
@@ -15,26 +15,37 @@ import {
   type ThemeDefinition,
 } from "@/lib/themes";
 
+// Stable no-op subscription: these useSyncExternalStore reads only need the
+// server-vs-client snapshot split, not change notifications.
+const emptySubscribe = () => () => {};
+
 export function ThemePicker() {
   const { t, dir } = useLocale();
   const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeCustomTheme, setActiveCustomTheme] = useState<string | null>(null);
+  // The active custom theme is DERIVED from localStorage — the same store
+  // ThemeInitializer already applied and the select handlers below write via
+  // storeThemeName — instead of synced through a mount effect
+  // (react-hooks/set-state-in-effect). The null server snapshot keeps
+  // hydration clean; the client corrects right after mount. Strings compare
+  // by value, so the snapshot is stable.
+  const activeCustomTheme = useSyncExternalStore(
+    emptySubscribe,
+    getStoredThemeName,
+    () => null
+  );
   // Anchor offsets measured from both viewport edges so we can pin the menu to
   // the inline-end edge of the trigger regardless of reading direction.
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    // Sync local state with whatever ThemeInitializer already applied
-    const stored = getStoredThemeName();
-    if (stored) {
-      setActiveCustomTheme(stored);
-    }
-  }, []);
+  // Hydration gate for the portal: false on the server/hydration render,
+  // true on every client render after mount.
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   // Close menu on click outside
   useEffect(() => {
@@ -77,7 +88,6 @@ export function ThemePicker() {
 
   const selectTheme = (themeDef: ThemeDefinition) => {
     applyTheme(themeDef);
-    setActiveCustomTheme(themeDef.name);
     storeThemeName(themeDef.name);
     setTheme(themeDef.type);
     setMenuOpen(false);
@@ -85,7 +95,6 @@ export function ThemePicker() {
 
   const selectDefault = (mode: "dark" | "light") => {
     applyTheme(null);
-    setActiveCustomTheme(null);
     storeThemeName(null);
     setTheme(mode);
     setMenuOpen(false);

@@ -1,24 +1,19 @@
-import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { buildPath } from "@/lib/navigation/route-scheme";
 
 /**
- * Multi-window support. A window's scope lives entirely in the URL hash
- * (see `useHashRoute`), so opening a room/cabinet in its own window is just
- * "open the app at this hash". In Electron we ask the main process to spawn a
- * real BrowserWindow; on the web we open a new browser window/tab.
+ * Multi-window support. A window's scope lives entirely in the URL path
+ * (clean-path routing, see `useRoute`), so opening a room/cabinet in its own
+ * window is just "open the app at this path". In Electron we ask the main
+ * process to spawn a real BrowserWindow; on the web we open a new tab.
  */
 
-/** Build the canonical hash for a room/cabinet path (root → #/home). */
-export function buildRoomHash(cabinetPath: string): string {
-  if (!cabinetPath || cabinetPath === ROOT_CABINET_PATH) return "#/home";
-  const encoded = cabinetPath
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-  return `#/cabinet/${encoded}`;
+/** Clean URL path for a room/cabinet (`/room/<path>`; root → `/`). */
+export function buildRoomPath(cabinetPath: string): string {
+  return buildPath({ type: "cabinet", cabinetPath: cabinetPath || undefined }, null);
 }
 
 interface CabinetDesktopApi {
-  openWindow?: (hash: string) => unknown;
+  openWindow?: (path: string) => unknown;
 }
 
 function desktopApi(): CabinetDesktopApi | undefined {
@@ -34,19 +29,18 @@ export function isDesktop(): boolean {
 
 /**
  * Open the given room/cabinet in a new window.
- * - Electron: spawns a native BrowserWindow at the same app URL + hash.
- * - Web: opens a new browser window/tab at the current origin + hash.
+ * - Electron: spawns a native BrowserWindow at the same app origin + path.
+ * - Web: opens a new browser window/tab at the current origin + path.
  */
 export function openRoomWindow(cabinetPath: string): void {
   if (typeof window === "undefined") return;
-  const hash = buildRoomHash(cabinetPath);
+  const path = buildRoomPath(cabinetPath);
 
   const desktop = desktopApi();
   if (desktop?.openWindow) {
-    desktop.openWindow(hash);
+    desktop.openWindow(path);
     return;
   }
 
-  const base = `${window.location.origin}${window.location.pathname}${window.location.search}`;
-  window.open(`${base}${hash}`, "_blank", "noopener");
+  window.open(`${window.location.origin}${path}`, "_blank", "noopener");
 }

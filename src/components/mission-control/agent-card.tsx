@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Pause, Play, Loader2, Inbox } from "lucide-react";
 import { GoalBar } from "./goal-bar";
@@ -47,6 +47,13 @@ function formatCountdown(dateStr: string): string {
 
 function StatusIndicator({ active, running, lastHeartbeat, nextHeartbeat, onToggle }: { active: boolean; running?: boolean; lastHeartbeat?: string; nextHeartbeat?: string; onToggle?: () => void }) {
   const { t } = useLocale();
+  // Current time as state so the Live / Next badges track real time on a
+  // 60s tick instead of calling Date.now() during render.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(tick);
+  }, []);
   if (running) {
     return (
       <span className="flex items-center gap-1 text-[10px] text-emerald-500">
@@ -76,7 +83,7 @@ function StatusIndicator({ active, running, lastHeartbeat, nextHeartbeat, onTogg
 
   // Active: check if recently ran (within last 30 min)
   if (lastHeartbeat) {
-    const diff = Date.now() - new Date(lastHeartbeat).getTime();
+    const diff = now - new Date(lastHeartbeat).getTime();
     if (diff < 30 * 60 * 1000) {
       return (
         <span
@@ -94,7 +101,7 @@ function StatusIndicator({ active, running, lastHeartbeat, nextHeartbeat, onTogg
   // Show next heartbeat countdown if available
   if (nextHeartbeat) {
     const nextTime = new Date(nextHeartbeat).getTime();
-    if (nextTime > Date.now()) {
+    if (nextTime > now) {
       return (
         <span
           className={cn("flex items-center gap-1 text-[10px] text-muted-foreground/60", onToggle && "hover:text-amber-500 cursor-pointer transition-colors")}

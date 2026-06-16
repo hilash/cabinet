@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { continueConversationRun } from "@/lib/agents/conversation-runner";
 import { readConversationMeta } from "@/lib/agents/conversation-store";
 import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
+import { listDaemonSessions } from "@/lib/agents/daemon-client";
+
+/**
+ * A conversation's live run may be keyed under the bare conversation id
+ * (turn 1 / terminal-mode continues) or `${id}::t{n}::{uuid}` (native
+ * structured continues) — same matching rule as the daemon's /stop. Returns
+ * false when the daemon is unreachable: a stale "running" meta (daemon
+ * restart, crash) must not permanently block follow-ups.
+ */
+async function hasLiveRun(conversationId: string): Promise<boolean> {
+  try {
+    const sessions = await listDaemonSessions();
+    const prefix = `${conversationId}::`;
+    return sessions.some(
+      (s) => !s.exited && (s.id === conversationId || s.id.startsWith(prefix))
+    );
+  } catch {
+    return false;
+  }
+}
 
 interface ContinueBody {
   userMessage?: string;
@@ -56,6 +76,21 @@ export async function POST(
     return NextResponse.json(
       { ok: false, error: "Conversation not found", errorKind: "unknown" },
       { status: 404 }
+    );
+  }
+
+  // One run at a time per conversation. Without this guard a follow-up sent
+  // while a turn is in flight spawns a second adapter process racing the
+  // first on the same transcript (and a single Stop then kills both).
+  if (existing.status === "running" && (await hasLiveRun(id))) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "The agent is still working on this task. Wait for the current turn to finish — or stop it — before sending another message.",
+        errorKind: "busy",
+      },
+      { status: 409 }
     );
   }
 

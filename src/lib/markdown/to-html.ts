@@ -5,6 +5,7 @@ import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 import { detectEmbed } from "@/lib/embeds/detect";
 import { slugifyPageName } from "@/lib/markdown/wiki-links";
+import { addHeadingIds } from "@/lib/markdown/heading-slug";
 
 /**
  * Pre-process markdown to convert [[Wiki Links]] to HTML anchors
@@ -115,6 +116,17 @@ function resolveRelativeUrls(html: string, pagePath: string): string {
     (_match, file: string) => `data-src="/api/assets/${dirPath}/${file}"`
   );
 
+  // Agents routinely write bare relative refs (`![x](image.jpg)`, no `./`).
+  // Rewrite those for src/data-src too — a relative media src can only mean a
+  // page asset. Skip schemes (https:, data:), absolute paths (incl. already
+  // rewritten /api/assets/…), protocol-relative URLs, anchors, and queries.
+  // href is deliberately NOT given this treatment: a bare relative href is
+  // usually a page-to-page link, not an asset.
+  html = html.replace(
+    /(?<![\w-])(src|data-src)="(?![a-z][a-z0-9+.-]*:)(?![/#?])([^"]+)"/gi,
+    (_match, attr: string, file: string) => `${attr}="/api/assets/${dirPath}/${file}"`
+  );
+
   // Mark PDF links with a data attribute so the editor can handle them
   html = html.replace(
     /<a([^>]*?)href="(\/api\/assets\/[^"]+\.pdf)"([^>]*?)>/gi,
@@ -152,6 +164,10 @@ export async function markdownToHtml(markdown: string, pagePath?: string): Promi
 
   // Heal <video src="youtube-url"> into real iframe embeds
   html = upgradeProviderVideos(html);
+
+  // Add heading ids so #section anchors work in previews/agent messages too
+  // (PRD §11), matching the editor's HeadingAnchors slug scheme.
+  html = addHeadingIds(html);
 
   // Resolve relative URLs if page path is provided
   if (pagePath) {

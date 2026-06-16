@@ -16,7 +16,7 @@ import { appendConversationCabinetPath } from "@/lib/agents/conversation-identit
 import { ConversationContentViewer } from "@/components/agents/conversation-content-viewer";
 import { SkillsOfferedFooter } from "@/components/skills/skills-offered-footer";
 import {
-  artifactPathToTreePath,
+  resolveArtifactTreePath,
   inferPageTypeFromPath,
   pageTypeColor,
   pageTypeIcon,
@@ -60,16 +60,16 @@ export function ConversationLiveView({
   const promptText = detail.request || detail.meta.title;
   const [promptHtml, setPromptHtml] = useState("");
   const artifactTreePaths = useMemo(
-    () => detail.artifacts.map((a) => artifactPathToTreePath(a.path)),
-    [detail.artifacts]
+    () => detail.artifacts.map((a) => resolveArtifactTreePath(a.path, detail.meta.cabinetPath)),
+    [detail.artifacts, detail.meta.cabinetPath]
   );
   const artifactMeta = usePageMeta(artifactTreePaths);
 
   useEffect(() => {
-    if (!promptText) {
-      setPromptHtml("");
-      return;
-    }
+    // Empty prompt: nothing to render. The JSX guards on promptText so any
+    // stale promptHtml is simply ignored — no need to setState here
+    // (react-hooks/set-state-in-effect forbids the synchronous clear).
+    if (!promptText) return;
 
     let cancelled = false;
     fetch("/api/ai/render-md", {
@@ -122,7 +122,7 @@ export function ConversationLiveView({
               <ExternalLink className="h-3 w-3" />
             </Button>
           </div>
-          {promptHtml ? (
+          {promptText && promptHtml ? (
             <div
               className="max-h-48 overflow-y-auto overflow-x-hidden prose prose-sm prose-invert max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-h1:text-base prose-h2:text-[13px] prose-h3:text-[12px] prose-p:text-[13px] prose-p:text-foreground/85 prose-li:text-[13px] prose-li:text-foreground/85 prose-a:text-foreground prose-code:text-[11px] prose-code:text-foreground prose-code:bg-background prose-code:px-1 prose-code:rounded prose-pre:bg-background prose-pre:border-0 prose-pre:text-foreground prose-strong:text-foreground"
               dangerouslySetInnerHTML={{ __html: promptHtml }}
@@ -179,7 +179,7 @@ export function ConversationLiveView({
             </div>
             <div className="space-y-2">
               {detail.artifacts.map((artifact) => {
-                const treePath = artifactPathToTreePath(artifact.path);
+                const treePath = resolveArtifactTreePath(artifact.path, detail.meta.cabinetPath);
                 const kind = artifactMeta.get(treePath)?.type ?? inferPageTypeFromPath(artifact.path);
                 const Icon = pageTypeIcon(kind);
                 const color = pageTypeColor(kind);

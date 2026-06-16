@@ -1295,6 +1295,9 @@ async function maybeResolveCompletedConversation(
     return meta;
   }
   const parsed = parseCabinetBlock(transcript, prompt);
+  const parsedArtifactsMissingFromMeta = parsed.artifactPaths.some(
+    (artifactPath) => !meta.artifactPaths.includes(artifactPath)
+  );
   const needsRepair =
     meta.status === "running" ||
     isPlaceholderCabinetValue(meta.summary) ||
@@ -1302,8 +1305,7 @@ async function maybeResolveCompletedConversation(
     meta.artifactPaths.some((artifactPath) => isPlaceholderCabinetValue(artifactPath)) ||
     (!!parsed.summary && parsed.summary !== meta.summary) ||
     (!!parsed.contextSummary && parsed.contextSummary !== meta.contextSummary) ||
-    (parsed.artifactPaths.length > 0 &&
-      parsed.artifactPaths.join("|") !== meta.artifactPaths.join("|"));
+    parsedArtifactsMissingFromMeta;
 
   if (!needsRepair) {
     return meta;
@@ -1477,10 +1479,23 @@ export async function finalizeConversation(
   if (parsed.contextSummary) {
     meta.contextSummary = parsed.contextSummary;
   }
+  // Drop placeholder artifact entries from the stored list before merging.
+  // `needsRepair` treats a placeholder in meta.artifactPaths as repair-required,
+  // and the merge below preserves existing entries — so without this filter a
+  // placeholder would survive finalize, keep `needsRepair` true, and re-trigger
+  // finalize on every read (the non-idempotency this PR exists to fix). Incoming
+  // parsed artifacts are already placeholder-free (parser rejects them), so the
+  // union ends up clean.
+  const sanitizedArtifactPaths = (meta.artifactPaths ?? []).filter(
+    (artifactPath) => !isPlaceholderCabinetValue(artifactPath)
+  );
   if (artifacts.length > 0) {
-    meta.artifactPaths = artifacts.map((artifact) => artifact.path);
-  } else if (!meta.artifactPaths) {
-    meta.artifactPaths = [];
+    meta.artifactPaths = mergeArtifactPaths(
+      sanitizedArtifactPaths,
+      artifacts.map((artifact) => artifact.path)
+    );
+  } else {
+    meta.artifactPaths = sanitizedArtifactPaths;
   }
 
   // First-turn tokens — G7. Only write when the caller provided a reading and
@@ -1527,19 +1542,29 @@ export async function finalizeConversation(
     }
   }
 
-  // Keep artifacts.json in sync with the value we actually committed to
-  // meta.artifactPaths above — if we preserved a prior stream-extracted
-  // list (because this finalize had no fresh artifacts), write that back
-  // instead of a blank array.
-  const artifactsToWrite =
-    artifacts.length > 0
-      ? artifacts
-      : (meta.artifactPaths ?? []).map((artifactPath) => ({ path: artifactPath }));
+  // Keep artifacts.json in sync with the exact (sanitized + merged) list we
+  // committed to meta.artifactPaths above — covers both fresh-artifact and
+  // preserved-prior-list finalizes, with placeholders already stripped.
+  const artifactsToWrite = meta.artifactPaths.map((artifactPath) => ({
+    path: artifactPath,
+  }));
   await Promise.all([
     writeConversationMeta(meta),
     replaceConversationArtifacts(id, artifactsToWrite, cp),
     sanitizeArtifactCabinetBlocks(meta.artifactPaths),
   ]);
+
+  // File-history capture (LOGGING_AND_FILE_HISTORY_PRD §4.3): at run end,
+  // observe what actually changed in the cabinet, commit it as the agent,
+  // and journal per-file events. Fire-and-forget — history capture must
+  // never fail or delay a finalize.
+  if (input.status === "completed" || input.status === "failed") {
+    void import("@/lib/history/agent-commit")
+      .then(({ commitAgentRun }) => commitAgentRun(meta))
+      .catch((err) => {
+        console.error(`[history] run capture failed for ${id}:`, err);
+      });
+  }
 
   // Broadcast a task.updated so every subscribed surface (task page, tasks
   // board, sidebar file tree) can refresh without waiting on an explicit
@@ -1681,7 +1706,13 @@ export async function listConversationMetas(
       return (
         await Promise.all(
           entries
-            .filter((entry) => entry.isDirectory)
+            // Skip reserved/internal dirs (e.g. `_pending`, the attachment
+            // staging area) — they aren't conversations. Without this they
+            // fall through to recoverConversationMeta() and surface as a
+            // phantom "Recovered task _pending" card that can't be deleted
+            // (DELETE 404s — there's no such conversation). Real conversation
+            // ids are timestamp-prefixed, so they never start with "_".
+            .filter((entry) => entry.isDirectory && !entry.name.startsWith("_"))
             .map(async (entry) => {
               const meta = await readConversationMeta(entry.name, cabinetPath);
               if (meta) return maybeResolveCompletedConversation(meta);

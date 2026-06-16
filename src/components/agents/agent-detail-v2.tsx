@@ -55,6 +55,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { buildPath } from "@/lib/navigation/route-scheme";
 import { showError } from "@/lib/ui/toast";
 import { confirmDialog } from "@/lib/ui/confirm";
 import {
@@ -75,7 +76,7 @@ import { useAppStore } from "@/stores/app-store";
 import { SkillAddDialog } from "@/components/skills/skill-add-dialog";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
-import { ScheduleCalendar } from "@/components/cabinets/schedule-calendar";
+import { ScheduleView } from "@/components/cabinets/schedule-view";
 import { NewRoutineDialog } from "@/components/agents/new-routine-dialog";
 import { HeartbeatDialog } from "@/components/agents/heartbeat-dialog";
 import { Switch } from "@/components/ui/switch";
@@ -103,6 +104,7 @@ import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
 import { useLocale } from "@/i18n/use-locale";
 import { DirIcon } from "@/components/ui/dir-icon";
+import { TelegramMark } from "@/components/integrations/telegram-mark";
 
 interface AgentJob {
   id: string;
@@ -110,6 +112,9 @@ interface AgentJob {
   enabled: boolean;
   schedule: string;
   prompt: string;
+  oneShot?: boolean;
+  runAfter?: string;
+  exceptions?: string[];
 }
 
 function formatRelative(iso?: string): string {
@@ -144,6 +149,8 @@ function triggerIcon(trigger: ConversationMeta["trigger"]) {
       return Briefcase;
     case "heartbeat":
       return Sparkles;
+    case "telegram":
+      return TelegramMark;
     default:
       return MessageSquare;
   }
@@ -155,6 +162,8 @@ function triggerLabel(trigger: ConversationMeta["trigger"]): string {
       return "Job";
     case "heartbeat":
       return "Heartbeat";
+    case "telegram":
+      return "Telegram";
     default:
       return "Chat";
   }
@@ -333,6 +342,9 @@ function jobToCabinetJob(job: AgentJob, persona: AgentPersona): CabinetJobSummar
     enabled: job.enabled,
     schedule: job.schedule,
     prompt: job.prompt,
+    oneShot: job.oneShot,
+    runAfter: job.runAfter,
+    exceptions: job.exceptions,
     ownerAgent: persona.slug,
     ownerScopedId: `${cabinetPath}::agent::${persona.slug}`,
     cabinetPath,
@@ -1001,12 +1013,12 @@ function Composer({
 
   const name = getAgentDisplayName(persona) || persona.name;
 
-  const stagingClientUuid = useMemo(
-    () =>
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `c-${Date.now()}`,
-    []
+  // Lazy useState (not useMemo): the initializer runs once per mount, so
+  // the impure id generation never re-executes on re-render.
+  const [stagingClientUuid] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `c-${Date.now()}`
   );
   const attachments = useComposerAttachments({
     cabinetPath: persona.cabinetPath,
@@ -1927,110 +1939,6 @@ function SkillsMultiSelect({
   );
 }
 
-/* ─── Schedule view (full calendar) ─── */
-function ScheduleView({
-  persona,
-  jobs,
-  conversations,
-  onEventClick,
-  onClose,
-}: {
-  persona: AgentPersona;
-  jobs: AgentJob[];
-  conversations: ConversationMeta[];
-  onEventClick: (c: ConversationMeta) => void;
-  onClose: () => void;
-}) {
-  const [mode, setMode] = useState<"day" | "week" | "month">("week");
-  const [anchor, setAnchor] = useState<Date>(() => new Date());
-
-  const cabinetAgent = useMemo(() => personaToCabinetAgent(persona), [persona]);
-  const cabinetJobs = useMemo(
-    () => jobs.map((j) => jobToCabinetJob(j, persona)),
-    [jobs, persona]
-  );
-
-  const shift = (dir: -1 | 1) => {
-    const d = new Date(anchor);
-    if (mode === "day") d.setDate(d.getDate() + dir);
-    else if (mode === "week") d.setDate(d.getDate() + dir * 7);
-    else d.setMonth(d.getMonth() + dir);
-    setAnchor(d);
-  };
-
-  return (
-    <div className="flex flex-col flex-1 min-h-0">
-      <div className="flex items-center justify-between px-6 py-3 border-b border-border/40">
-        <div className="flex items-center gap-1">
-          {(["day", "week", "month"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={cn(
-                "text-[12px] px-2.5 py-1 rounded capitalize",
-                mode === m
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-[12px]"
-            onClick={() => shift(-1)}
-          >
-            ←
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-[12px]"
-            onClick={() => setAnchor(new Date())}
-          >
-            Today
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-[12px]"
-            onClick={() => shift(1)}
-          >
-            →
-          </Button>
-        </div>
-      </div>
-      <div className="flex-1 min-h-0">
-        <ScheduleCalendar
-          mode={mode}
-          anchor={anchor}
-          agents={[cabinetAgent]}
-          jobs={cabinetJobs}
-          manualConversations={conversations}
-          onEventClick={(e) => {
-            if (e.sourceType === "manual" && e.conversationId) {
-              const c = conversations.find((x) => x.id === e.conversationId);
-              if (c) onEventClick(c);
-            }
-          }}
-          onDayClick={(d) => {
-            setMode("day");
-            setAnchor(d);
-          }}
-        />
-      </div>
-      {/* Inert reference to onClose for future ESC shortcut */}
-      <button type="button" className="sr-only" onClick={onClose}>
-        close schedule
-      </button>
-    </div>
-  );
-}
-
 /* ─── Persona editor (markdown viewer / editor, no section chrome) ─── */
 function PersonaEditor({
   persona,
@@ -2615,13 +2523,13 @@ export function AgentDetailV2({
   };
 
   const handleOpenPath = (path: string) => {
-    // Open the KB page in the main app shell using the canonical URL form
-    // (audit #121). Pages with no explicit cabinet context resolve under
-    // the root cabinet (`.`).
-    const cabinet = persona.cabinetPath || ".";
+    // Open the KB page in the main app shell via the clean-path URL (PRD §11):
+    // `/room/<page-path>`. The page path is root-relative (its first segment
+    // is the room), so it maps straight onto the content scheme.
     const cleanPath = path.replace(/^\/+/, "");
-    const hash = `#/cabinet/${encodeURIComponent(cabinet)}/data/${encodeURIComponent(cleanPath)}`;
-    window.location.assign(`/${hash}`);
+    window.location.assign(
+      buildPath({ type: "page", cabinetPath: persona.cabinetPath || undefined }, cleanPath)
+    );
   };
 
   const status = computeStatus(persona, conversations);
@@ -2646,11 +2554,23 @@ export function AgentDetailV2({
         </div>
         {scheduleOpen ? (
           <ScheduleView
-            persona={persona}
-            jobs={jobs}
+            fullBleed
+            showExplainer={false}
+            cabinetPath={persona.cabinetPath || cabinetPath || "."}
+            defaultAgentSlug={persona.slug}
+            agents={[personaToCabinetAgent(persona)]}
+            jobs={jobs.map((j) => jobToCabinetJob(j, persona))}
             conversations={conversations}
-            onEventClick={handleOpenConversation}
-            onClose={() => setScheduleOpen(false)}
+            onMutated={() => void refresh()}
+            onConversationClick={(id) => {
+              const c = conversations.find((x) => x.id === id);
+              if (c) handleOpenConversation(c);
+            }}
+            onJobClick={(job) => {
+              setRoutineEditJob(job as unknown as JobConfig);
+              setRoutineDialogOpen(true);
+            }}
+            onHeartbeatClick={() => setHeartbeatDialogOpen(true)}
           />
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto">

@@ -21,6 +21,7 @@ export type SectionType =
   | "task"
   | "settings"
   | "registry"
+  | "integrations"
   | "help";
 
 const CABINET_VISIBILITY_STORAGE_KEY = "cabinet.visibility.modes";
@@ -405,7 +406,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       canGoBack: nextIndex > 0,
       canGoForward: true,
     });
-    window.location.hash = navHistory[nextIndex];
+    // Clean-path routing: set the pathname and signal the router to re-apply.
+    window.history.replaceState(null, "", navHistory[nextIndex]);
+    window.dispatchEvent(new PopStateEvent("popstate"));
   },
 
   goForward: () => {
@@ -418,7 +421,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       canGoBack: true,
       canGoForward: nextIndex < navHistory.length - 1,
     });
-    window.location.hash = navHistory[nextIndex];
+    window.history.replaceState(null, "", navHistory[nextIndex]);
+    window.dispatchEvent(new PopStateEvent("popstate"));
   },
 
   toggleTerminal: () => {

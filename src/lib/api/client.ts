@@ -1,8 +1,30 @@
 import type { TreeNode, PageData, FrontMatter } from "@/types";
+import { normalizeVirtualPath } from "@/lib/virtual-paths";
 
-export async function fetchTree(showHidden = false): Promise<TreeNode[]> {
-  const url = showHidden ? "/api/tree?showHidden=1" : "/api/tree";
-  const res = await fetch(url, { cache: "no-store" });
+export function buildPageApiUrl(pagePath = ""): string {
+  const normalized = normalizeVirtualPath(pagePath);
+  if (!normalized) return "/api/pages";
+
+  const encodedPath = normalized
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+  return `/api/pages/${encodedPath}`;
+}
+
+export async function fetchTree(
+  showHidden = false,
+  fresh = false
+): Promise<TreeNode[]> {
+  const params = new URLSearchParams();
+  if (showHidden) params.set("showHidden", "1");
+  if (fresh) params.set("fresh", "1");
+  const qs = params.toString();
+  const res = await fetch(qs ? `/api/tree?${qs}` : "/api/tree", {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch tree");
   return res.json();
 }
@@ -15,7 +37,7 @@ export class FetchPageError extends Error {
 }
 
 export async function fetchPage(path: string): Promise<PageData> {
-  const res = await fetch(`/api/pages/${path}`);
+  const res = await fetch(buildPageApiUrl(path));
   if (!res.ok) {
     throw new FetchPageError(`Failed to fetch page: ${path}`, res.status);
   }
@@ -27,7 +49,7 @@ export async function savePage(
   content: string,
   frontmatter: Partial<FrontMatter>
 ): Promise<void> {
-  const res = await fetch(`/api/pages/${path}`, {
+  const res = await fetch(buildPageApiUrl(path), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content, frontmatter }),
@@ -39,7 +61,7 @@ export async function createPageApi(
   parentPath: string,
   title: string
 ): Promise<void> {
-  const res = await fetch(`/api/pages/${parentPath}`, {
+  const res = await fetch(buildPageApiUrl(parentPath), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title }),
@@ -48,7 +70,7 @@ export async function createPageApi(
 }
 
 export async function deletePageApi(path: string): Promise<void> {
-  const res = await fetch(`/api/pages/${path}`, { method: "DELETE" });
+  const res = await fetch(buildPageApiUrl(path), { method: "DELETE" });
   if (!res.ok) throw new Error(`Failed to delete page: ${path}`);
 }
 
@@ -57,7 +79,7 @@ export async function movePageApi(
   toParent: string,
   neighbors: { prevName?: string | null; nextName?: string | null } = {}
 ): Promise<string> {
-  const res = await fetch(`/api/pages/${fromPath}`, {
+  const res = await fetch(buildPageApiUrl(fromPath), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -98,7 +120,7 @@ export async function renamePageApi(
   fromPath: string,
   newName: string
 ): Promise<RenamePageResult> {
-  const res = await fetch(`/api/pages/${fromPath}`, {
+  const res = await fetch(buildPageApiUrl(fromPath), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ rename: newName }),

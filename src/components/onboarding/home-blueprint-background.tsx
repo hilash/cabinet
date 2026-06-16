@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId } from "react";
 import { useLocale } from "@/i18n/use-locale";
 
 interface HomeBlueprintBackgroundProps {
@@ -234,10 +234,9 @@ export function HomeBlueprintBackground({
   paper,
 }: HomeBlueprintBackgroundProps) {
   const { t } = useLocale();
-  const gridId = useMemo(
-    () => `bp-grid-${Math.random().toString(36).slice(2, 8)}`,
-    []
-  );
+  // useId is hydration-stable (unlike Math.random); strip characters like
+  // ":" that are not valid in SVG id references.
+  const gridId = `bp-grid-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
   return (
     <div className="bp-root pointer-events-none absolute inset-0 overflow-hidden">

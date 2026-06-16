@@ -2,6 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { proxy } from "@/proxy";
+import { authCookieHeader, deriveAuthToken, getAuthSalt } from "@/lib/auth/kb-auth";
+
+// Keep PBKDF2 cheap for tests — the shared module reads this at call time.
+process.env.CABINET_LOGIN_PBKDF2_ITERS = "1";
 
 function makeReq(pathname: string, cookies: Record<string, string> = {}) {
   const url = new URL(pathname, "http://localhost:4000");
@@ -11,15 +15,6 @@ function makeReq(pathname: string, cookies: Record<string, string> = {}) {
   return new NextRequest(url, {
     headers: cookieHeader ? { cookie: cookieHeader } : undefined,
   });
-}
-
-async function hashToken(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + "cabinet-salt");
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 test("proxy passes through every path when KB_PASSWORD is unset", async () => {
@@ -86,11 +81,40 @@ test("proxy admits authenticated requests when locked", async () => {
   const prev = process.env.KB_PASSWORD;
   process.env.KB_PASSWORD = "secret";
   try {
-    const token = await hashToken("secret");
+    const token = await deriveAuthToken("secret", getAuthSalt());
     const res = await proxy(makeReq("/some-page", { "kb-auth": token }));
     assert.equal(res.status, 200);
   } finally {
     if (prev !== undefined) process.env.KB_PASSWORD = prev;
     else delete process.env.KB_PASSWORD;
+  }
+});
+
+// End-to-end guard for the scheduler-daemon bug: the cookie the daemon attaches
+// (authCookieHeader) must satisfy the SAME gate (proxy) on an /api/* route, or
+// every scheduled job + heartbeat 401s silently once KB_PASSWORD is set. Both
+// sides derive from the shared kb-auth module; this pins them together through
+// the real proxy, across a non-default per-install salt.
+test("daemon's authCookieHeader passes the proxy gate on /api/* when locked", async () => {
+  const prev = {
+    pw: process.env.KB_PASSWORD,
+    salt: process.env.CABINET_AUTH_SALT,
+  };
+  process.env.KB_PASSWORD = "s3cret";
+  process.env.CABINET_AUTH_SALT = "feedface";
+  try {
+    const header = await authCookieHeader();
+    const eq = header.Cookie.indexOf("=");
+    const cookies = { [header.Cookie.slice(0, eq)]: header.Cookie.slice(eq + 1) };
+    const res = await proxy(makeReq("/api/pages", cookies));
+    assert.equal(res.status, 200, "gate must admit the daemon's cookie");
+  } finally {
+    for (const [k, v] of [
+      ["KB_PASSWORD", prev.pw],
+      ["CABINET_AUTH_SALT", prev.salt],
+    ] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   }
 });

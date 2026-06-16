@@ -24,6 +24,10 @@ const MESSAGES_DIR = path.join(AGENTS_DIR, ".messages");
 const HISTORY_DIR = path.join(AGENTS_DIR, ".history");
 // Global agents live alongside cabinet data, not inside any cabinet's
 // .agents dir. One persona, one memory, one heartbeat — shared across cabinets.
+// NOTE (PRD ROOMS_WORKSPACES §10.6): `.global-agents` is temporary technical
+// debt, not the desired product model. Keep it default-empty; do NOT build new
+// features on it without a replacement shared-agent design (permissions, UI
+// labelling, migration) — it bypasses the rooms isolation boundary.
 export const GLOBAL_AGENTS_DIR = path.join(DATA_DIR, ".global-agents");
 
 export type PersonaScope = "global" | "cabinet";

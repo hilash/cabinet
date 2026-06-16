@@ -127,6 +127,15 @@ function resolveManagedDataDir() {
 }
 
 const managedDataDir = resolveManagedDataDir();
+
+// Diagnostic logging: console capture + crash markers into
+// <dataDir>/.cabinet-state/logs/electron.log (LOGGING_AND_FILE_HISTORY_PRD §3).
+try {
+  require("./logger.cjs").initElectronLogging(managedDataDir);
+} catch (err) {
+  console.error("electron: initElectronLogging failed", err);
+}
+
 const updateStatusPath = path.join(managedDataDir, ".cabinet-state", "update-status.json");
 let mainWindow = null;
 let backendChildren = [];
@@ -144,6 +153,14 @@ function liveMainWindow() {
 /** Any live (non-destroyed) app window, or null. Multi-window aware. */
 function anyLiveWindow() {
   return BrowserWindow.getAllWindows().find((w) => !w.isDestroyed()) ?? null;
+}
+
+function getElectronInstallKind() {
+  return process.platform === "win32" ? "electron-windows" : "electron-macos";
+}
+
+function getBundledNodeBinaryName() {
+  return process.platform === "win32" ? "node.exe" : "node";
 }
 
 function writeUpdateStatus(status) {
@@ -245,7 +262,7 @@ function spawnNodeBackend(args, env) {
     ".next",
     "standalone",
     "bin",
-    "node"
+    getBundledNodeBinaryName()
   );
 
   if (fs.existsSync(bundledNodePath)) {
@@ -270,6 +287,10 @@ function packagedStandalonePath(...parts) {
  * can execute, and return the external node_modules path for NODE_PATH.
  */
 function extractNativeModules() {
+  if (process.platform !== "darwin") {
+    return packagedStandalonePath(".native");
+  }
+
   const externalModulesDir = path.join(app.getPath("userData"), "native-modules");
   const externalNodePty = path.join(externalModulesDir, "node-pty");
   const bundledNodePty = packagedStandalonePath(".native", "node-pty");
@@ -419,7 +440,7 @@ async function startEmbeddedCabinet() {
     NODE_ENV: "production",
     PORT: String(appPort),
     CABINET_RUNTIME: "electron",
-    CABINET_INSTALL_KIND: "electron-macos",
+    CABINET_INSTALL_KIND: getElectronInstallKind(),
     CABINET_DATA_DIR: managedDataDir,
     CABINET_USER_DATA: userDataDir,
     CABINET_APP_PORT: String(appPort),
@@ -460,7 +481,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "failed",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Electron update setup failed.",
       error: error instanceof Error ? error.message : String(error),
     });
@@ -470,7 +491,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "checking",
       startedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Checking for a newer Cabinet desktop release...",
     });
   });
@@ -479,7 +500,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "available",
       startedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "A new Cabinet desktop release is downloading in the background.",
     });
   });
@@ -488,7 +509,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "idle",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Cabinet desktop is up to date.",
     });
   });
@@ -497,7 +518,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "failed",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Cabinet desktop update failed.",
       error: error instanceof Error ? error.message : String(error),
     });
@@ -507,7 +528,7 @@ function configureAutoUpdates() {
     writeUpdateStatus({
       state: "restart-required",
       completedAt: new Date().toISOString(),
-      installKind: "electron-macos",
+      installKind: getElectronInstallKind(),
       message: "Restart Cabinet to finish applying the desktop update.",
     });
 
@@ -667,20 +688,22 @@ async function createWindow() {
 
 // Spawn an additional window scoped to a specific room/cabinet via its URL hash
 // (e.g. "#/cabinet/research"). Reuses the already-running backend.
-async function openRoomWindow(hash) {
-  const safeHash = typeof hash === "string" ? hash : "";
+async function openRoomWindow(suffix) {
+  // `suffix` is a clean URL path ("/room/<path>") under clean-path routing
+  // (PRD §11); it was a "#/..." hash before. Concatenation is identical.
+  const safeSuffix = typeof suffix === "string" ? suffix : "";
   if (!baseAppUrl) {
     await createWindow();
     return { ok: true };
   }
   const win = buildBrowserWindow();
-  attachDevReload(win, safeHash);
-  await win.loadURL(`${baseAppUrl}${safeHash}`);
+  attachDevReload(win, safeSuffix);
+  await win.loadURL(`${baseAppUrl}${safeSuffix}`);
   win.focus();
   return { ok: true };
 }
 
-ipcMain.handle("cabinet:open-window", (_event, hash) => openRoomWindow(hash));
+ipcMain.handle("cabinet:open-window", (_event, suffix) => openRoomWindow(suffix));
 
 app.on("window-all-closed", () => {
   cleanupBackends();

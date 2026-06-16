@@ -36,6 +36,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Code2,
+  FoldHorizontal,
+  UnfoldHorizontal,
 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -54,6 +56,10 @@ interface EditorToolbarProps {
   sourceMode: boolean;
   /** Toggle between the rich editor and the raw-markdown textarea. */
   onToggleSource: () => void;
+  /** Whether the page content stretches to the full viewport width. */
+  wideMode: boolean;
+  /** Toggle between the default reading width and full width. */
+  onToggleWide: () => void;
 }
 
 type Anchor = { top: number; left?: number; right?: number };
@@ -104,7 +110,7 @@ function ToolButton({ label, icon: Icon, active, disabled, style, onAction }: To
   );
 }
 
-export function EditorToolbar({ editor, sourceMode, onToggleSource }: EditorToolbarProps) {
+export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, onToggleWide }: EditorToolbarProps) {
   const { t, dir: uiDir } = useLocale();
   const isUiRtl = uiDir === "rtl";
   const frontmatter = useEditorStore((s) => s.frontmatter);
@@ -424,6 +430,14 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource }: EditorTool
             regardless of how far the formatting row is scrolled. */}
         <div className="shrink-0 flex items-center gap-1 ps-1 pe-2">
           <Separator orientation="vertical" className="h-6" />
+          {!sourceMode && (
+            <ToolButton
+              label={wideMode ? t("editor:toolbar.normalWidth") : t("editor:toolbar.wideMode")}
+              icon={wideMode ? FoldHorizontal : UnfoldHorizontal}
+              active={wideMode}
+              onAction={onToggleWide}
+            />
+          )}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}

@@ -10,10 +10,17 @@ export interface RoomMetaClient {
   isRoot: boolean;
 }
 
+export interface ReopenTargetClient {
+  room: string;
+  path: string;
+}
+
 interface RoomsState {
   rooms: RoomMetaClient[];
   /** Slug of the room to open on launch (from data/.home/home.json). */
   defaultRoom: string | null;
+  /** Where to reopen: deepest valid path + its room (PRD §10.5). */
+  reopen: ReopenTargetClient | null;
   loaded: boolean;
   loading: boolean;
   /** Fetch the room list. No-op if already loaded unless `force`. */
@@ -33,6 +40,7 @@ interface RoomsState {
 export const useRoomsStore = create<RoomsState>((set, get) => ({
   rooms: [],
   defaultRoom: null,
+  reopen: null,
   loaded: false,
   loading: false,
   load: async (force = false) => {
@@ -46,10 +54,12 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
       const data = (await res.json()) as {
         rooms?: RoomMetaClient[];
         defaultRoom?: string | null;
+        reopen?: ReopenTargetClient | null;
       };
       set({
         rooms: data.rooms ?? [],
         defaultRoom: data.defaultRoom ?? null,
+        reopen: data.reopen ?? null,
         loaded: true,
       });
     } catch {

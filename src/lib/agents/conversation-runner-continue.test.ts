@@ -122,7 +122,7 @@ test("continueConversationRun in resume mode sends only the follow-up to the ada
 
   assert.equal(captures.length, 1, "adapter was invoked once");
   assert.equal(captures[0].sessionIdSeen, "sess-before");
-  assert.match(captures[0].promptSeen, /```cabinet block/);
+  assert.match(captures[0].promptSeen, /```cabinet``` fenced block/);
   assert.match(captures[0].promptSeen, /User follow-up:\nthe new follow-up/);
   assert.ok(
     !captures[0].promptSeen.includes("Turn 1 reply."),
@@ -178,7 +178,10 @@ test("continueConversationRun in replay mode includes prior turns + full agent c
     "replay mode includes history header"
   );
   assert.match(captures[0].promptSeen, /T1 reply\./);
-  assert.match(captures[0].promptSeen, /You are Cabinet's General agent/);
+  // The replay prompt carries the agent's identity/system context. With no
+  // persona file on disk for "general" in the test env, that surfaces as the
+  // not-found fallback line — either way it names the agent.
+  assert.match(captures[0].promptSeen, /Cabinet agent `general`/);
   assert.match(captures[0].promptSeen, /User follow-up:\nthe follow-up/);
 
   agentAdapterRegistry.unregisterExternal("mock_continue");

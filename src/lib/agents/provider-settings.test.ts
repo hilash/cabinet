@@ -56,13 +56,20 @@ test("normalizeProviderSettings falls back to the first enabled provider when ne
       },
     },
     () => {
+      // Disable every OTHER registered provider so the only enabled one is our
+      // injected test provider. Deterministic regardless of which built-ins
+      // ship in the registry (e.g. gemini-cli) — the prior hard-coded
+      // [claude-code, codex-cli] list broke once more built-ins were added.
+      const others = [...providerRegistry.providers.keys()].filter(
+        (id) => id !== "test-only-provider"
+      );
       const settings = normalizeProviderSettings({
         defaultProvider: "missing-provider",
-        disabledProviderIds: ["claude-code", "codex-cli"],
+        disabledProviderIds: others,
       });
 
       assert.equal(settings.defaultProvider, "test-only-provider");
-      assert.deepEqual(settings.disabledProviderIds, ["claude-code", "codex-cli"]);
+      assert.deepEqual(settings.disabledProviderIds, others);
     }
   );
 

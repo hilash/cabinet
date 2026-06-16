@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Sparkles, X, ExternalLink } from "lucide-react";
 import { version as pkgVersion } from "../../../package.json";
 import { useLocale } from "@/i18n/use-locale";
@@ -69,37 +69,54 @@ function findReleaseFor(version: string): ReleaseEntry | null {
   return RELEASE_HIGHLIGHTS.find((r) => r.version === version) ?? null;
 }
 
+// localStorage is an external store: read it with useSyncExternalStore so
+// the server (and the hydration render) sees "nothing to show" and the
+// client corrects after mount — no setState-in-effect, no hydration
+// mismatch. The snapshot is reference-stable: either null or one of the
+// module-level RELEASE_HIGHLIGHTS entries.
+const emptySubscribe = () => () => {};
+
+function readPendingRelease(): ReleaseEntry | null {
+  let lastSeen: string | null = null;
+  try {
+    lastSeen = window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // Quota / private mode — fall through and show the card.
+  }
+  if (lastSeen === pkgVersion) return null; // Up to date.
+  return findReleaseFor(pkgVersion);
+}
+
 export function WhatsNewCard() {
   const { t } = useLocale();
-  const [show, setShow] = useState(false);
-  const [release, setRelease] = useState<ReleaseEntry | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const release = useSyncExternalStore(
+    emptySubscribe,
+    readPendingRelease,
+    () => null
+  );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (release) return;
+    // No bullets for the current version — silently advance the watermark
+    // so we don't show an empty card after every minor patch. Write-only
+    // effect: the card itself derives from useSyncExternalStore above.
     let lastSeen: string | null = null;
     try {
       lastSeen = window.localStorage.getItem(STORAGE_KEY);
     } catch {
-      // Quota / private mode — fall through and show the card.
+      // Quota / private mode — the write below would fail too.
     }
-    if (lastSeen === pkgVersion) return; // Up to date.
-    const entry = findReleaseFor(pkgVersion);
-    if (!entry) {
-      // No bullets for the current version — silently advance the watermark
-      // so we don't show an empty card after every minor patch.
-      try {
-        window.localStorage.setItem(STORAGE_KEY, pkgVersion);
-      } catch {
-        // Non-fatal.
-      }
-      return;
+    if (lastSeen === pkgVersion) return; // Watermark already current.
+    try {
+      window.localStorage.setItem(STORAGE_KEY, pkgVersion);
+    } catch {
+      // Non-fatal.
     }
-    setRelease(entry);
-    setShow(true);
-  }, []);
+  }, [release]);
 
   const dismiss = () => {
-    setShow(false);
+    setDismissed(true);
     try {
       window.localStorage.setItem(STORAGE_KEY, pkgVersion);
     } catch {
@@ -107,7 +124,7 @@ export function WhatsNewCard() {
     }
   };
 
-  if (!show || !release) return null;
+  if (dismissed || !release) return null;
 
   return (
     <div className="pointer-events-auto fixed end-4 bottom-12 z-40 w-[360px] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 shadow-2xl ring-1 ring-foreground/10">

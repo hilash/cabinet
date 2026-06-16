@@ -6,11 +6,13 @@ import { useAppStore, type SelectedSection } from "@/stores/app-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import {
-  artifactPathToTreePath,
+  resolveArtifactTreePath,
+  isExternalArtifactPath,
   inferPageTypeFromPath,
   pageTypeColor,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
+import { notifyExternalArtifact } from "@/lib/navigation/open-artifact-path";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { cn } from "@/lib/utils";
 import type { Turn } from "@/types/tasks";
@@ -30,9 +32,12 @@ function directory(p: string): string {
 export function ArtifactsList({
   turns,
   returnContext,
+  cabinetPath,
 }: {
   turns: Turn[];
   returnContext?: SelectedSection;
+  /** The task's working directory; artifact paths are relative to it. */
+  cabinetPath?: string;
 }) {
   const pushSection = useAppStore((s) => s.pushSection);
   const focusPath = useTreeStore((s) => s.focusPath);
@@ -49,7 +54,14 @@ export function ArtifactsList({
     return [...seen];
   }, [turns]);
 
-  const meta = usePageMeta(paths);
+  // Re-root each cwd-relative artifact path to its `data/`-rooted tree path so
+  // navigation lands on the real page and metadata/title lookups resolve.
+  const treePaths = useMemo(
+    () => paths.map((p) => resolveArtifactTreePath(p, cabinetPath)),
+    [paths, cabinetPath]
+  );
+
+  const meta = usePageMeta(treePaths);
 
   if (paths.length === 0) {
     return (
@@ -67,8 +79,9 @@ export function ArtifactsList({
           {paths.length}
         </span>
       </div>
-      {paths.map((path) => {
-        const entry = meta.get(path);
+      {paths.map((path, i) => {
+        const treePath = treePaths[i];
+        const entry = meta.get(treePath);
         const kind = entry?.type ?? inferPageTypeFromPath(path);
         const Icon = pageTypeIcon(kind);
         const color = pageTypeColor(kind);
@@ -79,7 +92,13 @@ export function ArtifactsList({
             key={path}
             type="button"
             onClick={() => {
-              const treePath = artifactPathToTreePath(path);
+              if (isExternalArtifactPath(path)) {
+                // Artifact lives outside DATA_DIR (e.g. an agent wrote to
+                // Claude Code's auto-memory dir). The page API would 404 and
+                // the editor would render blank — surface the path instead.
+                notifyExternalArtifact(path);
+                return;
+              }
               const from = returnContext ?? useAppStore.getState().section;
               focusPath(treePath);
               pushSection({ type: "page", cabinetPath: from.cabinetPath }, from);

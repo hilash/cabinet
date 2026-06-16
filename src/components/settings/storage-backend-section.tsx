@@ -312,7 +312,7 @@ export function StorageBackendSection() {
           </div>
           {repos && repos.length === 0 && (
             <p className="text-[12px] text-muted-foreground">
-              No repos accessible to this installation. Either add some to the App's repo selection on GitHub, or configure cabinet to create a new one (coming soon).
+              No repos accessible to this installation. Either add some to the App&apos;s repo selection on GitHub, or configure cabinet to create a new one (coming soon).
             </p>
           )}
           {repos && repos.length > 0 && (

@@ -21,6 +21,23 @@ export function cabinetPathFromFs(fsPath: string): string {
   return relativePath.replace(/\\/g, "/");
 }
 
+/**
+ * True iff `cabinetPath` is itself a cabinet (its directory carries a
+ * `.cabinet` manifest). Used by clean-path routing to decide whether
+ * `/room/<path>` is a cabinet overview or a content page (PRD §11). The home
+ * container (`.`) is not a content cabinet.
+ */
+export async function isCabinetPath(cabinetPath: string): Promise<boolean> {
+  const normalized = normalizeCabinetPath(cabinetPath, true) || ROOT_CABINET_PATH;
+  if (normalized === ROOT_CABINET_PATH) return false;
+  try {
+    const dir = resolveContentPath(normalized);
+    return await fileExists(path.join(dir, CABINET_MANIFEST_FILE));
+  } catch {
+    return false;
+  }
+}
+
 export async function findOwningCabinetPathForPage(pagePath: string): Promise<string> {
   const resolvedPagePath = resolveContentPath(pagePath);
   let cursor = resolvedPagePath;

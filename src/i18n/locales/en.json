@@ -1122,7 +1122,9 @@
       "scrollLeft": "Scroll toolbar left",
       "scrollRight": "Scroll toolbar right",
       "markdown": "Markdown",
-      "preview": "Preview"
+      "preview": "Preview",
+      "wideMode": "Wide mode",
+      "normalWidth": "Normal width"
     }
   },
   "home": {

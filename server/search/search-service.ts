@@ -134,19 +134,24 @@ export function runSearch(
   query: string,
   scope: SearchScope,
   limit = MAX_PAGES,
-  cabinet?: string
+  cabinet?: string,
+  includeOtherRooms = false
 ): SearchResponse {
   const t0 = Date.now();
   const trimmed = query.trim();
   const tokens = tokenize(trimmed);
   const fullLower = trimmed.toLowerCase();
 
-  // Rooms v3: scope every result to the active room's subtree so search never
-  // crosses room boundaries. A room's own nested cabinets share the prefix and
-  // stay visible; sibling rooms do not.
+  // Rooms v3 — fail closed (PRD §10.1): scope every result to the active
+  // room's subtree so search never crosses room boundaries. A room's own
+  // nested cabinets share the prefix and stay visible; sibling rooms do not.
+  // When no room is resolved and the caller did NOT explicitly opt into a
+  // cross-room search, return nothing rather than leaking every room's
+  // content — a forgotten `cabinet` param must never become a global search.
   const roomPrefix = cabinet && cabinet !== "." ? cabinet : null;
   const inRoom = (p: string | undefined): boolean => {
-    if (!roomPrefix) return true;
+    if (includeOtherRooms) return true; // explicit, labelled cross-room search
+    if (!roomPrefix) return false; // fail closed: no room ⇒ no results
     if (!p) return false;
     return p === roomPrefix || p.startsWith(roomPrefix + "/");
   };

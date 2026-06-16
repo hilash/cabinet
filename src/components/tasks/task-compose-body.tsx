@@ -113,13 +113,13 @@ export function TaskComposeBody({ context }: TaskComposeBodyProps) {
 
   // No cabinet context in this drawer — mirror the home composer and stage
   // attachments under the root cabinet's _pending/<uuid> dir until submit
-  // hands them to the new conversation.
-  const stagingClientUuid = useMemo(
-    () =>
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `c-${Date.now()}`,
-    []
+  // hands them to the new conversation. Lazy useState (not useMemo): the
+  // initializer runs once per mount, so the impure id generation never
+  // re-executes on re-render.
+  const [stagingClientUuid] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `c-${Date.now()}`
   );
   const attachments = useComposerAttachments({
     cabinetPath: undefined,

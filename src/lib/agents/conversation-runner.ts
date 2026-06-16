@@ -1748,7 +1748,11 @@ export async function continueConversationRun(
 
   const useDaemon =
     process.env.CABINET_TASK_RUNNER !== "inprocess" &&
-    !!process.env.NEXT_RUNTIME; // only when running inside Next.js server
+    // Next.js server, or the daemon itself (CABINET_DAEMON_SELF, set at daemon
+    // boot). The daemon routes its own continues through its session machinery
+    // so callers like the Telegram gateway get an addressable run id they can
+    // poll for partials and stop — runContinueInProcess has no abort hook.
+    (!!process.env.NEXT_RUNTIME || process.env.CABINET_DAEMON_SELF === "1");
 
   if (!useDaemon) {
     return await runContinueInProcess({
@@ -1863,10 +1867,21 @@ export async function continueConversationRun(
 
     // Fallback: session expired (Claude --resume failed). Retry in replay
     // mode with full history.
+    //
+    // Trust the daemon's classification first — the adapter-side
+    // classifyError already saw the raw stderr and returned the canonical
+    // ConversationErrorKind. The textual fallback (`result.errorMessage ||
+    // result.output`) is for adapters that don't populate
+    // adapterErrorKind, but it only matched if the keyword leaked into
+    // output/errorMessage, which for the daemon path it usually doesn't —
+    // executeViaDaemon synthesises errorMessage from `result.output`, so a
+    // session-expired stderr classified by the daemon would never trip the
+    // string check, leaving session.alive=true and re-failing every turn.
     if (
       canResume &&
       result.status === "failed" &&
-      isSessionExpiredError(result.errorMessage || result.output)
+      (result.adapterErrorKind === "session_expired" ||
+        isSessionExpiredError(result.errorMessage || result.output))
     ) {
       await writeSession(
         conversationId,

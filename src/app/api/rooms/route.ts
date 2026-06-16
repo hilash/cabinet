@@ -3,6 +3,7 @@ import {
   deleteRoom,
   listRooms,
   resolveDefaultRoom,
+  resolveReopen,
   updateRoomMeta,
 } from "@/lib/cabinets/rooms";
 
@@ -10,11 +11,12 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const [rooms, defaultRoom] = await Promise.all([
+    const [rooms, defaultRoom, reopen] = await Promise.all([
       listRooms(),
       resolveDefaultRoom(),
+      resolveReopen(),
     ]);
-    return NextResponse.json({ rooms, defaultRoom });
+    return NextResponse.json({ rooms, defaultRoom, reopen });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

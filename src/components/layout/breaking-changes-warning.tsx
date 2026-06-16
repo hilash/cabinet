@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Heart, Info } from "lucide-react";
 import {
   Dialog,
@@ -41,17 +41,39 @@ export function acknowledgeDisclaimer() {
   }
 }
 
+// Dev shortcut flag: ?disclaimer=1 forces the popup open regardless of ack
+// state. window.location is an external value, so read it with
+// useSyncExternalStore — the false server snapshot keeps hydration clean.
+const emptySubscribe = () => () => {};
+const readForcedOpen = () =>
+  new URLSearchParams(window.location.search).get("disclaimer") === "1";
+
 export function BreakingChangesWarning() {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [accepted, setAccepted] = useState(false);
 
+  // Open the dialog for the dev shortcut by adjusting state during render
+  // instead of in an effect (react-hooks/set-state-in-effect) — the pattern
+  // from react.dev/learn/you-might-not-need-an-effect. State (not derived)
+  // so acknowledging still closes the dialog.
+  const forcedOpen = useSyncExternalStore(
+    emptySubscribe,
+    readForcedOpen,
+    () => false
+  );
+  const [prevForcedOpen, setPrevForcedOpen] = useState(false);
+  if (forcedOpen !== prevForcedOpen) {
+    setPrevForcedOpen(forcedOpen);
+    if (forcedOpen) setOpen(true);
+  }
+
   useEffect(() => {
     let cancelled = false;
 
-    // Dev shortcut: ?disclaimer=1 forces the popup open regardless of ack state
+    // Dev shortcut: ?disclaimer=1 skips the ack checks entirely (the popup
+    // itself is opened by the render-phase adjustment above).
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("disclaimer") === "1") {
-      setOpen(true);
       return;
     }
 

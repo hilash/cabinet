@@ -233,8 +233,8 @@ function HeartbeatRow({
       </div>
       <span
         className={cn(
-          "whitespace-nowrap text-[11px] tabular-nums",
-          firing ? "text-muted-foreground" : "text-muted-foreground/60"
+          "whitespace-nowrap text-[11px] font-semibold tabular-nums",
+          firing ? "text-foreground" : "text-muted-foreground"
         )}
       >
         {schedule}

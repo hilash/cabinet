@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Archive, Folder, Home } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -70,16 +70,23 @@ export function MoveToDialog({ open, onOpenChange, source }: MoveToDialogProps) 
     });
   }, [allTargets, query]);
 
-  useEffect(() => {
+  // Reset search state when the dialog (re)opens, and reset the highlight
+  // when the query changes: adjust state during render instead of in an
+  // effect (react-hooks/set-state-in-effect) — the pattern from
+  // react.dev/learn/you-might-not-need-an-effect.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setQuery("");
       setSelectedIndex(0);
     }
-  }, [open]);
-
-  useEffect(() => {
+  }
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
     setSelectedIndex(0);
-  }, [query]);
+  }
 
   const handleSelect = async (target: Target) => {
     if (!source) return;

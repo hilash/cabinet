@@ -6,7 +6,8 @@ export async function GET(request: NextRequest) {
   try {
     await ensureDataDir();
     const showHidden = request.nextUrl.searchParams.get("showHidden") === "1";
-    const tree = await buildTree(showHidden);
+    const fresh = request.nextUrl.searchParams.get("fresh") === "1";
+    const tree = await buildTree(showHidden, fresh);
     return NextResponse.json(tree);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Terminal } from "lucide-react";
+import { AlertCircle, Terminal } from "lucide-react";
+import {
+  ErrorFeedbackDialog,
+  type ErrorFeedbackContext,
+} from "@/components/feedback/error-feedback-dialog";
 import { ComposerInput } from "@/components/composer/composer-input";
 import {
   TaskRuntimePicker,
@@ -84,6 +88,11 @@ export interface TaskComposerPanelProps {
   className?: string;
   disabled?: boolean;
   /**
+   * Why the last send failed (the draft is restored by the composer hook).
+   * Rendered as a banner above the input; null/undefined hides it.
+   */
+  sendError?: string | null;
+  /**
    * When provided, renders the WhenChip in the composer's top-right corner.
    * Called when the user picks a non-"now" mode (recurring or heartbeat) —
    * the current draft message is forwarded so the parent can open
@@ -117,11 +126,15 @@ export function TaskComposerPanel({
   autoLoadMentions = true,
   className,
   disabled,
+  sendError,
   onScheduleHandoff,
   agent,
   compact = false,
 }: TaskComposerPanelProps) {
   const { t } = useLocale();
+  // Error-feedback dialog (PRD §3.5), opened from the send-error banner.
+  const [feedbackContext, setFeedbackContext] =
+    useState<ErrorFeedbackContext | null>(null);
   // We don't seed with initialRuntime directly — that way, when the parent
   // re-renders with fresh meta (SSE → fetchTask), the displayed runtime
   // stays in sync until the user explicitly picks one. When they pick, that
@@ -249,13 +262,13 @@ export function TaskComposerPanel({
   // Continuation turns upload directly into the existing conversation's
   // attachments dir — no staging needed. When conversationId is missing
   // (shouldn't happen for this surface), fall back to a stable random id
-  // so the hook's staging path is well-formed.
-  const clientAttachmentId = useMemo(
-    () =>
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `c-${Date.now()}`,
-    []
+  // so the hook's staging path is well-formed. Lazy useState (not useMemo):
+  // the initializer runs once per mount, so the impure id generation never
+  // re-executes on re-render.
+  const [clientAttachmentId] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `c-${Date.now()}`
   );
   const attachments = useComposerAttachments({
     cabinetPath,
@@ -286,6 +299,27 @@ export function TaskComposerPanel({
           </span>
           Agent is waiting for your reply
         </div>
+      ) : null}
+
+      {sendError ? (
+        <div className="mb-2 flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-700 dark:text-red-400">
+          <AlertCircle className="size-3 mt-[2px] shrink-0" />
+          <span className="flex-1">{sendError}</span>
+          <button
+            type="button"
+            className="shrink-0 underline decoration-red-500/50 underline-offset-2 hover:decoration-red-500"
+            onClick={() => setFeedbackContext({ errorMessage: sendError, errorScope: "composer", conversationId })}
+          >
+            Feedback
+          </button>
+        </div>
+      ) : null}
+
+      {feedbackContext ? (
+        <ErrorFeedbackDialog
+          context={feedbackContext}
+          onClose={() => setFeedbackContext(null)}
+        />
       ) : null}
 
       {effectiveRuntime.runtimeMode === "terminal" ? (

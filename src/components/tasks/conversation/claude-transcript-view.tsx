@@ -70,14 +70,23 @@ export function ClaudeTranscriptView({
   statusKey?: string;
 }) {
   const { t } = useLocale();
-  const [data, setData] = useState<ClaudeTranscriptResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Fetch result keyed by the request it answered; loading/error are
+  // DERIVED so the effect never has to setState synchronously
+  // (react-hooks/set-state-in-effect). `data` deliberately survives a key
+  // change so a refetch (e.g. status flip) keeps showing the old transcript
+  // instead of flashing the spinner.
+  const requestKey = `${taskId}\u0000${cabinetPath ?? ""}\u0000${statusKey ?? ""}`;
+  const [result, setResult] = useState<{
+    key: string;
+    data: ClaudeTranscriptResponse | null;
+    error: string | null;
+  } | null>(null);
+  const data = result?.data ?? null;
+  const error = result?.key === requestKey ? result.error : null;
+  const loading = result?.key !== requestKey;
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     const qs = new URLSearchParams();
     if (cabinetPath) qs.set("cabinetPath", cabinetPath);
     const query = qs.toString();
@@ -92,18 +101,21 @@ export function ClaudeTranscriptView({
         if (!res.ok) {
           throw new Error(body.error || `HTTP ${res.status}`);
         }
-        if (!cancelled) setData(body);
+        if (!cancelled) setResult({ key: requestKey, data: body, error: null });
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setResult((prev) => ({
+            key: requestKey,
+            data: prev?.data ?? null,
+            error: err.message,
+          }));
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [taskId, cabinetPath, statusKey]);
+  }, [requestKey, taskId, cabinetPath]);
 
   if (loading && !data) {
     return (

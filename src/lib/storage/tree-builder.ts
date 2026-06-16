@@ -321,7 +321,16 @@ export function invalidateTreeCache() {
   treeCache.invalidate();
 }
 
-export async function buildTree(showHidden = false): Promise<TreeNode[]> {
+export async function buildTree(
+  showHidden = false,
+  fresh = false
+): Promise<TreeNode[]> {
+  // Agents write files straight to disk (their PTY/CLI never hits the
+  // create/move/rename routes that call invalidateTreeCache), so a refresh
+  // fired right after a task finishes would otherwise serve the pre-write
+  // snapshot until the 5s TTL lapses. `fresh` busts the cache so newly
+  // created pages/folders appear immediately.
+  if (fresh) treeCache.invalidate();
   return treeCache.get(showHidden ? "1" : "0", () => buildTreeUncached(showHidden));
 }
 

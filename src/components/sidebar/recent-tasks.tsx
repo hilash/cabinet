@@ -7,14 +7,18 @@ import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
 import {
-  artifactPathToTreePath,
+  resolveArtifactTreePath,
+  isExternalArtifactPath,
   inferPageTypeFromPath,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
+import { notifyExternalArtifact } from "@/lib/navigation/open-artifact-path";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
+import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
+import { TelegramMark } from "@/components/integrations/telegram-mark";
 import type { ConversationMeta } from "@/types/conversations";
 import type { TaskMeta } from "@/types/tasks";
 import { useLocale } from "@/i18n/use-locale";
@@ -144,7 +148,6 @@ export function RecentTasks({
 
     // Auto-refresh via the global conversation SSE. Debounce so a burst of
     // messages (common during a run) collapses into one reload instead of N.
-    const es = new EventSource("/api/agents/conversations/events");
     let reloadTimer: number | null = null;
     const scheduleReload = () => {
       if (reloadTimer !== null) return;
@@ -153,9 +156,9 @@ export function RecentTasks({
         void loadTasks();
       }, 200);
     };
-    es.onmessage = (msg) => {
+    const unsubscribe = subscribeConversationEvents((data) => {
       try {
-        const event = JSON.parse(msg.data) as { type: string; taskId?: string };
+        const event = JSON.parse(data) as { type: string; taskId?: string };
         if (event.type === "ping") return;
         if (event.type === "task.deleted" && event.taskId) {
           setTasks((prev) =>
@@ -166,7 +169,7 @@ export function RecentTasks({
       } catch {
         // ignore
       }
-    };
+    });
 
     // Tick once a minute so "fresh done" green dots fade back to muted without
     // waiting for the next SSE event.
@@ -174,7 +177,7 @@ export function RecentTasks({
 
     return () => {
       cancelled = true;
-      es.close();
+      unsubscribe();
       if (reloadTimer !== null) window.clearTimeout(reloadTimer);
       clearInterval(tick);
     };
@@ -182,11 +185,15 @@ export function RecentTasks({
 
   // Reset visibility when the user changes cabinet — they're switching
   // contexts and probably want to see the fresh top-of-list, not their
-  // "Show older" expansion from the previous cabinet.
-  useEffect(() => {
+  // "Show older" expansion from the previous cabinet. Adjust state during
+  // render instead of in an effect (react-hooks/set-state-in-effect) — the
+  // pattern from react.dev/learn/you-might-not-need-an-effect.
+  const [prevCabinetPath, setPrevCabinetPath] = useState(cabinetPath);
+  if (cabinetPath !== prevCabinetPath) {
+    setPrevCabinetPath(cabinetPath);
     setVisibleCount(INITIAL_VISIBLE);
     setFetchLimit(INITIAL_VISIBLE + PAGE_STEP);
-  }, [cabinetPath]);
+  }
 
   const agentColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -318,6 +325,9 @@ export function RecentTasks({
                     style={dotStyle}
                   />
                 </span>
+                {task.trigger === "telegram" && (
+                  <TelegramMark className="size-3 shrink-0" />
+                )}
                 <span className="truncate">{task.title}</span>
                 {isLegacyAdapterType(task.adapterType) && (
                   <Terminal
@@ -376,7 +386,14 @@ export function RecentTasks({
                       key={path}
                       type="button"
                       onClick={() => {
-                        const treePath = artifactPathToTreePath(path);
+                        if (isExternalArtifactPath(path)) {
+                          notifyExternalArtifact(path);
+                          return;
+                        }
+                        const treePath = resolveArtifactTreePath(
+                          path,
+                          task.cabinetPath
+                        );
                         focusPath(treePath);
                         setSection({
                           type: "page",

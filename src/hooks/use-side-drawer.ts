@@ -79,19 +79,21 @@ export function useSideDrawer({
   const [expanded, setExpanded] = useState(false);
   const [resizing, setResizing] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) setPresent(true);
-  }, [isOpen]);
+  // Adjust during render (react.dev/learn/you-might-not-need-an-effect)
+  // instead of syncing via effects (react-hooks/set-state-in-effect):
+  // opening mounts the panel in the same pass — still at width 0, the
+  // expand only happens in the rAF below — and closing drops the width
+  // target so the collapse tween starts immediately. The exit unmount
+  // stays deferred to onWrapperTransitionEnd.
+  if (isOpen && !present) setPresent(true);
+  if (!isOpen && expanded) setExpanded(false);
 
   useEffect(() => {
-    if (!present) return;
-    if (isOpen) {
-      // Expand on the next frame so the 0 -> width transition runs
-      // instead of the element mounting already at full width.
-      const raf = requestAnimationFrame(() => setExpanded(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    setExpanded(false);
+    if (!present || !isOpen) return;
+    // Expand on the next frame so the 0 -> width transition runs
+    // instead of the element mounting already at full width.
+    const raf = requestAnimationFrame(() => setExpanded(true));
+    return () => cancelAnimationFrame(raf);
   }, [present, isOpen]);
 
   useEffect(() => {

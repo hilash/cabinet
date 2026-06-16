@@ -1,5 +1,6 @@
 "use client";
 
+import { createElement } from "react";
 import { cn } from "@/lib/utils";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
@@ -47,7 +48,7 @@ export function AgentPill({
     );
   }
 
-  const Icon = resolveAgentIcon(agent?.slug ?? slug, agent?.iconKey ?? null);
+  const icon = resolveAgentIcon(agent?.slug ?? slug, agent?.iconKey ?? null);
   return (
     <span
       className={cn(
@@ -57,7 +58,7 @@ export function AgentPill({
       )}
       style={{ backgroundColor: tint.bg, color: tint.text, opacity: 0.75 }}
     >
-      <Icon className={size === "md" ? "size-3" : "size-2.5"} />
+      {createElement(icon, { className: size === "md" ? "size-3" : "size-2.5" })}
       {label}
     </span>
   );

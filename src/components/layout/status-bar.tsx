@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, HelpCircle, AlertTriangle, XCircle, CircleDot, Loader2, Terminal, PanelRight, Heart } from "lucide-react";
+import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, HelpCircle, AlertTriangle, XCircle, CircleDot, Loader2, Terminal, PanelRight, Heart, History as HistoryIcon } from "lucide-react";
+import { ActivityFeed } from "@/components/history/activity-feed";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -17,6 +18,7 @@ import { useTaskRail } from "@/components/tasks/rail/task-rail-context";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { useLocale } from "@/i18n/use-locale";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import type { TFunction } from "i18next";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
@@ -237,6 +239,7 @@ export function StatusBar() {
   const [commitError, setCommitError] = useState<string | null>(null);
   const [uncommittedTruncated, setUncommittedTruncated] = useState(false);
   const [showUncommittedPopup, setShowUncommittedPopup] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
   const [showCommunityPopup, setShowCommunityPopup] = useState(false);
   const [pullStatus, setPullStatus] = useState<"idle" | "pulling" | "pulled" | "up-to-date" | "error">("idle");
   const [pulling, setPulling] = useState(false);
@@ -365,30 +368,12 @@ export function StatusBar() {
     return () => window.clearTimeout(initialPull);
   }, [pullAndRefresh]);
 
-  // Poll git status
-  useEffect(() => {
-    const initialFetch = window.setTimeout(() => {
-      void fetchGitStatus();
-    }, 0);
-    const interval = setInterval(fetchGitStatus, 15000);
-    // Audit #058: refresh on tab focus so a banner stuck at "1 uncommitted"
-    // updates the moment the user comes back. The 15s interval still
-    // catches background changes between focus events.
-    const onFocus = () => {
-      void fetchGitStatus();
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") void fetchGitStatus();
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.clearTimeout(initialFetch);
-      clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
+  // Poll git status. Audit #058: refresh on tab focus so a banner stuck
+  // at "1 uncommitted" updates the moment the user comes back.
+  // useVisibleInterval pauses the 15s tick while the tab is hidden and
+  // also fires once on visibility change, replacing the manual focus +
+  // visibilitychange listeners that used to live here.
+  useVisibleInterval(fetchGitStatus, 15000);
 
   useEffect(() => {
     void fetchStars();
@@ -773,6 +758,18 @@ export function StatusBar() {
             {t("status:update2.updateAvailable", { version: update.latest.version })}
           </button>
         )}
+        {/* Activity: per-room file-history feed (who touched what). */}
+        <button
+          type="button"
+          onClick={() => setShowActivity(true)}
+          title="File activity in this room (who changed what)"
+          aria-label="Open file activity"
+          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <HistoryIcon className="h-3 w-3" />
+          Activity
+        </button>
+        {showActivity ? <ActivityFeed onClose={() => setShowActivity(false)} /> : null}
         {/* Audit #015: clickable so users can see *what* is uncommitted
             (file list popover) instead of guessing what the count refers
             to. The dropdown is read-only — committing still goes through

@@ -5,6 +5,7 @@ import { Search, X, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
+import { useAppStore } from "@/stores/app-store";
 import { useLocale } from "@/i18n/use-locale";
 import type { PageHit, SearchResponse } from "@/stores/search-store";
 
@@ -20,6 +21,11 @@ export function SidebarSearch({ children }: { children: ReactNode }) {
   const { t } = useLocale();
   const focusPath = useTreeStore((s) => s.focusPath);
   const loadPage = useEditorStore((s) => s.loadPage);
+  // Scope the search to the active room (PRD §10.1) — the first segment of
+  // the section's cabinet path. The server also fails closed if this is
+  // empty, but passing it keeps the common case correct and explicit.
+  const sectionCabinetPath = useAppStore((s) => s.section.cabinetPath);
+  const activeRoom = (sectionCabinetPath || "").split("/")[0];
 
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<PageHit[]>([]);
@@ -49,6 +55,7 @@ export function SidebarSearch({ children }: { children: ReactNode }) {
         scope: "pages",
         limit: String(RESULT_LIMIT),
       });
+      if (activeRoom) params.set("cabinet", activeRoom);
       fetch(`/api/search?${params}`, { signal: controller.signal })
         .then(async (res) => {
           if (!res.ok) throw new Error(`Search failed (${res.status})`);
@@ -71,7 +78,7 @@ export function SidebarSearch({ children }: { children: ReactNode }) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [trimmed]);
+  }, [trimmed, activeRoom]);
 
   const clear = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

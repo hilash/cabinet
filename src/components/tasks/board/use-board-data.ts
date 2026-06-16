@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
+import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
 import type { ConversationMeta } from "@/types/conversations";
 import type { TaskMeta } from "@/types/tasks";
 import type { CabinetOverview, CabinetAgentSummary, CabinetJobSummary, CabinetVisibilityMode } from "@/types/cabinets";
@@ -138,11 +139,10 @@ export function useBoardData({ cabinetPath, visibilityMode = "own" }: Options): 
         if (mountedRef.current) setLoading(false);
       });
 
-    const es = new EventSource("/api/agents/conversations/events");
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    es.onmessage = (msg) => {
+    const unsubscribe = subscribeConversationEvents((data) => {
       try {
-        const event = JSON.parse(msg.data) as {
+        const event = JSON.parse(data) as {
           type?: string;
           taskId?: string;
         };
@@ -159,7 +159,7 @@ export function useBoardData({ cabinetPath, visibilityMode = "own" }: Options): 
       } catch {
         // ignore malformed events
       }
-    };
+    });
 
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
@@ -169,7 +169,7 @@ export function useBoardData({ cabinetPath, visibilityMode = "own" }: Options): 
     return () => {
       mountedRef.current = false;
       if (debounceTimer) clearTimeout(debounceTimer);
-      es.close();
+      unsubscribe();
       window.removeEventListener("focus", onFocus);
       clearInterval(tick);
     };
