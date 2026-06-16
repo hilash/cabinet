@@ -19,6 +19,7 @@ import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
 import { detectEmbed } from "@/lib/embeds/detect";
 import { stripImportsAndWrappers } from "@/lib/mdx/live-code-strip";
+import { openUrlInAppropriateContext } from "@/lib/runtime/open-url";
 import { cellAround, isInTable } from "@tiptap/pm/tables";
 import type { TreeNode } from "@/types";
 import { useLocale } from "@/i18n/use-locale";
@@ -269,7 +270,9 @@ export function KBEditor() {
           if (/^https?:\/\//.test(href) || href.startsWith("//")) {
             event.preventDefault();
             event.stopPropagation();
-            useAppStore.getState().setAppMode("browse", href);
+            openUrlInAppropriateContext(href, (url) =>
+              useAppStore.getState().setAppMode("browse", url)
+            );
             return true;
           }
           if (href.startsWith("mailto:") || href.startsWith("tel:")) return false;
