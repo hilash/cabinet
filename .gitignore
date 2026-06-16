@@ -73,5 +73,9 @@ cabinetai/node_modules/
 skills-lock.json
 
 # installed skills bundles (per-machine; managed by Settings -> Skills)
-.agents/skills/
+# Use the cascade pattern to allow repo-shipped bundles (cabinet-root origin)
 .agents/skills-stats.json
+.agents/skills/*
+!.agents/skills/testing-and-reviewing
+.agents/skills/testing-and-reviewing/*
+!.agents/skills/testing-and-reviewing/SKILL.md
