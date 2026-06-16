@@ -1,4 +1,6 @@
 export interface FrontMatter {
+  /** Free-form classification (Obsidian-style). Defaults to "Untyped". */
+  type: string;
   title: string;
   created: string;
   modified: string;
@@ -7,6 +9,8 @@ export interface FrontMatter {
   order?: number;
   dir?: "ltr" | "rtl";
   google?: GoogleFrontmatter;
+  /** Arbitrary user-defined frontmatter properties (Obsidian-style). */
+  [key: string]: unknown;
 }
 
 export interface GoogleFrontmatter {

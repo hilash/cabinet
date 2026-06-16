@@ -17,6 +17,16 @@ const turndown = new TurndownService({
 // Add GFM support (tables, strikethrough, task lists)
 turndown.use(gfm);
 
+// Drop the DocumentProperties panel — frontmatter is owned by the editor store
+// and serialized into the YAML block by page-io, so it must never leak into the
+// markdown body.
+turndown.addRule("documentProperties", {
+  filter: (node) =>
+    node.nodeName === "DIV" &&
+    (node as HTMLElement).getAttribute("data-document-properties") === "true",
+  replacement: () => "",
+});
+
 // Serialize live code blocks back to ```jsx live fenced blocks.
 // Must be registered BEFORE the generic codeBlock rule so it matches first.
 turndown.addRule("liveCodeBlock", {

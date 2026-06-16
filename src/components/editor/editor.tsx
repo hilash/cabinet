@@ -17,11 +17,16 @@ import { useTreeStore } from "@/stores/tree-store";
 import { findNodeByPath } from "@/lib/cabinets/tree";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
+import { buildDocumentPropertiesHtml } from "./extensions/document-properties";
+import {
+  stringifyFrontmatter,
+  parseFrontmatter,
+} from "@/lib/markdown/frontmatter-text";
 import { detectEmbed } from "@/lib/embeds/detect";
 import { stripImportsAndWrappers } from "@/lib/mdx/live-code-strip";
 import { openUrlInAppropriateContext } from "@/lib/runtime/open-url";
 import { cellAround, isInTable } from "@tiptap/pm/tables";
-import type { TreeNode } from "@/types";
+import type { TreeNode, FrontMatter } from "@/types";
 import { useLocale } from "@/i18n/use-locale";
 
 async function uploadFile(pagePath: string, file: File): Promise<string | null> {
@@ -429,7 +434,13 @@ export function KBEditor() {
         // assetBase (parent dir for standalone .md pages) resolves relative
         // image refs; currentPath is only correct for directory pages.
         const html = await markdownToHtml(content, assetBase ?? currentPath);
-        editor.commands.setContent(html);
+        // Prepend the Obsidian-style properties panel, built from the store's
+        // parsed frontmatter, as a node at the very top of the document. The
+        // body markdown itself never carries frontmatter (gray-matter split it
+        // out on load; to-markdown strips this node back out on save).
+        const fm = useEditorStore.getState().frontmatter;
+        const propsHtml = fm ? buildDocumentPropertiesHtml(fm) : "";
+        editor.commands.setContent(propsHtml + (html || "<p></p>"));
         setRendered({ key, path: currentPath });
         // Surface a known-bad state instead of silently rendering blank: the
         // store has content but ProseMirror parsed it down to nothing —
@@ -465,7 +476,11 @@ export function KBEditor() {
   useEffect(() => {
     if (!sourceMode) return;
     if (useEditorStore.getState().isDirty) return;
-    setSourceText((prev) => (prev === content ? prev : content));
+    const next = stringifyFrontmatter(
+      useEditorStore.getState().frontmatter,
+      content
+    );
+    setSourceText((prev) => (prev === next ? prev : next));
   }, [sourceMode, content, currentPath]);
 
   // Section anchors (PRD §11): scroll to `#heading` on load and on hashchange.
@@ -577,16 +592,25 @@ export function KBEditor() {
 
   const toggleSourceMode = async () => {
     if (!sourceMode) {
-      // Switching TO source mode — grab current markdown
-      setSourceText(useEditorStore.getState().content);
+      // Switching TO source mode — show the file as it lives on disk: the
+      // YAML frontmatter block followed by the markdown body.
+      const { frontmatter, content } = useEditorStore.getState();
+      setSourceText(stringifyFrontmatter(frontmatter, content));
       setSourceMode(true);
     } else {
-      // Switching FROM source mode — apply changes
-      useEditorStore.getState().updateContent(sourceText);
+      // Switching FROM source mode — split frontmatter back out of the source,
+      // push both halves into the store, and re-render with the properties
+      // panel prepended so it survives the round-trip.
+      const { frontmatter: parsed, body } = parseFrontmatter(sourceText);
+      const store = useEditorStore.getState();
+      if (parsed) store.setFrontmatter(parsed as FrontMatter);
+      store.updateContent(body);
       if (editor) {
         isLoadingRef.current = true;
-        const html = await markdownToHtml(sourceText, assetBase ?? currentPath ?? undefined);
-        editor.commands.setContent(html);
+        const html = await markdownToHtml(body, assetBase ?? currentPath ?? undefined);
+        const fm = useEditorStore.getState().frontmatter;
+        const propsHtml = fm ? buildDocumentPropertiesHtml(fm) : "";
+        editor.commands.setContent(propsHtml + (html || "<p></p>"));
         setTimeout(() => { isLoadingRef.current = false; }, 50);
       }
       setSourceMode(false);

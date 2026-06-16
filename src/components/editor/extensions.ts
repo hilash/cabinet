@@ -35,6 +35,7 @@ import { IconExtension } from "./extensions/icon-extension";
 import { HeadingAnchors } from "./extensions/heading-anchors";
 import { AutoDirection } from "./extensions/auto-direction";
 import { FindExtension } from "./extensions/find";
+import { DocumentProperties } from "./extensions/document-properties";
 import { EditorMentionExtension } from "./mention-extension";
 
 // Curated language set: covers ~95% of real-world snippets. The full `common`
@@ -58,6 +59,7 @@ const lowlight = createLowlight({
 });
 
 export const editorExtensions = [
+  DocumentProperties,
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
     codeBlock: false, // replaced by CodeBlockLowlight

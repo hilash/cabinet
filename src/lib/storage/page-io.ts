@@ -29,7 +29,7 @@ import { slugifyPageName } from "@/lib/markdown/wiki-links";
 
 function defaultFrontmatter(title: string): FrontMatter {
   const now = new Date().toISOString();
-  return { title, created: now, modified: now, tags: [] };
+  return { type: "Untyped", title, created: now, modified: now, tags: [] };
 }
 
 type ResolvedPageEntry = {
@@ -162,6 +162,10 @@ export async function readPage(virtualPath: string): Promise<PageData> {
       assetBase: isDirectoryPage ? virtualPath : parentDir,
       content: content.trim(),
       frontmatter: {
+        // Preserve any user-defined (arbitrary) frontmatter keys, then apply
+        // defaults for the reserved fields Cabinet relies on.
+        ...data,
+        type: data.type || "Untyped",
         title: data.title || path.basename(virtualPath, ".md"),
         created: data.created || new Date().toISOString(),
         modified: data.modified || new Date().toISOString(),
@@ -170,7 +174,7 @@ export async function readPage(virtualPath: string): Promise<PageData> {
         order: data.order,
         dir: data.dir,
         google: data.google,
-      },
+      } as FrontMatter,
     };
   }
 
@@ -187,6 +191,7 @@ export async function readPage(virtualPath: string): Promise<PageData> {
         (meta.description as string) ||
         "This folder is linked from an external directory.",
       frontmatter: {
+        type: "Untyped",
         title: (meta.title as string) || path.basename(virtualPath),
         created: (meta.created as string) || new Date().toISOString(),
         modified: (meta.created as string) || new Date().toISOString(),
