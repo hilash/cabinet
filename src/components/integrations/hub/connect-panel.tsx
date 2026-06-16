@@ -136,7 +136,10 @@ export function ConnectPanel({
       const connected = new Set(entry?.connectedProviderIds ?? []);
       if (connected.size > 0) {
         setTargets(connected);
-        setShowMore(true);
+        // Only auto-expand the "other environments" list when more than one is
+        // connected; otherwise it needlessly lengthens the panel and pushes the
+        // primary action button below the fold.
+        setShowMore(connected.size > 1);
       } else {
         const primary = pickPrimary(
           supported,

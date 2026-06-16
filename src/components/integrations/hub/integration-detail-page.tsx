@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowLeft, Check, Sparkles, ShieldCheck, Bell, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -156,7 +156,13 @@ export function IntegrationDetailPage({
             />
           ) : null}
 
-          {entry ? <TrustNote /> : null}
+          {entry ? (
+            <TrustNote
+              variant={
+                isM365 ? (m365Personal ? "m365-personal" : "m365-work") : "generic"
+              }
+            />
+          ) : null}
         </div>
 
         {/* Right: config / status panel */}
@@ -227,16 +233,63 @@ function TierBadge({ tier }: { tier: string }) {
  * Friendly, non-scary reassurance up front; the MCP/CLI/`.cabinet.env` detail
  * lives behind a "For developers" disclosure for the people who want it.
  */
-function TrustNote() {
+type TrustVariant = "generic" | "m365-personal" | "m365-work";
+
+const ENV_CODE = (
+  <code className="rounded bg-foreground/[0.06] px-1 py-0.5 text-[11px]">.cabinet.env</code>
+);
+
+const TRUST_COPY: Record<TrustVariant, { title: string; body: string; dev: ReactNode }> = {
+  generic: {
+    title: "Your token stays on this device",
+    body: "Cabinet saves it locally on your computer and never uploads it anywhere.",
+    dev: (
+      <>
+        Cabinet registers this as an MCP server in your agent CLI&apos;s config. The
+        secret is stored in {ENV_CODE} (file perms 0600) and injected into the agent
+        process at spawn — never written into the config file itself.
+      </>
+    ),
+  },
+  "m365-personal": {
+    title: "Your sign-in stays on this device",
+    body: "Personal accounts store nothing in Cabinet — your Microsoft token is cached on this computer by the connector and never uploaded.",
+    dev: (
+      <>
+        Cabinet registers this as an MCP server in your agent CLI&apos;s config. Sign-in
+        uses Microsoft device-code; the access/refresh token is cached by{" "}
+        <code className="rounded bg-foreground/[0.06] px-1 py-0.5 text-[11px]">
+          ms-365-mcp-server
+        </code>{" "}
+        in your OS credential store (keychain), with a local 0600 file fallback —
+        Cabinet never handles the token itself.
+      </>
+    ),
+  },
+  "m365-work": {
+    title: "Your credentials stay on this device",
+    body: "Cabinet saves your Entra app credentials locally on your computer and never uploads them.",
+    dev: (
+      <>
+        Your app credentials are stored in {ENV_CODE} (file perms 0600) and injected
+        into the agent at spawn — never written into the CLI config. The runtime
+        Microsoft token is cached by the connector in your OS keychain.
+      </>
+    ),
+  },
+};
+
+function TrustNote({ variant = "generic" }: { variant?: TrustVariant }) {
   const [open, setOpen] = useState(false);
+  const copy = TRUST_COPY[variant];
   return (
     <div className="mt-8 rounded-xl border border-border bg-card/50 p-4">
       <div className="flex items-center gap-2 text-[13px] font-medium text-foreground">
         <ShieldCheck className="h-4 w-4 text-emerald-500" />
-        Your token stays on this device
+        {copy.title}
       </div>
       <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-        Cabinet saves it locally on your computer and never uploads it anywhere.
+        {copy.body}
       </p>
       <button
         type="button"
@@ -248,11 +301,7 @@ function TrustNote() {
       </button>
       {open && (
         <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-          Cabinet registers this as an MCP server in your agent CLI&apos;s config. The
-          secret is stored in{" "}
-          <code className="rounded bg-foreground/[0.06] px-1 py-0.5 text-[11px]">.cabinet.env</code>{" "}
-          (file perms 0600) and injected into the agent process at spawn — never
-          written into the config file itself.
+          {copy.dev}
         </p>
       )}
     </div>
