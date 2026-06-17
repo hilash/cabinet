@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import { NextResponse } from "next/server";
+import { isElectronRuntime } from "@/lib/runtime/runtime-config";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,15 @@ function getPickerCommand(): { command: string; args: string[] } {
 }
 
 export async function POST() {
+  // Native folder picker (osascript/PowerShell/zenity) is Electron-desktop
+  // only; there is no GUI on a server/web deployment.
+  if (!isElectronRuntime()) {
+    return NextResponse.json(
+      { ok: false, disabled: true, reason: "The folder picker is only available in the Cabinet desktop app." },
+      { status: 200 }
+    );
+  }
+
   try {
     const { command, args } = getPickerCommand();
 

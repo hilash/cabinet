@@ -3,6 +3,7 @@
 import { File, FolderOpen, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ViewerToolbar } from "@/components/layout/viewer-toolbar";
+import { isDesktop } from "@/lib/cabinets/room-window";
 
 interface FileFallbackViewerProps {
   path: string;
@@ -39,15 +40,17 @@ export function FileFallbackViewer({ path }: FileFallbackViewerProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={revealInFinder}
-            >
-              <FolderOpen className="h-4 w-4" />
-              Open in Finder
-            </Button>
+            {isDesktop() && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={revealInFinder}
+              >
+                <FolderOpen className="h-4 w-4" />
+                Open in Finder
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

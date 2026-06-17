@@ -4,6 +4,7 @@ import { Download, FolderOpen, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ViewerToolbar } from "@/components/layout/viewer-toolbar";
 import { useLocale } from "@/i18n/use-locale";
+import { isDesktop } from "@/lib/cabinets/room-window";
 
 interface OfficeChromeProps {
   path: string;
@@ -45,7 +46,7 @@ export function OfficeChrome({ path, extLabel, external, hideFinder }: OfficeChr
           {external.label}
         </a>
       )}
-      {!hideFinder && (
+      {!hideFinder && isDesktop() && (
         <Button
           variant="outline"
           size="sm"

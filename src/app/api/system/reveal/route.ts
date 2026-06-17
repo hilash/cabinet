@@ -3,6 +3,7 @@ import { spawn } from "child_process";
 import path from "path";
 import { resolveContentPath } from "@/lib/storage/path-utils";
 import { fileExists } from "@/lib/storage/fs-operations";
+import { isElectronRuntime } from "@/lib/runtime/runtime-config";
 
 // Reveal a file in the OS file manager, selecting it where the platform supports
 // it. Uses spawn() with an argv array (no shell) so filenames can't be interpreted
@@ -22,6 +23,14 @@ function getRevealCommand(target: string): { command: string; args: string[] } {
 }
 
 export async function POST(req: NextRequest) {
+  // Revealing in the OS file manager is Electron-desktop only; no-op on web.
+  if (!isElectronRuntime()) {
+    return NextResponse.json(
+      { ok: false, disabled: true, reason: "Reveal in file manager is only available in the Cabinet desktop app." },
+      { status: 200 }
+    );
+  }
+
   try {
     const { path: filePath } = await req.json();
     if (typeof filePath !== "string" || !filePath) {

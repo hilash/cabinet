@@ -59,6 +59,7 @@ import {
 } from "@/lib/cabinets/tree";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
+import { isDesktop } from "@/lib/cabinets/room-window";
 import { getDataDir } from "@/lib/data-dir-cache";
 import { DepthDropdown } from "@/components/cabinets/depth-dropdown";
 import { useLocale } from "@/i18n/use-locale";
@@ -495,18 +496,20 @@ export function TreeView() {
               <ClipboardCopy className="h-4 w-4 me-2" />
               Copy Full Path
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => {
-              fetch("/api/system/open-data-dir", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  subpath: cabinetPath === ROOT_CABINET_PATH ? "" : cabinetPath,
-                }),
-              });
-            }}>
-              <FolderOpen className="h-4 w-4 me-2" />
-              Open in Finder
-            </ContextMenuItem>
+            {isDesktop() && (
+              <ContextMenuItem onClick={() => {
+                fetch("/api/system/open-data-dir", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    subpath: cabinetPath === ROOT_CABINET_PATH ? "" : cabinetPath,
+                  }),
+                });
+              }}>
+                <FolderOpen className="h-4 w-4 me-2" />
+                Open in Finder
+              </ContextMenuItem>
+            )}
             {cabinetPath !== ROOT_CABINET_PATH && (
               <>
                 <ContextMenuSeparator />
@@ -862,18 +865,20 @@ export function TreeView() {
                     <ClipboardCopy className="h-4 w-4 me-2" />
                     {t("treeNode:copyFullPath")}
                   </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={() => {
-                      fetch("/api/system/open-data-dir", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ subpath: dataRootPath }),
-                      });
-                    }}
-                  >
-                    <FolderOpen className="h-4 w-4 me-2" />
-                    {t("treeNode:openInFinder")}
-                  </ContextMenuItem>
+                  {isDesktop() && (
+                    <ContextMenuItem
+                      onClick={() => {
+                        fetch("/api/system/open-data-dir", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ subpath: dataRootPath }),
+                        });
+                      }}
+                    >
+                      <FolderOpen className="h-4 w-4 me-2" />
+                      {t("treeNode:openInFinder")}
+                    </ContextMenuItem>
+                  )}
                 </ContextMenuContent>
               </ContextMenu>
             )}

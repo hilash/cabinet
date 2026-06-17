@@ -70,6 +70,7 @@ import { EditSymlinkDialog } from "./edit-symlink-dialog";
 import { FileSettingsDialog } from "./file-settings-dialog";
 import { useFileImport } from "./use-file-import";
 import { getDataDir } from "@/lib/data-dir-cache";
+import { isDesktop } from "@/lib/cabinets/room-window";
 import { isMacPlatform, isEditableTarget, formatShortcut } from "@/lib/keys";
 import { useLocale } from "@/i18n/use-locale";
 
@@ -863,11 +864,13 @@ function TreeNodeImpl({
               {t("treeNode:copyFullPath")}
               <ContextMenuShortcut>{copyFullShortcut}</ContextMenuShortcut>
             </ContextMenuItem>
-            <ContextMenuItem onClick={doOpenInFinder}>
-              <FolderOpen className="h-4 w-4 me-2" />
-              {t("treeNode:openInFinder")}
-              <ContextMenuShortcut>{finderShortcut}</ContextMenuShortcut>
-            </ContextMenuItem>
+            {isDesktop() && (
+              <ContextMenuItem onClick={doOpenInFinder}>
+                <FolderOpen className="h-4 w-4 me-2" />
+                {t("treeNode:openInFinder")}
+                <ContextMenuShortcut>{finderShortcut}</ContextMenuShortcut>
+              </ContextMenuItem>
+            )}
           </ContextMenuGroup>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={handleDelete} className="text-destructive">

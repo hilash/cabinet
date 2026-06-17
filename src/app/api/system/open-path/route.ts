@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
 import { getServerDataLocations } from "@/lib/data-locations/server-registry";
+import { isElectronRuntime } from "@/lib/runtime/runtime-config";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,14 @@ function openCommand(targetPath: string): { command: string; args: string[] } {
 }
 
 export async function POST(req: NextRequest) {
+  // Native file-manager open is Electron-desktop only; no-op on server/web.
+  if (!isElectronRuntime()) {
+    return NextResponse.json(
+      { ok: false, disabled: true, reason: "Opening a path is only available in the Cabinet desktop app." },
+      { status: 200 }
+    );
+  }
+
   try {
     const body = await req.json().catch(() => null);
     const target = typeof body?.path === "string" ? body.path : "";

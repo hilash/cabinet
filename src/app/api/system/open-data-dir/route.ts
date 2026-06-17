@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import path from "path";
 import { NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/storage/path-utils";
+import { isElectronRuntime } from "@/lib/runtime/runtime-config";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,18 @@ function getOpenCommand(targetPath: string, reveal?: boolean): { command: string
 }
 
 export async function POST(request: Request) {
+  // Opening a native file manager only works in the Electron desktop shell.
+  // On server/web deployments there is no desktop session (and the slim
+  // container has no xdg-open), so spawning would fail with a 500. Return a
+  // graceful no-op instead; the client hides the triggering button via
+  // isDesktop(), so this is just defence in depth.
+  if (!isElectronRuntime()) {
+    return NextResponse.json(
+      { ok: false, disabled: true, reason: "Opening the data folder is only available in the Cabinet desktop app." },
+      { status: 200 }
+    );
+  }
+
   try {
     let targetPath = DATA_DIR;
 

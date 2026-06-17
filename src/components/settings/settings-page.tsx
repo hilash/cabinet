@@ -64,6 +64,7 @@ import {
 } from "@/components/composer/task-runtime-picker";
 import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import { cn } from "@/lib/utils";
+import { isDesktop } from "@/lib/cabinets/room-window";
 import { showError } from "@/lib/ui/toast";
 import { confirmDialog } from "@/lib/ui/confirm";
 import type { ProviderInfo } from "@/types/agents";
@@ -1160,31 +1161,33 @@ export function SettingsPage() {
                     onChange={(e) => setDataDirPending(e.target.value)}
                     className="font-mono text-[12px]"
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 shrink-0"
-                    disabled={dataDirBrowsing || dataDirSaving}
-                    onClick={async () => {
-                      setDataDirBrowsing(true);
-                      try {
-                        const res = await fetch("/api/system/pick-directory", { method: "POST" });
-                        const data = await res.json().catch(() => null);
-                        if (data?.path) setDataDirPending(data.path);
-                      } catch {
-                        // ignore
-                      } finally {
-                        setDataDirBrowsing(false);
-                      }
-                    }}
-                  >
-                    {dataDirBrowsing ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <FolderOpen className="h-3.5 w-3.5" />
-                    )}
-                    {t("settings:storage.browse")}
-                  </Button>
+                  {isDesktop() && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 shrink-0"
+                      disabled={dataDirBrowsing || dataDirSaving}
+                      onClick={async () => {
+                        setDataDirBrowsing(true);
+                        try {
+                          const res = await fetch("/api/system/pick-directory", { method: "POST" });
+                          const data = await res.json().catch(() => null);
+                          if (data?.path) setDataDirPending(data.path);
+                        } catch {
+                          // ignore
+                        } finally {
+                          setDataDirBrowsing(false);
+                        }
+                      }}
+                    >
+                      {dataDirBrowsing ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <FolderOpen className="h-3.5 w-3.5" />
+                      )}
+                      {t("settings:storage.browse")}
+                    </Button>
+                  )}
                 </div>
                 <div className="flex gap-2 pt-1">
                   <Button
@@ -1220,7 +1223,7 @@ export function SettingsPage() {
                     )}
                     {t("settings:storage.save")}
                   </Button>
-                  {dataDir && (
+                  {dataDir && isDesktop() && (
                     <Button
                       variant="ghost"
                       size="sm"
