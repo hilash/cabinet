@@ -3,13 +3,14 @@ import type { TreeNode } from "@/types";
 import {
   fetchTree,
   createPageApi,
+  createFolderApi,
   deletePageApi,
   movePageApi,
   renamePageApi,
   undoRenameApi,
 } from "@/lib/api/client";
 import { useEditorStore } from "@/stores/editor-store";
-import { slugifyPageName } from "@/lib/markdown/wiki-links";
+import { slugifyFileName } from "@/lib/markdown/wiki-links";
 
 export type DragZone = "before" | "into" | "after";
 
@@ -37,6 +38,7 @@ interface TreeState {
   toggleExpand: (path: string) => void;
   expandPath: (path: string) => void;
   createPage: (parentPath: string, title: string) => Promise<void>;
+  createFolder: (parentPath: string, name: string) => Promise<void>;
   deletePage: (path: string) => Promise<void>;
   movePage: (
     fromPath: string,
@@ -191,9 +193,20 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   },
 
   createPage: async (parentPath: string, title: string) => {
-    const slug = slugifyPageName(title);
+    const slug = slugifyFileName(title);
     const fullPath = parentPath ? `${parentPath}/${slug}` : slug;
     await createPageApi(fullPath, title);
+    if (parentPath) {
+      get().expandPath(parentPath);
+    }
+    await get().loadTree();
+    set({ selectedPath: fullPath });
+  },
+
+  createFolder: async (parentPath: string, name: string) => {
+    const slug = slugifyFileName(name);
+    const fullPath = parentPath ? `${parentPath}/${slug}` : slug;
+    await createFolderApi(fullPath, name);
     if (parentPath) {
       get().expandPath(parentPath);
     }

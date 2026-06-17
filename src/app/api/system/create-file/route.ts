@@ -11,7 +11,7 @@ import {
 import { createPage } from "@/lib/storage/page-io";
 import { invalidateTreeCache } from "@/lib/storage/tree-builder";
 import { autoCommit } from "@/lib/git/git-service";
-import { slugifyPageName } from "@/lib/markdown/wiki-links";
+import { slugifyFileName } from "@/lib/markdown/wiki-links";
 import { blankOffice, type BlankOfficeKind } from "@/lib/storage/office-templates";
 
 export const dynamic = "force-dynamic";
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     // ── Page types: markdown + Google embeds ──────────────────────────────
     if (PAGE_TYPES.has(type)) {
-      const slug = slugifyPageName(rawName);
+      const slug = slugifyFileName(rawName);
       if (!slug) {
         return NextResponse.json({ error: "Invalid name" }, { status: 400 });
       }

@@ -25,7 +25,7 @@ import {
   type RewriteResult,
 } from "./references";
 import { recordRenameUndo } from "./rename-undo";
-import { slugifyPageName } from "@/lib/markdown/wiki-links";
+import { slugifyFileName } from "@/lib/markdown/wiki-links";
 
 function defaultFrontmatter(title: string): FrontMatter {
   const now = new Date().toISOString();
@@ -274,6 +274,26 @@ export async function createPage(
   await writeFileContent(mdPath, output);
 }
 
+export async function createFolder(virtualPath: string): Promise<void> {
+  // A folder is a plain directory with no companion `<name>.md` content file.
+  // The tree builder still surfaces empty directories as nodes, so an
+  // otherwise-bare folder appears in the sidebar immediately after creation.
+  const resolved = resolveContentPath(virtualPath);
+
+  if (await fileExists(resolved)) {
+    throw new Error(`Folder already exists: ${virtualPath}`);
+  }
+
+  await ensureDirectory(resolved);
+  const segments = virtualPath.split("/");
+  const name = segments[segments.length - 1];
+  const parentVirtual = segments.slice(0, -1).join("/");
+  // Folders carry no frontmatter, so persist their sort position in the
+  // parent's order sidecar instead of an `order` field on disk.
+  const order = await appendOrder(parentVirtual);
+  await setEntryOrder(parentVirtual, name, order);
+}
+
 export async function deletePage(virtualPath: string): Promise<void> {
   const resolved = resolveContentPath(virtualPath);
   const mdPath = resolved.endsWith(".md") ? resolved : `${resolved}.md`;
@@ -484,7 +504,7 @@ export async function renamePage(
   // .md pages always slugify the whole name.
   const requestedExt = kind === "typed-file" ? path.extname(newName) : "";
   const typedExt = requestedExt ? requestedExt.toLowerCase() : preservedExt;
-  const slug = slugifyPageName(
+  const slug = slugifyFileName(
     requestedExt ? newName.slice(0, -requestedExt.length) : newName
   );
   if (!slug) {
@@ -539,18 +559,35 @@ export async function renamePage(
     };
   }
 
+  // A case-only rename (e.g. "eureka" → "Eureka") resolves to a different
+  // string but the same inode on case-insensitive filesystems (macOS/Windows).
+  // There, fileExists(toResolved) reports the *source* itself, so skip the
+  // "already exists" guard for that target — fs.rename still applies the new
+  // casing on disk.
+  const caseOnlyRename =
+    fromResolved.toLowerCase() === toResolved.toLowerCase();
+  const siblingCaseOnlyRename =
+    siblingDir != null &&
+    siblingDirTo != null &&
+    siblingDir.toLowerCase() === siblingDirTo.toLowerCase();
+
   // Guard against silent overwrite: fs.rename clobbers a regular file at the
   // destination on POSIX without error. fs.rename on directories has its own
   // ENOTEMPTY/EEXIST protection — surface the same friendly error for all
   // kinds so the user sees a useful message instead of lost data.
-  if (await fileExists(toResolved)) {
+  if (!caseOnlyRename && (await fileExists(toResolved))) {
     throw new Error(
       `An item named "${targetBase}" already exists in ${
         parentVirtual ? `"${parentVirtual}"` : "the root"
       }. Pick a different name.`
     );
   }
-  if (siblingDirTo && siblingDirTo !== siblingDir && (await fileExists(siblingDirTo))) {
+  if (
+    siblingDirTo &&
+    siblingDirTo !== siblingDir &&
+    !siblingCaseOnlyRename &&
+    (await fileExists(siblingDirTo))
+  ) {
     throw new Error(
       `An item named "${slug}" already exists in ${
         parentVirtual ? `"${parentVirtual}"` : "the root"

@@ -733,7 +733,7 @@ function TreeNodeImpl({
               <GitBranch className="h-3.5 w-3.5 shrink-0 text-orange-400" />
             ) : node.isLinked ? (
               <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
-            ) : hasChildren ? (
+            ) : hasChildren || node.type === "directory" ? (
               isExpanded ? (
                 <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               ) : (

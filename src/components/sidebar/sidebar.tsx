@@ -21,8 +21,7 @@ import { Button } from "@/components/ui/button";
 import { NavArrows } from "@/components/layout/nav-arrows";
 import { RoomSwitcher } from "./room-switcher";
 import { TreeView } from "./tree-view";
-import { NewPageDialog } from "./new-page-dialog";
-import { NewCabinetDialog } from "./new-cabinet-dialog";
+import { NewItemMenu } from "./new-item-menu";
 import { useAppStore } from "@/stores/app-store";
 import { useRoomsStore } from "@/stores/rooms-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -253,19 +252,9 @@ export function Sidebar() {
 
         <div className="p-2 flex items-center gap-1">
           {sidebarDrawer === "data" && (
-            <>
-              <div className="min-w-0 flex-1">
-                {/* Create the page inside the cabinet you're in, not at the
-                    data-dir (home) root. */}
-                <NewPageDialog parentPath={currentCabinetParent} />
-              </div>
-              <div className="min-w-0 flex-1">
-                {/* Rooms v3: the bottom button makes a cabinet *inside the
-                    current cabinet* (a child), not a new top-level room. New
-                    rooms are created from the home switcher's "Add room". */}
-                <NewCabinetDialog parentPath={currentCabinetParent} />
-              </div>
-            </>
+            // The "+" menu creates a page, folder, or nested cabinet, placing
+            // each inside the active selection or the current cabinet.
+            <NewItemMenu cabinetParent={currentCabinetParent} />
           )}
           {sidebarDrawer === "agents" && (
             <button

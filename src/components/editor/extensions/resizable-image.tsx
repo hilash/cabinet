@@ -19,6 +19,7 @@ function ResizableImageComponent(props: NodeViewProps) {
   const attrs = node.attrs as ImageAttrs;
   const imgRef = useRef<HTMLImageElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const liveWidthRef = useRef<number | null>(null);
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
 
   const align = attrs.align ?? "center";
@@ -39,17 +40,18 @@ function ResizableImageComponent(props: NodeViewProps) {
       const onMove = (ev: PointerEvent) => {
         const delta = anchor === "right" ? ev.clientX - startX : startX - ev.clientX;
         const next = Math.max(80, Math.min(containerWidth, startWidth + delta));
+        liveWidthRef.current = next;
         setLiveWidth(next);
       };
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
-        setLiveWidth((curr) => {
-          if (curr != null) {
-            updateAttributes({ width: Math.round(curr) });
-          }
-          return null;
-        });
+        const finalWidth = liveWidthRef.current;
+        liveWidthRef.current = null;
+        setLiveWidth(null);
+        if (finalWidth != null) {
+          updateAttributes({ width: Math.round(finalWidth) });
+        }
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);

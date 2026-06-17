@@ -1046,6 +1046,13 @@
       "create": "Create",
       "creating": "Creating…"
     },
+    "newFolder": {
+      "trigger": "New Folder",
+      "title": "Create New Folder",
+      "placeholder": "Folder name…",
+      "create": "Create",
+      "creating": "Creating…"
+    },
     "newCabinet": {
       "trigger": "New Cabinet",
       "title": "Create New Cabinet",
@@ -1777,6 +1784,7 @@
     "settings": "Settings",
     "createPage": "Create page",
     "newPage": "New page",
+    "newMenu": "Create new…",
     "newAgent": "New Agent",
     "newTask": "New Task",
     "archive": "Archive",

@@ -69,8 +69,16 @@ function flattenTree(nodes: TreeNode[]): { path: string; name: string }[] {
 
 function findPageBySlug(slug: string, currentPath: string | null, nodes: TreeNode[]): string | null {
   const allPages = flattenTree(nodes);
+  // Wiki-link slugs are case-insensitive, but on-disk names preserve case
+  // (e.g. "Eureka"), so compare case-insensitively here.
+  const lowerSlug = slug.toLowerCase();
   // The slug matches the last segment of the path
-  const matches = allPages.filter((p) => p.name === slug || p.path === slug || p.path.endsWith("/" + slug));
+  const matches = allPages.filter(
+    (p) =>
+      p.name.toLowerCase() === lowerSlug ||
+      p.path.toLowerCase() === lowerSlug ||
+      p.path.toLowerCase().endsWith("/" + lowerSlug)
+  );
   if (matches.length === 0) return null;
   if (matches.length === 1) return matches[0].path;
 
@@ -79,9 +87,8 @@ function findPageBySlug(slug: string, currentPath: string | null, nodes: TreeNod
     const parentDir = currentPath.includes("/")
       ? currentPath.substring(0, currentPath.lastIndexOf("/"))
       : "";
-    const sibling = matches.find(
-      (m) => m.path === (parentDir ? parentDir + "/" + slug : slug)
-    );
+    const target = (parentDir ? parentDir + "/" + slug : slug).toLowerCase();
+    const sibling = matches.find((m) => m.path.toLowerCase() === target);
     if (sibling) return sibling.path;
   }
   return matches[0].path;
