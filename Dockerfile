@@ -8,7 +8,7 @@
 #      (the repo's existing .dockerignore already excludes node_modules,
 #      .next, .git, data, and most *.md files from the build context).
 #   2. From that repo's root:
-#        docker build -t ghcr.io/j0nathontayl0r/cabinet:0.4.9 .
+#        docker build -t ghcr.io/j0nathontayl0r/cabinet:0.4.10 .
 #
 # Runtime model:
 #   - The image's default CMD starts BOTH the Next.js app (`npm run
@@ -128,6 +128,16 @@ COPY --chown=node:node --from=builder /app/.agents ./.agents
 RUN mkdir -p /app/.agents/skills /app/.agents/skills-seed \
     && cp -a /app/.agents/skills/. /app/.agents/skills-seed/ \
     && chown -R node:node /app/.agents
+
+# Cabinet writes runtime state files directly in PROJECT_ROOT (= /app): the
+# skills lock (skills-lock.json), the env/auth-salt file (.cabinet.env), the
+# install config (.cabinet-install.json), and it appends to /app/.gitignore.
+# /app is root-owned from the image build but the container runs as non-root
+# `node` (uid 1000), so those writes fail with EACCES -> HTTP 500 (e.g. skill
+# installs). Make /app and its top-level entries node-owned. -maxdepth 1 keeps
+# this cheap: it does NOT recurse into node_modules (no layer bloat), it just
+# lets `node` create/modify the top-level state files.
+RUN find /app -maxdepth 1 -exec chown node:node {} +
 
 # Default CMD: run both the Next.js app and the daemon as one container
 # process, forwarding signals to both. Plain `npm run start`'s
