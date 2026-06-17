@@ -1249,6 +1249,27 @@ async function maybeResolveCompletedConversation(
 ): Promise<ConversationMeta | null> {
   if (!meta) return meta;
 
+  // Fast path: an already-terminal conversation with clean (non-placeholder)
+  // fields needs no repair, so skip the expensive transcript + prompt read and
+  // string-scan below. listConversationMetas() runs this for EVERY conversation
+  // on every call, and getRunningConversationCounts() calls that on every SSE
+  // tick (every 3s per connected client) plus the personas/board polls. Reading
+  // and re-parsing every finalized transcript is O(conversations x file size)
+  // CPU that blocks the event loop once a cabinet accumulates conversations
+  // (observed: a single cabinet with ~600 conversations pegged the server at
+  // 90%+ CPU, with /api/agents/personas taking 37s and the daemon-health proxy
+  // timing out -> false "daemon not responding" banner). The run-completion
+  // finalizeConversation() already extracted summary/artifacts, so re-parsing a
+  // terminal transcript on every poll is redundant.
+  if (
+    meta.status !== "running" &&
+    !isPlaceholderCabinetValue(meta.summary) &&
+    !isPlaceholderCabinetValue(meta.contextSummary) &&
+    !meta.artifactPaths.some((artifactPath) => isPlaceholderCabinetValue(artifactPath))
+  ) {
+    return meta;
+  }
+
   const cabinetPath = meta.cabinetPath;
   const transcript = await readConversationTranscript(meta.id, cabinetPath);
   const prompt = (await fileExists(promptPathFs(meta.id, cabinetPath)))
