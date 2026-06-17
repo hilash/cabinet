@@ -8,7 +8,7 @@
 #      (the repo's existing .dockerignore already excludes node_modules,
 #      .next, .git, data, and most *.md files from the build context).
 #   2. From that repo's root:
-#        docker build -t ghcr.io/j0nathontayl0r/cabinet:0.4.8 .
+#        docker build -t ghcr.io/j0nathontayl0r/cabinet:0.4.9 .
 #
 # Runtime model:
 #   - The image's default CMD starts BOTH the Next.js app (`npm run
