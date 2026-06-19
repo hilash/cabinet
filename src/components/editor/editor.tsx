@@ -157,7 +157,6 @@ export function KBEditor() {
   // sidebar width pref.
   const [wideMode, setWideMode] = useState(false);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWideMode(window.localStorage.getItem(WIDE_MODE_KEY) === "1");
   }, []);
   const toggleWideMode = useCallback(() => {
@@ -178,7 +177,6 @@ export function KBEditor() {
   // when EditorContent renders in the same pass.
   const [folderTab, setFolderTab] = useState<"page" | "files">("page");
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFolderTab("page");
   }, [currentPath]);
 
@@ -192,21 +190,6 @@ export function KBEditor() {
     []
   );
 
-  const handlePasteOrDrop = useCallback(
-    async (files: FileList) => {
-      const pagePath = useEditorStore.getState().currentPath;
-      if (!pagePath) return;
-
-      for (const file of Array.from(files)) {
-        const url = await uploadFile(pagePath, file);
-        if (!url) continue;
-        // For now insert via the editor reference stored separately
-        // This is handled by the editorProps below
-      }
-    },
-    []
-  );
-
   const editor = useEditor({
     extensions: editorExtensions,
     content: "",
@@ -214,7 +197,7 @@ export function KBEditor() {
     editorProps: {
       attributes: {
         class:
-          "focus:outline-none min-h-[calc(100vh-12rem)] px-4 sm:px-8 py-6 max-w-[var(--editor-max-w,48rem)] mx-auto",
+          "focus:outline-none min-h-[calc(100vh-12rem)] px-4 sm:px-8 py-6 max-w-(--editor-max-w,48rem) mx-auto",
         dir: isRtl ? "rtl" : "ltr",
       },
       handleKeyDown: (view, event) => {
@@ -283,6 +266,18 @@ export function KBEditor() {
             event.preventDefault();
             event.stopPropagation();
             openUrlInAppropriateContext(href, (url) =>
+              useAppStore.getState().setAppMode("browse", url)
+            );
+            return true;
+          }
+          if (href.startsWith("file://")) {
+            event.preventDefault();
+            event.stopPropagation();
+            const pathPart = href.slice("file://".length);
+            const encoded = pathPart.includes("%20") || !pathPart.includes(" ")
+              ? href
+              : "file://" + encodeURI(pathPart);
+            openUrlInAppropriateContext(encoded, (url) =>
               useAppStore.getState().setAppMode("browse", url)
             );
             return true;
@@ -709,7 +704,7 @@ export function KBEditor() {
             <EditorMentionPicker editor={editor} />
 
             {/* AI Edit Prompt + slash hint */}
-            <div className="max-w-[var(--editor-max-w,48rem)] mx-auto px-8 pb-8 flex items-center gap-4">
+            <div className="max-w-(--editor-max-w,48rem) mx-auto px-8 pb-8 flex items-center gap-4">
               <button
                 onClick={handleOpenAI}
                 className="group flex items-center gap-2 text-[13px] text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-pointer"

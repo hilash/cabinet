@@ -5,7 +5,7 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const net = require("net");
 const { spawn } = require("child_process");
-const { app, BrowserWindow, dialog, autoUpdater, ipcMain, Menu, WebContentsView, session } = require("electron");
+const { app, BrowserWindow, dialog, autoUpdater, ipcMain, Menu, WebContentsView, session, shell } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
 const JSZip = require("jszip");
 
@@ -808,6 +808,21 @@ ipcMain.handle("cabinet:relaunch", () => {
   try {
     app.relaunch();
     app.exit(0);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// Open a local file with the OS default application (e.g. Preview for PDFs).
+// file:// URLs can't be loaded in a BrowserView or window.open, so the
+// renderer calls this instead for file:// links clicked in the editor.
+ipcMain.handle("cabinet:open-local-file", async (_event, payload) => {
+  try {
+    const filePath = typeof payload?.path === "string" ? payload.path : "";
+    if (!filePath) return { ok: false, error: "no-path" };
+    const errorMessage = await shell.openPath(filePath);
+    if (errorMessage) return { ok: false, error: errorMessage };
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };

@@ -48,6 +48,20 @@ function transformLiveCodeBlocks(markdown: string): string {
 }
 
 /**
+ * Pre-process markdown to URL-encode spaces in file:// link URLs.
+ * CommonMark terminates a bare URL at the first whitespace, so
+ * [text](file:///path/My File.pdf) is not parsed as a link. This encodes
+ * spaces (and other unsafe chars) in the path so the remark pipeline sees
+ * a valid URL.
+ */
+function encodeFileUrls(markdown: string): string {
+  return markdown.replace(
+    /\]\((file:\/\/[^)]+)\)/g,
+    (_match, url: string) => `](${url.replace(/ /g, "%20")})`
+  );
+}
+
+/**
  * Pre-process markdown to convert [[Wiki Links]] to HTML anchors
  * before the remark pipeline (which doesn't understand wiki-link syntax).
  */
@@ -197,7 +211,11 @@ export async function markdownToHtml(markdown: string, pagePath?: string): Promi
   // Markdown parser mangles the JSX into broken paragraphs.
   const withMdx = transformMdxToHtml(withLiveCode);
   // Pre-process wiki-links before remark (which would treat [[ as text)
-  const preprocessed = convertWikiLinks(withMdx);
+  // Encode spaces in file:// link URLs before remark (which terminates
+  // bare URLs at whitespace)
+  const withFileUrls = encodeFileUrls(withMdx);
+  // Pre-process wiki-links before remark (which would treat [[ as text)
+  const preprocessed = convertWikiLinks(withFileUrls);
 
   const result = await processor.process(preprocessed);
 

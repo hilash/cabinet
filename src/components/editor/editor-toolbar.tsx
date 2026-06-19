@@ -16,7 +16,7 @@ import {
   Minus,
   Undo,
   Redo,
-  FileCode,
+  CodeXml,
   CheckSquare,
   PilcrowRight,
   PilcrowLeft,
@@ -32,7 +32,7 @@ import {
   Link as LinkIcon,
   ImageIcon,
   Video as VideoIcon,
-  Sparkles,
+  SquareCode,
   ChevronLeft,
   ChevronRight,
   Code2,
@@ -329,7 +329,7 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
     { icon: ListOrdered, action: () => editor.chain().focus().toggleOrderedList().run(), isActive: editor.isActive("orderedList"), label: t("editor:toolbar.orderedList") },
     { icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), isActive: editor.isActive("blockquote"), label: t("editor:toolbar.blockquote") },
     { icon: CheckSquare, action: () => editor.chain().focus().toggleTaskList().run(), isActive: editor.isActive("taskList"), label: t("editor:toolbar.checklist") },
-    { icon: FileCode, action: () => editor.chain().focus().toggleCodeBlock().run(), isActive: editor.isActive("codeBlock"), label: t("editor:toolbar.codeBlock") },
+    { icon: CodeXml, action: () => editor.chain().focus().toggleCodeBlock().run(), isActive: editor.isActive("codeBlock"), label: t("editor:toolbar.codeBlock") },
     { icon: Minus, action: () => editor.chain().focus().setHorizontalRule().run(), isActive: false, label: t("editor:toolbar.divider") },
   ];
 
@@ -356,7 +356,7 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
       label: t("editor:toolbar.insertVideo"),
     },
     {
-      icon: Sparkles,
+      icon: SquareCode,
       action: (e) => openPopoverFromButton(e, (anchor) => ({ type: "embed", anchor })),
       isActive: false,
       label: t("editor:toolbar.embed"),

@@ -14,14 +14,13 @@ import {
   Pencil,
   AppWindow,
   GitBranch,
-  FileType,
   Table,
   Copy,
   ClipboardCopy,
   Link2,
   Link2Off,
   Code,
-  Image,
+  Image as ImageIcon,
   Video,
   Music,
   Workflow,
@@ -71,6 +70,7 @@ import { FileSettingsDialog } from "./file-settings-dialog";
 import { useFileImport } from "./use-file-import";
 import { getDataDir } from "@/lib/data-dir-cache";
 import { isMacPlatform, isEditableTarget, formatShortcut } from "@/lib/keys";
+import { PdfIcon } from "@/components/icons/pdf-icon";
 import { useLocale } from "@/i18n/use-locale";
 
 interface TreeNodeProps {
@@ -108,7 +108,7 @@ function GoogleNodeIcon({ kind }: { kind?: string }) {
   return (
     <span className="relative inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
       <Icon className={cn("h-3.5 w-3.5", color)} />
-      <span className="absolute -bottom-1.5 -end-1.5 rounded-[3px] bg-background px-[1.5px] text-[8px] font-bold leading-[1.2] text-foreground/70">
+      <span className="absolute -bottom-1.5 -inset-e-1.5 rounded-[3px] bg-background px-[1.5px] text-[8px] font-bold leading-[1.2] text-foreground/70">
         g
       </span>
     </span>
@@ -549,7 +549,6 @@ function TreeNodeImpl({
       // before/after zone — a legitimate way to reach the top level.
       if (node.path.startsWith(fromPath + "/")) return;
 
-      const fromName = fromPath.split("/").pop() || "";
       const nodeParent = node.path.split("/").slice(0, -1).join("/");
 
       if (zone === "into") {
@@ -655,7 +654,7 @@ function TreeNodeImpl({
               // Recently created/changed by a task — subtle tint + an
               // unread-style bump to fuller, medium-weight text until opened.
               isChanged && !isSelected &&
-                "bg-emerald-500/[0.06] font-medium text-foreground before:absolute before:inset-s-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-e-full before:bg-emerald-500/70",
+                "bg-emerald-500/6 font-medium text-foreground before:absolute before:inset-s-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-e-full before:bg-emerald-500/70",
               showInto &&
                 "bg-primary/10 ring-1 ring-primary/30 ring-inset",
               blink && "cabinet-tree-blink",
@@ -697,7 +696,7 @@ function TreeNodeImpl({
             ) : node.type === "csv" ? (
               <Table className="h-3.5 w-3.5 shrink-0 text-green-400" />
             ) : node.type === "pdf" ? (
-              <FileType className="h-3.5 w-3.5 shrink-0 text-red-400" />
+              <PdfIcon className="h-3.5 w-3.5 shrink-0" />
             ) : node.type === "app" ? (
               <AppWindow className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
             ) : node.type === "website" ? (
@@ -705,7 +704,7 @@ function TreeNodeImpl({
             ) : node.type === "code" ? (
               <Code className="h-3.5 w-3.5 shrink-0 text-violet-400" />
             ) : node.type === "image" ? (
-              <Image className="h-3.5 w-3.5 shrink-0 text-pink-400" />
+              <ImageIcon className="h-3.5 w-3.5 shrink-0 text-pink-400" />
             ) : node.type === "video" ? (
               <Video className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
             ) : node.type === "audio" ? (

@@ -37,6 +37,7 @@ function normalizeBridgeUrl(value) {
 contextBridge.exposeInMainWorld("CabinetDesktop", {
   runtime: "electron",
   platform: process.platform,
+  openLocalFile: (filePath) => ipcRenderer.invoke("cabinet:open-local-file", { path: filePath }),
   createBrowserView: async (url) => {
     try {
       return await ipcRenderer.invoke("cabinet:create-browser-view", { url: normalizeBridgeUrl(url) });

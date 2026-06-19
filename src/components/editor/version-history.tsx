@@ -35,7 +35,7 @@ export function VersionHistory({ path }: { path?: string }) {
       </Button>
 
       {open && (
-        <div className="fixed right-0 top-0 bottom-0 z-40 flex w-[420px] max-w-[94vw] flex-col border-l border-border bg-background">
+        <div className="fixed right-0 top-0 bottom-0 z-40 flex w-105 max-w-[94vw] flex-col border-l border-border bg-background">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="flex min-w-0 items-center gap-2">
               <History className="h-4 w-4 shrink-0" />

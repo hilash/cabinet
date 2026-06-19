@@ -177,19 +177,78 @@ export function Header() {
             <DropdownMenuItem onClick={async () => {
               const editorEl = document.querySelector(".tiptap");
               if (!editorEl) return;
+              const el = editorEl as HTMLElement;
               const { toPng } = await import("html-to-image");
               const { jsPDF } = await import("jspdf");
-              const imgData = await toPng(editorEl as HTMLElement, {
+              const pixelRatio = 2;
+              // The table uses table-layout:fixed/width:100%, so it never
+              // overflows — the content width equals the editor's. Use the
+              // precise rendered width (rounded up + small buffer) so headings
+              // that just fit on one line don't wrap and overlap the table;
+              // a floored scrollWidth would shave a sub-pixel and force a wrap.
+              const rect = el.getBoundingClientRect();
+              const fullWidth = Math.ceil(rect.width) + 2;
+              const fullHeight = el.scrollHeight;
+              // Build the @font-face CSS ourselves from same-origin stylesheets,
+              // skipping any cross-origin sheet whose `cssRules` access throws a
+              // SecurityError. Passing this as `fontEmbedCSS` short-circuits
+              // html-to-image's own stylesheet scan (which would throw that
+              // error), while still embedding the real fonts — keeping correct
+              // metrics so headings don't reflow and overlap the table.
+              let fontEmbedCSS = "";
+              for (const sheet of Array.from(document.styleSheets)) {
+                let rules: CSSRuleList | null = null;
+                try {
+                  rules = sheet.cssRules;
+                } catch {
+                  continue; // cross-origin sheet — not readable, skip it
+                }
+                if (!rules) continue;
+                for (const rule of Array.from(rules)) {
+                  if (rule instanceof CSSFontFaceRule) {
+                    fontEmbedCSS += `${rule.cssText}\n`;
+                  }
+                }
+              }
+              const imgData = await toPng(el, {
                 backgroundColor: "#ffffff",
-                pixelRatio: 2,
+                pixelRatio,
+                cacheBust: true,
+                fontEmbedCSS,
+                width: fullWidth,
+                height: fullHeight,
+                style: {
+                  margin: "0",
+                  maxWidth: "none",
+                  width: `${fullWidth}px`,
+                },
               });
               const img = new Image();
               img.src = imgData;
               await new Promise((resolve) => { img.onload = resolve; });
-              const pdf = new jsPDF("p", "mm", "a4");
+              // The image's natural on-screen width in mm (CSS px → mm at 96 DPI).
+              const naturalWidthMm = (img.width / pixelRatio) / 96 * 25.4;
+              const PORTRAIT_WIDTH = 210; // A4 portrait width in mm
+              const portraitScale = PORTRAIT_WIDTH / naturalWidthMm;
+              // If portrait would shrink the content below 75%, use landscape
+              // (wider page) so wide tables stay readable.
+              const orientation = portraitScale < 0.75 ? "l" : "p";
+              const pdf = new jsPDF(orientation, "mm", "a4");
               const pdfWidth = pdf.internal.pageSize.getWidth();
+              const pageHeight = pdf.internal.pageSize.getHeight();
               const pdfHeight = (img.height * pdfWidth) / img.width;
-              pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+              // Split tall content (e.g. large tables) across multiple pages
+              // by repeatedly placing the same image shifted up by one page.
+              let heightLeft = pdfHeight;
+              let position = 0;
+              pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+              heightLeft -= pageHeight;
+              while (heightLeft > 0) {
+                position -= pageHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pageHeight;
+              }
               pdf.save(`${frontmatter?.title || "page"}.pdf`);
             }}>
               <FileDown className="h-4 w-4 mr-2" />
