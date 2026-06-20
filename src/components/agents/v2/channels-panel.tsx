@@ -207,30 +207,46 @@ export function ChannelsPanel({ height: initialHeight = 200, onOpenFile, fill = 
   // `messages` is derived from the cache map, so the switch paints instantly.
   useEffect(() => { fetchMessages().then(applyMessages); }, [fetchMessages, applyMessages]);
 
-  const [channelCounts, setChannelCounts] = useState<Record<string, number>>({});
+  // Per-channel meta: message count (for the badge) + last-message timestamp
+  // (for recency sort). Keyed on the channel LIST only (not activeChannel) and
+  // fetched in parallel — previously this re-ran one sequential request per
+  // channel on every switch, the main source of switch lag. Returns the map;
+  // callers setState in a continuation.
+  type ChannelMeta = { count: number; lastTs: string };
+  const [channelMeta, setChannelMeta] = useState<Record<string, ChannelMeta>>({});
 
-  // Message counts per channel for the badges. Keyed on the channel LIST only
-  // (not activeChannel) and fetched in parallel — previously this re-ran one
-  // sequential request per channel on every channel switch, the main source of
-  // switch lag. Returns the map; callers setState in a continuation.
-  const fetchCounts = useCallback(async (): Promise<Record<string, number>> => {
+  const fetchChannelMeta = useCallback(async (): Promise<Record<string, ChannelMeta>> => {
     if (channels.length === 0) return {};
     const entries = await Promise.all(
       channels.map(async (ch) => {
+        const empty = [ch, { count: 0, lastTs: "" }] as const;
         try {
           const res = await fetch(`/api/agents/channels?channel=${ch}&limit=100`);
-          if (!res.ok) return [ch, 0] as const;
+          if (!res.ok) return empty;
           const data = await res.json();
-          return [ch, (data.messages || []).length] as const;
+          const msgs = data.messages || [];
+          // getMessages returns oldest-first, so the tail is the most recent.
+          const lastTs = msgs.length ? msgs[msgs.length - 1].timestamp : "";
+          return [ch, { count: msgs.length, lastTs }] as const;
         } catch {
-          return [ch, 0] as const;
+          return empty;
         }
       })
     );
     return Object.fromEntries(entries);
   }, [channels]);
 
-  useEffect(() => { fetchCounts().then(setChannelCounts); }, [fetchCounts]);
+  useEffect(() => { fetchChannelMeta().then(setChannelMeta); }, [fetchChannelMeta]);
+
+  // Most recently active channels first. ISO timestamps sort lexically, and an
+  // empty lastTs (no messages) sorts to the bottom.
+  const sortedChannels = useMemo(
+    () =>
+      [...channels].sort((a, b) =>
+        (channelMeta[b]?.lastTs ?? "").localeCompare(channelMeta[a]?.lastTs ?? "")
+      ),
+    [channels, channelMeta]
+  );
 
   // Load the channel list once on mount (same setState-in-continuation shape).
   useEffect(() => {
@@ -270,13 +286,13 @@ export function ChannelsPanel({ height: initialHeight = 200, onOpenFile, fill = 
     // posts — refresh the open channel and the badge counts.
     const handleRefresh = () => {
       refreshMessages();
-      fetchCounts().then(setChannelCounts);
+      fetchChannelMeta().then(setChannelMeta);
     };
     window.addEventListener("cabinet:agents/channel_activity", handleRefresh);
     return () => {
       window.removeEventListener("cabinet:agents/channel_activity", handleRefresh);
     };
-  }, [refreshMessages, fetchCounts]);
+  }, [refreshMessages, fetchChannelMeta]);
 
   // Fallback poll every 10s (SSE handles real-time; this catches gaps).
   // Pause polling when the tab is hidden to free per-origin connection
@@ -416,8 +432,8 @@ export function ChannelsPanel({ height: initialHeight = 200, onOpenFile, fill = 
         <span className="text-[11px] text-muted-foreground/50 mr-1 shrink-0">
           Channels
         </span>
-        {channels.map((ch) => {
-          const count = channelCounts[ch] || 0;
+        {sortedChannels.map((ch) => {
+          const count = channelMeta[ch]?.count || 0;
           return (
             <button
               key={ch}
