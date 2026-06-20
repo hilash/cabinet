@@ -36,6 +36,7 @@ export function ConnectKnowledgeDialog({
   onOpenChange,
   onLocal,
   onCloud,
+  onNotion,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,6 +44,8 @@ export function ConnectKnowledgeDialog({
   onLocal: () => void;
   /** A desktop-sync provider → the cloud folder picker. */
   onCloud: (provider: KnowledgeProviderId) => void;
+  /** Notion → the import-vs-sync chooser (handled by the caller). */
+  onNotion: () => void;
 }) {
   const setSection = useAppStore((s) => s.setSection);
 
@@ -66,8 +69,14 @@ export function ConnectKnowledgeDialog({
   const handlePick = (tile: ConnectKnowledgeTile) => {
     if (tile.kind === "soon") return;
     if (tile.kind === "hub") {
-      // Notion/Confluence aren't file/folder sources — they connect as MCP in
-      // the Integrations Hub. Route there, deep-linked to the connector.
+      // Notion can also be imported as files (one-time export) — offer that
+      // alongside the live MCP sync, via its own chooser. Confluence and any
+      // other hub tiles connect as MCP in the Integrations Hub directly.
+      if (tile.key === "notion") {
+        onNotion();
+        onOpenChange(false);
+        return;
+      }
       setSection({ type: "integrations", slug: tile.key });
       onOpenChange(false);
       return;

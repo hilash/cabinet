@@ -66,6 +66,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LinkRepoDialog } from "./link-repo-dialog";
 import { ConnectKnowledgeDialog } from "./connect-knowledge-dialog";
+import { NotionConnectDialog } from "./notion-connect-dialog";
 import { ConnectDriveDialog } from "./connect-drive-dialog";
 import { providerLogo } from "@/lib/knowledge-sources/providers";
 import type { KnowledgeProviderId } from "@/lib/knowledge-sources/store";
@@ -150,6 +151,7 @@ function TreeNodeImpl({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [linkRepoOpen, setLinkRepoOpen] = useState(false);
   const [connectKnowledgeOpen, setConnectKnowledgeOpen] = useState(false);
+  const [notionConnectOpen, setNotionConnectOpen] = useState(false);
   const [connectDriveOpen, setConnectDriveOpen] = useState(false);
   const [driveProvider, setDriveProvider] = useState<KnowledgeProviderId>("google-drive");
   // Inline Connect Knowledge mount metadata (set by the tree-builder).
@@ -1045,6 +1047,13 @@ function TreeNodeImpl({
           setDriveProvider(provider);
           setConnectDriveOpen(true);
         }}
+        onNotion={() => setNotionConnectOpen(true)}
+      />
+
+      <NotionConnectDialog
+        open={notionConnectOpen}
+        onOpenChange={setNotionConnectOpen}
+        targetPath={importTargetPath}
       />
 
       <ConnectDriveDialog
