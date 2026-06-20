@@ -28,6 +28,7 @@ import { ResizableImage } from "./extensions/resizable-image";
 import { EmbedExtension } from "./extensions/embed-extension";
 import { MdxComponent } from "./extensions/mdx-component";
 import { LiveCodeBlock } from "./extensions/live-code-block";
+import { LatexEmbedExtension } from "./extensions/latex-extension";
 import { colorAndStyleExtensions } from "./extensions/color-highlight";
 import { DragHandle } from "./extensions/drag-handle";
 import { CabinetMath } from "./extensions/math-extension";
@@ -168,6 +169,7 @@ export const editorExtensions = [
   CalloutExtension,
   MdxComponent,
   LiveCodeBlock,
+  LatexEmbedExtension,
   HeadingAnchors,
   AutoDirection,
   FindExtension,

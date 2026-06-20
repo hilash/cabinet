@@ -283,6 +283,18 @@ turndown.addRule("alignedBlock", {
   },
 });
 
+// Serialize LaTeX embed blocks back to ![[file.tex]] syntax.
+turndown.addRule("latexEmbed", {
+  filter: (node) =>
+    node.nodeName === "DIV" &&
+    (node as HTMLElement).getAttribute("data-latex-embed") === "true",
+  replacement: (_content, node) => {
+    const el = node as HTMLElement;
+    const path = el.getAttribute("data-path") ?? "";
+    return `\n![[${path}]]\n`;
+  },
+});
+
 export function htmlToMarkdown(html: string): string {
   return turndown.turndown(html);
 }

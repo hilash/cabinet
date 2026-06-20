@@ -1785,6 +1785,55 @@ ipcMain.handle("cabinet:get-extensions", () => {
   return readPersistedExtensions();
 });
 
+// Read a file from the active vault's content directory. Used by the LaTeX
+// embed extension to load .tex files for in-editor rendering. The path is
+// resolved relative to the content root with path-traversal protection.
+ipcMain.handle("cabinet:read-file", async (_event, payload) => {
+  try {
+    const relPath = typeof payload?.path === "string" ? payload.path.trim() : "";
+    if (!relPath) return { ok: false, error: "no-path" };
+
+    const contentDir = resolveContentDir();
+    const resolved = path.resolve(contentDir, relPath);
+    const relative = path.relative(contentDir, resolved);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      return { ok: false, error: "path-traversal" };
+    }
+
+    const fs = require("fs");
+    const content = fs.readFileSync(resolved, "utf8");
+    return { ok: true, content };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+});
+
+// Write file content back to the active vault's content directory. Used by
+// the LaTeX embed extension when the user edits a .tex file inline.
+ipcMain.handle("cabinet:write-file", async (_event, payload) => {
+  try {
+    const relPath = typeof payload?.path === "string" ? payload.path.trim() : "";
+    const content = typeof payload?.content === "string" ? payload.content : "";
+    if (!relPath) return { ok: false, error: "no-path" };
+
+    const contentDir = resolveContentDir();
+    const resolved = path.resolve(contentDir, relPath);
+    const relative = path.relative(contentDir, resolved);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      return { ok: false, error: "path-traversal" };
+    }
+
+    const fs = require("fs");
+    fs.mkdirSync(path.dirname(resolved), { recursive: true });
+    fs.writeFileSync(resolved, content, "utf8");
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+});
+
 app.on("window-all-closed", () => {
   cleanupBackends();
   if (process.platform !== "darwin") {

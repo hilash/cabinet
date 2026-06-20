@@ -116,6 +116,8 @@ contextBridge.exposeInMainWorld("CabinetDesktop", {
   getExtensions: () => ipcRenderer.invoke("cabinet:get-extensions"),
   updateExtension: (id, updates) => ipcRenderer.invoke("cabinet:update-extension", { id, updates }),
   showExtensionPopup: (payload) => ipcRenderer.invoke("cabinet:show-extension-popup", payload),
+  readFile: (filePath) => ipcRenderer.invoke("cabinet:read-file", { path: filePath }),
+  writeFile: (filePath, content) => ipcRenderer.invoke("cabinet:write-file", { path: filePath, content }),
   onExtensionInstalled: (listener) => {
     if (typeof listener !== "function") return () => {};
     extensionInstalledListeners.add(listener);

@@ -74,3 +74,6 @@ skills-lock.json
 # installed skills bundles (per-machine; managed by Settings -> Skills)
 .agents/skills/
 .agents/skills-stats.json
+
+# latex.js static assets copied from node_modules by postinstall
+/public/latex-js/

@@ -48,6 +48,20 @@ function transformLiveCodeBlocks(markdown: string): string {
 }
 
 /**
+ * Pre-process markdown to convert ![[file.tex]] embeds into
+ * <div data-latex-embed> markers before the remark pipeline.
+ * Only matches .tex files so wiki-link-style image embeds for other
+ * types are unaffected.
+ */
+function convertLatexEmbeds(markdown: string): string {
+  return markdown.replace(
+    /!\[\[([^\]]+\.tex)\]\]/g,
+    (_match, path: string) =>
+      `<div data-latex-embed="true" data-path="${path}"></div>`
+  );
+}
+
+/**
  * Pre-process markdown to URL-encode spaces in file:// link URLs.
  * CommonMark terminates a bare URL at the first whitespace, so
  * [text](file:///path/My File.pdf) is not parsed as a link. This encodes
@@ -214,8 +228,10 @@ export async function markdownToHtml(markdown: string, pagePath?: string): Promi
   // Encode spaces in file:// link URLs before remark (which terminates
   // bare URLs at whitespace)
   const withFileUrls = encodeFileUrls(withMdx);
+  // Convert ![[file.tex]] LaTeX embeds to HTML markers before remark
+  const withLatex = convertLatexEmbeds(withFileUrls);
   // Pre-process wiki-links before remark (which would treat [[ as text)
-  const preprocessed = convertWikiLinks(withFileUrls);
+  const preprocessed = convertWikiLinks(withLatex);
 
   const result = await processor.process(preprocessed);
 

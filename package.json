@@ -87,6 +87,7 @@
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "katex": "^0.16.45",
+    "latex.js": "^0.12.6",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.577.0",
     "mermaid": "^11.14.0",

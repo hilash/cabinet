@@ -15,6 +15,7 @@ import { NotebookViewer } from "@/components/editor/notebook-viewer";
 import { ImageViewer } from "@/components/editor/image-viewer";
 import { MediaViewer } from "@/components/editor/media-viewer";
 import { MermaidViewer } from "@/components/editor/mermaid-viewer";
+import { LatexViewer } from "@/components/editor/latex-viewer";
 import { FileFallbackViewer } from "@/components/editor/file-fallback-viewer";
 import dynamic from "next/dynamic";
 import { GoogleDocViewer } from "@/components/editor/google-doc-viewer";
@@ -737,6 +738,7 @@ export function AppShell() {
         if (lower.endsWith(".pptx")) return "pptx";
         if (lower.endsWith(".ipynb")) return "notebook";
         if (lower.endsWith(".mmd") || lower.endsWith(".mermaid")) return "mermaid";
+        if (lower.endsWith(".tex") || lower.endsWith(".latex")) return "latex";
         if (/\.(png|jpe?g|gif|webp|svg|bmp)$/.test(lower)) return "image";
         if (/\.(mp4|mov|webm|avi|mkv)$/.test(lower)) return "video";
         if (/\.(mp3|wav|ogg|flac|m4a)$/.test(lower)) return "audio";
@@ -758,6 +760,7 @@ export function AppShell() {
   const isVideo = nodeType === "video";
   const isAudio = nodeType === "audio";
   const isMermaid = nodeType === "mermaid";
+  const isLatex = nodeType === "latex";
   const isDocx = nodeType === "docx";
   const isXlsx = nodeType === "xlsx";
   const isPptx = nodeType === "pptx";
@@ -968,6 +971,12 @@ export function AppShell() {
       const mmdPath = selectedNode?.path || selectedPath!;
       const mmdTitle = selectedNode?.frontmatter?.title || selectedNode?.name || mmdPath.split("/").pop() || "Diagram";
       return <MermaidViewer path={mmdPath} title={mmdTitle} />;
+    }
+
+    if (isLatex && (selectedNode || selectedPath)) {
+      const texPath = selectedNode?.path || selectedPath!;
+      const texTitle = selectedNode?.frontmatter?.title || selectedNode?.name || texPath.split("/").pop() || "LaTeX";
+      return <LatexViewer path={texPath} title={texTitle} />;
     }
 
     if (isDocx && (selectedNode || selectedPath)) {

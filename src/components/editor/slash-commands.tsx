@@ -26,6 +26,7 @@ import {
   LineChart as LineChartIcon,
   PieChart as PieChartIcon,
   Zap,
+  FileText,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { Editor } from "@tiptap/react";
@@ -65,7 +66,7 @@ const BAR_CHART_TEMPLATE = `<ChartContainer
   config={{
     revenue: { label: "Revenue", color: "var(--chart-1)" },
   }}
-  className="h-[300px] w-full"
+  className="h-75 w-full"
 >
   <BarChart data={[
     { month: "Jan", revenue: 186 },
@@ -86,7 +87,7 @@ const LINE_CHART_TEMPLATE = `<ChartContainer
   config={{
     views: { label: "Page Views", color: "var(--chart-2)" },
   }}
-  className="h-[300px] w-full"
+  className="h-75 w-full"
 >
   <LineChart data={[
     { day: "Mon", views: 120 },
@@ -113,7 +114,7 @@ const PIE_CHART_TEMPLATE = `<ChartContainer
     edge: { label: "Edge", color: "var(--chart-4)" },
     other: { label: "Other", color: "var(--chart-5)" },
   }}
-  className="h-[300px] w-full"
+  className="h-75 w-full"
 >
   <PieChart>
     <Pie
@@ -169,6 +170,14 @@ const commands: SlashCommand[] = [
   { label: "Line Chart", icon: LineChartIcon, description: "Insert a live line chart (Recharts)", category: "advanced", action: { type: "direct", run: (editor) => editor.commands.insertLiveCodeBlock({ code: LINE_CHART_TEMPLATE }) } },
   { label: "Pie Chart", icon: PieChartIcon, description: "Insert a live pie/donut chart", category: "advanced", action: { type: "direct", run: (editor) => editor.commands.insertLiveCodeBlock({ code: PIE_CHART_TEMPLATE }) } },
   { label: "Live Code", icon: Zap, description: "Insert an empty live JSX code block", category: "advanced", action: { type: "direct", run: (editor) => editor.commands.insertLiveCodeBlock({ code: "<div className=\"p-4\">\n  <p>Hello from a live block!</p>\n</div>" }) } },
+  { label: "LaTeX File", icon: FileText, description: "Embed and render a .tex file", category: "advanced", action: { type: "direct", run: (editor) => {
+    const path = typeof window !== "undefined" ? window.prompt("Path to .tex file (relative to current page or vault root):", "document.tex") : null;
+    if (path && path.trim()) {
+      editor.chain().focus().insertLatexEmbed({ path: path.trim() }).run();
+    } else {
+      editor.chain().focus().run();
+    }
+  } } },
 ];
 
 interface SlashCommandsProps {
