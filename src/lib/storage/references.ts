@@ -90,18 +90,22 @@ export function resolvePageBySlug(
   fromPagePath: string | null,
   pages: PageRef[]
 ): string | null {
+  // Native pages are stored with slug filenames (exact match); imported pages
+  // (e.g. Notion) keep human names, so also match when the last path segment
+  // slugifies to the target slug. Mirrors editor.tsx#findPageBySlug.
+  const lastSeg = (p: string) => p.split("/").pop() ?? p;
   const matches = pages.filter(
-    (p) => p.name === slug || p.path.endsWith("/" + slug)
+    (p) =>
+      p.name === slug ||
+      p.path.endsWith("/" + slug) ||
+      slugifyPageName(lastSeg(p.path)) === slug
   );
   if (matches.length === 0) return null;
   if (matches.length === 1) return matches[0].path;
+  const parentOf = (p: string) => (p.includes("/") ? p.substring(0, p.lastIndexOf("/")) : "");
   if (fromPagePath) {
-    const parentDir = fromPagePath.includes("/")
-      ? fromPagePath.substring(0, fromPagePath.lastIndexOf("/"))
-      : "";
-    const sibling = matches.find(
-      (m) => m.path === (parentDir ? parentDir + "/" + slug : slug)
-    );
+    const parentDir = parentOf(fromPagePath);
+    const sibling = matches.find((m) => parentOf(m.path) === parentDir);
     if (sibling) return sibling.path;
   }
   return matches[0].path;

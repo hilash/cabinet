@@ -17,6 +17,7 @@ import { useTreeStore } from "@/stores/tree-store";
 import { findNodeByPath } from "@/lib/cabinets/tree";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
+import { slugifyPageName } from "@/lib/markdown/wiki-links";
 import { detectEmbed } from "@/lib/embeds/detect";
 import { cellAround, isInTable } from "@tiptap/pm/tables";
 import type { TreeNode } from "@/types";
@@ -51,19 +52,25 @@ function flattenTree(nodes: TreeNode[]): { path: string; name: string }[] {
 
 function findPageBySlug(slug: string, currentPath: string | null, nodes: TreeNode[]): string | null {
   const allPages = flattenTree(nodes);
-  // The slug matches the last segment of the path
-  const matches = allPages.filter((p) => p.name === slug || p.path.endsWith("/" + slug));
+  // The slug matches the last segment of the path. Native pages are stored with
+  // slug filenames, so an exact match works; imported pages (e.g. Notion) keep
+  // human names ("Day 1-100 Build 👩🏻‍💻"), so also match when the last segment
+  // *slugifies to* the target slug.
+  const lastSeg = (p: string) => p.split("/").pop() ?? p;
+  const parentOf = (p: string) => (p.includes("/") ? p.substring(0, p.lastIndexOf("/")) : "");
+  const matches = allPages.filter(
+    (p) =>
+      p.name === slug ||
+      p.path.endsWith("/" + slug) ||
+      slugifyPageName(lastSeg(p.path)) === slug
+  );
   if (matches.length === 0) return null;
   if (matches.length === 1) return matches[0].path;
 
   // Prefer sibling pages (same parent directory as current page)
   if (currentPath) {
-    const parentDir = currentPath.includes("/")
-      ? currentPath.substring(0, currentPath.lastIndexOf("/"))
-      : "";
-    const sibling = matches.find(
-      (m) => m.path === (parentDir ? parentDir + "/" + slug : slug)
-    );
+    const parentDir = parentOf(currentPath);
+    const sibling = matches.find((m) => parentOf(m.path) === parentDir);
     if (sibling) return sibling.path;
   }
   return matches[0].path;
