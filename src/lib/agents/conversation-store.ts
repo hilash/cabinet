@@ -138,6 +138,11 @@ export interface ConversationNotification {
 
 const notificationQueue: ConversationNotification[] = [];
 
+// In-memory running counts — bootstrapped once from disk, then delta-updated
+// from notifications so the SSE tick never opens meta.json files.
+const _runningCounts = new Map<string, number>();
+let _runningCountsBootstrapped = false;
+
 export function drainConversationNotifications(): ConversationNotification[] {
   return dedupeConversationNotifications(
     notificationQueue.splice(0, notificationQueue.length)
@@ -161,6 +166,18 @@ export function enqueueConversationNotification(
   );
   if (alreadyQueued) return;
   notificationQueue.push(notification);
+
+  // Keep in-memory running counts in sync (only meaningful after bootstrap).
+  if (_runningCountsBootstrapped) {
+    const slug = notification.agentSlug;
+    if (notification.status === "running") {
+      _runningCounts.set(slug, (_runningCounts.get(slug) ?? 0) + 1);
+    } else if (notification.status === "completed" || notification.status === "failed") {
+      const cur = _runningCounts.get(slug) ?? 0;
+      if (cur <= 1) _runningCounts.delete(slug);
+      else _runningCounts.set(slug, cur - 1);
+    }
+  }
 }
 
 interface CreateConversationInput {
@@ -1711,6 +1728,20 @@ export async function readConversationDetail(
   };
 }
 
+// ponytail: caps concurrent fd opens; EMFILE fires at ~256 and turbopack eats most of them
+async function mapCapped<T, U>(arr: T[], limit: number, fn: (x: T) => Promise<U>): Promise<U[]> {
+  const results: U[] = new Array(arr.length);
+  let i = 0;
+  async function worker() {
+    while (i < arr.length) {
+      const idx = i++;
+      results[idx] = await fn(arr[idx]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, arr.length) }, worker));
+  return results;
+}
+
 export async function listConversationMetas(
   filters: ListConversationFilters = {}
 ): Promise<ConversationMeta[]> {
@@ -1718,34 +1749,33 @@ export async function listConversationMetas(
     ? [filters.cabinetPath]
     : await discoverCabinetPaths();
 
-  const groups = await Promise.all(
-    cabinetPaths.map(async (cabinetPath) => {
-      const convsDir = resolveConversationsDir(cabinetPath);
-      await ensureDirectory(convsDir);
-      const entries = await listDirectory(convsDir);
+  const groups = await mapCapped(cabinetPaths, 4, async (cabinetPath) => {
+    const convsDir = resolveConversationsDir(cabinetPath);
+    await ensureDirectory(convsDir);
+    const entries = await listDirectory(convsDir);
 
-      return (
-        await Promise.all(
-          entries
-            // Skip reserved/internal dirs (e.g. `_pending`, the attachment
-            // staging area) — they aren't conversations. Without this they
-            // fall through to recoverConversationMeta() and surface as a
-            // phantom "Recovered task _pending" card that can't be deleted
-            // (DELETE 404s — there's no such conversation). Real conversation
-            // ids are timestamp-prefixed, so they never start with "_".
-            .filter((entry) => entry.isDirectory && !entry.name.startsWith("_"))
-            .map(async (entry) => {
-              const meta = await readConversationMeta(entry.name, cabinetPath);
-              if (meta) return maybeResolveCompletedConversation(meta);
-              // meta.json is missing/corrupted — don't let the task silently
-              // vanish from the log. Surface a recovered placeholder so the
-              // user can still find and open it.
-              return recoverConversationMeta(entry.name, cabinetPath);
-            })
-        )
-      ).filter(Boolean) as ConversationMeta[];
-    })
-  );
+    return (
+      await mapCapped(
+        entries
+          // Skip reserved/internal dirs (e.g. `_pending`, the attachment
+          // staging area) — they aren't conversations. Without this they
+          // fall through to recoverConversationMeta() and surface as a
+          // phantom "Recovered task _pending" card that can't be deleted
+          // (DELETE 404s — there's no such conversation). Real conversation
+          // ids are timestamp-prefixed, so they never start with "_".
+          .filter((entry) => entry.isDirectory && !entry.name.startsWith("_")),
+        20,
+        async (entry) => {
+          const meta = await readConversationMeta(entry.name, cabinetPath);
+          if (meta) return maybeResolveCompletedConversation(meta);
+          // meta.json is missing/corrupted — don't let the task silently
+          // vanish from the log. Surface a recovered placeholder so the
+          // user can still find and open it.
+          return recoverConversationMeta(entry.name, cabinetPath);
+        }
+      )
+    ).filter(Boolean) as ConversationMeta[];
+  });
 
   const metas = groups.flat();
 
@@ -1785,11 +1815,14 @@ export async function listConversationMetas(
 }
 
 export async function getRunningConversationCounts(): Promise<Record<string, number>> {
-  const running = await listConversationMetas({ status: "running", limit: 1000 });
-  return running.reduce<Record<string, number>>((acc, meta) => {
-    acc[meta.agentSlug] = (acc[meta.agentSlug] || 0) + 1;
-    return acc;
-  }, {});
+  if (!_runningCountsBootstrapped) {
+    const running = await listConversationMetas({ status: "running", limit: 1000 });
+    for (const m of running) {
+      _runningCounts.set(m.agentSlug, (_runningCounts.get(m.agentSlug) ?? 0) + 1);
+    }
+    _runningCountsBootstrapped = true;
+  }
+  return Object.fromEntries(_runningCounts);
 }
 
 export async function deleteConversation(id: string, cabinetPath?: string): Promise<boolean> {
