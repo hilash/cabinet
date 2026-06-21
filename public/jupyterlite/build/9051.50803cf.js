@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunk_JUPYTERLAB_CORE_OUTPUT=self.webpackChunk_JUPYTERLAB_CORE_OUTPUT||[]).push([[9051,8941],{38941:(e,r,E)=>{E.r(r),E.d(r,{IServiceWorkerManager:()=>R.IServiceWorkerManager,SERVICE_WORKER_BROADCAST_CHANNEL_ID:()=>R.SERVICE_WORKER_BROADCAST_CHANNEL_ID,ServiceWorkerManager:()=>R.ServiceWorkerManager,WORKER_NAME:()=>R.WORKER_NAME});var R=E(22884)}}]);

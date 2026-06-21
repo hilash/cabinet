@@ -6,6 +6,8 @@ import { autoCommit } from "@/lib/git/git-service";
 import { resolveAuthorizedMountPaths, assertWritablePath, ReadOnlySourceError } from "@/lib/knowledge-sources/store";
 import { decodeDrivePath } from "@/lib/google-drive/paths";
 import fs from "fs/promises";
+import { invalidateTreeCache } from "@/lib/storage/tree-builder";
+import { removeSidecarEntry } from "@/lib/storage/order-store";
 
 const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
@@ -36,6 +38,7 @@ const MIME_TYPES: Record<string, string> = {
   ".yaml": "text/yaml",
   ".yml": "text/yaml",
   ".tex": "text/x-tex",
+  ".typ": "text/plain",
   ".txt": "text/plain",
   ".md": "text/plain",
   ".markdown": "text/plain",
@@ -91,6 +94,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
       try {
         const stat = await fs.stat(realNormalized);
+        if (stat.isDirectory()) {
+          return NextResponse.json({ error: "Path is a directory" }, { status: 400 });
+        }
         const totalSize = stat.size;
         const ext = path.extname(realNormalized).toLowerCase();
         const contentType = MIME_TYPES[ext] || "application/octet-stream";
@@ -150,16 +156,29 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const resolved = resolveContentPath(virtualPath);
+    let resolved = resolveContentPath(virtualPath);
+
+    // Resolve note path to the physical .md/.mdx file if it exists
+    const mdPath = resolved + ".md";
+    const mdxPath = resolved + ".mdx";
+    if (await fileExists(mdPath)) {
+      resolved = mdPath;
+    } else if (await fileExists(mdxPath)) {
+      resolved = mdxPath;
+    }
 
     if (!(await fileExists(resolved))) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
+    const stat = await fs.stat(resolved);
+    if (stat.isDirectory()) {
+      return NextResponse.json({ error: "Path is a directory" }, { status: 400 });
+    }
+
     const ext = path.extname(resolved).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
     const contentDisposition = ext === ".csv" ? "inline" : null;
-    const stat = await fs.stat(resolved);
     const totalSize = stat.size;
     // HTML assets back in-Cabinet apps/websites that the user re-generates
     // (audit slideshows, dashboards, etc.). A 1h max-age served stale builds
@@ -171,7 +190,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // Binary assets (images, fonts, video) keep the long cache.
     const NO_CACHE_EXTS = new Set([
       ".html", ".tex", ".csv", ".md", ".markdown", ".txt",
-      ".json", ".xml", ".yaml", ".yml", ".ipynb",
+      ".json", ".xml", ".yaml", ".yml", ".ipynb", ".typ",
     ]);
     const cacheControl = NO_CACHE_EXTS.has(ext)
       ? "no-cache, must-revalidate"
@@ -240,10 +259,66 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const { path: segments } = await params;
     const virtualPath = segments.join("/");
     await assertWritablePath(virtualPath);
-    const resolved = resolveContentPath(virtualPath);
-    const body = await req.text();
-    await fs.writeFile(resolved, body, "utf-8");
-    autoCommit(virtualPath, "Update");
+    let resolved = resolveContentPath(virtualPath);
+    
+    const isDir = req.nextUrl.searchParams.get("dir") === "1";
+    if (!isDir) {
+      const mdPath = resolved + ".md";
+      const mdxPath = resolved + ".mdx";
+      if (await fileExists(mdPath)) {
+        resolved = mdPath;
+      } else if (await fileExists(mdxPath)) {
+        resolved = mdxPath;
+      }
+    }
+    if (isDir) {
+      await fs.mkdir(resolved, { recursive: true });
+    } else {
+      await fs.mkdir(path.dirname(resolved), { recursive: true });
+      const body = await req.text();
+      await fs.writeFile(resolved, body, "utf-8");
+    }
+    
+    invalidateTreeCache();
+    autoCommit(virtualPath, isDir ? "Add" : "Update");
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof ReadOnlySourceError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  try {
+    const { path: segments } = await params;
+    const virtualPath = segments.join("/");
+    await assertWritablePath(virtualPath);
+    let resolved = resolveContentPath(virtualPath);
+    const mdPath = resolved + ".md";
+    const mdxPath = resolved + ".mdx";
+    if (await fileExists(mdPath)) {
+      resolved = mdPath;
+    } else if (await fileExists(mdxPath)) {
+      resolved = mdxPath;
+    }
+    if (await fileExists(resolved)) {
+      const stat = await fs.stat(resolved);
+      if (stat.isDirectory()) {
+        await fs.rm(resolved, { recursive: true, force: true });
+      } else {
+        await fs.unlink(resolved);
+      }
+      invalidateTreeCache();
+      autoCommit(virtualPath, "Delete");
+
+      // Remove ordering info from parent sidecar
+      const parentVirtual = segments.slice(0, -1).join("/");
+      const name = segments[segments.length - 1];
+      await removeSidecarEntry(parentVirtual, name).catch(() => {});
+    }
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof ReadOnlySourceError) {

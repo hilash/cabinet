@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>JupyterLite</title>
+    <script>
+      (function() {
+        console.log("[Cabinet] Webpack chunk interceptor initialized");
+        
+        const virtualFiles = new Map();
+        let directoriesLoaded = false;
+        
+        async function ensureDirectoriesLoaded() {
+          if (directoriesLoaded) return;
+          try {
+            const res = await fetch("/api/tree?fresh=1");
+            if (!res.ok) return;
+            const tree = await res.json();
+            virtualFiles.clear();
+            
+            function traverse(nodes) {
+              for (const node of nodes) {
+                if (node.path) {
+                  const name = node.name || node.path.split("/").pop();
+                  const type = node.type || "file";
+                  
+                  if (type === "directory" || type === "cabinet" || type === "website" || type === "app" || (node.children && node.children.length > 0)) {
+                    virtualFiles.set(node.path, {
+                      name: name,
+                      path: node.path,
+                      type: "directory",
+                      writable: true,
+                      created: new Date().toISOString(),
+                      last_modified: new Date().toISOString(),
+                      mimetype: null,
+                      content: null,
+                      format: "json"
+                    });
+                  } else {
+                    let mimetype = "text/plain";
+                    let format = "text";
+                    if (type === "notebook") {
+                      mimetype = "application/x-ipynb+json";
+                      format = "json";
+                    } else if (type === "pdf") {
+                      mimetype = "application/pdf";
+                      format = "base64";
+                    } else if (type === "image") {
+                      mimetype = "image/png";
+                      format = "base64";
+                    } else if (type === "video" || type === "audio" || type === "unknown") {
+                      mimetype = "application/octet-stream";
+                      format = "base64";
+                    }
+                    
+                    virtualFiles.set(node.path, {
+                      name: name,
+                      path: node.path,
+                      type: type === "notebook" ? "notebook" : "file",
+                      writable: true,
+                      created: new Date().toISOString(),
+                      last_modified: new Date().toISOString(),
+                      mimetype: mimetype,
+                      content: null,
+                      format: format
+                    });
+                  }
+                }
+                if (node.children) {
+                  traverse(node.children);
+                }
+              }
+            }
+            traverse(tree);
+            directoriesLoaded = true;
+          } catch (e) {
+            console.error("[Cabinet LF] Failed to preload virtual filesystem:", e);
+          }
+        }
+        
+        function wrapInstance(instance, options) {
+          console.log("[Cabinet] localforage instance created:", options);
+          const isContents = options && options.storeName === "files";
+          if (!isContents) return instance;
+          
+          console.log("[Cabinet] Wrapping localforage contents instance");
+          const wrapped = Object.create(instance);
+          
+          wrapped.getItem = async function(key) {
+            await ensureDirectoriesLoaded();
+            const virtual = virtualFiles.get(key);
+            if (!virtual) {
+              return instance.getItem(key);
+            }
+            if (virtual.type === "directory") {
+              return virtual;
+            }
+            
+            try {
+              const res = await fetch(`/api/assets/${key}`);
+              if (!res.ok) {
+                if (res.status === 404 || res.status === 400) return instance.getItem(key);
+                throw new Error(`HTTP ${res.status}`);
+              }
+              if (virtual.type === "notebook") {
+                const json = await res.json();
+                return { ...virtual, content: json };
+              } else {
+                const text = await res.text();
+                return { ...virtual, content: text };
+              }
+            } catch (e) {
+              console.error("[Cabinet LF] getItem error:", e);
+              return instance.getItem(key);
+            }
+          };
+          
+          wrapped.setItem = async function(key, value) {
+            try {
+              const isDir = value && value.type === "directory";
+              let res;
+              if (isDir) {
+                res = await fetch(`/api/assets/${key}?dir=1`, {
+                  method: "PUT"
+                });
+              } else {
+                let bodyContent = "";
+                if (value && value.type === "notebook") {
+                  bodyContent = JSON.stringify(value.content, null, 2);
+                } else if (value && typeof value.content === "string") {
+                  bodyContent = value.content;
+                } else if (value && value.content) {
+                  bodyContent = JSON.stringify(value.content);
+                } else {
+                  bodyContent = "";
+                }
+                
+                res = await fetch(`/api/assets/${key}`, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "text/plain"
+                  },
+                  body: bodyContent
+                });
+              }
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              
+              if (isDir) {
+                virtualFiles.set(key, {
+                  name: key.split('/').pop(),
+                  path: key,
+                  type: "directory",
+                  writable: true,
+                  created: new Date().toISOString(),
+                  last_modified: new Date().toISOString(),
+                  mimetype: null,
+                  content: null,
+                  format: "json"
+                });
+              } else {
+                virtualFiles.set(key, {
+                  name: key.split('/').pop(),
+                  path: key,
+                  type: value.type === "notebook" ? "notebook" : "file",
+                  writable: true,
+                  created: new Date().toISOString(),
+                  last_modified: new Date().toISOString(),
+                  mimetype: value.mimetype || (value.type === "notebook" ? "application/x-ipynb+json" : "text/plain"),
+                  content: null,
+                  format: value.format || (value.type === "notebook" ? "json" : "text")
+                });
+              }
+              return instance.setItem(key, value);
+            } catch (e) {
+              console.error("[Cabinet LF] setItem error:", e);
+              return instance.setItem(key, value);
+            }
+          };
+          
+          wrapped.removeItem = async function(key) {
+            try {
+              const res = await fetch(`/api/assets/${key}`, {
+                method: "DELETE"
+              });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              virtualFiles.delete(key);
+              return instance.removeItem(key);
+            } catch (e) {
+              console.error("[Cabinet LF] removeItem error:", e);
+              return instance.removeItem(key);
+            }
+          };
+          
+          wrapped.keys = async function() {
+            try {
+              await ensureDirectoriesLoaded();
+              const fileList = Array.from(virtualFiles.keys());
+              const localKeys = await instance.keys();
+              const allKeys = Array.from(new Set([...fileList, ...localKeys]));
+              return allKeys;
+            } catch (e) {
+              console.error("[Cabinet LF] keys error:", e);
+              return instance.keys();
+            }
+          };
+          
+          wrapped.iterate = async function(iteratorCallback) {
+            if (typeof iteratorCallback !== "function") return;
+            try {
+              await ensureDirectoriesLoaded();
+              const allKeys = await this.keys();
+              let iterationNumber = 1;
+              for (const key of allKeys) {
+                let value = virtualFiles.get(key);
+                if (value === undefined) {
+                  value = await instance.getItem(key);
+                }
+                if (value === null || value === undefined) {
+                  continue;
+                }
+                const result = await iteratorCallback(value, key, iterationNumber++);
+                if (result !== undefined) {
+                  return result;
+                }
+              }
+            } catch (e) {
+              console.error("[Cabinet LF] iterate error:", e);
+              return instance.iterate(iteratorCallback);
+            }
+          };
+
+          wrapped.length = async function() {
+            try {
+              const allKeys = await this.keys();
+              return allKeys.length;
+            } catch (e) {
+              console.error("[Cabinet LF] length error:", e);
+              return instance.length();
+            }
+          };
+
+          wrapped.key = async function(index) {
+            try {
+              const allKeys = await this.keys();
+              return allKeys[index];
+            } catch (e) {
+              console.error("[Cabinet LF] key error:", e);
+              return instance.key(index);
+            }
+          };
+          
+          return wrapped;
+        }
+        
+        function wrapLocalForage(lf) {
+          if (lf.__isWrapped) return;
+          lf.__isWrapped = true;
+          console.log("[Cabinet] Wrapping main localforage object");
+          const originalCreateInstance = lf.createInstance;
+          lf.createInstance = function(options) {
+            const inst = originalCreateInstance.call(this, options);
+            return wrapInstance(inst, options);
+          };
+        }
+        
+        // Define or get the array
+        window.webpackChunk_JUPYTERLAB_CORE_OUTPUT = window.webpackChunk_JUPYTERLAB_CORE_OUTPUT || [];
+        
+        // Setup interceptor on modules when they are added to the push array
+        function interceptModules(chunkData) {
+          const modules = chunkData[1];
+          if (modules) {
+            for (const moduleId in modules) {
+              const originalModule = modules[moduleId];
+              modules[moduleId] = function(module, exports, __webpack_require__) {
+                originalModule.apply(this, arguments);
+                const exp = module.exports;
+                if (exp) {
+                  if (exp.getItem || (exp.default && exp.default.getItem)) {
+                    console.log("[Cabinet] Found localforage module:", moduleId);
+                    wrapLocalForage(exp.default || exp);
+                  }
+                }
+              };
+            }
+          }
+        }
+
+        // Intercept any chunks already present
+        window.webpackChunk_JUPYTERLAB_CORE_OUTPUT.forEach(interceptModules);
+        
+        // Use a getter/setter to intercept Webpack overriding the push method.
+        // This ensures we intercept modules *before* Webpack's callback copies them.
+        let currentPush = function(chunkData) {
+          interceptModules(chunkData);
+          return Array.prototype.push.call(this, chunkData);
+        };
+
+        Object.defineProperty(window.webpackChunk_JUPYTERLAB_CORE_OUTPUT, 'push', {
+          get() {
+            return currentPush;
+          },
+          set(newPush) {
+            console.log("[Cabinet] Webpack registered push callback");
+            currentPush = function(chunkData) {
+              interceptModules(chunkData);
+              return newPush.call(this, chunkData);
+            };
+          },
+          configurable: true
+        });
+      })();
+    </script>
+
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="Description" content="WASM powered Jupyter running in the browser." />
+    <link rel="manifest" href="../manifest.webmanifest" />
+    <link
+      id="jupyter-lite-main"
+      rel="preload"
+      href="../build/lab/bundle.js?_=7a7e3d6"
+      main="index"
+      as="script"
+    />
+    <script
+      id="jupyter-config-data"
+      type="application/json"
+      data-jupyter-lite-root=".."
+    >
+      {}
+    </script>
+    <script>
+      (async function () {
+        const { pathname, origin, search, hash } = window.location;
+        if (pathname.match(/(index.html|\/?)$/) == null) {
+          window.location.href = `${origin}${pathname}/${search}${hash}`;
+          return;
+        }
+        await import(
+          '../config-utils.js?_=7a7e3d6'
+        );
+      }.call(this));
+    </script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        transition: background-color 0.3s ease;
+      }
+
+      body {
+        background-color: #fff;
+        color: #000;
+      }
+
+      body.jp-mod-dark {
+        background-color: #111;
+        color: #fff;
+      }
+
+      #jupyterlite-loading-indicator {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        z-index: 1000;
+        opacity: 0; /* Hidden by default */
+        transition: opacity 0.5s ease-out;
+        display: none; /* Hidden by default */
+      }
+
+      #jupyterlite-loading-indicator.hidden {
+        animation: fadeOut 0.5s ease-out forwards;
+        pointer-events: none;
+      }
+
+      /* Show the indicator when needed */
+      #jupyterlite-loading-indicator:not(.hidden) {
+        opacity: 1;
+        display: block;
+      }
+
+      .jupyterlite-loading-indicator-spinner {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 20px;
+        border: 6px solid rgba(0, 0, 0, 0.1);
+        border-top: 6px solid #FFDC00; /* Bright yellow color */
+        border-radius: 50%;
+        animation: jupyter-spin 1s linear infinite;
+      }
+
+      body.jp-mod-dark .jupyterlite-loading-indicator-spinner {
+        border: 6px solid rgba(255, 255, 255, 0.1);
+        border-top: 6px solid #FFDC00;
+      }
+
+      .jupyterlite-loading-indicator-text {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+        font-size: 16px;
+      }
+
+      /* Adjust text color based on theme */
+      body.jp-mod-light .jupyterlite-loading-indicator-text {
+        color: #000000;
+      }
+
+      body.jp-mod-dark .jupyterlite-loading-indicator-text {
+        color: #ffffff;
+      }
+
+      @keyframes jupyter-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      @keyframes fadeOut {
+        0% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+    </style>
+  </head>
+  <body class="jp-ThemedContainer" data-notebook="lab">
+    <div id="jupyterlite-loading-indicator" class="hidden">
+      <div class="jupyterlite-loading-indicator-spinner"></div>
+      <div class="jupyterlite-loading-indicator-text">Loading JupyterLite...</div>
+    </div>
+    <noscript>
+      <div style="text-align: center; padding: 20px;">
+          JupyterLite requires JavaScript to be enabled in your browser.
+      </div>
+    </noscript>
+  </body>
+</html>
