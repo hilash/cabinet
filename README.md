@@ -201,6 +201,103 @@ Cabinet no longer treats the browser terminal as the only way to run AI work.
 
 ---
 
+## Atlas Cloud (BYOAI provider)
+
+<p align="center">
+  <a href="https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=cabinet" target="_blank" rel="noopener noreferrer">
+    <img src="docs/atlas-cloud-logo.png" alt="Atlas Cloud" width="200">
+  </a>
+</p>
+
+Cabinet's BYOAI philosophy means you can point it at any model backend you control. [Atlas Cloud](https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=cabinet) is a full-modal AI inference platform that exposes a single OpenAI-compatible API for 300+ curated LLM, image, and video models. You connect once and keep your data, keys, and choice of model entirely in your hands. No vendor lock-in, which is exactly how Cabinet is meant to work.
+
+Because Atlas Cloud speaks the OpenAI protocol, it plugs into Cabinet through the **OpenCode** provider (already one of the built-in CLI runtimes), which routes to any OpenAI-compatible backend. Bring your own Atlas Cloud key and route through it:
+
+```bash
+# 1. Install the OpenCode CLI runtime (one of Cabinet's built-in providers)
+npm i -g opencode-ai
+
+# 2. Point OpenCode at Atlas Cloud's OpenAI-compatible endpoint.
+#    Use your own key from https://www.atlascloud.ai/ and never commit it.
+export OPENAI_BASE_URL="https://api.atlascloud.ai/v1"
+export OPENAI_API_KEY="your-atlas-cloud-api-key"
+export OPENAI_MODEL="deepseek-ai/deepseek-v4-pro"   # solid default; pick any model below
+
+# 3. Verify the runtime, then pick OpenCode + an Atlas model in Cabinet's
+#    composer (Native/Terminal runtime picker) or Settings -> Providers.
+opencode run 'Reply with exactly OK'
+```
+
+`deepseek-ai/deepseek-v4-pro` is a reasoning model, so give it enough output budget (max_tokens of 512 or more). Otherwise the tokens are spent on the hidden reasoning trace and the visible reply can come back empty with a length finish reason.
+
+Your data never leaves a backend you chose, and you can swap models per run using Cabinet's existing provider, model, and effort overrides.
+
+<details>
+<summary><strong>Atlas Cloud model catalog</strong> (synced with <a href="https://www.atlascloud.ai/models/list/llm">the official list</a>)</summary>
+
+Reach all of these through the single OpenAI-compatible base URL `https://api.atlascloud.ai/v1` (LLMs), or the async media API at `https://api.atlascloud.ai/api/v1/model` (image / video). Recommended default LLM: `deepseek-ai/deepseek-v4-pro`.
+
+**LLMs (59, the official `/models/list/llm` list)**
+
+- Anthropic (Claude): `anthropic/claude-haiku-4.5-20251001`, `anthropic/claude-opus-4.8`, `anthropic/claude-sonnet-4.6`
+- OpenAI (GPT): `openai/gpt-5.4`, `openai/gpt-5.5`
+- Google (Gemini): `google/gemini-3.1-flash-lite`, `google/gemini-3.1-pro-preview`, `google/gemini-3.5-flash`
+- Alibaba (Qwen): `qwen/qwen2.5-7b-instruct`, `Qwen/Qwen3-235B-A22B-Instruct-2507`, `qwen/qwen3-235b-a22b-thinking-2507`, `qwen/qwen3-30b-a3b`, `Qwen/Qwen3-30B-A3B-Instruct-2507`, `qwen/qwen3-30b-a3b-thinking-2507`, `qwen/qwen3-32b`, `qwen/qwen3-8b`, `Qwen/Qwen3-Coder`, `qwen/qwen3-coder-next`, `qwen/qwen3-max-2026-01-23`, `Qwen/Qwen3-Next-80B-A3B-Instruct`, `Qwen/Qwen3-Next-80B-A3B-Thinking`, `Qwen/Qwen3-VL-235B-A22B-Instruct`, `qwen/qwen3-vl-235b-a22b-thinking`, `qwen/qwen3-vl-30b-a3b-instruct`, `qwen/qwen3-vl-30b-a3b-thinking`, `qwen/qwen3-vl-8b-instruct`, `qwen/qwen3.5-122b-a10b`, `qwen/qwen3.5-27b`, `qwen/qwen3.5-35b-a3b`, `qwen/qwen3.5-397b-a17b`, `qwen/qwen3.6-35b-a3b`, `qwen/qwen3.6-plus`
+- DeepSeek: `deepseek-ai/deepseek-ocr`, `deepseek-ai/deepseek-r1-0528`, `deepseek-ai/DeepSeek-V3-0324`, `deepseek-ai/DeepSeek-V3.1`, `deepseek-ai/DeepSeek-V3.1-Terminus`, `deepseek-ai/deepseek-v3.2`, `deepseek-ai/DeepSeek-V3.2-Exp`, `deepseek-ai/deepseek-v4-flash`, `deepseek-ai/deepseek-v4-pro`
+- Moonshot (Kimi): `moonshotai/Kimi-K2-Instruct`, `moonshotai/Kimi-K2-Instruct-0905`, `moonshotai/Kimi-K2-Thinking`, `moonshotai/kimi-k2.5`, `moonshotai/kimi-k2.6`
+- Zhipu (GLM): `zai-org/GLM-4.6`, `zai-org/glm-4.7`, `zai-org/glm-5`, `zai-org/glm-5-turbo`, `zai-org/glm-5.1`, `zai-org/glm-5v-turbo`
+- MiniMax: `MiniMaxAI/MiniMax-M2`, `minimaxai/minimax-m2.1`, `minimaxai/minimax-m2.5`, `minimaxai/minimax-m2.7`
+- xAI: `xai/grok-4.3`
+- Kuaishou (KAT): `kwaipilot/kat-coder-pro-v2`
+- Other: `owl`
+
+**Image / video (full Atlas media catalog, for the multi-modal side of your knowledge base)**
+
+Defaults: image `openai/gpt-image-2/text-to-image`, video `bytedance/seedance-2.0/text-to-video`.
+
+<details>
+<summary>Text-to-image (36)</summary>
+
+`alibaba/qwen-image/text-to-image-max`, `alibaba/qwen-image/text-to-image-plus`, `alibaba/wan-2.5/text-to-image`, `alibaba/wan-2.6/text-to-image`, `alibaba/wan-2.7-pro/text-to-image`, `alibaba/wan-2.7/text-to-image`, `atlascloud/qwen-image/text-to-image`, `baidu/ERNIE-Image-Turbo/text-to-image`, `black-forest-labs/flux-2-flex/text-to-image`, `black-forest-labs/flux-2-pro/text-to-image`, `black-forest-labs/flux-dev`, `black-forest-labs/flux-dev-lora`, `black-forest-labs/flux-schnell`, `bytedance/seedream-v4`, `bytedance/seedream-v4.5`, `bytedance/seedream-v4.5/sequential`, `bytedance/seedream-v4/sequential`, `bytedance/seedream-v5.0-lite`, `bytedance/seedream-v5.0-lite/sequential`, `google/imagen3`, `google/imagen3-fast`, `google/imagen4`, `google/imagen4-fast`, `google/imagen4-ultra`, `google/nano-banana-2/text-to-image`, `google/nano-banana-pro/text-to-image`, `google/nano-banana-pro/text-to-image-ultra`, `google/nano-banana/text-to-image`, `openai/gpt-image-1-mini/text-to-image`, `openai/gpt-image-1.5/text-to-image`, `openai/gpt-image-1/text-to-image`, `openai/gpt-image-2/text-to-image`, `qwen/qwen-image-2.0-pro/text-to-image`, `qwen/qwen-image-2.0/text-to-image`, `xai/grok-imagine-image-quality/text-to-image`, `z-image/turbo`
+
+</details>
+
+<details>
+<summary>Image-to-image (31)</summary>
+
+`alibaba/qwen-image/edit`, `alibaba/qwen-image/edit-plus`, `alibaba/qwen-image/edit-plus-20251215`, `alibaba/wan-2.5/image-edit`, `alibaba/wan-2.6/image-edit`, `alibaba/wan-2.7-pro/image-edit`, `alibaba/wan-2.7/image-edit`, `atlascloud/qwen-image/edit`, `black-forest-labs/flux-2-flex/edit`, `black-forest-labs/flux-2-pro/edit`, `black-forest-labs/flux-kontext-dev`, `black-forest-labs/flux-kontext-dev-lora`, `bytedance/seedream-v4.5/edit`, `bytedance/seedream-v4.5/edit-sequential`, `bytedance/seedream-v4/edit`, `bytedance/seedream-v4/edit-sequential`, `bytedance/seedream-v5.0-lite/edit`, `bytedance/seedream-v5.0-lite/edit-sequential`, `google/nano-banana-2/edit`, `google/nano-banana-2/reference-to-image`, `google/nano-banana-2/reference-to-image-developer`, `google/nano-banana-pro/edit`, `google/nano-banana-pro/edit-ultra`, `google/nano-banana/edit`, `openai/gpt-image-1-mini/edit`, `openai/gpt-image-1.5/edit`, `openai/gpt-image-1/edit`, `openai/gpt-image-2/edit`, `qwen/qwen-image-2.0-pro/edit`, `qwen/qwen-image-2.0/edit`, `xai/grok-imagine-image-quality/edit`
+
+</details>
+
+<details>
+<summary>Text-to-video (39)</summary>
+
+`alibaba/happyhorse-1.0/text-to-video`, `alibaba/wan-2.5/text-to-video`, `alibaba/wan-2.5/text-to-video-fast`, `alibaba/wan-2.5/video-extend`, `alibaba/wan-2.6/text-to-video`, `alibaba/wan-2.7/text-to-video`, `atlascloud/van-2.5/text-to-video`, `atlascloud/van-2.6/text-to-video`, `bytedance/seedance-2.0-fast/text-to-video`, `bytedance/seedance-2.0/text-to-video`, `bytedance/seedance-v1-pro-fast/text-to-video`, `bytedance/seedance-v1-pro-t2v-1080p`, `bytedance/seedance-v1-pro-t2v-480p`, `bytedance/seedance-v1-pro-t2v-720p`, `bytedance/seedance-v1.5-pro/text-to-video`, `bytedance/seedance-v1.5-pro/text-to-video-fast`, `google/gemini-omni-flash/text-to-video-developer`, `google/veo3.1-fast/text-to-video`, `google/veo3.1-lite/text-to-video`, `google/veo3.1/text-to-video`, `kwaivgi/kling-v1.6-t2v-standard`, `kwaivgi/kling-v2.0-t2v-master`, `kwaivgi/kling-v2.1-t2v-master`, `kwaivgi/kling-v2.5-turbo-pro/text-to-video`, `kwaivgi/kling-v2.6-pro/text-to-video`, `kwaivgi/kling-v3.0-pro/text-to-video`, `kwaivgi/kling-v3.0-std/text-to-video`, `kwaivgi/kling-video-o1/text-to-video`, `kwaivgi/kling-video-o3-pro/text-to-video`, `kwaivgi/kling-video-o3-std/text-to-video`, `minimax/hailuo-02/t2v-pro`, `minimax/hailuo-02/t2v-standard`, `minimax/hailuo-2.3/t2v-pro`, `minimax/hailuo-2.3/t2v-standard`, `vidu/q1/text-to-video`, `vidu/q2/text-to-video`, `vidu/q3-pro/text-to-video`, `vidu/q3-turbo/text-to-video`, `xai/grok-imagine-video/text-to-video`
+
+</details>
+
+<details>
+<summary>Image-to-video (93)</summary>
+
+`alibaba/happyhorse-1.0/image-to-video`, `alibaba/wan-2.2-spicy/image-to-video`, `alibaba/wan-2.2-spicy/image-to-video-lora`, `alibaba/wan-2.2/animate-mix`, `alibaba/wan-2.2/animate-move`, `alibaba/wan-2.5/image-to-video`, `alibaba/wan-2.5/image-to-video-fast`, `alibaba/wan-2.6/image-to-video`, `alibaba/wan-2.6/image-to-video-flash`, `alibaba/wan-2.7/image-to-video`, `atlascloud/van-2.5/image-to-video`, `atlascloud/van-2.6/image-to-video`, `atlascloud/wan-2.2-turbo-spicy/image-to-video`, `atlascloud/wan-2.2-turbo-spicy/image-to-video-lora`, `atlascloud/wan-2.2-turbo-spicy/infinite-image-to-video`, `atlascloud/wan-2.2-turbo-spicy/infinite-image-to-video-lora`, `atlascloud/wan-2.2-turbo/image-to-video`, `atlascloud/wan-2.2-turbo/infinite-image-to-video`, `atlascloud/wan-2.2-turbo/infinite-image-to-video-lora`, `atlascloud/wan-2.2/image-to-video`, `atlascloud/wan-2.2/image-to-video-lora`, `atlascloud/wan-2.6-spicy/image-to-video`, `bytedance/seedance-2.0-fast/image-to-video`, `bytedance/seedance-2.0-fast/reference-to-video`, `bytedance/seedance-2.0/image-to-video`, `bytedance/seedance-2.0/reference-to-video`, `bytedance/seedance-v1-pro-fast/image-to-video`, `bytedance/seedance-v1-pro-i2v-1080p`, `bytedance/seedance-v1-pro-i2v-480p`, `bytedance/seedance-v1-pro-i2v-720p`, `bytedance/seedance-v1.5-pro/image-to-video`, `bytedance/seedance-v1.5-pro/image-to-video-fast`, `bytedance/seedance-v1.5-pro/image-to-video-spicy`, `google/gemini-omni-flash/image-to-video-developer`, `google/veo3.1-fast/image-to-video`, `google/veo3.1-lite/image-to-video`, `google/veo3.1-lite/start-end-frame-to-video`, `google/veo3.1/image-to-video`, `google/veo3.1/reference-to-video`, `kwaivgi/kling-effects`, `kwaivgi/kling-v1.6-i2v-pro`, `kwaivgi/kling-v1.6-i2v-standard`, `kwaivgi/kling-v1.6-multi-i2v-pro`, `kwaivgi/kling-v1.6-multi-i2v-standard`, `kwaivgi/kling-v2.0-i2v-master`, `kwaivgi/kling-v2.1-i2v-master`, `kwaivgi/kling-v2.1-i2v-pro`, `kwaivgi/kling-v2.1-i2v-pro/start-end-frame`, `kwaivgi/kling-v2.1-i2v-standard`, `kwaivgi/kling-v2.5-turbo-pro/image-to-video`, `kwaivgi/kling-v2.6-pro/avatar`, `kwaivgi/kling-v2.6-pro/image-to-video`, `kwaivgi/kling-v2.6-pro/motion-control`, `kwaivgi/kling-v2.6-std/avatar`, `kwaivgi/kling-v2.6-std/motion-control`, `kwaivgi/kling-v3.0-pro/image-to-video`, `kwaivgi/kling-v3.0-std/image-to-video`, `kwaivgi/kling-video-o1/image-to-video`, `kwaivgi/kling-video-o3-pro/image-to-video`, `kwaivgi/kling-video-o3-pro/reference-to-video`, `kwaivgi/kling-video-o3-std/image-to-video`, `kwaivgi/kling-video-o3-std/reference-to-video`, `minimax/hailuo-02/fast`, `minimax/hailuo-02/i2v-pro`, `minimax/hailuo-02/i2v-standard`, `minimax/hailuo-02/pro`, `minimax/hailuo-02/standard`, `minimax/hailuo-2.3/fast`, `minimax/hailuo-2.3/i2v-pro`, `minimax/hailuo-2.3/i2v-standard`, `vidu/image-to-video-2.0`, `vidu/q1/image-to-video`, `vidu/q1/start-end-to-video`, `vidu/q2-pro-fast/image-to-video`, `vidu/q2-pro-fast/start-end-to-video`, `vidu/q2-pro/image-to-video`, `vidu/q2-pro/start-end-to-video`, `vidu/q2-turbo/image-to-video`, `vidu/q2-turbo/start-end-to-video`, `vidu/q3-mix/reference-to-video`, `vidu/q3-pro/image-to-video`, `vidu/q3-pro/start-end-to-video`, `vidu/q3-turbo/image-to-video`, `vidu/q3-turbo/start-end-to-video`, `vidu/q3/reference-to-video`, `vidu/reference-to-video-2.0`, `vidu/reference-to-video-q1`, `vidu/start-end-to-video-2.0`, `xai/grok-imagine-video-v1.5/image-to-video`, `xai/grok-imagine-video/edit-video`, `xai/grok-imagine-video/extend-video`, `xai/grok-imagine-video/image-to-video`, `xai/grok-imagine-video/reference-to-video`
+
+</details>
+
+<details>
+<summary>Video-to-video (10) and audio-to-video (3)</summary>
+
+Video-to-video: `alibaba/happyhorse-1.0/video-edit`, `alibaba/wan-2.2-spicy/video-extend`, `alibaba/wan-2.2-spicy/video-extend-lora`, `alibaba/wan-2.6/video-to-video`, `alibaba/wan-2.7/reference-to-video`, `alibaba/wan-2.7/video-edit`, `atlascloud/video-upscaler`, `google/gemini-omni-flash/reference-to-video-developer`, `kwaivgi/kling-video-o3-pro/video-edit`, `kwaivgi/kling-video-o3-std/video-edit`
+
+Audio-to-video: `atlascloud/infinitetalk`, `veed/fabric-1.0/fast/image-to-video`, `veed/fabric-1.0/image-to-video`
+
+</details>
+
+For budget-friendly API access, see the Atlas Cloud [coding plan](https://www.atlascloud.ai/console/coding-plan).
+
+</details>
+
+---
+
 ## Architecture
 
 ```
