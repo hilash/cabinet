@@ -19,6 +19,7 @@ import { MCP_CATALOG, type CatalogSetupStep } from "@/lib/agents/mcp-catalog";
 export type IntegrationCategory =
   | "communication"
   | "productivity"
+  | "knowledge"
   | "storage"
   | "development"
   | "crm"
@@ -32,6 +33,8 @@ export interface IntegrationItem {
   id: string;
   name: string;
   category: IntegrationCategory;
+  /** Restrict to a platform — undefined means show everywhere. */
+  platform?: "macos";
   /** Absolute public path to the brand logo. */
   logo: string;
   /** One-line, outcome-focused: what an agent does with it. */
@@ -67,13 +70,14 @@ export const CATEGORY_META: Record<
 > = {
   communication: { label: "Communication", order: 0 },
   productivity: { label: "Productivity", order: 1 },
-  storage: { label: "Files & Storage", order: 2 },
-  development: { label: "Development", order: 3 },
-  crm: { label: "Sales & Support", order: 4 },
-  finance: { label: "Finance & Legal", order: 5 },
-  data: { label: "Data & Analytics", order: 6 },
-  hr: { label: "People & HR", order: 7 },
-  automation: { label: "Automation & AI", order: 8 },
+  knowledge: { label: "Knowledge", order: 2 },
+  storage: { label: "Files & Storage", order: 3 },
+  development: { label: "Development", order: 4 },
+  crm: { label: "Sales & Support", order: 5 },
+  finance: { label: "Finance & Legal", order: 6 },
+  data: { label: "Data & Analytics", order: 7 },
+  hr: { label: "People & HR", order: 8 },
+  automation: { label: "Automation & AI", order: 9 },
 };
 
 export const CATEGORY_ORDER: IntegrationCategory[] = (
@@ -145,6 +149,87 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     actions: ["Fetch recordings", "Summarise meetings", "Extract decisions"],
   },
 
+  // ── Knowledge ───────────────────────────────────────────────────
+  {
+    id: "apple-notes",
+    name: "Apple Notes",
+    category: "knowledge",
+    platform: "macos",
+    logo: "/logos/apple-notes.svg",
+    blurb: "Import your notes as searchable, editable Markdown — offline and available to agents.",
+    brand: "#F2B600",
+    implemented: true,
+    native: true,
+    actions: [
+      "Import notes as local Markdown",
+      "Preserve folder hierarchy",
+      "Re-import upserts (never duplicates)",
+      "Include attachments with Full Disk Access",
+    ],
+  },
+  {
+    id: "notion",
+    name: "Notion",
+    category: "knowledge",
+    logo: L("notion.svg"),
+    blurb: "Read and update pages, databases, and docs.",
+    brand: "#000000",
+    implemented: true,
+    actions: ["Search workspace", "Create & edit pages", "Query databases"],
+  },
+  {
+    id: "confluence",
+    name: "Confluence",
+    category: "knowledge",
+    logo: L("confluence.svg"),
+    blurb: "Search and maintain your team's knowledge base.",
+    brand: "#172b4d",
+    implemented: false,
+    actions: ["Search spaces", "Draft pages", "Keep docs current"],
+  },
+  {
+    id: "google-drive",
+    name: "Google Drive",
+    category: "knowledge",
+    logo: L("google-drive.svg"),
+    blurb: "Browse, read, and reference Drive files as context.",
+    brand: "#1fa463",
+    implemented: false,
+    native: true,
+    actions: ["Search files", "Read docs & sheets", "Use as agent context"],
+    setupSteps: [
+      {
+        title: "Install Google Drive for Desktop",
+        body: "Download Google Drive for Desktop for your OS (macOS or Windows) and sign in. It mounts your Drive as a local folder Cabinet can read — no OAuth or Google Cloud setup needed.",
+        href: "https://support.google.com/a/users/answer/13022292?hl=en",
+      },
+      {
+        title: "Make folders available offline (recommended)",
+        body: "In Drive for Desktop, right-click the folders you want and choose \"Available offline\" so the files are on disk. Streaming-only files still appear but open more slowly.",
+      },
+      {
+        title: "Pick folders to show in Cabinet",
+        body: "In the panel on the right, choose which Drive folders to mount. They appear in the sidebar under a \"Google Drive\" section.",
+      },
+      {
+        title: "Open files in Cabinet",
+        body: "Click any mounted file to view it inline — PDFs, images, Office docs, and native Google Docs/Sheets/Slides all render in Cabinet's viewers.",
+      },
+    ],
+  },
+  {
+    id: "icloud",
+    name: "iCloud Drive",
+    category: "knowledge",
+    platform: "macos",
+    logo: "/logos/icloud.svg",
+    blurb: "Mount iCloud Drive folders as knowledge sources accessible to agents.",
+    brand: "#2196F3",
+    implemented: false,
+    native: true,
+    actions: ["Browse folders", "Read documents", "Use as agent context"],
+  },
+
   // ── Productivity ────────────────────────────────────────────────
   {
     id: "google-workspace",
@@ -165,26 +250,6 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     brand: "#0078d4",
     implemented: true,
     actions: ["Outlook mail & calendar", "Teams messages", "SharePoint & OneDrive files"],
-  },
-  {
-    id: "notion",
-    name: "Notion",
-    category: "productivity",
-    logo: L("notion.svg"),
-    blurb: "Read and update pages, databases, and docs.",
-    brand: "#000000",
-    implemented: true,
-    actions: ["Search workspace", "Create & edit pages", "Query databases"],
-  },
-  {
-    id: "confluence",
-    name: "Confluence",
-    category: "productivity",
-    logo: L("confluence.svg"),
-    blurb: "Search and maintain your team's knowledge base.",
-    brand: "#172b4d",
-    implemented: false,
-    actions: ["Search spaces", "Draft pages", "Keep docs current"],
   },
   {
     id: "airtable",
@@ -248,36 +313,6 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
   },
 
   // ── Files & Storage ─────────────────────────────────────────────
-  {
-    id: "google-drive",
-    name: "Google Drive",
-    category: "storage",
-    logo: L("google-drive.svg"),
-    blurb: "Browse, read, and reference Drive files as context.",
-    brand: "#1fa463",
-    implemented: false,
-    native: true,
-    actions: ["Search files", "Read docs & sheets", "Use as agent context"],
-    setupSteps: [
-      {
-        title: "Install Google Drive for Desktop",
-        body: "Download Google Drive for Desktop for your OS (macOS or Windows) and sign in. It mounts your Drive as a local folder Cabinet can read — no OAuth or Google Cloud setup needed.",
-        href: "https://support.google.com/a/users/answer/13022292?hl=en",
-      },
-      {
-        title: "Make folders available offline (recommended)",
-        body: "In Drive for Desktop, right-click the folders you want and choose \"Available offline\" so the files are on disk. Streaming-only files still appear but open more slowly.",
-      },
-      {
-        title: "Pick folders to show in Cabinet",
-        body: "In the panel on the right, choose which Drive folders to mount. They appear in the sidebar under a \"Google Drive\" section.",
-      },
-      {
-        title: "Open files in Cabinet",
-        body: "Click any mounted file to view it inline — PDFs, images, Office docs, and native Google Docs/Sheets/Slides all render in Cabinet's viewers.",
-      },
-    ],
-  },
   {
     id: "onedrive",
     name: "OneDrive",

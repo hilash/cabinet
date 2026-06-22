@@ -66,8 +66,19 @@ export function IntegrationsHubPage() {
     };
   }, [selectedId]);
 
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac/i.test(navigator.platform || navigator.userAgent);
+
   const filtered = useMemo(
-    () => filterIntegrations(PREVIEW_INTEGRATIONS, query),
+    () => {
+      const base = isMac
+        ? PREVIEW_INTEGRATIONS
+        : PREVIEW_INTEGRATIONS.filter((i) => i.platform !== "macos");
+      return filterIntegrations(base, query);
+    },
+    // isMac is stable after hydration; PREVIEW_INTEGRATIONS is a module constant
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [query],
   );
 
