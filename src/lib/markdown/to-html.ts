@@ -8,6 +8,20 @@ import { slugifyPageName } from "@/lib/markdown/wiki-links";
 import { addHeadingIds } from "@/lib/markdown/heading-slug";
 
 /**
+ * Pre-process markdown to convert ![[file.tex]] embeds into
+ * <div data-latex-embed> markers before the remark pipeline.
+ * Only matches .tex files so wiki-link-style image embeds for other
+ * types are unaffected.
+ */
+function convertLatexEmbeds(markdown: string): string {
+  return markdown.replace(
+    /!\[\[([^\]]+\.tex)\]\]/g,
+    (_match, path: string) =>
+      `<div data-latex-embed="true" data-path="${path}"></div>`
+  );
+}
+
+/**
  * Pre-process markdown to convert [[Wiki Links]] to HTML anchors
  * before the remark pipeline (which doesn't understand wiki-link syntax).
  */
@@ -149,8 +163,10 @@ const processor = unified()
   .freeze();
 
 export async function markdownToHtml(markdown: string, pagePath?: string): Promise<string> {
+  // Convert ![[file.tex]] LaTeX embeds to HTML markers before remark
+  const withLatex = convertLatexEmbeds(markdown);
   // Pre-process wiki-links before remark (which would treat [[ as text)
-  const preprocessed = convertWikiLinks(markdown);
+  const preprocessed = convertWikiLinks(withLatex);
 
   const result = await processor.process(preprocessed);
 

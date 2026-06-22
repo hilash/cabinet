@@ -47,6 +47,7 @@ export interface TreeNode {
     | "xlsx"
     | "pptx"
     | "notebook"
+    | "latex"
     | "unknown";
   hasRepo?: boolean;
   isLinked?: boolean;

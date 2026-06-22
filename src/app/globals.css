@@ -777,6 +777,86 @@ html[lang^="zh-Hant"] h1.font-ui, html[lang^="zh-Hant"] h2.font-ui {
   background: color-mix(in oklch, var(--primary) 12%, transparent);
 }
 
+/* LaTeX viewer (KaTeX-based renderer) */
+.latex-rendered .latex-sc {
+  font-variant: small-caps;
+}
+.latex-rendered .latex-center {
+  text-align: center;
+}
+.latex-rendered .latex-abstract {
+  margin: 1.5rem 0;
+  padding: 0 1.5rem;
+  font-size: 0.95em;
+}
+.latex-rendered .latex-abstract > h4 {
+  text-align: center;
+  margin: 0 0 0.5rem;
+}
+.latex-rendered .latex-verbatim {
+  white-space: pre-wrap;
+}
+.latex-rendered .latex-math-error {
+  color: #dc2626;
+  background: color-mix(in oklch, #dc2626 10%, transparent);
+  padding: 0.05rem 0.25rem;
+  border-radius: 0.2rem;
+}
+.latex-rendered .katex-display {
+  padding: 0.25rem 0;
+}
+/* Only un-numbered display math scrolls horizontally. KaTeX centers numbered
+   equations with two `.mtr-glue { width: 50% }` columns; making that box a
+   scroll container rounds them to just over 100% and leaves a permanent
+   sub-pixel scrollbar. The renderer tags safe blocks with `.katex-scrollable`
+   (no `:has()` needed, so it works in any browser/Electron version). */
+.latex-rendered .katex-display.katex-scrollable {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Stylized TeX / LaTeX logos (\TeX, \LaTeX, \LaTeXe macros) */
+.latex-rendered .latex-logo,
+.latex-rendered .tex-logo {
+  font-family: "Latin Modern Roman", "CMU Serif", Georgia, serif;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+.latex-rendered .latex-logo .latex-a {
+  font-size: 0.75em;
+  vertical-align: 0.3em;
+  margin-left: -0.36em;
+  margin-right: -0.15em;
+}
+.latex-rendered .tex-logo .tex-e {
+  font-size: 1em;
+  vertical-align: -0.5ex;
+  margin-left: -0.1667em;
+  margin-right: -0.125em;
+  text-transform: uppercase;
+}
+.latex-rendered .latex-logo .latex-2e {
+  margin-left: -0.1em;
+  vertical-align: -0.5ex;
+}
+
+/* \maketitle title block */
+.latex-rendered .latex-titleblock {
+  text-align: center;
+  margin: 0 0 2rem;
+}
+.latex-rendered .latex-titleblock .latex-doc-title {
+  margin: 0 0 0.5rem;
+}
+.latex-rendered .latex-titleblock .latex-doc-author {
+  font-size: 1.1em;
+  margin: 0.25rem 0;
+}
+.latex-rendered .latex-titleblock .latex-doc-date {
+  margin: 0.25rem 0;
+  opacity: 0.8;
+}
+
 /* Text-align utility (TextAlign extension renders inline style attr,
    but also add a fallback for older content) */
 .tiptap [style*="text-align: center"] { text-align: center; }

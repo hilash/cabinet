@@ -35,6 +35,7 @@ const MIME_TYPES: Record<string, string> = {
   ".xml": "application/xml",
   ".yaml": "text/yaml",
   ".yml": "text/yaml",
+  ".tex": "text/x-tex",
   ".txt": "text/plain",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -161,8 +162,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // (audit slideshows, dashboards, etc.). A 1h max-age served stale builds
     // until the cache expired. Force revalidation on every fetch — the
     // payload is small and the win on developer/UX feedback is large.
+    // Editable text sources (LaTeX, CSV, markdown, notebooks, …) get the same
+    // treatment: they're viewed in-app and re-rendered after edits or after
+    // being replaced on disk, so a long browser cache shows stale content.
     // Binary assets (images, fonts, video) keep the long cache.
-    const cacheControl = ext === ".html"
+    const NO_CACHE_EXTS = new Set([
+      ".html", ".tex", ".csv", ".md", ".markdown", ".txt",
+      ".json", ".xml", ".yaml", ".yml", ".ipynb",
+    ]);
+    const cacheControl = NO_CACHE_EXTS.has(ext)
       ? "no-cache, must-revalidate"
       : "public, max-age=3600";
 

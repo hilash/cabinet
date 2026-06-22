@@ -18,6 +18,7 @@ import {
   Video,
   Sparkles,
   File,
+  FileText,
   Sigma,
   Smile,
   Type,
@@ -77,6 +78,14 @@ const commands: SlashCommand[] = [
   { label: "Warning", icon: AlertTriangle, description: "Insert a warning callout", category: "advanced", action: { type: "direct", run: (editor) => editor.chain().focus().wrapIn("callout", { type: "warning" }).run() } },
   { label: "Math", icon: Sigma, description: "Insert a LaTeX math expression", category: "advanced", action: { type: "direct", run: (editor) => editor.chain().focus().insertContent("$x=y$").run() } },
   { label: "Emoji", icon: Smile, description: "Pick an emoji", category: "advanced", action: { type: "popover", kind: { type: "emoji" } } },
+  { label: "LaTeX File", icon: FileText, description: "Embed and render a .tex file", category: "advanced", action: { type: "direct", run: (editor) => {
+    const path = typeof window !== "undefined" ? window.prompt("Path to .tex file (relative to current page or vault root):", "document.tex") : null;
+    if (path && path.trim()) {
+      editor.chain().focus().insertLatexEmbed({ path: path.trim() }).run();
+    } else {
+      editor.chain().focus().run();
+    }
+  } } },
 ];
 
 interface SlashCommandsProps {
