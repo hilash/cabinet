@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Download, FileCode, FileDown, Sparkles } from "lucide-react";
+import { Copy, Download, FileCode, FileDown, Globe, Sparkles } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,12 +8,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEditorStore } from "@/stores/editor-store";
+import { useAppStore } from "@/stores/app-store";
 import { ViewerToolbar } from "@/components/layout/viewer-toolbar";
 import { useLocale } from "@/i18n/use-locale";
 
 export function Header() {
   const { t } = useLocale();
   const { frontmatter, content, currentPath } = useEditorStore();
+  const appMode = useAppStore((s) => s.appMode);
+  const setAppMode = useAppStore((s) => s.setAppMode);
 
   const handleCopyMarkdown = async () => {
     if (!content) return;
@@ -70,6 +73,19 @@ export function Header() {
 
   return (
     <ViewerToolbar path={currentPath || undefined} showBreadcrumb={!!currentPath}>
+      <button
+        onClick={() => setAppMode(appMode === "browse" ? "edit" : "browse")}
+        aria-label={appMode === "browse" ? "Close browser" : "Open browser"}
+        title={appMode === "browse" ? "Close browser" : "Open browser"}
+        className={
+          "inline-flex items-center justify-center rounded-md h-7 w-7 transition-colors cursor-pointer " +
+          (appMode === "browse"
+            ? "bg-accent text-accent-foreground"
+            : "hover:bg-accent hover:text-accent-foreground")
+        }
+      >
+        <Globe className="h-4 w-4" />
+      </button>
       {currentPath && (
         <DropdownMenu>
           <DropdownMenuTrigger aria-label={t("editor:header.exportPage")} title={t("editor:header.exportPage")} className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer">

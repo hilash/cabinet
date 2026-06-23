@@ -13,6 +13,7 @@ import { NotebookViewer } from "@/components/editor/notebook-viewer";
 import { ImageViewer } from "@/components/editor/image-viewer";
 import { MediaViewer } from "@/components/editor/media-viewer";
 import { MermaidViewer } from "@/components/editor/mermaid-viewer";
+import { BrowserView } from "@/components/layout/browser-view";
 import { FileFallbackViewer } from "@/components/editor/file-fallback-viewer";
 import dynamic from "next/dynamic";
 import { GoogleDocViewer } from "@/components/editor/google-doc-viewer";
@@ -160,6 +161,7 @@ export function AppShell() {
   const selectedPath = useTreeStore((s) => s.selectedPath);
   const driveNode = useTreeStore((s) => s.driveNode);
   const section = useAppStore((s) => s.section);
+  const appMode = useAppStore((s) => s.appMode);
   const setSection = useAppStore((s) => s.setSection);
   const terminalOpen = useAppStore((s) => s.terminalOpen);
   const terminalPosition = useAppStore((s) => s.terminalPosition);
@@ -783,6 +785,9 @@ export function AppShell() {
 
   // Determine what to render in the main area
   const renderContent = () => {
+    // Browse mode takes over the whole content surface (it renders its own
+    // header + browser chrome). Toggled from the header globe button.
+    if (appMode === "browse") return <BrowserView />;
     // System sections (non-page views)
     if (section.type === "home") return <HomeScreen />;
     if (section.type === "registry") return <RegistryBrowser />;

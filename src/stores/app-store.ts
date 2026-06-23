@@ -107,6 +107,12 @@ const NAV_HISTORY_CAP = 50;
 interface AppState {
   section: SelectedSection;
   returnTo: SelectedSection | null;
+  /** Which top-level surface is showing: the normal editor, or the in-app
+   *  browser (browse mode). */
+  appMode: "edit" | "browse";
+  /** The URL loaded in browse mode (null when none). */
+  browseUrl: string | null;
+  setAppMode: (mode: "edit" | "browse", url?: string | null) => void;
   // Hash-level navigation history. Each entry is a `window.location.hash` string
   // (e.g. `#/p/audits/foo`). Hash-level history captures *every* user
   // navigation — including page-to-page moves that share the same SelectedSection
@@ -233,6 +239,13 @@ function loadCabinetVisibilityModes(): Record<string, CabinetVisibilityMode> {
 export const useAppStore = create<AppState>((set, get) => ({
   section: { type: "home" },
   returnTo: null,
+  appMode: "edit",
+  browseUrl: null,
+  setAppMode: (mode, url) =>
+    set((state) => ({
+      appMode: mode,
+      browseUrl: url !== undefined ? url : state.browseUrl,
+    })),
   navHistory: [],
   navIndex: -1,
   canGoBack: false,
