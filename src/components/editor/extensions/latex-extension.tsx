@@ -273,8 +273,9 @@ function LatexEmbedView({ node, selected }: NodeViewProps) {
         setContent(newContent);
         setDirty(false);
       } catch (err) {
+        // Leave `dirty` set so the unsaved-changes indicator stays visible
+        // when the write fails.
         setError(err instanceof Error ? err.message : String(err));
-        setDirty(false);
       }
     }
   }, [content, virtualPath]);
