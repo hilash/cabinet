@@ -20,7 +20,15 @@ export function openUrlInAppropriateContext(
   // file:// URLs can't be loaded in a browser view or window.open —
   // Electron blocks them. Use shell.openPath to open with the OS default app.
   if (url.startsWith("file://")) {
-    const filePath = decodeURIComponent(url.slice("file://".length));
+    const rawPath = url.slice("file://".length);
+    // decodeURIComponent throws on malformed percent-encoding — fall back to the
+    // raw path instead of crashing the click handler.
+    let filePath: string;
+    try {
+      filePath = decodeURIComponent(rawPath);
+    } catch {
+      filePath = rawPath;
+    }
     if (isElectron && bridge.openLocalFile) {
       void bridge.openLocalFile(filePath);
       return;
@@ -48,6 +56,8 @@ export function openUrlInAppropriateContext(
   if (isElectron) {
     openInBrowseMode(url);
   } else {
-    window.open(url, "_blank");
+    // noopener,noreferrer prevents the opened page from reaching back via
+    // window.opener and navigating/altering this app.
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 }
