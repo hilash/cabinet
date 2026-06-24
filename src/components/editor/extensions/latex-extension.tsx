@@ -138,44 +138,58 @@ function buildLatexIframeDoc(texSource: string): string {
 </head>
 <body>
   <div id="latex-output"></div>
-  <script type="module">
-    import { parse, HtmlGenerator } from '/latex-js/latex.mjs';
-    try {
-      const texSource = ${texJson};
-      const generator = new HtmlGenerator({ hyphenate: true });
-      const result = parse(texSource, { generator });
-      const output = document.getElementById('latex-output');
+  <!--
+    Load latex.js as a classic UMD script (exposes window.latexjs) rather than
+    an ES module. The frame is sandboxed WITHOUT allow-same-origin, which gives
+    it an opaque origin; an ES module import of /latex-js/latex.mjs would be a
+    CORS-gated fetch and fail, while a classic <script src> is not CORS-gated.
+  -->
+  <script src="/latex-js/latex.js"></script>
+  <script>
+    (function () {
+      var output = document.getElementById('latex-output');
+      // The parent can't measure this frame cross-origin (no allow-same-origin),
+      // so report the rendered height back over postMessage for auto-resize.
+      function postHeight() {
+        var h = document.documentElement.scrollHeight;
+        if (h > 0) parent.postMessage({ type: 'cabinet:latex-height', height: h }, '*');
+      }
+      try {
+        var texSource = ${texJson};
+        var generator = new window.latexjs.HtmlGenerator({ hyphenate: true });
+        var result = window.latexjs.parse(texSource, { generator: generator });
 
-      // Inject styles (katex.css, article.css) and scripts (base.js)
-      output.appendChild(result.stylesAndScripts('/latex-js/'));
+        // Inject styles (katex.css, article.css) and scripts (base.js)
+        output.appendChild(result.stylesAndScripts('/latex-js/'));
 
-      // Inject the rendered DOM
-      const page = document.createElement('div');
-      page.setAttribute('class', 'page');
-      page.appendChild(result.domFragment());
-      output.appendChild(page);
+        // Inject the rendered DOM
+        var page = document.createElement('div');
+        page.setAttribute('class', 'page');
+        page.appendChild(result.domFragment());
+        output.appendChild(page);
 
-      // Apply CSS custom properties for page geometry
-      result.applyLengthsAndGeometryToDom(document.documentElement);
+        // Apply CSS custom properties for page geometry
+        result.applyLengthsAndGeometryToDom(document.documentElement);
 
-      // Also load the CMU fonts stylesheet
-      const fontLink = document.createElement('link');
-      fontLink.type = 'text/css';
-      fontLink.rel = 'stylesheet';
-      fontLink.href = '/latex-js/fonts/cmu.css';
-      document.head.appendChild(fontLink);
-    } catch (e) {
-      const output = document.getElementById('latex-output');
-      if (output) {
+        // Also load the CMU fonts stylesheet
+        var fontLink = document.createElement('link');
+        fontLink.type = 'text/css';
+        fontLink.rel = 'stylesheet';
+        fontLink.href = '/latex-js/fonts/cmu.css';
+        document.head.appendChild(fontLink);
+      } catch (e) {
         // Build with the DOM API + textContent so an error message that
         // contains markup can't inject HTML/script into the frame.
-        const errBox = document.createElement('div');
+        var errBox = document.createElement('div');
         errBox.className = 'latex-error';
         errBox.textContent = 'LaTeX parse error: ' + (e.message || 'Unknown error');
         output.replaceChildren(errBox);
+        console.error('LaTeX.js error:', e);
       }
-      console.error('LaTeX.js error:', e);
-    }
+      // Report height now and again after late layout (fonts) settles.
+      requestAnimationFrame(function () { requestAnimationFrame(postHeight); });
+      window.addEventListener('load', postHeight);
+    })();
   </script>
 </body>
 </html>`;
@@ -257,6 +271,22 @@ function LatexEmbedView({ node, selected }: NodeViewProps) {
     if (!iframe) return;
     iframe.srcdoc = buildLatexIframeDoc(content);
   }, [mode, visible, content]);
+
+  // Auto-resize the render frame from the height it posts back. The frame is
+  // sandboxed without allow-same-origin, so we can't read its DOM directly;
+  // match the message to our own iframe by comparing the event source.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const iframe = iframeRef.current;
+      if (!iframe || e.source !== iframe.contentWindow) return;
+      const data = e.data as { type?: string; height?: number } | null;
+      if (data?.type === "cabinet:latex-height" && typeof data.height === "number") {
+        iframe.style.height = `${data.height + 32}px`;
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   // Auto-resize textarea in edit mode
   useEffect(() => {
@@ -386,17 +416,10 @@ function LatexEmbedView({ node, selected }: NodeViewProps) {
               title="LaTeX render"
               className="w-full border-0 bg-white"
               style={{ minHeight: "200px" }}
-              sandbox="allow-scripts allow-same-origin"
-              onLoad={() => {
-                // Auto-resize iframe to fit content
-                try {
-                  const iframe = iframeRef.current;
-                  if (iframe && iframe.contentWindow) {
-                    const height = iframe.contentWindow.document.documentElement.scrollHeight;
-                    if (height > 0) iframe.style.height = `${height + 32}px`;
-                  }
-                } catch {}
-              }}
+              // No allow-same-origin: an opaque origin stops the rendered frame
+              // from reaching back into this document or clearing its own
+              // sandbox. Height is reported via postMessage instead.
+              sandbox="allow-scripts"
             />
           )}
         </div>
