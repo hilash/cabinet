@@ -961,7 +961,7 @@ export function AppShell() {
     if (isLatex && (selectedNode || selectedPath)) {
       const texPath = selectedNode?.path || selectedPath!;
       const texTitle = selectedNode?.frontmatter?.title || selectedNode?.name || texPath.split("/").pop() || "LaTeX";
-      return <LatexViewer path={texPath} title={texTitle} />;
+      return <LatexViewer key={texPath} path={texPath} title={texTitle} />;
     }
 
     if (isDocx && (selectedNode || selectedPath)) {
