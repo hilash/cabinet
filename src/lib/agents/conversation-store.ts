@@ -278,14 +278,17 @@ function makeSummaryFromOutput(output: string): string | undefined {
 }
 
 /**
- * Strip the trailing "Attached files (read with the Read tool...)" section
- * appended to adapter prompts by `buildAttachmentContext`. Defensive: even
- * once attachmentPaths are stored on meta/turns, old conversations may
- * still have the block baked into the extracted user request.
+ * Strip the context blocks the prompt builder appends after the user's
+ * message — the inlined mention content ("Referenced pages:\n…", from
+ * `buildMentionContext`) and the attachment hints ("Attached files (read
+ * with the Read tool…)", from `buildAttachmentContext`). Both are surfaced
+ * separately in the task UI (mention chips / attachment list), so without
+ * this the whole file contents leak into the displayed user message.
+ * Cuts at whichever marker appears first.
  */
-function stripAttachmentTrailer(text: string): string {
+function stripContextTrailers(text: string): string {
   const idx = text.search(
-    /\n*\s*Attached files \(read with the Read tool/i
+    /\n*\s*(?:Referenced pages:|Attached files \(read with the Read tool)/i
   );
   if (idx === -1) return text;
   return text.slice(0, idx).trimEnd();
@@ -298,13 +301,13 @@ export function extractConversationRequest(prompt: string): string {
   for (const marker of markers) {
     const index = normalized.lastIndexOf(marker);
     if (index !== -1) {
-      return stripAttachmentTrailer(
+      return stripContextTrailers(
         normalized.slice(index + marker.length).trim()
       );
     }
   }
 
-  return stripAttachmentTrailer(normalized.trim());
+  return stripContextTrailers(normalized.trim());
 }
 
 // Agents sometimes cram multiple files onto one ARTIFACT: line (e.g.
