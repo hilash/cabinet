@@ -49,7 +49,13 @@ export async function POST(request: Request) {
       if (resolved !== DATA_DIR && !resolved.startsWith(DATA_DIR + path.sep)) {
         return NextResponse.json({ error: "Invalid path" }, { status: 400 });
       }
-      targetPath = resolveOnDisk(resolved);
+      // resolveOnDisk can fall back to a parent directory, so re-check that the
+      // final on-disk target is still inside DATA_DIR before opening it.
+      const onDisk = resolveOnDisk(resolved);
+      if (onDisk !== DATA_DIR && !onDisk.startsWith(DATA_DIR + path.sep)) {
+        return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+      }
+      targetPath = onDisk;
     }
 
     // Reveal in Finder when opening a specific subpath
