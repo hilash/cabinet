@@ -52,8 +52,9 @@ function readBracedArg(str: string, openIndex: number): { content: string; end: 
   let depth = 0;
   for (let i = openIndex; i < str.length; i++) {
     const ch = str[i];
-    if (ch === "{" && str[i - 1] !== "\\") depth++;
-    else if (ch === "}" && str[i - 1] !== "\\") {
+    // Guard `i > 0` so we never read str[-1] for the first character.
+    if (ch === "{" && (i === 0 || str[i - 1] !== "\\")) depth++;
+    else if (ch === "}" && (i === 0 || str[i - 1] !== "\\")) {
       depth--;
       if (depth === 0) return { content: str.slice(openIndex + 1, i), end: i + 1 };
     }
