@@ -832,17 +832,24 @@ export function TreeView() {
                     {activeCabinet ? "Add cabinet data" : "Add your first page"}
                   </button>
                 ) : (
-                  visibleTreeNodes.map((node, index) => (
-                    <TreeNode
-                      key={node.path}
-                      node={node}
-                      depth={1}
-                      contextCabinetPath={activeCabinet?.path || null}
-                      siblings={visibleTreeNodes}
-                      onMoveToRequest={requestMoveTo}
-                      animationDelayMs={index * 22}
-                    />
-                  ))
+                  // Each row carries its own context menu (rename, copy path,
+                  // Open in Finder, delete). Without this stopPropagation a
+                  // right-click on a row bubbles to the data-drawer trigger
+                  // above and opens *that* menu instead — same fix the Drive
+                  // section uses below.
+                  <div onContextMenu={(e) => e.stopPropagation()}>
+                    {visibleTreeNodes.map((node, index) => (
+                      <TreeNode
+                        key={node.path}
+                        node={node}
+                        depth={1}
+                        contextCabinetPath={activeCabinet?.path || null}
+                        siblings={visibleTreeNodes}
+                        onMoveToRequest={requestMoveTo}
+                        animationDelayMs={index * 22}
+                      />
+                    ))}
+                  </div>
                 )}
                 {/* Mounted Drive folders flow inline right after the cabinet
                     files. Rendered inside SidebarSearch so they sit with the
