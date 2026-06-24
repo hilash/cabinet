@@ -24,6 +24,9 @@ export function LatexViewer({ path }: LatexViewerProps) {
   const [saving, setSaving] = useState(false);
 
   const editContentRef = useRef<string>("");
+  // Guards against overlapping writes — handleSave can fire from both the
+  // textarea's onBlur and the toolbar button click at nearly the same time.
+  const savingRef = useRef(false);
 
   const rendered = useMemo(() => (content ? renderLatexToHtml(content) : null), [content]);
 
@@ -69,11 +72,13 @@ export function LatexViewer({ path }: LatexViewerProps) {
   }, [fetchContent, mode]);
 
   const handleSave = useCallback(async () => {
+    if (savingRef.current) return;
     const newContent = editContentRef.current;
     if (newContent === content) {
       setMode("rendered");
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     setSaveError(null);
     try {
@@ -100,6 +105,7 @@ export function LatexViewer({ path }: LatexViewerProps) {
       // non-blocking banner so the user can retry without losing their edits.
       setSaveError(e instanceof Error ? e.message : "Failed to save");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }, [content, path, assetUrl]);
@@ -110,6 +116,7 @@ export function LatexViewer({ path }: LatexViewerProps) {
         <Button
           variant="ghost"
           size="sm"
+          disabled={mode === "source" && saving}
           onClick={() => {
             if (mode === "source") {
               handleSave();
