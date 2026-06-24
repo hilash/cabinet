@@ -101,11 +101,15 @@ function escapeHtml(str: string): string {
 function safeHref(rawUrl: string): string {
   // Inline math/text already HTML-escaped `&` to `&amp;`; restore it first.
   const url = rawUrl.replace(/&amp;/g, "&").trim();
-  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(url);
+  // Strip control characters before checking the scheme. Browsers ignore
+  // embedded tabs/newlines when resolving an href, so `java\nscript:` would
+  // otherwise slip past the scheme regex and still execute.
+  const normalized = url.replace(/[\u0000-\u001F\u007F]/g, "");
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(normalized);
   if (scheme && !/^(https?|mailto|tel|ftp)$/i.test(scheme[1])) {
     return "#";
   }
-  return url
+  return normalized
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
