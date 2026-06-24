@@ -16,7 +16,10 @@ type ViewMode = "rendered" | "source";
 export function LatexViewer({ path }: LatexViewerProps) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Load failures block the viewer (there's nothing to show); save failures
+  // must NOT — the editor has to stay open so the user can retry/copy.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [mode, setMode] = useState<ViewMode>("rendered");
   const [saving, setSaving] = useState(false);
 
@@ -29,7 +32,7 @@ export function LatexViewer({ path }: LatexViewerProps) {
 
   const fetchContent = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       // `no-store` prevents the browser from serving a stale copy when the
       // file is replaced at the same path (the asset URL doesn't change).
@@ -39,7 +42,7 @@ export function LatexViewer({ path }: LatexViewerProps) {
       setContent(text);
       editContentRef.current = text;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load .tex file");
+      setLoadError(e instanceof Error ? e.message : "Failed to load .tex file");
     } finally {
       setLoading(false);
     }
@@ -72,6 +75,7 @@ export function LatexViewer({ path }: LatexViewerProps) {
       return;
     }
     setSaving(true);
+    setSaveError(null);
     try {
       const bridge = (window as unknown as {
         CabinetDesktop?: {
@@ -92,7 +96,9 @@ export function LatexViewer({ path }: LatexViewerProps) {
       setContent(newContent);
       setMode("rendered");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      // Keep the editor open (mode stays "source") and surface the error as a
+      // non-blocking banner so the user can retry without losing their edits.
+      setSaveError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -166,16 +172,23 @@ export function LatexViewer({ path }: LatexViewerProps) {
         </a>
       </ViewerToolbar>
 
+      {saveError && (
+        <div className="flex items-start gap-2 border-b border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-700/60 dark:bg-red-950/40 dark:text-red-300">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Couldn&apos;t save: {saveError}</span>
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading LaTeX…
           </div>
-        ) : error ? (
+        ) : loadError ? (
           <div className="flex items-center justify-center h-full text-sm text-red-600 dark:text-red-400 gap-2">
             <AlertCircle className="h-4 w-4" />
-            {error}
+            {loadError}
           </div>
         ) : mode === "source" ? (
           <textarea
