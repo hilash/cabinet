@@ -10,6 +10,20 @@ function getBridge(): CabinetDesktopBridge {
     .CabinetDesktop ?? {};
 }
 
+function dispatchOpenError(filePath: string, error?: string): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("cabinet:toast", {
+      detail: {
+        kind: "error",
+        message: error
+          ? `Couldn't open file: ${error}`
+          : `Couldn't open file: ${filePath}`,
+      },
+    })
+  );
+}
+
 /**
  * Open a `file://` URL.
  *
@@ -25,7 +39,18 @@ export function openLocalFileUrl(url: string): void {
   const bridge = getBridge();
 
   if (bridge.runtime === "electron" && bridge.openLocalFile) {
-    void bridge.openLocalFile(filePath);
+    // Surface failures (missing file, permissions) as a toast instead of
+    // silently swallowing the bridge result.
+    void bridge
+      .openLocalFile(filePath)
+      .then((result) => {
+        if (!result?.ok) {
+          dispatchOpenError(filePath, result?.error);
+        }
+      })
+      .catch((err) => {
+        dispatchOpenError(filePath, err instanceof Error ? err.message : String(err));
+      });
     return;
   }
 
