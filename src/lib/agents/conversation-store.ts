@@ -287,8 +287,11 @@ function makeSummaryFromOutput(output: string): string | undefined {
  * Cuts at whichever marker appears first.
  */
 function stripContextTrailers(text: string): string {
+  // Anchor to the start of a line (multiline `^`) so we only strip a real
+  // appended trailer block and never truncate at a "Referenced pages:" that
+  // happens to appear mid-sentence in the user's own text.
   const idx = text.search(
-    /\n*\s*(?:Referenced pages:|Attached files \(read with the Read tool)/i
+    /^[ \t]*(?:Referenced pages:|Attached files \(read with the Read tool)/im
   );
   if (idx === -1) return text;
   return text.slice(0, idx).trimEnd();
