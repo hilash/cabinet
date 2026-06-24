@@ -75,7 +75,11 @@ if (fs.existsSync(latexJsDist)) {
     }
     console.log("[cabinet] postinstall: latex.js assets copied to public/latex-js/");
   } catch (err) {
-    console.warn("[cabinet] postinstall: failed to copy latex.js assets:", err);
+    // A failed copy leaves the LaTeX embed iframe unable to load /latex-js/
+    // assets at runtime, so surface it as an error and fail the install rather
+    // than letting a broken build slip through.
+    console.error("[cabinet] postinstall: failed to copy latex.js assets:", err);
+    process.exitCode = 1;
   }
 }
 
