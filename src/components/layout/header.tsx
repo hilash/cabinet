@@ -113,17 +113,62 @@ export function Header() {
               const pdfHeight = pdf.internal.pageSize.getHeight();
               // Total height of the rendered image when scaled to the page width.
               const imgHeight = (img.height * pdfWidth) / img.width;
-              let remaining = imgHeight;
-              let position = 0;
-              pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-              remaining -= pdfHeight;
-              // Add a new page for each additional page-height slice, shifting the
-              // image up so the next slice lines up with the top of the page.
-              while (remaining > 0) {
-                position -= pdfHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-                remaining -= pdfHeight;
+
+              // Map the editor's CSS pixels to PDF millimetres so we can locate
+              // images in the same coordinate space as the page slices.
+              const mmPerPx = pdfWidth / (editorEl as HTMLElement).clientWidth;
+              const editorTop = (editorEl as HTMLElement).getBoundingClientRect().top;
+              // Vertical extents (in mm) of elements that should not be split
+              // across a page boundary, sorted top-to-bottom.
+              const atomicRanges = Array.from(editorEl.querySelectorAll("img"))
+                .map((el) => {
+                  const r = el.getBoundingClientRect();
+                  return {
+                    top: (r.top - editorTop) * mmPerPx,
+                    bottom: (r.bottom - editorTop) * mmPerPx,
+                  };
+                })
+                .sort((a, b) => a.top - b.top);
+
+              // Walk down the rendered image, choosing where each page ends.
+              // When a default page boundary would cut through an image, end the
+              // page just above that image so it moves wholly to the next page.
+              const EPS = 0.5;
+              let start = 0;
+              let first = true;
+              while (start < imgHeight - EPS) {
+                let end = start + pdfHeight;
+                if (end < imgHeight) {
+                  for (const range of atomicRanges) {
+                    // Only adjust for an image that straddles this boundary and
+                    // can fit on a page of its own (taller-than-page images are
+                    // left to split, as they cannot be avoided).
+                    if (
+                      range.top < end - EPS &&
+                      range.bottom > end + EPS &&
+                      range.top > start + EPS &&
+                      range.bottom - range.top <= pdfHeight
+                    ) {
+                      end = range.top;
+                      break;
+                    }
+                  }
+                } else {
+                  end = imgHeight;
+                }
+                const sliceHeight = end - start;
+                if (!first) pdf.addPage();
+                first = false;
+                // Place the full image shifted up so this slice aligns with the
+                // top of the page; the page clips everything outside it.
+                pdf.addImage(imgData, "PNG", 0, -start, pdfWidth, imgHeight);
+                // Mask the strip below the slice so a pushed-down image does not
+                // bleed onto the bottom of the current page.
+                if (sliceHeight < pdfHeight - EPS) {
+                  pdf.setFillColor(255, 255, 255);
+                  pdf.rect(0, sliceHeight, pdfWidth, pdfHeight - sliceHeight, "F");
+                }
+                start = end;
               }
               pdf.save(`${frontmatter?.title || "page"}.pdf`);
             }}>
