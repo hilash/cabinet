@@ -13,11 +13,16 @@ export const dynamic = "force-dynamic";
 // has something to reveal. Falls back to the original path (and finally
 // its parent) so directories and real-extension files keep working.
 function resolveOnDisk(resolved: string): string {
-  if (existsSync(resolved)) return resolved;
+  // Prefer the virtual Markdown targets first: a page can have a same-named
+  // sibling directory (sub-pages), so checking `existsSync(resolved)` up front
+  // would reveal that folder instead of the page's own `<page>.md`. `.md` and
+  // `<page>/index.md` (container pages) take priority; only then fall back to
+  // the bare path (real directories / real-extension files) and its parent.
   const withMd = `${resolved}.md`;
   if (existsSync(withMd)) return withMd;
   const indexMd = path.join(resolved, "index.md");
   if (existsSync(indexMd)) return indexMd;
+  if (existsSync(resolved)) return resolved;
   const parent = path.dirname(resolved);
   if (existsSync(parent)) return parent;
   return resolved;
