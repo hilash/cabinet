@@ -192,6 +192,18 @@ turndown.addRule("twitterEmbed", {
   },
 });
 
+// Serialize LaTeX embed blocks back to ![[file.tex]] syntax.
+turndown.addRule("latexEmbed", {
+  filter: (node) =>
+    node.nodeName === "DIV" &&
+    (node as HTMLElement).getAttribute("data-latex-embed") === "true",
+  replacement: (_content, node) => {
+    const el = node as HTMLElement;
+    const path = el.getAttribute("data-path") ?? "";
+    return `\n![[${path}]]\n`;
+  },
+});
+
 // Preserve images that have inline width/align data. Turndown's default image
 // rule emits `![]()`, losing size info — so when the <img> has width, align, or
 // wraps in a resizable-image div we emit the raw HTML instead.

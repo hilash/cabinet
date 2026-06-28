@@ -52,6 +52,50 @@ for (const { label, cmd, target } of macFixes) {
   }
 }
 
+// Copy latex.js static assets (CSS, JS, fonts, document classes) to
+// public/latex-js/ so the LaTeX embed iframe can load them at /latex-js/.
+const latexJsDist = path.join("node_modules", "latex.js", "dist");
+const latexJsPublic = path.join("public", "latex-js");
+if (fs.existsSync(latexJsDist)) {
+  try {
+    fs.rmSync(latexJsPublic, { recursive: true, force: true });
+    fs.mkdirSync(latexJsPublic, { recursive: true });
+    for (const dir of ["css", "js", "fonts", "documentclasses", "packages"]) {
+      const src = path.join(latexJsDist, dir);
+      if (fs.existsSync(src)) {
+        copyDirRecursive(src, path.join(latexJsPublic, dir));
+      }
+    }
+    // Copy the main library files (parser + custom element)
+    for (const file of ["latex.mjs", "latex.js"]) {
+      const src = path.join(latexJsDist, file);
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, path.join(latexJsPublic, file));
+      }
+    }
+    console.log("[cabinet] postinstall: latex.js assets copied to public/latex-js/");
+  } catch (err) {
+    // A failed copy leaves the LaTeX embed iframe unable to load /latex-js/
+    // assets at runtime, so surface it as an error and fail the install rather
+    // than letting a broken build slip through.
+    console.error("[cabinet] postinstall: failed to copy latex.js assets:", err);
+    process.exitCode = 1;
+  }
+}
+
+function copyDirRecursive(src, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
 // better-sqlite3 prebuilds ship for a specific NODE_MODULE_VERSION; if the
 // user's runtime doesn't match, rebuild from source so the daemon boots
 // cleanly regardless of which Node version is active.

@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/layout/header";
 import { KBEditor } from "@/components/editor/editor";
+import { BrowserView } from "@/components/layout/browser-view";
 import { WebsiteViewer } from "@/components/editor/website-viewer";
 import { PdfViewer } from "@/components/editor/pdf-viewer";
 import { CsvViewer } from "@/components/editor/csv-viewer";
@@ -13,6 +14,7 @@ import { NotebookViewer } from "@/components/editor/notebook-viewer";
 import { ImageViewer } from "@/components/editor/image-viewer";
 import { MediaViewer } from "@/components/editor/media-viewer";
 import { MermaidViewer } from "@/components/editor/mermaid-viewer";
+import { LatexViewer } from "@/components/editor/latex-viewer";
 import { FileFallbackViewer } from "@/components/editor/file-fallback-viewer";
 import dynamic from "next/dynamic";
 import { GoogleDocViewer } from "@/components/editor/google-doc-viewer";
@@ -160,6 +162,8 @@ export function AppShell() {
   const selectedPath = useTreeStore((s) => s.selectedPath);
   const driveNode = useTreeStore((s) => s.driveNode);
   const section = useAppStore((s) => s.section);
+  const appMode = useAppStore((s) => s.appMode);
+  const setAppMode = useAppStore((s) => s.setAppMode);
   const setSection = useAppStore((s) => s.setSection);
   const terminalOpen = useAppStore((s) => s.terminalOpen);
   const terminalPosition = useAppStore((s) => s.terminalPosition);
@@ -367,6 +371,14 @@ export function AppShell() {
     }, 1000);
     return () => window.clearTimeout(id);
   }, [selectedPath, section.cabinetPath]);
+
+  // Browse mode only makes sense over a page/cabinet surface; leaving those
+  // sections (settings, help, etc.) drops back to the editor.
+  useEffect(() => {
+    if (section.type !== "page" && section.type !== "cabinet" && appMode !== "edit") {
+      setAppMode("edit");
+    }
+  }, [section.type, appMode, setAppMode]);
 
   // Dynamic document.title — reflects the current section and page.
   useEffect(() => {
@@ -727,6 +739,7 @@ export function AppShell() {
         if (lower.endsWith(".pptx")) return "pptx";
         if (lower.endsWith(".ipynb")) return "notebook";
         if (lower.endsWith(".mmd") || lower.endsWith(".mermaid")) return "mermaid";
+        if (lower.endsWith(".tex") || lower.endsWith(".latex")) return "latex";
         if (/\.(png|jpe?g|gif|webp|svg|bmp)$/.test(lower)) return "image";
         if (/\.(mp4|mov|webm|avi|mkv)$/.test(lower)) return "video";
         if (/\.(mp3|wav|ogg|flac|m4a)$/.test(lower)) return "audio";
@@ -747,6 +760,7 @@ export function AppShell() {
   const isVideo = nodeType === "video";
   const isAudio = nodeType === "audio";
   const isMermaid = nodeType === "mermaid";
+  const isLatex = nodeType === "latex";
   const isDocx = nodeType === "docx";
   const isXlsx = nodeType === "xlsx";
   const isPptx = nodeType === "pptx";
@@ -789,6 +803,9 @@ export function AppShell() {
     if (section.type === "settings") return <SettingsPage />;
     if (section.type === "integrations") return <IntegrationsHubPage />;
     if (section.type === "help") return <HelpPage />;
+    if ((section.type === "cabinet" || section.type === "page") && appMode === "browse") {
+      return <BrowserView />;
+    }
     if (section.type === "cabinet" && section.cabinetPath) {
       return <CabinetView cabinetPath={section.cabinetPath} />;
     }
@@ -953,6 +970,12 @@ export function AppShell() {
       const mmdPath = selectedNode?.path || selectedPath!;
       const mmdTitle = selectedNode?.frontmatter?.title || selectedNode?.name || mmdPath.split("/").pop() || "Diagram";
       return <MermaidViewer path={mmdPath} title={mmdTitle} />;
+    }
+
+    if (isLatex && (selectedNode || selectedPath)) {
+      const texPath = selectedNode?.path || selectedPath!;
+      const texTitle = selectedNode?.frontmatter?.title || selectedNode?.name || texPath.split("/").pop() || "LaTeX";
+      return <LatexViewer key={texPath} path={texPath} title={texTitle} />;
     }
 
     if (isDocx && (selectedNode || selectedPath)) {

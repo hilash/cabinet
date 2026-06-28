@@ -6,6 +6,10 @@ const net = require("net");
 const { spawn } = require("child_process");
 const { app, BrowserWindow, dialog, autoUpdater, ipcMain, shell } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
+const {
+  initBrowserViews,
+  destroyAllBrowserViews,
+} = require("./browser-views.cjs");
 
 if (require("electron-squirrel-startup")) {
   app.quit();
@@ -721,6 +725,7 @@ ipcMain.handle("cabinet:open-local-file", async (_event, payload) => {
 });
 
 app.on("window-all-closed", () => {
+  destroyAllBrowserViews();
   cleanupBackends();
   if (process.platform !== "darwin") {
     app.quit();
@@ -728,6 +733,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  destroyAllBrowserViews();
   cleanupBackends();
 });
 
@@ -748,6 +754,14 @@ app.on("second-instance", () => {
 
 app.whenReady().then(async () => {
   configureAutoUpdates();
+  // Native in-app browser (browse mode). Attaches WebContentsViews to the
+  // current main window; getBaseAppUrl resolves app-relative /api/assets KB
+  // URLs; isDev enables the "Inspect Element" context menu.
+  initBrowserViews({
+    getMainWindow: () => mainWindow,
+    getBaseAppUrl: () => baseAppUrl,
+    isDev,
+  });
   await createWindow();
 
   app.on("activate", async () => {

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { showSuccess } from "@/lib/ui/toast";
 import { ConnectPanel } from "@/components/integrations/hub/connect-panel";
+import { AppleNotesSection } from "@/components/settings/apple-notes-section";
 import { GoogleDriveSection } from "@/components/settings/google-drive-section";
 import { GmailSection } from "@/components/settings/gmail-section";
 import { SetupGuide } from "@/components/integrations/hub/setup-guide";
@@ -174,7 +175,11 @@ export function IntegrationDetailPage({
 
         {/* Right: config / status panel */}
         <aside>
-          {item.id === "google-drive" ? (
+          {item.id === "apple-notes" ? (
+            <div className="rounded-2xl border border-border bg-card/40 p-5">
+              <AppleNotesSection />
+            </div>
+          ) : item.id === "google-drive" ? (
             // Drive connects via Google Drive for Desktop (folder mounts), not
             // the generic MCP connect flow. OAuth support is noted as upcoming
             // inside this section.

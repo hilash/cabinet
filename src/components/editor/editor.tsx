@@ -20,6 +20,7 @@ import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
 import { slugifyPageName } from "@/lib/markdown/wiki-links";
 import { detectEmbed } from "@/lib/embeds/detect";
 import { openLocalFileUrl } from "@/lib/runtime/open-local-file";
+import { openUrlInAppropriateContext } from "@/lib/runtime/open-url";
 import { cellAround, isInTable } from "@tiptap/pm/tables";
 import type { TreeNode } from "@/types";
 import { useLocale } from "@/i18n/use-locale";
@@ -171,6 +172,14 @@ export function KBEditor() {
     setFolderTab("page");
   }, [currentPath]);
 
+  // Guards against a freshly-mounted (content: "") editor autosaving its empty
+  // initial state over a real page. Stays false until the content effect has
+  // populated this editor instance at least once. Critical when leaving browse
+  // mode: that unmounts/remounts KBEditor while the store is already
+  // loadStatus "ok", so the loadStatus guard below wouldn't catch the spurious
+  // empty onUpdate the way it does on a cold app start.
+  const hasPopulatedRef = useRef(false);
+
   const handleUpdate = useCallback(
     ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
       if (isLoadingRef.current || !editor) return;
@@ -178,6 +187,9 @@ export function KBEditor() {
       // fetch is still in flight (e.g. editor mount/normalization on a fresh
       // open) must not mark the page dirty with the empty loading state.
       if (useEditorStore.getState().loadStatus !== "ok") return;
+      // Ignore updates before this editor instance has been populated once —
+      // the initial empty-doc transaction must never overwrite stored content.
+      if (!hasPopulatedRef.current) return;
       const html = editor.getHTML();
       const md = htmlToMarkdown(html);
       useEditorStore.getState().updateContent(md);
@@ -269,6 +281,19 @@ export function KBEditor() {
             return true;
           }
 
+          // Skip API asset links (PDFs, images); they load directly.
+          if (href.startsWith("/api/")) return false;
+
+          // External links: open in the built-in browser.
+          if (/^https?:\/\//.test(href) || href.startsWith("//")) {
+            event.preventDefault();
+            event.stopPropagation();
+            openUrlInAppropriateContext(href, (url) =>
+              useAppStore.getState().setAppMode("browse", url)
+            );
+            return true;
+          }
+
           // Local file links: open with the OS default app (Electron) or
           // surface the path (browser). file:// can't load in a webview.
           if (href.startsWith("file://")) {
@@ -281,10 +306,6 @@ export function KBEditor() {
             openLocalFileUrl(encoded);
             return true;
           }
-
-          // Internal links: relative paths to .md files or other KB pages
-          // Skip external URLs and API asset links (PDFs, images)
-          if (/^https?:\/\//.test(href) || href.startsWith("/api/")) return false;
           if (href.startsWith("mailto:") || href.startsWith("tel:")) return false;
 
           event.preventDefault();
@@ -435,6 +456,9 @@ export function KBEditor() {
         // image refs; currentPath is only correct for directory pages.
         const html = await markdownToHtml(content, assetBase ?? currentPath);
         editor.commands.setContent(html);
+        // This editor instance now reflects stored content, so user-driven
+        // onUpdate transactions are safe to persist (see hasPopulatedRef).
+        hasPopulatedRef.current = true;
         setRendered({ key, path: currentPath });
         // Surface a known-bad state instead of silently rendering blank: the
         // store has content but ProseMirror parsed it down to nothing —

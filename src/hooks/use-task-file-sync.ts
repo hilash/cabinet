@@ -38,8 +38,14 @@ export function useTaskFileSync(): void {
       const editor = useEditorStore.getState();
       const openPath = editor.currentPath;
 
-      // Highlight everything except the page the user is already looking at.
-      useTreeStore.getState().markChanged(treePaths.filter((p) => p !== openPath));
+      // Mark every file the task touched with the "new content" dot —
+      // including the page currently open in the editor. The editor agent's
+      // whole job is editing the open page, so excluding it (the previous
+      // behavior) meant the most common task never surfaced any change
+      // indicator. The dot is the persistent signal; opening/refocusing the
+      // file clears it (selectPage → clearChanged). We still reload the open
+      // page in place below so its content stays fresh.
+      useTreeStore.getState().markChanged(treePaths);
       // `fresh` busts the server tree cache: agents write straight to disk, so
       // a plain reload could serve the pre-write snapshot and the new files
       // wouldn't show until the user hit refresh.

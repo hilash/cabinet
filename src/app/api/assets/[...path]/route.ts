@@ -35,6 +35,7 @@ const MIME_TYPES: Record<string, string> = {
   ".xml": "application/xml",
   ".yaml": "text/yaml",
   ".yml": "text/yaml",
+  ".tex": "text/x-tex",
   ".txt": "text/plain",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -42,6 +43,15 @@ const MIME_TYPES: Record<string, string> = {
   ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   ".ipynb": "application/json",
 };
+
+// Editable text sources (LaTeX, CSV, markdown, notebooks, …) are viewed in-app
+// and re-rendered after edits or after being replaced on disk, so a long
+// browser cache would show stale content. Binary assets (images, fonts, video)
+// keep a long cache. Shared by both the local and mounted-Drive branches.
+const NO_CACHE_EXTS = new Set([
+  ".html", ".tex", ".csv", ".md", ".markdown", ".txt",
+  ".json", ".xml", ".yaml", ".yml", ".ipynb",
+]);
 
 type RouteParams = { params: Promise<{ path: string[] }> };
 
@@ -91,6 +101,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         const totalSize = stat.size;
         const ext = path.extname(realNormalized).toLowerCase();
         const contentType = MIME_TYPES[ext] || "application/octet-stream";
+        // Mounted Drive content is private; editable text still needs
+        // revalidation so in-app edits/replacements aren't served stale.
+        const cacheControl = NO_CACHE_EXTS.has(ext)
+          ? "private, no-cache, must-revalidate"
+          : "private, max-age=60";
 
         const rangeHeader = req.headers.get("range");
         if (rangeHeader) {
@@ -119,7 +134,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                     "Content-Length": String(size),
                     "Content-Range": `bytes ${start}-${end}/${totalSize}`,
                     "Accept-Ranges": "bytes",
-                    "Cache-Control": "private, max-age=60",
+                    "Cache-Control": cacheControl,
                   },
                 });
               } finally {
@@ -139,7 +154,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             "Content-Type": contentType,
             "Content-Length": String(totalSize),
             "Accept-Ranges": "bytes",
-            "Cache-Control": "private, max-age=60",
+            "Cache-Control": cacheControl,
           },
         });
       } catch {
@@ -159,10 +174,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const totalSize = stat.size;
     // HTML assets back in-Cabinet apps/websites that the user re-generates
     // (audit slideshows, dashboards, etc.). A 1h max-age served stale builds
-    // until the cache expired. Force revalidation on every fetch — the
-    // payload is small and the win on developer/UX feedback is large.
-    // Binary assets (images, fonts, video) keep the long cache.
-    const cacheControl = ext === ".html"
+    // until the cache expired. Force revalidation on every fetch for the
+    // editable text types (see NO_CACHE_EXTS) — the payload is small and the
+    // win on developer/UX feedback is large. Binary assets keep the long cache.
+    const cacheControl = NO_CACHE_EXTS.has(ext)
       ? "no-cache, must-revalidate"
       : "public, max-age=3600";
 
