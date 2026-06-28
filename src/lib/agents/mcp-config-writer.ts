@@ -60,6 +60,20 @@ function resolveServerEnv(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/**
+ * An entry's stdio args plus any `argsWhenCredentialSet` extras whose gating
+ * credential currently has a value in `.cabinet.env` (e.g. M365 `--org-mode`,
+ * appended only once the user supplies their Entra Client ID).
+ */
+function resolveArgs(entry: CatalogEntry): string[] | undefined {
+  const base = entry.args ? [...entry.args] : undefined;
+  const cond = entry.argsWhenCredentialSet;
+  if (!cond) return base;
+  const val = readCabinetEnvFile().values[cond.credentialKey];
+  if (val === undefined || val === "") return base;
+  return [...(base ?? []), ...cond.args];
+}
+
 /** The server entry written into a CLI config (never contains secrets). */
 function buildServerEntry(entry: CatalogEntry): Record<string, unknown> {
   if (entry.transport === "http") {
@@ -88,7 +102,8 @@ function buildServerEntry(entry: CatalogEntry): Record<string, unknown> {
     }
   }
   const out: Record<string, unknown> = { command: entry.command };
-  if (entry.args) out.args = entry.args;
+  const args = resolveArgs(entry);
+  if (args) out.args = args;
   if (entry.serverEnv) {
     const env = resolveServerEnv(entry.serverEnv); // ${ENVKEY} placeholders, unset ones dropped
     if (env) out.env = env;

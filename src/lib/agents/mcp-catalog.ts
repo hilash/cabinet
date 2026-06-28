@@ -85,6 +85,15 @@ export interface CatalogEntry {
   command?: string;
   args?: string[];
   /**
+   * Extra stdio args appended only when a given credential has a value in
+   * `.cabinet.env`. Used for flags that apply to the "bring your own app" path
+   * but would break the built-in/default path. Concrete case: Microsoft 365's
+   * `--org-mode` unlocks the work/school-only Graph tools (Teams chat/channel,
+   * SharePoint) — but those tools error on a personal account, so we only pass
+   * it once the user has supplied their Entra Client ID (i.e. work mode).
+   */
+  argsWhenCredentialSet?: { credentialKey: string; args: string[] };
+  /**
    * Relative path (from the repo root) to a first-party server's local build.
    * When it exists — i.e. Cabinet is running from source — the config writer
    * runs `node <abs path>` instead of `command`/`args`, so a not-yet-published
@@ -390,6 +399,10 @@ const MICROSOFT_365: CatalogEntry = {
   mcpServerName: "cabinet-microsoft-365",
   command: "npx",
   args: ["-y", "@softeria/ms-365-mcp-server"],
+  // Work/school only: --org-mode exposes the Teams/SharePoint Graph tools. Gated
+  // on the Entra Client ID so personal accounts (built-in app, no creds) don't
+  // get org-only tools that would just error.
+  argsWhenCredentialSet: { credentialKey: "MS365_MCP_CLIENT_ID", args: ["--org-mode"] },
   serverEnv: {
     MS365_MCP_CLIENT_ID: "${MS365_MCP_CLIENT_ID}",
     MS365_MCP_TENANT_ID: "${MS365_MCP_TENANT_ID}",

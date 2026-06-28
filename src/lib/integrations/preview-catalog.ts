@@ -677,6 +677,7 @@ const LAUNCHED = new Set([
   "google-drive",
   "gmail",
   "microsoft-365",
+  "microsoft-teams",
   "notion",
 ]);
 
