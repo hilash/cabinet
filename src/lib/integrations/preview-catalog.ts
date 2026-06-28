@@ -678,6 +678,7 @@ const LAUNCHED = new Set([
   "gmail",
   "microsoft-365",
   "notion",
+  "slack",
 ]);
 
 export const PREVIEW_INTEGRATIONS: IntegrationItem[] = RAW_INTEGRATIONS.map((i) => {

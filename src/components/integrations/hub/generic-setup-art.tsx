@@ -271,8 +271,8 @@ function LinkedInArt({ step, brand }: { step: number; brand: string }) {
 
 /** Slack: consent (0) → create your own app (1) → user-token scopes (2). */
 function SlackArt({ step, label, brand }: { step: number; label: string; brand: string }) {
-  if (step === 0) return <OAuthConsentArt step={0} label={label} brand={brand} />;
-  if (step === 1) {
+  // Step 0 — create your own app (Slack has no one-click; you bring the app).
+  if (step === 0) {
     return (
       <MockWindow title="api.slack.com/apps" brand={brand}>
         <div className="flex items-center justify-between">
@@ -284,24 +284,71 @@ function SlackArt({ step, label, brand }: { step: number; label: string; brand: 
           <div className="h-5 w-2/3 rounded bg-muted" />
         </div>
         <Hint brand={brand}>
-          Create an app <b>From scratch</b>, pick your workspace, then open <b>OAuth &amp; Permissions</b>.
+          Create an app <b>From scratch</b> and pick your workspace.
         </Hint>
       </MockWindow>
     );
   }
+  // Step 1 — register the redirect URL and add the user-token scopes.
+  if (step === 1) {
+    return (
+      <MockWindow title="OAuth &amp; Permissions" brand={brand}>
+        <div className="text-[10px] text-muted-foreground">Redirect URLs</div>
+        <div className="mt-1 flex items-center gap-2">
+          <div className="flex-1 truncate rounded-md bg-foreground/[0.06] px-2 py-1.5 font-mono text-[10px] text-muted-foreground">
+            http://localhost:8765/callback
+          </div>
+          <BtnMock brand={brand}>Add</BtnMock>
+        </div>
+        <div className="mt-2 space-y-1">
+          <CheckRow brand={brand}>search:read.public · chat:write</CheckRow>
+          <CheckRow brand={brand}>channels:history · users:read</CheckRow>
+        </div>
+        <Hint brand={brand}>
+          Add the redirect URL, add the scopes (use <b>Copy</b> above), then <b>Install to Workspace</b>.
+        </Hint>
+      </MockWindow>
+    );
+  }
+  // Step 2 — copy the app's Client ID & Secret into the connect panel.
+  if (step === 2) {
+    return (
+      <MockWindow title="Basic Information · App Credentials" brand={brand}>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between rounded-md bg-foreground/[0.06] px-2 py-1.5">
+            <span className="text-[10px] text-muted-foreground">Client ID</span>
+            <BtnMock brand={brand}>Copy</BtnMock>
+          </div>
+          <div className="flex items-center justify-between rounded-md bg-foreground/[0.06] px-2 py-1.5">
+            <span className="text-[10px] text-muted-foreground">Client Secret</span>
+            <BtnMock brand={brand}>Show · Copy</BtnMock>
+          </div>
+        </div>
+        <Hint brand={brand}>
+          Paste both into the <b>Connect</b> panel — kept in .cabinet.env, never in plain config.
+        </Hint>
+      </MockWindow>
+    );
+  }
+  // Step 3 — approve in the browser (only after the app credentials are saved).
   return (
-    <MockWindow title="OAuth &amp; Permissions · User Token Scopes" brand={brand}>
-      <div className="space-y-1">
-        <CheckRow brand={brand}>search:read.public</CheckRow>
-        <CheckRow brand={brand}>chat:write</CheckRow>
-        <CheckRow brand={brand}>channels:history · channels:read</CheckRow>
-        <CheckRow brand={brand}>files:read · users:read</CheckRow>
-      </div>
-      <div className="mt-2">
-        <BtnMock brand={brand}>+ Add an OAuth Scope</BtnMock>
+    <MockWindow title={`Authorize · ${label}`} brand={brand}>
+      <div className="flex flex-col items-center text-center">
+        <Avatar brand={brand}>{label.charAt(0)}</Avatar>
+        <div className="mt-2 text-[11px] text-foreground">
+          <b>Cabinet</b> wants to access your <b>{label}</b> account
+        </div>
+        <div className="mt-2 w-full space-y-1 text-left">
+          <CheckRow brand={brand}>Read your {label} data</CheckRow>
+          <CheckRow brand={brand}>Act on your behalf</CheckRow>
+        </div>
+        <div className="mt-3 flex w-full items-center justify-center gap-2">
+          <BtnMock brand={brand}>Authorize</BtnMock>
+          <BtnMock>Cancel</BtnMock>
+        </div>
       </div>
       <Hint brand={brand}>
-        Add the user-token scopes (use the <b>Copy</b> button above), then <b>Install to Workspace</b>.
+        Once your app&apos;s credentials are saved, Cabinet opens this in your browser to approve.
       </Hint>
     </MockWindow>
   );

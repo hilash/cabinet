@@ -472,13 +472,23 @@ export function ConnectPanel({
       showError("Pick at least one environment.");
       return;
     }
+    if (missingRequired) {
+      showError("Enter the required credentials first.");
+      return;
+    }
     stopPolling();
     setOauthLogin({ state: "starting" });
     try {
       const reg = await fetch("/api/agents/config/mcp-catalog/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: entry.id, providers: [...targets] }),
+        body: JSON.stringify({
+          id: entry.id,
+          providers: [...targets],
+          // Confidential-client servers (Slack) need the pasted id/secret saved
+          // before sign-in so the CLI can register the OAuth client.
+          credentials: needsCreds ? creds : undefined,
+        }),
       });
       const regJson = await reg.json();
       if (!reg.ok || !regJson.ok)
@@ -803,7 +813,12 @@ export function ConnectPanel({
           ) : (
             <Button
               className="w-full"
-              disabled={targets.size === 0 || oauthLogin.state === "starting" || busy}
+              disabled={
+                targets.size === 0 ||
+                missingRequired ||
+                oauthLogin.state === "starting" ||
+                busy
+              }
               onClick={startOauthLogin}
             >
               {oauthLogin.state === "starting" || busy ? (

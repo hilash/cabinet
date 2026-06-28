@@ -159,12 +159,80 @@ export function readServerAuthState(
       { env: claudeEnv(), timeout: 8000 },
       (err, stdout) => {
         const out = `${stdout ?? ""}`;
+        // Not registered at all. `claude mcp get <name>` echoes the name back in
+        // its "No MCP server named …" error, so this must be checked BEFORE the
+        // name-presence fallback below — otherwise a missing server reads as
+        // authenticated (the panel would falsely show "Signed in").
+        if (/no mcp server named/i.test(out)) return resolve("needs-auth");
         if (/needs authentication/i.test(out)) return resolve("needs-auth");
         if (/\bconnected\b/i.test(out)) return resolve("authenticated");
         if (err) return resolve("unknown");
         // Got a clean read with neither marker → server is configured and not
         // flagged as needing auth, so treat as authenticated.
         return resolve(out.includes(serverName) ? "authenticated" : "unknown");
+      },
+    );
+  });
+}
+
+/**
+ * Register a pre-configured confidential OAuth client with Claude Code for a
+ * remote server whose auth server lacks Dynamic Client Registration (Slack).
+ *
+ * `claude mcp add --client-id --client-secret` is the only supported way to get
+ * the secret into Claude Code's keychain (it can't live in config). It also
+ * writes the config entry, so we remove any existing one first (`add` refuses to
+ * overwrite). The secret is passed via the `MCP_CLIENT_SECRET` env var, never on
+ * argv. Scope `user` matches where the JSON writer keeps cabinet servers
+ * (top-level `mcpServers` in ~/.claude.json).
+ */
+export function registerConfidentialOAuthClient(opts: {
+  serverName: string;
+  url: string;
+  clientId: string;
+  clientSecret: string;
+  callbackPort: number;
+}): Promise<void> {
+  const { serverName, url, clientId, clientSecret, callbackPort } = opts;
+  return new Promise((resolve, reject) => {
+    // Best-effort remove of any prior entry so `add` doesn't error on conflict.
+    execFile(
+      claudeCommand(),
+      ["mcp", "remove", "--scope", "user", serverName],
+      { env: claudeEnv(), timeout: 15_000 },
+      () => {
+        execFile(
+          claudeCommand(),
+          [
+            "mcp",
+            "add",
+            "--transport",
+            "http",
+            "--scope",
+            "user",
+            "--client-id",
+            clientId,
+            "--client-secret",
+            "--callback-port",
+            String(callbackPort),
+            serverName,
+            url,
+          ],
+          { env: { ...claudeEnv(), MCP_CLIENT_SECRET: clientSecret }, timeout: 30_000 },
+          (err, stdout, stderr) => {
+            if (err) {
+              reject(
+                new Error(
+                  `Failed to register Slack OAuth client: ${
+                    `${stderr ?? ""}`.trim() || `${stdout ?? ""}`.trim() || err.message
+                  }`,
+                ),
+              );
+            } else {
+              resolve();
+            }
+          },
+        );
       },
     );
   });

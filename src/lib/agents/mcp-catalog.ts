@@ -103,6 +103,20 @@ export interface CatalogEntry {
    * and is resolved by the PTY env merge at spawn.
    */
   serverEnv?: Record<string, string>;
+  /**
+   * Confidential OAuth client for remote (http) servers whose auth server does
+   * NOT support Dynamic Client Registration (e.g. Slack). The user brings their
+   * own app; we register its client id/secret with the CLI so OAuth can run
+   * without DCR. `clientId` + `callbackPort` go into the CLI config; the secret
+   * is handed to the CLI (stored in its keychain), never written into config.
+   * The user must register `http://localhost:<callbackPort>/callback` as a
+   * redirect URL on their app.
+   */
+  oauthClient?: {
+    clientIdEnvKey: string;
+    clientSecretEnvKey: string;
+    callbackPort: number;
+  };
   /** Credentials collected for `token` / `user-app` backends. */
   credentials: CatalogCredential[];
   /** Display-only: what the agent can do once connected. */
@@ -120,11 +134,21 @@ const SLACK: CatalogEntry = {
   sourceUrl: "https://docs.slack.dev/ai/slack-mcp-server",
   registryId: "slack",
   trustTier: "official",
-  authBackend: "cli-pkce",
-  fallbackAuthBackend: "user-app",
+  // Slack's auth server doesn't support Dynamic Client Registration, so the
+  // one-click `cli-pkce` flow can't work — the user must bring their own app
+  // (client id/secret). user-app is the *only* path, not a fallback.
+  authBackend: "user-app",
   transport: "http",
   mcpServerName: "cabinet-slack",
   url: "https://mcp.slack.com/mcp",
+  // Slack's MCP server doesn't support Dynamic Client Registration, so OAuth
+  // needs a pre-registered confidential client (the user's own Slack app). The
+  // user registers http://localhost:8765/callback as a redirect URL.
+  oauthClient: {
+    clientIdEnvKey: "SLACK_CLIENT_ID",
+    clientSecretEnvKey: "SLACK_CLIENT_SECRET",
+    callbackPort: 8765,
+  },
   credentials: [
     {
       envKey: "SLACK_CLIENT_ID",
@@ -132,7 +156,7 @@ const SLACK: CatalogEntry = {
       kind: "plain",
       required: true,
       placeholder: "1234567890.1234567890",
-      hint: "Only needed for the fallback flow when one-click sign-in isn't available.",
+      hint: "From your Slack app's Basic Information page. Required — Slack's MCP server needs your own app (it has no one-click sign-in).",
     },
     {
       envKey: "SLACK_CLIENT_SECRET",
@@ -140,7 +164,7 @@ const SLACK: CatalogEntry = {
       kind: "secret",
       required: true,
       placeholder: "••••••••••••••••",
-      hint: "Stored in .cabinet.env (0600). Never written into the CLI config.",
+      hint: "From the same Basic Information page. Stored in .cabinet.env (0600), never written into the CLI config.",
     },
   ],
   actions: [
@@ -151,18 +175,22 @@ const SLACK: CatalogEntry = {
   ],
   setupSteps: [
     {
-      title: "Sign in with Slack",
-      body: "Click Connect & sign in — your agent's CLI opens Slack in the browser. Approve the requested access and you're done. Most workspaces work with this one-click flow.",
-    },
-    {
-      title: "If your workspace blocks one-click",
-      body: "Some workspaces require their own Slack app. Create one, enable the listed user-token scopes, then paste its Client ID & Secret below.",
+      title: "Create your own Slack app",
+      body: "Slack's MCP server has no one-click sign-in — it requires an app you own. Open Slack's app dashboard, click Create New App → From scratch, give it a name (e.g. \"Cabinet\"), and pick your workspace.",
       href: "https://api.slack.com/apps",
     },
     {
-      title: "Scopes to enable (own-app only)",
-      body: "Add these user-token scopes so every tool works.",
+      title: "Add the redirect URL and scopes",
+      body: "In your app's OAuth & Permissions page, add the redirect URL http://localhost:8765/callback, then add these user-token scopes so every tool works. Install the app to your workspace when prompted — some workspaces need an admin to approve it.",
       copy: "search:read.public search:read.private search:read.users files:read chat:write channels:history channels:read channels:write groups:history users:read reactions:write canvases:read canvases:write",
+    },
+    {
+      title: "Paste your Client ID & Secret below",
+      body: "On the app's Basic Information page, copy the Client ID and Client Secret into the fields in the connect panel. Slack needs these because it doesn't support automatic client registration; they're stored in .cabinet.env (0600).",
+    },
+    {
+      title: "Connect & sign in",
+      body: "Click Connect & sign in. Cabinet opens Slack in your browser to approve access — once you do, your agents can use Slack and the \"does not support dynamic client registration\" error is gone.",
     },
   ],
 };
