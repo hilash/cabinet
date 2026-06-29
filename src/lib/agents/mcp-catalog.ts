@@ -108,6 +108,24 @@ export interface CatalogEntry {
   /** Display-only: what the agent can do once connected. */
   actions: string[];
   setupSteps: CatalogSetupStep[];
+  /**
+   * Opt-in: drive this stdio server's OWN browser OAuth at connect time (in the
+   * daemon, keeping the server + its loopback alive across the human approval
+   * step) instead of deferring to the first agent run — where the task times out
+   * and the loopback dies before the user finishes. The stdio twin of the HTTP
+   * connect-time login. See stdio-mcp-login.ts.
+   */
+  connectAuth?: {
+    kind: "stdio-loopback";
+    /** MCP tool whose call kicks off the OAuth flow and surfaces the URL. */
+    triggerTool: string;
+    /** Static args passed to the trigger tool. */
+    triggerArgs?: Record<string, unknown>;
+    /** .cabinet.env key whose value is passed as the `user_google_email` arg. */
+    emailEnvKey?: string;
+    /** Dir (supports `~`) whose token-file presence means auth completed. */
+    tokenDir: string;
+  };
 }
 
 const SLACK: CatalogEntry = {
@@ -205,8 +223,17 @@ const GOOGLE_WORKSPACE: CatalogEntry = {
   serverEnv: {
     GOOGLE_OAUTH_CLIENT_ID: "${GOOGLE_OAUTH_CLIENT_ID}",
     GOOGLE_OAUTH_CLIENT_SECRET: "${GOOGLE_OAUTH_CLIENT_SECRET}",
+    USER_GOOGLE_EMAIL: "${USER_GOOGLE_EMAIL}",
     // Lets the server complete its loopback OAuth callback over plain http.
     OAUTHLIB_INSECURE_TRANSPORT: "1",
+  },
+  // Connect-time browser OAuth, driven by the daemon so the server's :8000
+  // loopback stays alive across the human approval step (see stdio-mcp-login.ts).
+  connectAuth: {
+    kind: "stdio-loopback",
+    triggerTool: "list_calendars",
+    emailEnvKey: "USER_GOOGLE_EMAIL",
+    tokenDir: "~/.workspace-mcp/cli-tokens",
   },
   credentials: [
     {
@@ -224,6 +251,14 @@ const GOOGLE_WORKSPACE: CatalogEntry = {
       required: true,
       placeholder: "GOCSPX-••••••••••••••••",
       hint: "Stored in .cabinet.env (0600). Never written into the CLI config.",
+    },
+    {
+      envKey: "USER_GOOGLE_EMAIL",
+      label: "Your Google email",
+      kind: "plain",
+      required: true,
+      placeholder: "you@gmail.com",
+      hint: "The Google account to authorize. Used as the sign-in hint when you connect.",
     },
   ],
   actions: [
