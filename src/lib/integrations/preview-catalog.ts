@@ -18,9 +18,9 @@ import { MCP_CATALOG, type CatalogSetupStep } from "@/lib/agents/mcp-catalog";
 
 export type IntegrationCategory =
   | "communication"
+  | "social"
   | "productivity"
   | "knowledge"
-  | "storage"
   | "development"
   | "crm"
   | "finance"
@@ -71,7 +71,7 @@ export const CATEGORY_META: Record<
   communication: { label: "Communication", order: 0 },
   productivity: { label: "Productivity", order: 1 },
   knowledge: { label: "Knowledge", order: 2 },
-  storage: { label: "Files & Storage", order: 3 },
+  social: { label: "Social", order: 3 },
   development: { label: "Development", order: 4 },
   crm: { label: "Sales & Support", order: 5 },
   finance: { label: "Finance & Legal", order: 6 },
@@ -147,6 +147,48 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     brand: "#00897b",
     implemented: false,
     actions: ["Fetch recordings", "Summarise meetings", "Extract decisions"],
+  },
+
+  // ── Social ──────────────────────────────────────────────────────
+  {
+    id: "tiktok",
+    name: "TikTok",
+    category: "social",
+    logo: L("tiktok.svg"),
+    blurb: "Track videos, trends, and engagement on your account.",
+    brand: "#010101",
+    implemented: false,
+    actions: ["Read post performance", "Track trends & hashtags", "Summarise comments"],
+  },
+  {
+    id: "instagram",
+    name: "Instagram",
+    category: "social",
+    logo: L("instagram.svg"),
+    blurb: "Read posts, comments, and DMs — and draft replies.",
+    brand: "#E4405F",
+    implemented: false,
+    actions: ["Read posts & insights", "Triage comments & DMs", "Draft replies"],
+  },
+  {
+    id: "facebook",
+    name: "Facebook",
+    category: "social",
+    logo: L("facebook.svg"),
+    blurb: "Manage Pages, posts, and audience engagement.",
+    brand: "#1877F2",
+    implemented: false,
+    actions: ["Read Page insights", "Summarise comments", "Draft posts & replies"],
+  },
+  {
+    id: "x",
+    name: "X",
+    category: "social",
+    logo: L("x.svg"),
+    blurb: "Monitor mentions, search posts, and draft your own.",
+    brand: "#000000",
+    implemented: false,
+    actions: ["Search posts & mentions", "Summarise threads", "Draft posts"],
   },
 
   // ── Knowledge ───────────────────────────────────────────────────
@@ -312,11 +354,11 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     actions: ["Search inbox", "Summarise threads", "Send & reply (with approval)"],
   },
 
-  // ── Files & Storage ─────────────────────────────────────────────
+  // ── Files & Storage (folded into Knowledge) ─────────────────────
   {
     id: "onedrive",
     name: "OneDrive",
-    category: "storage",
+    category: "knowledge",
     logo: L("onedrive.svg"),
     blurb: "Pull documents from OneDrive into your cabinet.",
     brand: "#0364b8",
@@ -326,7 +368,7 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
   {
     id: "sharepoint",
     name: "SharePoint",
-    category: "storage",
+    category: "knowledge",
     logo: L("sharepoint.svg"),
     blurb: "Connect team sites and document libraries.",
     brand: "#038387",
@@ -336,7 +378,7 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
   {
     id: "dropbox",
     name: "Dropbox",
-    category: "storage",
+    category: "knowledge",
     logo: L("dropbox.webp"),
     blurb: "Bring Dropbox files into agent reach.",
     brand: "#0061ff",
@@ -346,7 +388,7 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
   {
     id: "box",
     name: "Box",
-    category: "storage",
+    category: "knowledge",
     logo: L("box.webp"),
     blurb: "Access Box content securely from your cabinet.",
     brand: "#0061d5",
