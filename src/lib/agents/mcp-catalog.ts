@@ -121,6 +121,13 @@ export interface CatalogEntry {
     triggerTool: string;
     /** Static args passed to the trigger tool. */
     triggerArgs?: Record<string, unknown>;
+    /**
+     * Args to spawn the server with FOR SIGN-IN ONLY (overrides `args`). Trim it
+     * to just the trigger tool's service so the auth server boots fast — agents
+     * still get the full `args`. The OAuth scope is set by the trigger tool, not
+     * by which tools are registered, so this doesn't narrow what gets authorized.
+     */
+    authArgs?: string[];
     /** .cabinet.env key whose value is passed as the `user_google_email` arg. */
     emailEnvKey?: string;
     /** Dir (supports `~`) whose token-file presence means auth completed. */
@@ -231,9 +238,17 @@ const GOOGLE_WORKSPACE: CatalogEntry = {
   // loopback stays alive across the human approval step (see stdio-mcp-login.ts).
   connectAuth: {
     kind: "stdio-loopback",
-    triggerTool: "list_calendars",
+    // Use the dedicated auth helper, NOT a data tool: it always returns the
+    // authorize URL. A data tool (e.g. list_calendars) skips OAuth when a token
+    // already exists and instead calls the API, so it surfaces no URL.
+    triggerTool: "start_google_auth",
+    triggerArgs: { service_name: "Google Calendar" },
+    // Boot the sign-in server with only Calendar so it starts fast (it requests
+    // calendar scope regardless); agents still run the full --tools set above.
+    authArgs: ["workspace-mcp", "--single-user", "--tools", "calendar"],
     emailEnvKey: "USER_GOOGLE_EMAIL",
-    tokenDir: "~/.workspace-mcp/cli-tokens",
+    // workspace-mcp writes <email>.json here once OAuth completes.
+    tokenDir: "~/.google_workspace_mcp/credentials",
   },
   credentials: [
     {

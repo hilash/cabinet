@@ -58,18 +58,24 @@ const LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
 const URL_WAIT_MS = 120_000;
 const COMPLETED_TTL_MS = 5 * 60 * 1000;
 const STATUS_POLL_MS = 2500;
-/** Send the trigger tool call this long after start even if we missed the init reply. */
-const HANDSHAKE_FALLBACK_MS = 4000;
 
 function expandHome(p: string): string {
   return p.startsWith("~") ? path.join(os.homedir(), p.slice(1)) : p;
 }
 
-/** Auth is done once the server has written a (non-dot) token file into tokenDir. */
+/**
+ * Auth is done once the server has written a real token file into tokenDir. We
+ * look for a `.json` that isn't the transient `oauth_states.json` (in-flight
+ * OAuth state, present mid-flow) — workspace-mcp writes `<email>.json` on
+ * success, so its mere presence would otherwise read as authenticated too early.
+ */
 export function tokenDirAuthenticated(tokenDir: string): boolean {
   try {
     const dir = expandHome(tokenDir);
-    return fs.existsSync(dir) && fs.readdirSync(dir).some((f) => !f.startsWith("."));
+    return (
+      fs.existsSync(dir) &&
+      fs.readdirSync(dir).some((f) => f.endsWith(".json") && f !== "oauth_states.json")
+    );
   } catch {
     return false;
   }
@@ -125,7 +131,10 @@ function sweepSessions(): void {
  * the config writer (which leaves `${ENV}` placeholders for the CLI), we inject
  * the actual secret values from .cabinet.env, since WE spawn the process.
  */
-function resolveServerSpec(entry: CatalogEntry): {
+function resolveServerSpec(
+  entry: CatalogEntry,
+  argsOverride?: string[],
+): {
   command: string;
   args: string[];
   env: NodeJS.ProcessEnv;
@@ -145,7 +154,7 @@ function resolveServerSpec(entry: CatalogEntry): {
     }
   }
   let command = entry.command ?? "";
-  let args = entry.args ? [...entry.args] : [];
+  let args = argsOverride ? [...argsOverride] : entry.args ? [...entry.args] : [];
   if (entry.localBuild) {
     const local = path.join(PROJECT_ROOT, entry.localBuild);
     if (fs.existsSync(local)) {
@@ -199,7 +208,7 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
     return { sessionId: id, alreadyAuthenticated: true };
   }
 
-  const { command, args, env } = resolveServerSpec(entry);
+  const { command, args, env } = resolveServerSpec(entry, cfg.authArgs);
   if (!command) throw new Error(`Catalog entry ${entry.id} has no stdio command to run.`);
 
   const email = cfg.emailEnvKey ? readCabinetEnvFile().values[cfg.emailEnvKey] : undefined;
@@ -223,54 +232,29 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
 
   return new Promise((resolve, reject) => {
     let settled = false;
-    let handshakeSent = false;
-    let handshakeTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
     const fail = (message: string) => {
       if (!session.error) session.error = message;
       markTerminal(session, "error");
-      if (handshakeTimer) clearTimeout(handshakeTimer);
       if (!settled) {
         settled = true;
         reject(new Error(message));
       }
     };
 
-    const sendTrigger = () => {
-      if (handshakeSent) return;
-      handshakeSent = true;
-      if (handshakeTimer) clearTimeout(handshakeTimer);
-      try {
-        proc.stdin?.write(mcpLine({ jsonrpc: "2.0", method: "notifications/initialized" }));
-        proc.stdin?.write(
-          mcpLine({
-            jsonrpc: "2.0",
-            id: 2,
-            method: "tools/call",
-            params: { name: cfg.triggerTool, arguments: toolArgs },
-          }),
-        );
-      } catch {
-        fail("Could not drive the sign-in handshake.");
-      }
-    };
-
     const onData = (buf: Buffer) => {
       session.output += buf.toString();
-      // Once the server answers `initialize` (id:1), drive the trigger call.
-      if (!handshakeSent && /"id"\s*:\s*1\b/.test(session.output)) sendTrigger();
-      if (!session.authorizeUrl) {
-        const url = parseAuthorizeUrl(session.output);
-        if (url) {
-          session.authorizeUrl = url;
-          if (!settled) {
-            settled = true;
-            session.statusPoll = setInterval(() => {
-              if (tokenDirAuthenticated(session.tokenDir)) markTerminal(session, "success");
-            }, STATUS_POLL_MS);
-            session.statusPoll.unref?.();
-            resolve({ sessionId: id, authorizeUrl: url });
-          }
+      if (session.authorizeUrl) return;
+      const url = parseAuthorizeUrl(session.output);
+      if (url) {
+        session.authorizeUrl = url;
+        if (!settled) {
+          settled = true;
+          session.statusPoll = setInterval(() => {
+            if (tokenDirAuthenticated(session.tokenDir)) markTerminal(session, "success");
+          }, STATUS_POLL_MS);
+          session.statusPoll.unref?.();
+          resolve({ sessionId: id, authorizeUrl: url });
         }
       }
     };
@@ -291,7 +275,11 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
       }
     });
 
-    // Kick off the MCP handshake.
+    // Pipeline the whole MCP handshake up front. A stdio server reads its stdin
+    // sequentially and processes these in order once it's up, so sending
+    // initialize -> initialized -> the trigger call without waiting for each
+    // reply removes the round-trips and gets the authorize URL out as soon as
+    // the server finishes starting.
     try {
       proc.stdin?.write(
         mcpLine({
@@ -305,14 +293,19 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
           },
         }),
       );
+      proc.stdin?.write(mcpLine({ jsonrpc: "2.0", method: "notifications/initialized" }));
+      proc.stdin?.write(
+        mcpLine({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: { name: cfg.triggerTool, arguments: toolArgs },
+        }),
+      );
     } catch {
       fail("Could not start the sign-in server.");
       return;
     }
-
-    // Safety net: trigger the tool even if we never saw a clean init reply.
-    handshakeTimer = setTimeout(sendTrigger, HANDSHAKE_FALLBACK_MS);
-    handshakeTimer.unref?.();
 
     setTimeout(() => {
       if (!settled) fail("Timed out waiting for the authorization URL.");

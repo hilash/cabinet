@@ -5,6 +5,7 @@ import { Check, ChevronDown, Loader2, ExternalLink, ShieldCheck, X } from "lucid
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { showError, showSuccess } from "@/lib/ui/toast";
+import { openExternalUrl } from "@/lib/runtime/open-url";
 import type { IntegrationItem } from "@/lib/integrations/preview-catalog";
 
 /**
@@ -765,8 +766,13 @@ export function ConnectPanel({
               </p>
               <a
                 href={oauthLogin.url}
-                target="_blank"
-                rel="noreferrer"
+                onClick={(e) => {
+                  // OAuth must run in the system default browser, not the in-app
+                  // browse view (which lacks the user's provider session and may
+                  // be rejected as a webview).
+                  e.preventDefault();
+                  if (oauthLogin.url) openExternalUrl(oauthLogin.url);
+                }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-[13px] font-medium text-foreground hover:bg-accent"
               >
                 Open {item.name} sign-in <ExternalLink className="h-3.5 w-3.5" />
