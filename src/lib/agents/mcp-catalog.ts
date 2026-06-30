@@ -300,7 +300,7 @@ const GOOGLE_WORKSPACE: CatalogEntry = {
     },
     {
       title: "Connect & authorize",
-      body: "Click Connect. The first time an agent uses Calendar, the server opens Google's consent screen in your browser. Approve it once and you're connected.",
+      body: "Click Connect. Cabinet opens Google's consent screen in your browser, keeps the local callback server alive while you approve it, and then marks the Workspace suite as connected.",
     },
   ],
 };

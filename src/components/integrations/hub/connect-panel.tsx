@@ -479,6 +479,10 @@ export function ConnectPanel({
       showError("Pick at least one environment.");
       return;
     }
+    if (missingRequired) {
+      showError("Fill in the required credentials before signing in.");
+      return;
+    }
     stopPolling();
     setOauthLogin({ state: "starting" });
     try {
@@ -764,19 +768,21 @@ export function ConnectPanel({
               <p className="text-[12px] font-medium text-foreground">
                 Approve access in your browser
               </p>
-              <a
-                href={oauthLogin.url}
-                onClick={(e) => {
+              <button
+                type="button"
+                onClick={() => {
                   // OAuth must run in the system default browser, not the in-app
                   // browse view (which lacks the user's provider session and may
-                  // be rejected as a webview).
-                  e.preventDefault();
+                  // be rejected as a webview). A button keeps this routed solely
+                  // through openExternalUrl — an anchor's href could still be
+                  // activated through normal link navigation.
                   if (oauthLogin.url) openExternalUrl(oauthLogin.url);
                 }}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-[13px] font-medium text-foreground hover:bg-accent"
+                disabled={!oauthLogin.url}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-[13px] font-medium text-foreground hover:bg-accent disabled:opacity-50"
               >
                 Open {item.name} sign-in <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              </button>
               <p className="mt-3 flex items-center gap-1.5 text-[12px] text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Waiting for you to
                 finish…
@@ -817,7 +823,12 @@ export function ConnectPanel({
           ) : (
             <Button
               className="w-full"
-              disabled={targets.size === 0 || oauthLogin.state === "starting" || busy}
+              disabled={
+                targets.size === 0 ||
+                missingRequired ||
+                oauthLogin.state === "starting" ||
+                busy
+              }
               onClick={startOauthLogin}
             >
               {oauthLogin.state === "starting" || busy ? (

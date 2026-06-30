@@ -46,6 +46,8 @@ interface StdioLoginSession {
   output: string;
   /** Dir whose token file presence means the OAuth completed. */
   tokenDir: string;
+  /** Configured account; the token file must be `<email>.json` to count. */
+  email?: string;
 }
 
 const g = globalThis as unknown as {
@@ -69,13 +71,16 @@ function expandHome(p: string): string {
  * OAuth state, present mid-flow) — workspace-mcp writes `<email>.json` on
  * success, so its mere presence would otherwise read as authenticated too early.
  */
-export function tokenDirAuthenticated(tokenDir: string): boolean {
+export function tokenDirAuthenticated(tokenDir: string, email?: string): boolean {
   try {
     const dir = expandHome(tokenDir);
-    return (
-      fs.existsSync(dir) &&
-      fs.readdirSync(dir).some((f) => f.endsWith(".json") && f !== "oauth_states.json")
-    );
+    if (!fs.existsSync(dir)) return false;
+    const tokenFiles = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith(".json") && f !== "oauth_states.json");
+    // Scope to the configured account when known: a leftover token for a
+    // different USER_GOOGLE_EMAIL must not read as authenticated.
+    return email ? tokenFiles.includes(`${email}.json`) : tokenFiles.length > 0;
   } catch {
     return false;
   }
@@ -189,8 +194,10 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
     throw new Error("This integration doesn't support connect-time sign-in.");
   }
 
-  // Fast path: a cached token means we're already signed in.
-  if (tokenDirAuthenticated(cfg.tokenDir)) {
+  const email = cfg.emailEnvKey ? readCabinetEnvFile().values[cfg.emailEnvKey] : undefined;
+
+  // Fast path: a cached token for the configured account means we're signed in.
+  if (tokenDirAuthenticated(cfg.tokenDir, email)) {
     const id = randomUUID();
     const session: StdioLoginSession = {
       id,
@@ -201,6 +208,7 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
       finishedAt: Date.now(),
       output: "",
       tokenDir: cfg.tokenDir,
+      email,
     };
     sessions.set(id, session);
     session.cleanupTimer = setTimeout(() => sessions.delete(id), COMPLETED_TTL_MS);
@@ -211,7 +219,6 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
   const { command, args, env } = resolveServerSpec(entry, cfg.authArgs);
   if (!command) throw new Error(`Catalog entry ${entry.id} has no stdio command to run.`);
 
-  const email = cfg.emailEnvKey ? readCabinetEnvFile().values[cfg.emailEnvKey] : undefined;
   const toolArgs: Record<string, unknown> = {
     ...(cfg.triggerArgs ?? {}),
     ...(email ? { user_google_email: email } : {}),
@@ -227,6 +234,7 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
     startedAt: Date.now(),
     output: "",
     tokenDir: cfg.tokenDir,
+    email,
   };
   sessions.set(id, session);
 
@@ -251,7 +259,8 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
         if (!settled) {
           settled = true;
           session.statusPoll = setInterval(() => {
-            if (tokenDirAuthenticated(session.tokenDir)) markTerminal(session, "success");
+            if (tokenDirAuthenticated(session.tokenDir, session.email))
+              markTerminal(session, "success");
           }, STATUS_POLL_MS);
           session.statusPoll.unref?.();
           resolve({ sessionId: id, authorizeUrl: url });
@@ -270,7 +279,8 @@ export async function startStdioLogin(entry: CatalogEntry): Promise<McpLoginStar
         return;
       }
       if (session.status === "pending") {
-        if (tokenDirAuthenticated(session.tokenDir)) markTerminal(session, "success");
+        if (tokenDirAuthenticated(session.tokenDir, session.email))
+          markTerminal(session, "success");
         else fail("The sign-in server exited before authorization completed.");
       }
     });
@@ -321,7 +331,7 @@ export function getStdioLoginStatus(sessionId: string): {
   const s = sessions.get(sessionId);
   if (!s) return null;
   // Belt-and-suspenders: the token may have landed between polls.
-  if (s.status === "pending" && tokenDirAuthenticated(s.tokenDir)) {
+  if (s.status === "pending" && tokenDirAuthenticated(s.tokenDir, s.email)) {
     markTerminal(s, "success");
   }
   if (s.status === "pending" && Date.now() - s.startedAt > LOGIN_TIMEOUT_MS) {
@@ -341,11 +351,17 @@ export async function completeStdioLogin(
 ): Promise<boolean> {
   const s = sessions.get(sessionId);
   if (!s || s.status !== "pending") return false;
+  // Bound the loopback fetch: a local endpoint can accept the connection but
+  // never respond, which would otherwise hang the route.
+  const ac = new AbortController();
+  const timeout = setTimeout(() => ac.abort(), 8000);
   try {
-    await fetch(callbackUrl, { redirect: "manual" });
+    await fetch(callbackUrl, { redirect: "manual", signal: ac.signal });
     return true;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -372,5 +388,6 @@ export function cancelStdioLogin(sessionId: string): boolean {
 export function readStdioAuthState(entry: CatalogEntry): "authenticated" | "needs-auth" {
   const cfg = entry.connectAuth;
   if (!cfg || cfg.kind !== "stdio-loopback") return "needs-auth";
-  return tokenDirAuthenticated(cfg.tokenDir) ? "authenticated" : "needs-auth";
+  const email = cfg.emailEnvKey ? readCabinetEnvFile().values[cfg.emailEnvKey] : undefined;
+  return tokenDirAuthenticated(cfg.tokenDir, email) ? "authenticated" : "needs-auth";
 }
