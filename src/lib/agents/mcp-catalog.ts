@@ -116,6 +116,13 @@ export interface CatalogEntry {
     clientIdEnvKey: string;
     clientSecretEnvKey: string;
     callbackPort: number;
+    /**
+     * Pins the OAuth scopes requested at sign-in (space-separated), overriding
+     * the larger set the server would otherwise discover. Lets the user's app
+     * get away with a small, easy-to-grant scope set. Omit to request whatever
+     * the server advertises.
+     */
+    scopes?: string;
   };
   /** Credentials collected for `token` / `user-app` backends. */
   credentials: CatalogCredential[];
@@ -148,6 +155,12 @@ const SLACK: CatalogEntry = {
     clientIdEnvKey: "SLACK_CLIENT_ID",
     clientSecretEnvKey: "SLACK_CLIENT_SECRET",
     callbackPort: 8765,
+    // Pinned to a read + post + search set so a self-made app only needs these
+    // 6 user-token scopes granted — avoids the full ~26 (and sensitive ones like
+    // users:read.email that locked-down workspaces block). Widen to add files,
+    // private channels, DMs, canvases, or reactions as needed.
+    scopes:
+      "chat:write channels:read channels:history users:read search:read.public search:read.users",
   },
   credentials: [
     {
@@ -180,9 +193,14 @@ const SLACK: CatalogEntry = {
       href: "https://api.slack.com/apps",
     },
     {
+      title: "Enable MCP server access",
+      body: "Slack only allows MCP for apps that opt in. In your app settings, open Agents & AI Apps (App Assistant) and turn on MCP server access. Skip this and you'll sign in fine but every connection is rejected with \"App is not enabled for Slack MCP server access.\"",
+      href: "https://api.slack.com/apps",
+    },
+    {
       title: "Add the redirect URL and scopes",
-      body: "In your app's OAuth & Permissions page, add the redirect URL http://localhost:8765/callback, then add these user-token scopes so every tool works. Install the app to your workspace when prompted — some workspaces need an admin to approve it.",
-      copy: "search:read.public search:read.private search:read.users files:read chat:write channels:history channels:read channels:write groups:history users:read reactions:write canvases:read canvases:write",
+      body: "In OAuth & Permissions, add the redirect URL http://localhost:8765/callback (click Save URLs), then add these scopes under User Token Scopes (not Bot Token Scopes — Slack signs you in with a user token), and Install to Workspace. They let agents read public channels, search, and post.",
+      copy: "chat:write channels:read channels:history users:read search:read.public search:read.users",
     },
     {
       title: "Paste your Client ID & Secret below",

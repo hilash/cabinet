@@ -289,8 +289,28 @@ function SlackArt({ step, label, brand }: { step: number; label: string; brand: 
       </MockWindow>
     );
   }
-  // Step 1 — register the redirect URL and add the user-token scopes.
+  // Step 1 — turn on MCP server access for the app (required, easy to miss).
   if (step === 1) {
+    return (
+      <MockWindow title="Agents &amp; AI Apps · App Assistant" brand={brand}>
+        <div className="flex items-center justify-between rounded-md bg-foreground/[0.06] px-2 py-1.5">
+          <span className="text-[10px] text-foreground">MCP server access</span>
+          <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={{ background: `${brand}1f`, color: brand }}
+          >
+            On
+          </span>
+        </div>
+        <Hint brand={brand}>
+          Turn this on, or Slack rejects every connection with &ldquo;App is not enabled
+          for Slack MCP server access.&rdquo;
+        </Hint>
+      </MockWindow>
+    );
+  }
+  // Step 2 — register the redirect URL and add the user-token scopes.
+  if (step === 2) {
     return (
       <MockWindow title="OAuth &amp; Permissions" brand={brand}>
         <div className="text-[10px] text-muted-foreground">Redirect URLs</div>
@@ -310,8 +330,8 @@ function SlackArt({ step, label, brand }: { step: number; label: string; brand: 
       </MockWindow>
     );
   }
-  // Step 2 — copy the app's Client ID & Secret into the connect panel.
-  if (step === 2) {
+  // Step 3 — copy the app's Client ID & Secret into the connect panel.
+  if (step === 3) {
     return (
       <MockWindow title="Basic Information · App Credentials" brand={brand}>
         <div className="space-y-1.5">
@@ -330,7 +350,7 @@ function SlackArt({ step, label, brand }: { step: number; label: string; brand: 
       </MockWindow>
     );
   }
-  // Step 3 — approve in the browser (only after the app credentials are saved).
+  // Step 4 — approve in the browser (only after the app credentials are saved).
   return (
     <MockWindow title={`Authorize · ${label}`} brand={brand}>
       <div className="flex flex-col items-center text-center">

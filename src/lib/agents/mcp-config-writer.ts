@@ -80,7 +80,12 @@ function buildServerEntry(entry: CatalogEntry): Record<string, unknown> {
     if (entry.oauthClient) {
       const clientId = readCabinetEnvFile().values[entry.oauthClient.clientIdEnvKey];
       if (clientId) {
-        server.oauth = { clientId, callbackPort: entry.oauthClient.callbackPort };
+        const oauth: Record<string, unknown> = {
+          clientId,
+          callbackPort: entry.oauthClient.callbackPort,
+        };
+        if (entry.oauthClient.scopes) oauth.scopes = entry.oauthClient.scopes;
+        server.oauth = oauth;
       }
     }
     return server;

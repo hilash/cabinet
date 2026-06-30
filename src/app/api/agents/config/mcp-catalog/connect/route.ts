@@ -65,6 +65,7 @@ async function writeOrRegister(
           clientId,
           clientSecret,
           callbackPort: entry.oauthClient.callbackPort,
+          scopes: entry.oauthClient.scopes,
         });
         return { ...base, ok: true, supported: true };
       } catch (err) {
