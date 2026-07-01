@@ -150,8 +150,8 @@ export function readServerAuthState(
       claudeCommand(),
       ["mcp", "get", serverName],
       { env: claudeEnv(), timeout: 8000 },
-      (err, stdout) => {
-        const out = `${stdout ?? ""}`;
+      (err, stdout, stderr) => {
+        const out = `${stdout ?? ""}\n${stderr ?? ""}`;
         // Not registered at all. `claude mcp get <name>` echoes the name back in
         // its "No MCP server named …" error, so this must be checked BEFORE the
         // name-presence fallback below — otherwise a missing server reads as

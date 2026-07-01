@@ -71,10 +71,23 @@ export function openUrlInAppropriateContext(
  * in-app browser anyway, so this is just a normal new-tab open.
  */
 export function openExternalUrl(url: string): void {
-  const bridge = getBridge();
-  if (bridge.runtime === "electron" && bridge.openExternal) {
-    void bridge.openExternal(url);
+  let externalUrl: URL;
+  try {
+    externalUrl = new URL(url);
+  } catch {
     return;
   }
-  window.open(url, "_blank", "noopener,noreferrer");
+  // Guard both paths, not just the Electron bridge — the web build (or a
+  // missing bridge) falls through to window.open, which would otherwise let a
+  // custom protocol handler fire straight from an "OAuth" link.
+  if (externalUrl.protocol !== "http:" && externalUrl.protocol !== "https:") {
+    return;
+  }
+
+  const bridge = getBridge();
+  if (bridge.runtime === "electron" && bridge.openExternal) {
+    void bridge.openExternal(externalUrl.toString());
+    return;
+  }
+  window.open(externalUrl.toString(), "_blank", "noopener,noreferrer");
 }

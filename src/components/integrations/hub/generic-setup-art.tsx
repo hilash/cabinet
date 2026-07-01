@@ -42,8 +42,10 @@ export function stepArtFor(opts: {
   authBackend: string;
   transport: string;
   hasUrlCredential: boolean;
+  /** Space-separated OAuth scope pin, e.g. the catalog entry's `oauthClient.scopes`. */
+  scopes?: string;
 }): ((index: number) => ReactNode) | undefined {
-  const { id, label, brand, authBackend, transport, hasUrlCredential } = opts;
+  const { id, label, brand, authBackend, transport, hasUrlCredential, scopes } = opts;
 
   if (id === "discord") return (i) => <DiscordStepArt step={i} brand={brand} />;
   if (id === "telegram") return (i) => <TelegramStepArt step={i} brand={brand} />;
@@ -57,7 +59,7 @@ export function stepArtFor(opts: {
   // Multi-step official-OAuth connectors: step 0 is the generic consent screen,
   // but their later "register your own app / scopes / scope the access" steps
   // need their own tailored mocks (the steps users actually get stuck on).
-  if (id === "slack") return (i) => <SlackArt step={i} label={label} brand={brand} />;
+  if (id === "slack") return (i) => <SlackArt step={i} label={label} brand={brand} scopes={scopes} />;
   if (id === "google-workspace") return (i) => <GoogleArt step={i} label={label} brand={brand} />;
   if (id === "github") return (i) => <GithubArt step={i} label={label} brand={brand} />;
   if (id === "notion") return (i) => <NotionArt step={i} label={label} brand={brand} />;
@@ -269,8 +271,26 @@ function LinkedInArt({ step, brand }: { step: number; brand: string }) {
 
 /* ── multi-step official-OAuth connectors ───────────────────────────────── */
 
+/** Groups a space-separated scope string into rows of 2 for CheckRow display. */
+function scopeRows(scopes: string | undefined): string[] {
+  const list = (scopes ?? "").split(/\s+/).filter(Boolean);
+  const rows: string[] = [];
+  for (let i = 0; i < list.length; i += 2) rows.push(list.slice(i, i + 2).join(" · "));
+  return rows;
+}
+
 /** Slack: consent (0) → create your own app (1) → user-token scopes (2). */
-function SlackArt({ step, label, brand }: { step: number; label: string; brand: string }) {
+function SlackArt({
+  step,
+  label,
+  brand,
+  scopes,
+}: {
+  step: number;
+  label: string;
+  brand: string;
+  scopes?: string;
+}) {
   // Step 0 — create your own app (Slack has no one-click; you bring the app).
   if (step === 0) {
     return (
@@ -321,8 +341,9 @@ function SlackArt({ step, label, brand }: { step: number; label: string; brand: 
           <BtnMock brand={brand}>Add</BtnMock>
         </div>
         <div className="mt-2 space-y-1">
-          <CheckRow brand={brand}>search:read.public · chat:write</CheckRow>
-          <CheckRow brand={brand}>channels:history · users:read</CheckRow>
+          {scopeRows(scopes).map((row) => (
+            <CheckRow key={row} brand={brand}>{row}</CheckRow>
+          ))}
         </div>
         <Hint brand={brand}>
           Add the redirect URL, add the scopes (use <b>Copy</b> above), then <b>Install to Workspace</b>.

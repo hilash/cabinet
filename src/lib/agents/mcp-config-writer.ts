@@ -75,11 +75,16 @@ function buildServerEntry(entry: CatalogEntry): Record<string, unknown> {
     // Servers whose auth server lacks Dynamic Client Registration (e.g. Slack)
     // need a pre-registered confidential client. The client id + fixed callback
     // port go into the config's `oauth` block; the secret is registered with the
-    // CLI separately (keychain), never written here. Omit the block until the
-    // user has supplied their client id, so we never write a half-formed entry.
+    // CLI separately (keychain), never written here. Require both the id and
+    // secret before writing — the connect route only calls
+    // registerConfidentialOAuthClient() (which registers the secret) when both
+    // are present, so writing the block on id-alone would persist an `oauth`
+    // config whose secret was never registered with the CLI.
     if (entry.oauthClient) {
-      const clientId = readCabinetEnvFile().values[entry.oauthClient.clientIdEnvKey];
-      if (clientId) {
+      const values = readCabinetEnvFile().values;
+      const clientId = values[entry.oauthClient.clientIdEnvKey];
+      const clientSecret = values[entry.oauthClient.clientSecretEnvKey];
+      if (clientId && clientSecret) {
         const oauth: Record<string, unknown> = {
           clientId,
           callbackPort: entry.oauthClient.callbackPort,
