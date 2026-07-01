@@ -62,6 +62,14 @@ export interface IntegrationItem {
    * google-workspace, Teams → microsoft-365). Opening the card opens the suite.
    */
   coveredBy?: string;
+  /**
+   * True only for sub-products the connected account can't actually reach on
+   * a personal Microsoft account (Teams, SharePoint) — Microsoft Graph simply
+   * has no Teams/SharePoint data for consumer accounts. The gallery only
+   * shows these as "Connected" when the suite's work/school credentials
+   * (`MS365_MCP_CLIENT_ID`) are set, not just because the suite is connected.
+   */
+  workAccountOnly?: boolean;
 }
 
 export const CATEGORY_META: Record<
@@ -126,6 +134,7 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     blurb: "Bring Teams chats and channels into agent context.",
     brand: "#6264a7",
     implemented: false,
+    workAccountOnly: true,
     actions: ["Search messages", "Summarise channels", "Post updates"],
   },
   {
@@ -331,6 +340,7 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     blurb: "Connect team sites and document libraries.",
     brand: "#038387",
     implemented: false,
+    workAccountOnly: true,
     actions: ["Search sites", "Read libraries", "Index for agents"],
   },
   {
@@ -678,6 +688,8 @@ const LAUNCHED = new Set([
   "gmail",
   "microsoft-365",
   "microsoft-teams",
+  "onedrive",
+  "sharepoint",
   "notion",
 ]);
 

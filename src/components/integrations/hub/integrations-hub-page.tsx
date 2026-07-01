@@ -52,18 +52,33 @@ export function IntegrationsHubPage() {
   // Which connectors (and suites) are actually connected — drives the only badge
   // we show. Re-checked when returning from a detail (a connect may have landed).
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
+  // Whether the connected Microsoft 365 account is work/school (has its own
+  // Entra app credentials, i.e. `--org-mode`) rather than personal. Teams and
+  // SharePoint have no data on a personal Microsoft account, so their
+  // "Connected" badge must reflect this instead of just riding on
+  // microsoft-365's connected state.
+  const [msWorkAccountConnected, setMsWorkAccountConnected] = useState(false);
   useEffect(() => {
     let alive = true;
     fetch("/api/agents/config/mcp-catalog", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!alive || !data?.approved) return;
+        const approved = data.approved as {
+          id: string;
+          connectedProviderIds?: string[];
+          credentialStatus?: Record<string, { hasValue: boolean }>;
+        }[];
         setConnectedIds(
           new Set(
-            (data.approved as { id: string; connectedProviderIds?: string[] }[])
+            approved
               .filter((a) => (a.connectedProviderIds?.length ?? 0) > 0)
               .map((a) => a.id),
           ),
+        );
+        const m365 = approved.find((a) => a.id === "microsoft-365");
+        setMsWorkAccountConnected(
+          !!m365?.credentialStatus?.MS365_MCP_CLIENT_ID?.hasValue,
         );
       })
       .catch(() => {});
@@ -161,6 +176,7 @@ export function IntegrationsHubPage() {
           <LayoutGallery
             items={filtered}
             connectedIds={connectedIds}
+            msWorkAccountConnected={msWorkAccountConnected}
             onOpen={(id) => {
               // Google Drive (Drive-for-Desktop) and Gmail (IMAP) each have
               // their own detail page rather than folding into the Google

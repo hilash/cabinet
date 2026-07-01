@@ -29,11 +29,14 @@ export function LayoutGallery({
   items,
   onOpen,
   connectedIds,
+  msWorkAccountConnected,
 }: {
   items: IntegrationItem[];
   onOpen: (id: string) => void;
   /** Ids (incl. suite ids) that are currently connected. */
   connectedIds: Set<string>;
+  /** Whether the connected Microsoft 365 account is work/school, not personal. */
+  msWorkAccountConnected: boolean;
 }) {
   const groups = groupByCategory(items);
 
@@ -68,6 +71,7 @@ export function LayoutGallery({
                       item={item}
                       onOpen={onOpen}
                       connectedIds={connectedIds}
+                      msWorkAccountConnected={msWorkAccountConnected}
                     />
                   ))}
                 </div>
@@ -94,14 +98,21 @@ function GalleryTile({
   item,
   onOpen,
   connectedIds,
+  msWorkAccountConnected,
 }: {
   item: IntegrationItem;
   onOpen: (id: string) => void;
   connectedIds: Set<string>;
+  msWorkAccountConnected: boolean;
 }) {
-  const connected =
+  const suiteConnected =
     connectedIds.has(item.id) ||
     (!!item.coveredBy && connectedIds.has(item.coveredBy));
+  // Teams / SharePoint ride on the microsoft-365 suite connection, but a
+  // personal Microsoft account can't actually reach either — only badge them
+  // "Connected" once the work/school credentials are in place.
+  const connected =
+    suiteConnected && (!item.workAccountOnly || msWorkAccountConnected);
   const tileRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<Animation | null>(null);
 

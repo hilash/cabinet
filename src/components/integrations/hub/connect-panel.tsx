@@ -81,11 +81,16 @@ export function ConnectPanel({
   item,
   msMode: msModeProp,
   onMsModeChange,
+  msPersonalDisabled,
 }: {
   item: IntegrationItem;
   /** M365 only: lifted personal/work mode so the page's setup guide can react. */
   msMode?: "personal" | "work";
   onMsModeChange?: (mode: "personal" | "work") => void;
+  /** M365 only: true when reached via a work/school-only sub-product (Teams,
+   *  SharePoint) — personal accounts can't deliver those, so the option is
+   *  greyed out and unclickable rather than just un-selected. */
+  msPersonalDisabled?: boolean;
 }) {
   const [data, setData] = useState<Payload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -597,19 +602,31 @@ export function ConnectPanel({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setMsAccountMode("personal")}
+              disabled={msPersonalDisabled}
+              onClick={
+                msPersonalDisabled ? undefined : () => setMsAccountMode("personal")
+              }
+              title={
+                msPersonalDisabled
+                  ? "Personal accounts have no Teams or SharePoint data"
+                  : undefined
+              }
               className={cn(
                 "rounded-lg border px-3 py-2 text-left transition-colors",
-                msAccountMode === "personal"
-                  ? "border-foreground bg-accent"
-                  : "border-border hover:bg-accent/50",
+                msPersonalDisabled
+                  ? "cursor-not-allowed border-border opacity-40"
+                  : msAccountMode === "personal"
+                    ? "border-foreground bg-accent"
+                    : "border-border hover:bg-accent/50",
               )}
             >
               <span className="block text-[13px] font-medium text-foreground">
                 Personal account
               </span>
               <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                outlook.com, hotmail. One-click sign-in, nothing to set up.
+                {msPersonalDisabled
+                  ? "Not available — no Teams or SharePoint on personal accounts."
+                  : "outlook.com, hotmail. One-click sign-in, nothing to set up."}
               </span>
             </button>
             <button

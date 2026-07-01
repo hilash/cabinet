@@ -64,8 +64,9 @@ export function IntegrationDetailPage({
   const isM365 = item.id === "microsoft-365";
   // Teams and SharePoint are work/school-only, so a user who clicked those
   // cards should land in Work mode (Personal simply can't deliver them).
+  const msWorkOnly = isM365 && !!via && M365_WORK_ONLY_VIA.has(via);
   const [msMode, setMsMode] = useState<"personal" | "work">(
-    isM365 && via && M365_WORK_ONLY_VIA.has(via) ? "work" : "personal",
+    msWorkOnly ? "work" : "personal",
   );
   const m365Personal = isM365 && msMode === "personal";
   // MCP connectors get setup steps from the catalog; native integrations carry
@@ -253,7 +254,12 @@ export function IntegrationDetailPage({
               <GmailSection />
             </div>
           ) : item.implemented ? (
-            <ConnectPanel item={item} msMode={msMode} onMsModeChange={setMsMode} />
+            <ConnectPanel
+              item={item}
+              msMode={msMode}
+              onMsModeChange={setMsMode}
+              msPersonalDisabled={msWorkOnly}
+            />
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-card/40 p-5 text-center">
               <div
