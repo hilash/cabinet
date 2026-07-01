@@ -26,6 +26,8 @@ import { WikiLink } from "./wiki-link-extension";
 import { CalloutExtension } from "./callout-extension";
 import { ResizableImage } from "./extensions/resizable-image";
 import { EmbedExtension } from "./extensions/embed-extension";
+import { MdxComponent } from "./extensions/mdx-component";
+import { LiveCodeBlock } from "./extensions/live-code-block";
 import { LatexEmbedExtension } from "./extensions/latex-extension";
 import { colorAndStyleExtensions } from "./extensions/color-highlight";
 import { DragHandle } from "./extensions/drag-handle";
@@ -34,6 +36,7 @@ import { IconExtension } from "./extensions/icon-extension";
 import { HeadingAnchors } from "./extensions/heading-anchors";
 import { AutoDirection } from "./extensions/auto-direction";
 import { FindExtension } from "./extensions/find";
+import { DocumentProperties } from "./extensions/document-properties";
 import { EditorMentionExtension } from "./mention-extension";
 
 // Curated language set: covers ~95% of real-world snippets. The full `common`
@@ -57,6 +60,7 @@ const lowlight = createLowlight({
 });
 
 export const editorExtensions = [
+  DocumentProperties,
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
     codeBlock: false, // replaced by CodeBlockLowlight
@@ -66,7 +70,25 @@ export const editorExtensions = [
     link: false,
     underline: false,
   }),
-  CodeBlockLowlight.configure({
+  CodeBlockLowlight.extend({
+    parseHTML() {
+      return [
+        {
+          tag: "pre",
+          preserveWhitespace: "full" as const,
+          getAttrs: (node) => {
+            // Skip live code blocks — handled by the LiveCodeBlock extension.
+            if (
+              (node as HTMLElement).getAttribute("data-live-code") === "true"
+            ) {
+              return false;
+            }
+            return null;
+          },
+        },
+      ];
+    },
+  }).configure({
     lowlight,
     HTMLAttributes: {
       class: "rounded-md bg-muted p-4 font-mono text-sm",
@@ -146,6 +168,8 @@ export const editorExtensions = [
   IconExtension,
   WikiLink,
   CalloutExtension,
+  MdxComponent,
+  LiveCodeBlock,
   HeadingAnchors,
   AutoDirection,
   FindExtension,

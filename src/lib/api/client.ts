@@ -69,6 +69,18 @@ export async function createPageApi(
   if (!res.ok) throw new Error(`Failed to create page: ${parentPath}`);
 }
 
+export async function createFolderApi(
+  fullPath: string,
+  name: string
+): Promise<void> {
+  const res = await fetch(buildPageApiUrl(fullPath), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "folder", title: name }),
+  });
+  if (!res.ok) throw new Error(`Failed to create folder: ${fullPath}`);
+}
+
 export async function deletePageApi(path: string): Promise<void> {
   const res = await fetch(buildPageApiUrl(path), { method: "DELETE" });
   if (!res.ok) throw new Error(`Failed to delete page: ${path}`);

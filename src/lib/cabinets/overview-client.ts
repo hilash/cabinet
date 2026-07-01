@@ -2,6 +2,7 @@ import type {
   CabinetOverview,
   CabinetVisibilityMode,
 } from "@/types/cabinets";
+import { getCabinetPathKind } from "@/stores/tree-store";
 
 // Client-side fetcher for /api/cabinets/overview with in-flight dedupe and a
 // short TTL cache. Six components (tree-view, home-screen, ai-panel,
@@ -43,6 +44,17 @@ export async function fetchCabinetOverviewClient(
     }
     const existing = inflight.get(key);
     if (existing) return existing;
+  }
+
+  // Gate: if the in-memory tree already knows this path is a plain directory
+  // (no `.cabinet` manifest), skip the request. The overview route would only
+  // 404, and we'd cache null anyway — so short-circuit to the same empty-state
+  // result without the pointless round trip (and the 404 log noise). Paths the
+  // tree hasn't loaded yet ("unknown": cold deep links) fall through to the
+  // fetch, which still handles a 404 gracefully.
+  if (getCabinetPathKind(path) === "non-cabinet") {
+    cache.set(key, { data: null, fetchedAt: Date.now() });
+    return null;
   }
 
   const params = new URLSearchParams({ path, visibility });

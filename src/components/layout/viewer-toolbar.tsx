@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
-import { Archive, Globe } from "lucide-react";
+import { useMemo, useState, useEffect, useRef, type ReactNode } from "react";
+import { Archive, Globe, Layout, Maximize, Minimize } from "lucide-react";
 import { HeaderActions } from "@/components/layout/header-actions";
 import { VersionHistory } from "@/components/editor/version-history";
+import { NavArrows } from "@/components/layout/nav-arrows";
 import { ReturnToChip } from "@/components/layout/return-to-chip";
 import { ViewerBreadcrumb } from "@/components/layout/viewer-breadcrumb";
 import { NewTaskButton } from "@/components/composer/new-task-button";
@@ -47,6 +48,69 @@ export function ViewerToolbar({
   const { t } = useLocale();
   const appMode = useAppStore((s) => s.appMode);
   const setAppMode = useAppStore((s) => s.setAppMode);
+  const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
+  const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
+  const openTaskPanelCompose = useAppStore((s) => s.openTaskPanelCompose);
+  const closeTaskPanel = useAppStore((s) => s.closeTaskPanel);
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+  const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
+  const taskPanelOpen = useAppStore((s) => s.taskPanelOpen);
+
+  const [inFullscreen, setInFullscreen] = useState(false);
+  const prevStateRef = useRef<{
+    sidebarCollapsed: boolean;
+    aiPanelCollapsed: boolean;
+    taskPanelOpen: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const updateFullscreen = () => {
+      setInFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    updateFullscreen();
+    document.addEventListener("fullscreenchange", updateFullscreen);
+    return () => {
+      document.removeEventListener("fullscreenchange", updateFullscreen);
+    };
+  }, []);
+
+  const handleFocus = async () => {
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+        if (prevStateRef.current) {
+          setSidebarCollapsed(prevStateRef.current.sidebarCollapsed);
+          setAiPanelCollapsed(prevStateRef.current.aiPanelCollapsed);
+          if (prevStateRef.current.taskPanelOpen) {
+            openTaskPanelCompose();
+          }
+          prevStateRef.current = null;
+        }
+        return;
+      }
+
+      prevStateRef.current = {
+        sidebarCollapsed: sidebarCollapsed,
+        aiPanelCollapsed: aiPanelCollapsed,
+        taskPanelOpen: taskPanelOpen,
+      };
+
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+
+      setSidebarCollapsed(true);
+      setAiPanelCollapsed(true);
+      if (taskPanelOpen) closeTaskPanel();
+    } catch (error) {
+      prevStateRef.current = null;
+      console.error(error);
+    }
+  };
+
   const nodes = useTreeStore((s) => s.nodes);
   const selectedPath = useTreeStore((s) => s.selectedPath);
   const sourcePath = path || selectedPath;
@@ -77,32 +141,73 @@ export function ViewerToolbar({
     return assetUrl;
   }, [sourcePath, sourceNode?.type]);
 
-  // The Globe (enter-browse) button only makes sense for web-renderable
-  // content — i.e. bundled websites/apps, which open their index.html. Markdown
-  // articles and other files render in their own viewers, and their raw asset
-  // URL isn't browsable (e.g. .md downloads as octet-stream), so no button.
-  const isBrowsable = sourceNode?.type === "website" || sourceNode?.type === "app";
+  const openBrowseMode = () => {
+    setAppMode("browse", browseModeUrl);
+  };
 
-  const modeButtons = !showModeButtons ? null : appMode === "browse" ? (
-    // Always offer the exit affordance while browsing, regardless of which node
-    // is selected (you may have entered browse from a link in a markdown page).
-    <button
-      aria-label={t("editor:header.editMode")}
-      title={t("editor:header.editMode")}
-      onClick={() => setAppMode("edit")}
-      className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-    >
-      <Archive className="h-4 w-4" />
-    </button>
-  ) : isBrowsable ? (
-    <button
-      aria-label={t("editor:header.browseMode")}
-      title={t("editor:header.browseMode")}
-      onClick={() => setAppMode("browse", browseModeUrl)}
-      className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-    >
-      <Globe className="h-4 w-4" />
-    </button>
+  const modeButtons = showModeButtons ? (
+    <>
+      {appMode === "edit" && (
+        <>
+          <button
+            aria-label={t("editor:header.browseMode")}
+            title={t("editor:header.browseMode")}
+            onClick={openBrowseMode}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Globe className="h-4 w-4" />
+          </button>
+          <button
+            aria-label={t("editor:header.canvasMode")}
+            title={t("editor:header.canvasMode")}
+            onClick={() => setAppMode("canvas")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Layout className="h-4 w-4" />
+          </button>
+        </>
+      )}
+      {appMode === "browse" && (
+        <>
+          <button
+            aria-label={t("editor:header.editMode")}
+            title={t("editor:header.editMode")}
+            onClick={() => setAppMode("edit")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Archive className="h-4 w-4" />
+          </button>
+          <button
+            aria-label={t("editor:header.canvasMode")}
+            title={t("editor:header.canvasMode")}
+            onClick={() => setAppMode("canvas")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Layout className="h-4 w-4" />
+          </button>
+        </>
+      )}
+      {appMode === "canvas" && (
+        <>
+          <button
+            aria-label={t("editor:header.editMode")}
+            title={t("editor:header.editMode")}
+            onClick={() => setAppMode("edit")}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Archive className="h-4 w-4" />
+          </button>
+          <button
+            aria-label={t("editor:header.browseMode")}
+            title={t("editor:header.browseMode")}
+            onClick={openBrowseMode}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+          >
+            <Globe className="h-4 w-4" />
+          </button>
+        </>
+      )}
+    </>
   ) : null;
 
   return (
@@ -129,7 +234,18 @@ export function ViewerToolbar({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <NavArrows />
         {children}
+        {path && (
+          <button
+            aria-label={inFullscreen ? t("editor:header.exitFocus") : t("editor:header.focus")}
+            title={inFullscreen ? t("editor:header.exitFocus") : t("editor:header.focus")}
+            onClick={handleFocus}
+            className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer text-foreground/80"
+          >
+            {inFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          </button>
+        )}
         {/* File History on every viewer, not just the markdown editor. */}
         {path ? <VersionHistory path={path} /> : null}
         {modeButtons}

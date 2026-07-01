@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readPage, writePage, createPage, deletePage, movePage, renamePage } from "@/lib/storage/page-io";
+import { readPage, writePage, createPage, createFolder, deletePage, movePage, renamePage } from "@/lib/storage/page-io";
 import { invalidateTreeCache } from "@/lib/storage/tree-builder";
 import { autoCommit } from "@/lib/git/git-service";
 import { recordMutation } from "@/lib/history/engine";
@@ -54,7 +54,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const virtualPath = segments.join("/");
     await assertWritablePath(virtualPath);
     const body = await req.json();
-    await createPage(virtualPath, body.title);
+    if (body.kind === "folder") {
+      await createFolder(virtualPath);
+    } else {
+      await createPage(virtualPath, body.title);
+    }
     invalidateTreeCache();
     autoCommit(virtualPath, "Add");
     return NextResponse.json({ ok: true }, { status: 201 });

@@ -182,7 +182,11 @@ export function TreeView() {
   const routeCabinetPath = section.cabinetPath;
   const activeCabinet = useMemo(() => {
     if (!routeCabinetPath) return null;
-    return findNodeByPath(nodes, routeCabinetPath);
+    // Only an actual cabinet scopes the tree to its contents. A plain
+    // directory route (e.g. a folder the user opened a page inside of) must
+    // not scope — otherwise that folder is hidden and only its children show.
+    const node = findNodeByPath(nodes, routeCabinetPath);
+    return node?.type === "cabinet" ? node : null;
   }, [nodes, routeCabinetPath]);
   const parentCabinet = useMemo(() => {
     if (!activeCabinet) return null;
@@ -206,7 +210,7 @@ export function TreeView() {
     () => new Set(rooms.filter((r) => !r.isRoot).map((r) => r.path)),
     [rooms]
   );
-  const atRoot = !routeCabinetPath || routeCabinetPath === ROOT_CABINET_PATH;
+  const atRoot = !activeCabinet || activeCabinet.path === ROOT_CABINET_PATH;
   const visibleTreeNodes = useMemo(() => {
     const base = activeCabinet?.children || rootCabinet?.children || nodes;
     if (atRoot && subRoomPaths.size > 0) {
@@ -390,7 +394,7 @@ export function TreeView() {
       <button
         onClick={opts.onClick}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-foreground/[0.03]",
+          "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-foreground/3",
           opts.selected && "bg-accent text-accent-foreground"
         )}
         style={pad(1)}
@@ -451,7 +455,7 @@ export function TreeView() {
 
   return (
     <>
-    <ScrollArea className="flex-1 min-h-0 [&_[data-slot=scroll-area-scrollbar]]:w-1.5 [&_[data-slot=scroll-area-scrollbar]]:py-0 [&_[data-slot=scroll-area-scrollbar]]:pe-0 [&_[data-slot=scroll-area-scrollbar]]:ps-0.5 [&_[data-slot=scroll-area-scrollbar]]:border-s-0">
+    <ScrollArea className="flex-1 min-h-0 **:data-[slot=scroll-area-scrollbar]:w-1.5 **:data-[slot=scroll-area-scrollbar]:py-0 **:data-[slot=scroll-area-scrollbar]:pe-0 **:data-[slot=scroll-area-scrollbar]:ps-0.5 **:data-[slot=scroll-area-scrollbar]:border-s-0">
       <div className="flex min-h-full flex-col py-1">
         {/* ── Back to parent cabinet (never up into the home container) ── */}
         {activeCabinet && parentCabinet && !parentIsHome ? (
@@ -558,7 +562,7 @@ export function TreeView() {
           <div
             role="tablist"
             aria-label={t("treeView:drawersAriaLabel")}
-            className="mx-[9px] grid grid-cols-3 gap-1 rounded-b-lg bg-muted/40 p-1 pt-2 border border-border/60"
+            className="mx-2.25 grid grid-cols-3 gap-1 rounded-b-lg bg-muted/40 p-1 pt-2 border border-border/60"
           >
                 {([
                   {
@@ -665,11 +669,11 @@ export function TreeView() {
                         <span
                           aria-hidden
                           className={cn(
-                            "absolute inset-x-0 top-1 mx-auto h-[2px] w-4 rounded-full transition-colors",
+                            "absolute inset-x-0 top-1 mx-auto h-0.5 w-4 rounded-full transition-colors",
                             active ? "bg-amber-400/50" : "bg-muted-foreground/30"
                           )}
                         />
-                        <Icon className="h-[18px] w-[18px] shrink-0" />
+                        <Icon className="h-4.5 w-4.5 shrink-0" />
                         {/*
                          * Audit #008 (review feedback 2026-05-02): user
                          * preferred the original ALL CAPS treatment. Restored
@@ -689,7 +693,7 @@ export function TreeView() {
                           }}
                           title={drawer.addLabel}
                           aria-label={drawer.addLabel}
-                          className="absolute end-1 top-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground/70 opacity-0 transition-opacity duration-150 hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                          className="absolute inset-e-1 top-1 inline-flex size-4 items-center justify-center rounded text-muted-foreground/70 opacity-0 transition-opacity duration-150 hover:bg-muted hover:text-foreground group-hover:opacity-100"
                         >
                           <AddIcon className="h-3 w-3" />
                         </button>
