@@ -1055,7 +1055,7 @@ sql_statement_permissions:
         kind: "secret",
         required: true,
         placeholder: "••••••••••••••••",
-        hint: "Generate a PAT in Snowsight (Profile → Authentication) scoped to a least-privilege role. Passed as SNOWFLAKE_PASSWORD; stored in .cabinet.env (0600), never written into the CLI config. A raw password or key-pair also works — see setup.",
+        hint: "Generate a PAT in Snowsight (Profile → Authentication) scoped to a least-privilege role. Passed as SNOWFLAKE_PASSWORD; stored in .cabinet.env (0600), never written into the CLI config. A raw account password works here too.",
       },
       {
         envKey: "SNOWFLAKE_WAREHOUSE",
@@ -1099,7 +1099,7 @@ sql_statement_permissions:
       },
       {
         title: "Paste your account, user & token",
-        body: "Enter your account identifier, username, and the PAT below. They're stored in .cabinet.env (0600) and injected into the server's environment at run time — never written into the CLI config. Prefer key-pair auth? Set SNOWFLAKE_PRIVATE_KEY_FILE in .cabinet.env and leave the token blank.",
+        body: "Enter your account identifier, username, and the PAT below. They're stored in .cabinet.env (0600) and injected into the server's environment at run time — never written into the CLI config.",
       },
       {
         title: "Read-only by default",
