@@ -1093,8 +1093,8 @@ sql_statement_permissions:
       },
       {
         title: "Attach a network policy (required for PAT auth)",
-        body: "A PAT can't authenticate unless its user has a network policy — otherwise connecting fails with \"Network policy is required\" and the server hangs on \"still connecting\" with no error. In a Snowsight SQL worksheet (role ACCOUNTADMIN), run the SQL below: swap YOUR_USER for your username and, for real use, replace the allow-all list with your own IP/CIDR. Skip this only if you're using a raw account password instead of a PAT.",
-        copy: "USE ROLE ACCOUNTADMIN;\nCREATE NETWORK POLICY IF NOT EXISTS cabinet_mcp_policy ALLOWED_IP_LIST = ('0.0.0.0/0');\nALTER USER YOUR_USER SET NETWORK_POLICY = cabinet_mcp_policy;",
+        body: "A PAT can't authenticate unless its user has a network policy — otherwise connecting fails with \"Network policy is required\" and the server hangs on \"still connecting\" with no error. In a Snowsight SQL worksheet (role ACCOUNTADMIN), run the SQL below, swapping YOUR_USER for your username and YOUR_IP for the public IP (or CIDR range) you connect from. Skip this only if you're using a raw account password instead of a PAT.",
+        copy: "USE ROLE ACCOUNTADMIN;\nCREATE NETWORK POLICY IF NOT EXISTS cabinet_mcp_policy ALLOWED_IP_LIST = ('YOUR_IP/32');\nALTER USER YOUR_USER SET NETWORK_POLICY = cabinet_mcp_policy;",
         href: "https://docs.snowflake.com/en/user-guide/network-policies",
       },
       {
