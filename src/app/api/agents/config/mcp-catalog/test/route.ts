@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import { getCatalogEntry } from "@/lib/agents/mcp-catalog";
+import { canProbeStdio, probeStdioMcp } from "@/lib/agents/stdio-mcp-probe";
 
 /**
  * `/api/agents/config/mcp-catalog/test` — validate a credential WITHOUT
  * saving anything, so the connect drawer can show ✓/✗ before the user
- * commits. Lightweight, time-boxed checks only.
+ * commits. Time-boxed checks only: cheap API pings for token services, or a
+ * short spawn-and-handshake probe for token-auth stdio servers (see
+ * stdio-mcp-probe.ts).
  */
 
 const TIMEOUT_MS = 5000;
@@ -88,6 +91,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
     return NextResponse.json(await testServiceAccountFile(p));
+  }
+
+  // Token-auth stdio servers (e.g. Snowflake's snowflake-labs-mcp) authenticate
+  // from env credentials, so we can actually connect: spawn the server, run the
+  // MCP handshake, and surface its own error (e.g. "Network policy is required")
+  // instead of letting it become a silent hang at agent-run time.
+  const entry = getCatalogEntry(id);
+  if (entry && canProbeStdio(entry)) {
+    return NextResponse.json(await probeStdioMcp(entry, creds));
   }
 
   // Slack official server is OAuth over HTTP — there is nothing to verify
